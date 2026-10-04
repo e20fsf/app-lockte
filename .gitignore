@@ -27,3 +27,10 @@ pnpm-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# MS Access source files (local only, do not commit)
+source/
+*.accdb
+*.mdb
+*.laccdb
+*.ldb
