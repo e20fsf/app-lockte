@@ -1,6 +1,6 @@
 # เงินสดย่อย — ค่าใช้จ่ายเงินสดย่อยโรงงาน และใบเสร็จขายของเก่า
 
-> สถานะ: **ร่าง (legacy)** — อัปเดตล่าสุด 2026-10-05 (ตรวจตาม review-checklist แล้ว: วัตถุทุกชิ้นในไฟล์เดิม — ตาราง 27, query 84, ฟอร์ม 28, รายงาน 17, macro 28, module 3 — ถูกอ้างถึงในสเปค)
+> สถานะ: **ร่าง (legacy)** — อัปเดตล่าสุด 2026-10-05 (ตรวจตาม review-checklist แล้ว: วัตถุทุกชิ้นในไฟล์เดิม — ตาราง 27, query 84, ฟอร์ม 28, รายงาน 17, macro 28, module 3 — ถูกอ้างถึงในสเปค) · ตรวจทานรอบ 2 (2026-10-05): แก้ SCR-10/SCR-12 ตามฟอร์มจริง, ขายของเก่า2 ย้ายไป 'ไม่ย้าย', เติมฟิลด์ template ของ RPT/SCR/BR, ผลกระทบของทุกคำถาม
 > ที่มา: `source/เงินสดย่อย.accdb` (56.8 MB, MS Access) — ถอดจากสำเนาใน scratchpad ด้วย `.claude/skills/reengineering-access/scripts/extract_access.py` (2026-10-05) + ข้อมูลทุกแถวด้วย ODBC (`source/_extract/เงินสดย่อย/full/`, ผลตรวจข้อมูล `_data_checks.txt`) + ฟอร์ม/VBA กู้จาก `MSysAccessStorage` (ดู "วิธีถอดฟอร์มและ VBA") · ผลอยู่ใน `source/_extract/เงินสดย่อย/`
 > ผู้ใช้แจ้ง (2026-10-05): คำถามยังตอบไม่ได้ — **ระบบใหม่ให้คงพฤติกรรมเดิมไว้ก่อน แล้วค่อยปรับปรุงทีหลัง** · คำถามทั้งหมดเก็บไว้ใน open-questions.md (ไม่บล็อกงาน)
 
@@ -61,17 +61,11 @@ flowchart LR
 ## Constraints / Tech stack
 ❓ ยังไม่กำหนด (Q-29) · ภาษาที่แสดง: ไทย · เงินบาท ไม่มีสกุลอื่น · เลขที่ใบเสร็จใช้ปี พ.ศ. 2 หลัก (BR-011)
 
-## วิธีถอดฟอร์มและ VBA
-- สคริปต์ extract ส่งออกฟอร์ม 25 ชิ้นและ module 3 ชิ้นไม่ได้ (INVENTORY: 28 errors) — กู้จาก `MSysAccessStorage` แบบอ่านอย่างเดียว: VBA 28 module สแกน MS-OVBA container จากทุก stream (`source/_extract/tools/ovba_scan.py`) → `vbasrc/`; ข้อความในฟอร์ม → `formtxt/` และสรุป `_forms_compact.txt`
-- ชื่อวัตถุภาษาไทยใน macro/รายงานบางไฟล์เพี้ยน (cp874 อ่านเป็น cp1252) — แก้ด้วย `tools/fixmoji.py` แล้ว
-- รายงาน 17 ชิ้นส่งออกได้ครบ (`reports/`, สรุป `_reports_compact.txt`)
-- ยึด **การผูกจริงใน Blob ของฟอร์ม** เป็นหลัก — VBA บางส่วนเป็นโค้ดค้างที่ไม่ถูกเรียก (ระบุใน screens.md)
-
 ## เอกสารในโฟลเดอร์นี้
 | ไฟล์ | เรื่อง | สถานะ | ❓ ค้าง |
 |---|---|---|---|
 | [glossary.md](glossary.md) | คำศัพท์ | ร่าง | 2 |
-| [data-model.md](data-model.md) | ตาราง ฟิลด์ ความสัมพันธ์ (ย้าย 7 / ไม่ย้าย 20) | ร่าง | 7 |
+| [data-model.md](data-model.md) | ตาราง ฟิลด์ ความสัมพันธ์ (ย้าย 6 / ไม่ย้าย 21) | ร่าง | 7 |
 | [business-rules.md](business-rules.md) | กฎ BR-001…021 + RND-A…C + state machine | ร่าง (ส่วนใหญ่ ✅ จากโค้ด) | 16 |
 | [screens.md](screens.md) | แผนผังเมนู + หน้าจอ SCR-01…14 | ร่าง | 1 |
 | [reports.md](reports.md) | รายงาน RPT-01…11 | ร่าง | 2 |
@@ -79,3 +73,9 @@ flowchart LR
 | [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล การพิมพ์ | ร่าง | 10 |
 | [acceptance.md](acceptance.md) | เกณฑ์ตรวจรับ AC-01…16 | ร่าง | 0 |
 | [open-questions.md](open-questions.md) | คำถามค้าง + การตัดสินใจ | ก. 20 / ข. 9 — เลื่อนไปภายหลังตามผู้ใช้ | 29 |
+
+## วิธีถอดฟอร์มและ VBA
+- สคริปต์ extract ส่งออกฟอร์ม 25 ชิ้นและ module 3 ชิ้นไม่ได้ (INVENTORY: 28 errors) — กู้จาก `MSysAccessStorage` แบบอ่านอย่างเดียว: VBA 28 module สแกน MS-OVBA container จากทุก stream (`source/_extract/tools/ovba_scan.py`) → `vbasrc/`; ข้อความในฟอร์ม → `formtxt/` และสรุป `_forms_compact.txt`
+- ชื่อวัตถุภาษาไทยใน macro/รายงานบางไฟล์เพี้ยน (cp874 อ่านเป็น cp1252) — แก้ด้วย `tools/fixmoji.py` แล้ว
+- รายงาน 17 ชิ้นส่งออกได้ครบ (`reports/`, สรุป `_reports_compact.txt`)
+- ยึด **การผูกจริงใน Blob ของฟอร์ม** เป็นหลัก — VBA บางส่วนเป็นโค้ดค้างที่ไม่ถูกเรียก (ระบุใน screens.md)
