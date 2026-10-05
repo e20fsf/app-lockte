@@ -4,7 +4,8 @@ Dumps tables, relationships, query SQL, forms/reports (SaveAsText + VBA +
 summary), modules, macros, linked tables and sample rows into text files.
 
 Requires Windows, MS Access, and pywin32. Opens the database with VBA/macros
-disabled so AutoExec and startup code do not run.
+disabled so AutoExec and startup code do not run. Works on a temporary copy
+of the database so the original file (contents and mtime) is never touched.
 
 Usage:
     py extract_access.py <file.accdb> [--out DIR] [--sample-rows N] [--no-samples]
@@ -15,6 +16,7 @@ import csv
 import datetime as dt
 import os
 import re
+import shutil
 import sys
 import tempfile
 import time
@@ -104,10 +106,11 @@ def log(msg):
 
 class Extractor:
     def __init__(self, db_path, out_dir, sample_rows):
-        self.db_path = str(Path(db_path).resolve())
+        self.db_path = str(Path(db_path).resolve())  # original — read-only, only copied
         self.out = Path(out_dir)
         self.sample_rows = sample_rows
         self.tmp = Path(tempfile.mkdtemp(prefix="accx_"))
+        self.work_path = str(self.tmp / Path(self.db_path).name)
         self.inventory = {}
         self.errors = []
 
@@ -116,10 +119,12 @@ class Extractor:
         self.app = win32com.client.DispatchEx("Access.Application")
         self.app.Visible = False
         self.app.AutomationSecurity = 3  # msoAutomationSecurityForceDisable
-        self.app.OpenCurrentDatabase(self.db_path, False)
+        self.app.OpenCurrentDatabase(self.work_path, False)
         self.db = self.app.CurrentDb()
 
     def close(self):
+        if not hasattr(self, "app"):  # copy or COM start failed before open() finished
+            return
         try:
             self.app.CloseCurrentDatabase()
         except Exception:
@@ -128,6 +133,17 @@ class Extractor:
             self.app.Quit(2)  # acQuitSaveNone
         except Exception:
             pass
+        self.db = self.app = None
+        pythoncom.CoUninitialize()
+
+    def cleanup(self):
+        # Access keeps the copy locked for a moment after Quit
+        for _ in range(10):
+            shutil.rmtree(self.tmp, ignore_errors=True)
+            if not self.tmp.exists():
+                return
+            time.sleep(1)
+        log(f"Warning: could not remove temp copy {self.tmp}")
 
     def write(self, rel, text):
         p = self.out / rel
@@ -156,11 +172,10 @@ class Extractor:
             if connect:
                 linked.append((name, td.SourceTableName, connect))
             try:
-                count = td.RecordCount if not connect else None
-                if count in (None, -1):
-                    rs = self.db.OpenRecordset(f"SELECT COUNT(*) FROM [{name}]")
-                    count = rs.Fields(0).Value
-                    rs.Close()
+                # RecordCount can be stale (e.g. after an unclean shutdown); COUNT(*) is exact
+                rs = self.db.OpenRecordset(f"SELECT COUNT(*) FROM [{name}]")
+                count = rs.Fields(0).Value
+                rs.Close()
             except Exception as e:
                 count = f"? ({e.__class__.__name__})"
             desc = prop(td, "Description", "")
@@ -428,9 +443,11 @@ class Extractor:
     def run(self, do_samples):
         t0 = time.time()
         self.out.mkdir(parents=True, exist_ok=True)
-        log(f"Opening {self.db_path} ...")
-        self.open()
         try:
+            log(f"Copying {self.db_path} → {self.work_path} ...")
+            shutil.copyfile(self.db_path, self.work_path)
+            log("Opening copy ...")
+            self.open()
             log("Tables ..."); tables, linked = self.tables()
             log("Relationships ..."); self.relationships()
             log("Queries ..."); self.queries()
@@ -442,6 +459,7 @@ class Extractor:
             startup = self.startup_info()
         finally:
             self.close()
+            self.cleanup()
         self.write_inventory(startup, time.time() - t0)
         log(f"Done → {self.out}  ({len(self.errors)} errors)")
 

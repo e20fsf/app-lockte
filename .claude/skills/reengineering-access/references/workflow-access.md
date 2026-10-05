@@ -12,7 +12,9 @@ py .claude/skills/reengineering-access/scripts/extract_access.py "source/<file>.
 
 ตัวเลือก: `--out <dir>` (ค่าเริ่มต้น `source/_extract/<ชื่อไฟล์>/`), `--sample-rows N` (ค่าเริ่มต้น 20), `--no-samples`
 
-ต้องการ: Windows + MS Access ติดตั้งอยู่ + Python ที่มี `pywin32` (ถ้า `py` ไม่มี ลอง `python` หรือหาใน `%LOCALAPPDATA%\Programs\Python\`; ถ้าขาด pywin32 → `py -m pip install pywin32`) สคริปต์เปิดไฟล์แบบปิด VBA/macro (AutomationSecurity = ForceDisable) จึงไม่รัน AutoExec และไม่แก้ไขไฟล์ต้นฉบับ — ถ้าไฟล์ถูกเปิดค้างใน Access อยู่ ให้ปิดก่อน
+ต้องการ: Windows + MS Access ติดตั้งอยู่ + Python ที่มี `pywin32` (ถ้า `py` ไม่มี ลอง `python` หรือหาใน `%LOCALAPPDATA%\Programs\Python\`; ถ้าขาด pywin32 → `py -m pip install pywin32`) สคริปต์คัดลอกไฟล์ต้นฉบับไปไว้ในโฟลเดอร์ temp แล้วดึงข้อมูลจากสำเนานั้นทั้งหมด (Access แก้ไฟล์ที่เปิดเสมอ แม้แค่อ่าน — mtime เปลี่ยน) ไฟล์ใน `source/` จึงไม่ถูกเปิดเพื่อเขียนเลย ทั้งเนื้อหาและ mtime คงเดิม; สำเนาถูกลบเมื่อเสร็จ สำเนาเปิดแบบปิด VBA/macro (AutomationSecurity = ForceDisable) จึงไม่รัน AutoExec — ถ้าไฟล์ถูกเปิดค้างใน Access อยู่ ให้ปิดก่อน (สำเนาที่ได้ระหว่างเปิดค้างอาจไม่ครบ)
+
+`Rows:` ใน `tables.md` นับด้วย `SELECT COUNT(*)` (ไม่ใช้ `TableDef.RecordCount` ซึ่งอาจค้างค่าเก่า)
 
 ถ้าไฟล์เป็น .zip ให้แตกไว้ใน `source/` ก่อน ไฟล์ใหญ่ (หลายร้อย MB) ใช้เวลาหลายนาที ให้รันแบบ background
 
