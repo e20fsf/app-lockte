@@ -1,6 +1,6 @@
 # ผลผลิตและ ORDER
 
-> สถานะ: **ร่าง — รอยืนยัน** — อัปเดตล่าสุด 2026-10-05 (ตรวจทานตาม review-checklist แล้ว)
+> สถานะ: **ร่าง — รอยืนยัน** — อัปเดตล่าสุด 2026-10-05 (ตรวจทานตาม review-checklist แล้ว) · ตรวจทานรอบ 2 (2026-10-05): ดัชนีวัตถุเดิมครบ 1,801 ชิ้น (ภาคผนวก business-rules), ผลกระทบของทุกคำถาม, ตัวอย่าง BR-011/013/021/022, การนำทาง SCR, ช่อง template RPT-16/20
 > ที่มา: `source/ผลผลิตและORDER.accdb` (600 MB, MS Access) — ถอดด้วย `.claude/skills/reengineering-access/scripts/extract_access.py` (2026-10-04) + extract ซ้ำ 2026-10-05 (schema/จำนวนแถวด้วย DAO; ฟอร์ม/รายงาน/VBA กู้จาก `MSysAccessStorage` — ดู "วิธีถอดฟอร์มและ VBA") · ผลอยู่ใน `source/_extract/ผลผลิตและORDER/`
 > ผู้ใช้แจ้ง: ใช้งานทุกวัน; ให้ถอดพฤติกรรมระบบเดิมให้ครบก่อน คำถามระบบใหม่พักไว้
 
@@ -65,13 +65,13 @@ flowchart LR
 |---|---|---|---|
 | [glossary.md](glossary.md) | คำศัพท์ | ร่าง — รอยืนยัน | 5 |
 | [data-model.md](data-model.md) | ตาราง ฟิลด์ ความสัมพันธ์ | ร่าง — รอยืนยัน (อัปเดตจำนวนแถว + ความหมาย MARK/DISC_PS) | 18 |
-| [business-rules.md](business-rules.md) | กฎธุรกิจ BR-001..024 | ร่าง — รอยืนยัน (ส่วนใหญ่ ✅ จากโค้ด) | 27 |
+| [business-rules.md](business-rules.md) | กฎธุรกิจ BR-001..024 | ร่าง — รอยืนยัน (ส่วนใหญ่ ✅ จากโค้ด) | 28 |
 | [screens.md](screens.md) | แผนผังเมนู + หน้าจอ SCR-01..22 | ร่าง — รอยืนยัน (ปุ่ม/ช่องจากฟอร์มจริง) | 4 |
 | [reports.md](reports.md) | รายงาน RPT-01..21 | ร่าง — รอยืนยัน | 6 |
 | [integrations.md](integrations.md) | import/export | ร่าง — ไม่พบการเชื่อมต่ออัตโนมัติ | 1 |
-| [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล | ร่าง — รอยืนยัน | 13 |
+| [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล | ร่าง — รอยืนยัน | 14 |
 | [acceptance.md](acceptance.md) | เกณฑ์ตรวจรับ AC-01..23 | ร่าง | 4 |
-| [open-questions.md](open-questions.md) | คำถามค้าง + การตัดสินใจ | หมวด ก. 32 ข้อ, หมวด ข. 20 ข้อ (พักไว้) | 52 |
+| [open-questions.md](open-questions.md) | คำถามค้าง + การตัดสินใจ | หมวด ก. 32 ข้อ, หมวด ข. 20 ข้อ (พักไว้) | 57 |
 
 ## ขนาดระบบเดิม
 | วัตถุ | จำนวน |

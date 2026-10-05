@@ -585,3 +585,4 @@ erDiagram
 | F. ข้อมูลเก่ามาก ❓ Q-07 | `NCR` (43 แถว, ส.ค. 2009 เท่านั้น) | ไม่มีข้อมูลใหม่หลายปี แม้ยังอยู่ในเมนู |
 | F. ไม่ทราบที่มา ❓ Q-07 | `ตาราง1` (1 แถว), `สปริงผ้าเบรค` (39 แถว ฟิลด์ชื่อ `เขตข้อมูล1..10`) | ชื่อตาราง/ฟิลด์เป็นค่า default ของ Access — น่าจะ import ชั่วคราว |
 | F. ตารางระบบของ Access | `Name AutoCorrect Save Failures`, `ความล้มเหลวในการบันทึกการแก้ไขชื่ออัตโนมัติ`, `Switchboard Items` | สร้างโดย Access (`Switchboard Items` = เมนู ใช้อ้างอิงใน screens.md) |
+| `SEX`, `BORN`, `ID_CODE`, `PER_ADD`, `ID_PLACE`, `ID_DATE`, `START`, `NO`, `POINT`, `DEPARTMENT`, `POSITION`, `CLAS`, `SALARY`, `SA_DAY`, `ID_S`, `ACC`, `HOT1`, `RESIGN`, `SECTION`, `HOSPITAL`, `WORK`, `DATE_1`, `DATE_2`, `POINT_1`, `POINT_2`, `DATE_3`, `GRED_1`, `GRED_2`, `photo` | ตามตารางพนักงานต้นแบบ (`schema2.json`) | | ได้ | ค่า default เดิม | | ว่าง/ค่า default ทุกแถว — คัดลอกโครงสร้างมาจากตารางพนักงาน ไม่ใช้ในโปรแกรมนี้ → ไม่ย้าย |
