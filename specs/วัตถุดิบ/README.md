@@ -1,6 +1,6 @@
 # วัตถุดิบ — จัดซื้อ รับของ และสต็อกวัตถุดิบ
 
-> สถานะ: **ร่าง — รอยืนยัน** — อัปเดตล่าสุด 2026-10-05 (ตรวจทานตาม review-checklist แล้ว: วัตถุทุกชิ้นในไฟล์เดิม — ตาราง 52, query 248, ฟอร์ม 74, รายงาน 56, macro 128, module 2 — ถูกอ้างถึงในสเปค; ID ข้ามไฟล์ถูกต้อง; ทุก ❓ มีใน open-questions พร้อมผลกระทบ)
+> สถานะ: **ร่าง — รอยืนยัน** — อัปเดตล่าสุด 2026-10-05 (ตรวจทานตาม review-checklist แล้ว: วัตถุทุกชิ้นในไฟล์เดิม — ตาราง 52, query 248, ฟอร์ม 74, รายงาน 56, macro 128, module 2 — ถูกอ้างถึงในสเปค; ID ข้ามไฟล์ถูกต้อง; ทุก ❓ มีใน open-questions พร้อมผลกระทบ) · ตรวจทานรอบ 2 (2026-10-05): ผลกระทบของทุกคำถาม, ตัวอย่างชุดที่ 2 ของ 8 กฎ, Q-56 เหตุผลทางธุรกิจ, การนำทาง SCR
 > ที่มา: `source/วัตถุดิบ.accdb` (68 MB, MS Access) — ถอดด้วย `.claude/skills/reengineering-access/scripts/extract_access.py` (2026-10-05) + schema/จำนวนแถวด้วย DAO + ฟอร์ม/VBA กู้จาก `MSysAccessStorage` (ดู "วิธีถอดฟอร์มและ VBA") · ผลอยู่ใน `source/_extract/วัตถุดิบ/`
 > ผู้ใช้แจ้ง: ให้ถอดพฤติกรรมระบบเดิมให้ครบก่อน คำถามระบบใหม่พักไว้ (open-questions หมวด ข.)
 
@@ -79,13 +79,13 @@ flowchart LR
 |---|---|---|---|
 | [glossary.md](glossary.md) | คำศัพท์ | ร่าง — รอยืนยัน | 0 |
 | [data-model.md](data-model.md) | ตาราง ฟิลด์ ความสัมพันธ์ (ย้าย 18 / ไม่ย้าย 34 รวม enum) | ร่าง — รอยืนยัน | 14 |
-| [business-rules.md](business-rules.md) | กฎธุรกิจ BR-001…081 + RND-A…F + state machine | ร่าง — รอยืนยัน (ส่วนใหญ่ ✅ จากโค้ด) | 16 |
+| [business-rules.md](business-rules.md) | กฎธุรกิจ BR-001…081 + RND-A…F + state machine | ร่าง — รอยืนยัน (ส่วนใหญ่ ✅ จากโค้ด) | 17 |
 | [screens.md](screens.md) | แผนผังเมนู + หน้าจอ SCR-01…20 | ร่าง — รอยืนยัน | 4 |
-| [reports.md](reports.md) | รายงาน RPT-01…33 | ร่าง — รอยืนยัน | 4 |
+| [reports.md](reports.md) | รายงาน RPT-01…33 | ร่าง — รอยืนยัน | 5 |
 | [integrations.md](integrations.md) | import/export | ไม่พบการเชื่อมต่ออัตโนมัติ — มีจุดเชื่อมแบบ manual INT-01…04 | 3 |
-| [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล การพิมพ์ | ร่าง — รอยืนยัน | 15 |
+| [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล การพิมพ์ | ร่าง — รอยืนยัน | 17 |
 | [acceptance.md](acceptance.md) | เกณฑ์ตรวจรับ AC-01…30 | ร่าง | 3 |
-| [open-questions.md](open-questions.md) | คำถามค้าง + การตัดสินใจ | หมวด ก. 29 ข้อ, หมวด ข. 17 ข้อ (พักไว้) | 46 |
+| [open-questions.md](open-questions.md) | คำถามค้าง + การตัดสินใจ | หมวด ก. 29 ข้อ, หมวด ข. 17 ข้อ (พักไว้) | 47 |
 
 ## หมายเหตุแหล่งข้อมูล
 - จำนวนแถวในสเปคมาจาก `COUNT(*)` (DAO/ODBC แบบอ่านอย่างเดียว) — `source/_extract/วัตถุดิบ/tables.md` ใช้ `RecordCount` ของ Access ซึ่งต่างจากค่าจริง 2 ตาราง (`PO_NO` 627 vs 630, `PO_RECEI` 1 vs 0) 🔍 metadata เก่า
