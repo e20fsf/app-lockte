@@ -626,4 +626,4 @@
 ---
 
 ## รายละเอียด control ทุกหน้าจอ
-ทุกฟอร์ม (ช่อง, ชนิด, ที่ผูกข้อมูล, RowSource ของ combo, default, validation, format, event, ตำแหน่ง และ VBA) อยู่ใน `legacy/forms/<ชื่อฟอร์ม>.md` — ดูดัชนีที่ [legacy/README.md](legacy/README.md)
+ทุกฟอร์ม (ช่อง, ชนิด, ที่ผูกข้อมูล, RowSource ของ combo, default, validation, format, event, ตำแหน่ง และ VBA) อยู่ใน `source/_extract/พนักงาน/legacy/forms/<ชื่อฟอร์ม>.md` (ไม่อยู่ใน git) — ดัชนีวัตถุเดิมทุกชิ้นอยู่ท้าย business-rules.md
