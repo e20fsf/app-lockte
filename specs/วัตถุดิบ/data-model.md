@@ -1,6 +1,6 @@
 # Data Model — วัตถุดิบ
 
-> สถานะ: **ร่าง — รอยืนยัน** · อัปเดต 2026-10-05
+> สถานะ: **ถอดครบ — รอยืนยัน** · อัปเดต 2026-10-05
 > ที่มา: `source/_extract/วัตถุดิบ/` (`tables.md`, `schema2.json`, `recovered/queries_compact.txt`, `samples/*.csv`) + query ข้อมูลจริงแบบอ่านอย่างเดียว (2026-10-05)
 > ระบบเดิมมี 52 ตาราง **ไม่มีการประกาศ relationship** และมี primary key เพียง 5 ตาราง — Key/FK ที่มี 🔍 อนุมานจาก JOIN ใน query, RowSource ของ combo และค่าข้อมูล
 > ไฟล์นี้บอกว่าข้อมูล *คืออะไร* · ขั้นตอนที่ระบบทำกับข้อมูลอยู่ใน [business-rules.md](business-rules.md)
