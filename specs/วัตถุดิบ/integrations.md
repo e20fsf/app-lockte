@@ -1,6 +1,6 @@
 # การเชื่อมต่อ — วัตถุดิบ
 
-> สถานะ: **ร่าง — ไม่พบการเชื่อมต่ออัตโนมัติ** · อัปเดต 2026-10-05
+> สถานะ: **ถอดครบ — ไม่พบการเชื่อมต่ออัตโนมัติ (มีจุดเชื่อมแบบ manual INT-01…04)** · อัปเดต 2026-10-05
 > หลักฐาน: ไม่มี linked table (INVENTORY.md: Linked tables 0) · ไม่มี action `TransferSpreadsheet`/`TransferText`/`OutputTo`/`SendObject` ใน macro 128 ตัว · ไม่พบ `Transfer*`, `OutputTo`, `Shell`, `CreateObject("Excel…")` ใน VBA 66 module · action ที่ macro ใช้มีเพียง Close, OpenForm, OpenQuery, OpenReport, MsgBox, Maximize, Minimize, Quit
 
 ระบบเดิม**ไม่มี** import/export ไฟล์ และไม่ดึงข้อมูลจากโปรแกรมอื่นโดยอัตโนมัติ การส่งข้อมูลระหว่างหน่วยงานทำผ่านกระดาษหรือการพิมพ์ซ้ำด้วยมือ ด้านล่างคือจุดเชื่อมต่อแบบ manual ที่ระบบใหม่อาจต้องการทำให้อัตโนมัติ (❓ หมวด ข.)
