@@ -1,0 +1,54 @@
+@* PROTOTYPE — ทะเบียนผู้ประกันตน (RPT-51, BR-073). Columns/positions from legacy report "ทะเบียนผู้ประกันตน"
+   (A4 landscape; PageHeader + PageFooter repeat every page → <thead>/<tfoot>). Employer data = placeholders. *@
+<table class="reg">
+    <colgroup>
+        <col style="width:1.50cm" /><col style="width:4.00cm" /><col style="width:5.50cm" /><col style="width:1.70cm" />
+        <col style="width:2.80cm" /><col style="width:2.48cm" /><col style="width:3.32cm" /><col style="width:2.20cm" /><col style="width:2.60cm" />
+    </colgroup>
+    <thead>
+        <tr><th colspan="9" class="pagehead">
+            <div class="head">
+                <div class="at" style="left:0;top:0">ทะเบียนผู้ประกันตน ตามพระราชบัญญัติประกันสังคม พ.ศ. 2533 มาตรา 84</div>
+                <div class="at" style="left:24.30cm;top:0.10cm">สปส.6-07</div>
+                <div class="at" style="left:0;top:0.90cm">ชื่อสถานประกอบการ...................................................................................................................................</div>
+                <div class="at" style="left:3.90cm;top:0.80cm">บริษัท  ตัวอย่าง  จำกัด</div>
+                <div class="at" style="left:17.90cm;top:0.90cm">เลขที่บัญชี</div>
+                @foreach (var (x, d) in AccountDigits) { <div class="at" style="left:@x;top:0.90cm">@d</div> }
+                <div class="at" style="left:0;top:1.80cm">ชื่อสาขา..............................................................................................................................................</div>
+                <div class="at" style="left:3.90cm;top:1.70cm">บริษัท  ตัวอย่าง  จำกัด</div>
+                <div class="at" style="left:17.90cm;top:1.80cm">ลำดับที่สาขา</div>
+                @foreach (var (x, d) in BranchDigits) { <div class="at" style="left:@x;top:1.80cm">@d</div> }
+            </div>
+        </th></tr>
+        <tr class="cols">
+            <th>ลำดับที่</th><th>เลขประจำตัวประชาชน</th><th>ชื่อ - ชื่อสกุล</th><th>สัญชาติ</th>
+            <th>วัน เดือน ปี เกิด</th><th>วันเริ่มจ้าง</th><th>ตำแหน่ง</th><th>อัตราค่าจ้าง</th><th>วันสิ้นสุดการจ้าง</th>
+        </tr>
+    </thead>
+    <tfoot>
+        <tr><td colspan="9" class="pagefoot">หมายเหตุ&nbsp;&nbsp;&nbsp;สำหรับคนต่างด้าวให้กรอกเลขที่ใบอนุญาตทำงาน ในช่องเลขประจำตัวประชาชน</td></tr>
+    </tfoot>
+    <tbody>
+        @for (var i = 0; i < Rows.Count; i++)
+        {
+            var e = Rows[i];
+            <tr>
+                <td class="num">@(i + 1)</td><td>@e.IdCode</td><td>@e.Name</td><td>@e.Nation</td>
+                <td>@e.Born.ToString("d/M/yyyy", FakeData.Th)</td><td>@e.Start.ToString("d/M/yyyy", FakeData.Th)</td>
+                <td>@e.Position</td><td class="num">@e.Wage.ToString("#,##0.00", FakeData.Th)</td>
+                <td>@e.Resign?.ToString("d/M/yyyy", FakeData.Th)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired] public List<Employee> Rows { get; set; } = default!;
+
+    // Legacy draws each digit as its own label at fixed x (cm); values here are placeholders.
+    static readonly (string, char)[] AccountDigits =
+        [("19.70cm", '9'), ("20.30cm", '9'), ("21.30cm", '0'), ("21.90cm", '0'), ("22.50cm", '0'),
+         ("23.10cm", '0'), ("23.69cm", '0'), ("24.29cm", '0'), ("24.89cm", '0'), ("25.80cm", '9')];
+    static readonly (string, char)[] BranchDigits =
+        [("21.30cm", '0'), ("21.90cm", '0'), ("22.50cm", '0'), ("23.10cm", '0'), ("23.69cm", '0'), ("24.30cm", '0')];
+}
