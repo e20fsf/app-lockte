@@ -1,0 +1,376 @@
+<title>ต้นแบบหน้าจอเวลาทำงาน</title>
+<!--
+  PROTOTYPE — throwaway. Ticket: https://github.com/e20fsf/app-lockte/issues/22
+  คำถาม: หน้าจอบันทึกเวลาทำงาน/การลา และ flow ปิดงวดค่าแรง (ตัด WEEK) ควรหน้าตาแบบไหนบน Blazor Server + MudBlazor
+  แผน: หน้าเวลาทำงาน 3 แบบ (A รายคน / B รายวัน / C ตารางทั้งงวด) + หน้าปิดงวด 2 แบบ (A ทีละขั้น / B หน้าเดียว)
+  สลับแบบด้วยแถบลอยด้านล่าง หรือปุ่ม ← → ; ข้อมูลสมมติทั้งหมด อยู่ในหน่วยความจำ ไม่บันทึกจริง ไม่คำนวณสูตรจริง
+  สมมติฐาน: เครื่องยังไม่มี .NET SDK จึงทำเป็น HTML ที่เลียนหน้าตา MudBlazor (Material, Roboto) แทน component จริง
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: MudBlazor admin shell — app bar + nav drawer + content; variants swap only the content area */
+:root{
+  --bg:#f4f4f8; --surface:#ffffff; --surface2:#f0eff8; --line:#dedce9; --fg:#24222f; --muted:#6c6a7a;
+  --primary:#594ae2; --primary-fg:#ffffff; --primary-soft:#ebe8fc;
+  --ok:#1e8e5a; --ok-soft:#e1f4ea; --warn:#b46a00; --warn-soft:#fdf0d9; --bad:#c62f3a; --bad-soft:#fbe3e5; --info:#1c6fb8; --info-soft:#e0eefb;
+  --sun:#fff6e0;
+  --font:"Roboto","Noto Sans Thai",system-ui,sans-serif; --mono:"Roboto Mono","Noto Sans Thai",ui-monospace,monospace;
+  --shadow:0 1px 3px rgba(30,25,70,.12),0 1px 2px rgba(30,25,70,.08);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1a1a27; --surface:#242436; --surface2:#2c2c42; --line:#3a3a52; --fg:#e8e6f3; --muted:#a3a1b8;
+  --primary:#8b7ff0; --primary-fg:#14122a; --primary-soft:#35305e;
+  --ok:#5fcf97; --ok-soft:#1f3a2e; --warn:#f0b35a; --warn-soft:#3d311c; --bad:#f2808a; --bad-soft:#45252b; --info:#78b6ef; --info-soft:#1e3247;
+  --sun:#3a3524; --shadow:0 1px 3px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1a27; --surface:#242436; --surface2:#2c2c42; --line:#3a3a52; --fg:#e8e6f3; --muted:#a3a1b8;
+  --primary:#8b7ff0; --primary-fg:#14122a; --primary-soft:#35305e;
+  --ok:#5fcf97; --ok-soft:#1f3a2e; --warn:#f0b35a; --warn-soft:#3d311c; --bad:#f2808a; --bad-soft:#45252b; --info:#78b6ef; --info-soft:#1e3247;
+  --sun:#3a3524; --shadow:0 1px 3px rgba(0,0,0,.5); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;gap:12px;padding:0 16px;height:56px;background:var(--primary);color:var(--primary-fg);box-shadow:var(--shadow)}
+.appbar b{font-weight:500;font-size:17px}
+.appbar .sp{flex:1}
+.appbar .who{font-size:13px;opacity:.9}
+.proto-tag{font-size:11px;letter-spacing:.06em;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.22)}
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:calc(100vh - 56px)}
+nav.drawer{background:var(--surface);border-right:1px solid var(--line);padding-block:8px}
+.navgrp{font-size:11px;letter-spacing:.06em;color:var(--muted);padding:12px 20px 4px;text-transform:uppercase}
+.navitem{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 20px;cursor:pointer;border-radius:0 20px 20px 0;margin-right:8px}
+.navitem:hover{background:var(--surface2)}
+.navitem.on{background:var(--primary-soft);color:var(--primary);font-weight:500}
+.navitem.dim{color:var(--muted);cursor:default}
+.navitem.dim:hover{background:none}
+main{padding:20px 24px 96px;min-width:0}
+h1{font-size:22px;font-weight:500;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 16px;font-size:13px}
+.paper{background:var(--surface);border-radius:6px;box-shadow:var(--shadow)}
+.pad{padding:16px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.grow{flex:1}
+.field{display:flex;flex-direction:column;gap:2px;min-width:0}
+.field label{font-size:12px;color:var(--muted)}
+.field input,.field select{border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:7px 10px;min-width:0}
+.btn{border:0;border-radius:4px;padding:8px 16px;cursor:pointer;font-weight:500;letter-spacing:.02em;background:var(--surface2);color:var(--fg)}
+.btn.pri{background:var(--primary);color:var(--primary-fg);box-shadow:var(--shadow)}
+.btn.out{background:none;border:1px solid var(--primary);color:var(--primary)}
+.btn.txt{background:none;color:var(--primary);padding:6px 10px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:1px 10px;border-radius:12px;font-size:12px;white-space:nowrap}
+.c-ok{background:var(--ok-soft);color:var(--ok)} .c-warn{background:var(--warn-soft);color:var(--warn)} .c-bad{background:var(--bad-soft);color:var(--bad)} .c-info{background:var(--info-soft);color:var(--info)} .c-mute{background:var(--surface2);color:var(--muted)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface)}
+td{padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr:hover td{background:var(--surface2)}
+td.num,th.num{text-align:right}
+.mono{font-family:var(--mono);font-size:13px}
+td input,td select{border:1px solid transparent;background:transparent;border-radius:3px;padding:3px 6px;width:100%;min-width:64px}
+td input:hover,td select:hover{border-color:var(--line)}
+td input:focus,td select:focus{border-color:var(--primary);background:var(--surface);outline:none}
+.hint{font-size:12px;color:var(--muted)}
+.kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 5px}
+.split{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;align-items:start}
+.list{max-height:560px;overflow:auto}
+.li{display:flex;gap:10px;align-items:center;width:100%;border:0;background:none;text-align:left;padding:8px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
+.li:hover{background:var(--surface2)}
+.li.on{background:var(--primary-soft)}
+.li .code{font-family:var(--mono);font-weight:500;width:44px}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tab{border:0;background:none;padding:10px 18px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;font-weight:500}
+.tab.on{color:var(--primary);border-color:var(--primary)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 18px}
+.kv div span{display:block;font-size:12px;color:var(--muted)}
+.quota{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.qcard{border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.qcard .bar{height:6px;background:var(--surface2);border-radius:3px;margin-top:6px;overflow:hidden}
+.qcard .bar i{display:block;height:100%;background:var(--primary)}
+.qcard.full .bar i{background:var(--bad)}
+.alert{border-radius:4px;padding:10px 14px;display:flex;gap:10px;align-items:flex-start}
+.matrix td,.matrix th{padding:4px 2px;text-align:center;min-width:34px}
+.matrix td.name,.matrix th.name{text-align:left;padding-left:10px;position:sticky;left:0;background:var(--surface);z-index:1;min-width:170px}
+.matrix th.sun,.matrix td.sun{background:var(--sun)}
+.cell{border:0;border-radius:4px;width:32px;height:26px;font-family:var(--mono);font-size:11px;cursor:pointer;background:var(--surface2)}
+.cell.W{background:var(--ok-soft);color:var(--ok)} .cell.OT{background:var(--info-soft);color:var(--info);font-weight:700}
+.cell.X{background:var(--bad-soft);color:var(--bad)} .cell.L{background:var(--warn-soft);color:var(--warn)} .cell.S{background:var(--primary-soft);color:var(--primary)}
+.cell.sel{outline:2px solid var(--primary)}
+.side{position:sticky;top:72px}
+.stepper{display:flex;gap:0;flex-wrap:wrap;margin-bottom:16px}
+.step{display:flex;align-items:center;gap:8px;padding:8px 14px 8px 0;color:var(--muted)}
+.step .dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);font-weight:500;font-size:13px}
+.step.on{color:var(--fg);font-weight:500}
+.step.on .dot{background:var(--primary);color:var(--primary-fg)}
+.step.done .dot{background:var(--ok);color:var(--surface)}
+.step+.step::before{content:"";width:28px;height:1px;background:var(--line);margin-right:8px}
+.checklist{display:grid;gap:10px}
+.ck{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.ck .st{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:var(--surface2);color:var(--muted)}
+.ck.done .st{background:var(--ok-soft);color:var(--ok)}
+.ck.ready .st{background:var(--primary-soft);color:var(--primary)}
+.ck.locked{opacity:.6}
+.toast{position:fixed;right:20px;bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:4px;box-shadow:var(--shadow);z-index:40}
+.switcher{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;align-items:center;gap:4px;background:#111018;color:#fff;border-radius:24px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.35);border:2px dashed #ffd23f;max-width:calc(100vw - 32px)}
+.switcher button{border:0;background:#2b2938;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px}
+.switcher .lbl{padding:0 12px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.switcher .lbl b{color:#ffd23f}
+@media (max-width:900px){.shell{grid-template-columns:1fr} nav.drawer{display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:4px 8px} .navgrp{display:none} .navitem{white-space:nowrap;border-radius:16px;width:auto} .split{grid-template-columns:1fr} .list{max-height:240px} main{padding:16px 16px 96px} .appbar .who{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="appbar">
+  <b>LOCKTE</b><span class="proto-tag">PROTOTYPE</span><span class="sp"></span><span class="who">ผู้ใช้: hr01</span>
+</header>
+<div class="shell">
+  <nav class="drawer" aria-label="เมนู">
+    <div class="navgrp">พนักงานและค่าแรง</div>
+    <button class="navitem dim" type="button">ข้อมูลพนักงาน</button>
+    <button class="navitem" type="button" data-page="time">เวลาทำงานและการลา</button>
+    <button class="navitem" type="button" data-page="close">ปิดงวดค่าแรง (ตัด WEEK)</button>
+    <button class="navitem dim" type="button">รายงานและเอกสาร</button>
+    <div class="navgrp">ขายและส่งของ</div>
+    <button class="navitem dim" type="button">ORDER</button>
+    <div class="navgrp">ผลิต</div>
+    <button class="navitem dim" type="button">ใบรายงานผลผลิต</button>
+  </nav>
+  <main id="main"></main>
+</div>
+<div class="switcher" role="group" aria-label="สลับแบบต้นแบบ">
+  <button type="button" id="prev" aria-label="แบบก่อนหน้า">←</button>
+  <span class="lbl" id="vlabel"></span>
+  <button type="button" id="next" aria-label="แบบถัดไป">→</button>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- ข้อมูลสมมติ (ไม่ใช่ข้อมูลจริง) ---------- */
+const TYPES={W:'ทำงานปกติ',O1:'OT วันปกติ',S:'ทำงานวันอาทิตย์',O2:'OT วันอาทิตย์',H:'ทำงานวันหยุด',O3:'OT วันหยุด'};
+const LEAVE={1:'ลากิจ',2:'ลาป่วย (มีใบแพทย์)',3:'ลาป่วย (ไม่มีใบแพทย์)',4:'ลาคลอด',5:'อุบัติเหตุในงาน',6:'ลาพักร้อน',7:'ลาอื่นๆ',8:'ขาดงาน',9:'ลากิจฉุกเฉิน',11:'ฝึกอบรม',13:'ลากิจไม่แจ้งล่วงหน้า',14:'ลากิจเกินกำหนด'};
+const EMP=[
+ {id:'D010',name:'นายสมชาย ใจดี',dep:'ไดคาสท์',clas:'รายวัน',rate:420,start:'2015-03-02',sex:'M'},
+ {id:'D385',name:'นางสาวมาลี ศรีสุข',dep:'ไดคาสท์',clas:'รายวัน',rate:380,start:'2021-06-14',sex:'F'},
+ {id:'T112',name:'นายประเสริฐ ทองคำ',dep:'ตกแต่ง',clas:'รายวัน',rate:400,start:'2018-01-08',sex:'M'},
+ {id:'T204',name:'นางวันเพ็ญ แก้วมณี',dep:'ตกแต่ง',clas:'รายวัน',rate:372,start:'2026-02-02',sex:'F'},
+ {id:'B179',name:'นายณรงค์ พึ่งบุญ',dep:'อัดผ้าเบรก',clas:'รายวัน',rate:410,start:'2012-07-16',sex:'M'},
+ {id:'B241',name:'นางสาวจันทร์เพ็ญ อินทร์แก้ว',dep:'อัดผ้าเบรก',clas:'รายวัน',rate:380,start:'2023-09-04',sex:'F'},
+ {id:'G033',name:'นายวิชัย บุญมา',dep:'ฝนผ้าเบรก',clas:'รายวัน',rate:395,start:'2019-11-11',sex:'M'},
+ {id:'A057',name:'นางสมศรี มีสุข',dep:'ประกอบ',clas:'รายวัน',rate:390,start:'2017-04-03',sex:'F'},
+ {id:'P178',name:'นางสาวอรุณี แสงทอง',dep:'บรรจุ',clas:'รายวัน',rate:372,start:'2024-05-20',sex:'F'},
+ {id:'M021',name:'นายสุรศักดิ์ ช่างดี',dep:'ซ่อมบำรุง',clas:'รายเดือน',rate:700,start:'2010-02-01',sex:'M'},
+ {id:'O004',name:'นางรำไพ วงศ์ใหญ่',dep:'บุคคลและธุรการ',clas:'รายเดือน',rate:620,start:'2009-08-17',sex:'F'}
+];
+const P={from:new Date(2026,10,12),to:new Date(2026,10,26),pay:new Date(2026,11,1)}; // งวด 12–26 พ.ย. 2569 จ่าย 1 ธ.ค. 2569
+const DAYS=[];for(let d=new Date(P.from);d<=P.to;d.setDate(d.getDate()+1))DAYS.push(new Date(d));
+const isSun=d=>d.getDay()===0;
+const dk=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const th=(d,y=true)=>d.getDate()+'/'+(d.getMonth()+1)+(y?'/'+(d.getFullYear()+543):'');
+const DOW=['อา','จ','อ','พ','พฤ','ศ','ส'];
+/* เวลาทำงานตัวอย่าง: key = id|date → [{type,in,out,rest}] ; absent = ไม่มาทำงาน */
+const WORK={},ABSENT={};
+EMP.forEach((e,i)=>DAYS.forEach((d,j)=>{
+  const k=e.id+'|'+dk(d);
+  if(isSun(d)){ if(i%4===0) WORK[k]=[{type:'S',in:'08:00',out:'17:00',rest:60}]; return;}
+  if((i*7+j)%23===5){ABSENT[k]='ไม่มา';return;}
+  if(d>new Date(2026,10,20)) return; // วันที่ยังไม่ได้บันทึก
+  const r=[{type:'W',in:(i*3+j)%17===4?'08:25':'08:00',out:'17:00',rest:60}];
+  if((i+j)%3===0) r.push({type:'O1',in:'17:20',out:'20:10',rest:0});
+  WORK[k]=r;
+}));
+const LV={'D385':[{from:'2026-03-09',to:'2026-03-10',days:2,sr:2,sal:'Y',rem:'ไข้หวัด'},{from:'2026-06-22',to:'2026-06-26',days:5,sr:1,sal:'Y',rem:'ธุระที่บ้าน'},{from:'2026-11-17',to:'2026-11-17',days:1,sr:8,sal:'N',rem:''}],
+ 'D010':[{from:'2026-04-13',to:'2026-04-17',days:5,sr:6,sal:'Y',rem:'สงกรานต์'}]};
+/* ---------- ตัวช่วย ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+const mins=(a,b)=>{const[h1,m1]=a.split(':').map(Number),[h2,m2]=b.split(':').map(Number);let x=h2*60+m2-(h1*60+m1);if(x<0)x+=1440;return x};
+const hrs=r=>Math.max(0,(mins(r.in,r.out)-(r.rest||0))/60);
+const cellCode=(e,d)=>{const k=e.id+'|'+dk(d);const lv=(LV[e.id]||[]).find(l=>l.from<=dk(d)&&l.to>=dk(d));
+  if(lv)return{c:'L',t:'ลา',lv};if(ABSENT[k])return{c:'X',t:'ขาด'};const w=WORK[k];if(!w)return{c:'',t:'·'};
+  if(w.some(r=>r.type==='S'||r.type==='H'))return{c:'S',t:w.length>1?'S+':'S'};return w.length>1?{c:'OT',t:'W+'}:{c:'W',t:w[0].in>'08:00'?'สาย':'W'}};
+function used(id,srs){return(LV[id]||[]).filter(l=>l.sal==='Y'&&srs.includes(+l.sr)).reduce((a,l)=>a+ +l.days,0)}
+function checkQuota(e,sr,days,sal){ // BR-020 แบบย่อ (ตัวอย่าง)
+  sr=+sr;days=+days;if(sal!=='Y')return null;
+  const tenure=(new Date()-new Date(e.start))/864e5;
+  if([7,8,13,14,15].includes(sr))return 'ไม่สามารถบันทึกได้ เนื่องจากเป็นการลาที่ไม่ได้ค่าแรง';
+  if([1,9].includes(sr)&&used(e.id,[1,9])+days>6)return 'ไม่สามารถบันทึกได้ เนื่องจากลากิจได้ค่าแรงเกิน 6 วัน';
+  if([2,3].includes(sr)&&used(e.id,[2,3])+days>30)return 'ไม่สามารถบันทึกได้ เนื่องจากลาป่วยได้ค่าแรงเกิน 30 วัน';
+  if(sr===6&&tenure<365)return 'ไม่สามารถบันทึกได้ เนื่องจากยังไม่มีพักร้อน';
+  if(sr===6&&used(e.id,[6])+days>12)return 'ไม่สามารถบันทึกได้ เนื่องจากลาพักร้อนเกิน 12 วัน';
+  if(sr===4&&e.sex!=='F')return 'ไม่สามารถบันทึกได้ เนื่องจากเพศชายลาคลอดไม่ได้';
+  return null}
+const typeSel=(v,attr='')=>`<select ${attr}>${Object.entries(TYPES).map(([k,n])=>`<option value="${k}" ${k===v?'selected':''}>${k} · ${n}</option>`).join('')}</select>`;
+
+/* ---------- หน้า "เวลาทำงานและการลา" ---------- */
+const TIME={
+ a:{name:'รายคน (แบบฟอร์ม + ตารางย่อยเหมือน Access)',render:timeA},
+ b:{name:'รายวัน (ทั้งโรงงานในวันเดียว)',render:timeB},
+ c:{name:'ตารางทั้งงวด (คน × วัน)',render:timeC}};
+let selEmp='D385',selTab='work',selDay=dk(new Date(2026,10,20)),depF='*',selCell=null;
+
+function timeA(m){
+  const e=EMP.find(x=>x.id===selEmp);
+  const rows=[];DAYS.forEach(d=>(WORK[e.id+'|'+dk(d)]||[]).forEach((r,i)=>rows.push({d,r,i})));
+  const q=[['ลากิจ (1+9)',used(e.id,[1,9]),6],['ลาป่วย (2+3)',used(e.id,[2,3]),30],['ลาพักร้อน (6)',used(e.id,[6]),12],['ลาคลอด (4)',used(e.id,[4]),60]];
+  m.innerHTML=`<h1>เวลาทำงานและการลา</h1><p class="sub">เลือกพนักงานทางซ้าย แล้วแก้เวลาหรือบันทึกการลาของคนนั้น — แทน SCR-13 และ SCR-30</p>
+  <div class="split">
+   <div class="paper"><div class="pad" style="padding-bottom:8px"><div class="field"><label for="q">ค้นหารหัสหรือชื่อ</label><input id="q" placeholder="เช่น D385"></div></div>
+    <div class="list" id="elist">${EMP.map(x=>`<button type="button" class="li ${x.id===e.id?'on':''}" data-emp="${x.id}"><span class="code">${x.id}</span><span class="grow">${esc(x.name)}<br><span class="hint">${x.dep} · ${x.clas}</span></span></button>`).join('')}</div></div>
+   <div class="paper pad" style="min-width:0">
+    <div class="kv" style="margin-bottom:14px"><div><span>รหัส</span><b class="mono">${e.id}</b></div><div><span>ชื่อ</span>${esc(e.name)}</div><div><span>แผนก</span>${e.dep}</div><div><span>ประเภท</span>${e.clas}</div><div><span>ค่าแรงต่อวัน</span>${e.rate.toLocaleString()} บาท</div><div><span>วันเริ่มงาน</span>${th(new Date(e.start+'T00:00:00'))}</div></div>
+    <div class="tabs" role="tablist"><button type="button" class="tab ${selTab==='work'?'on':''}" data-tab="work">เวลาทำงาน งวด ${th(P.from,false)}–${th(P.to)}</button><button type="button" class="tab ${selTab==='leave'?'on':''}" data-tab="leave">การลา ปี 2569</button></div>
+    ${selTab==='work'?`
+    <div class="tw"><table><thead><tr><th>วันที่</th><th>ประเภท</th><th>เข้า</th><th>ออก</th><th class="num">พัก (นาที)</th><th class="num">ชั่วโมง</th><th></th></tr></thead><tbody>
+     ${rows.map(({d,r,i})=>`<tr><td>${DOW[d.getDay()]} ${th(d)}</td><td>${typeSel(r.type,`data-k="${e.id}|${dk(d)}|${i}|type"`)}</td><td><input class="mono" value="${r.in}" data-k="${e.id}|${dk(d)}|${i}|in"></td><td><input class="mono" value="${r.out}" data-k="${e.id}|${dk(d)}|${i}|out"></td><td class="num"><input class="mono" style="text-align:right" value="${r.rest}" data-k="${e.id}|${dk(d)}|${i}|rest"></td><td class="num mono">${hrs(r).toFixed(2)}</td><td><button type="button" class="btn txt" data-del="${e.id}|${dk(d)}|${i}">ลบ</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row" style="margin-top:12px"><button type="button" class="btn out" id="addrow">+ เพิ่มแถว</button><span class="hint">แก้ในตารางแล้วบันทึกทันทีที่ออกจากช่อง (ต้นแบบ: เก็บในหน่วยความจำ)</span></div>`
+    :`
+    <div class="quota" style="margin-bottom:14px">${q.map(([n,u,mx])=>`<div class="qcard ${u>=mx?'full':''}"><div class="row"><span class="grow">${n}</span><b class="mono">${u}/${mx}</b></div><div class="bar"><i style="width:${Math.min(100,u/mx*100)}%"></i></div><span class="hint">ใช้ไปแล้ว (ได้ค่าแรง) / โควตา</span></div>`).join('')}</div>
+    <div class="tw"><table><thead><tr><th>จากวันที่</th><th>ถึงวันที่</th><th class="num">จำนวนวัน</th><th>ประเภทการลา</th><th>ได้ค่าแรง</th><th>หมายเหตุ</th></tr></thead><tbody>
+     ${(LV[e.id]||[]).map(l=>`<tr><td>${th(new Date(l.from+'T00:00:00'))}</td><td>${th(new Date(l.to+'T00:00:00'))}</td><td class="num mono">${l.days}</td><td>${l.sr} · ${LEAVE[l.sr]}</td><td>${l.sal==='Y'?'<span class="chip c-ok">ได้</span>':'<span class="chip c-mute">ไม่ได้</span>'}</td><td>${esc(l.rem)}</td></tr>`).join('')||'<tr><td colspan="6" class="hint">ยังไม่มีการลาในปีนี้</td></tr>'}
+     <tr><td><input type="date" id="lf" value="2026-11-24"></td><td><input type="date" id="lt" value="2026-11-25"></td><td class="num"><input id="ld" class="mono" style="text-align:right" value="2"></td><td><select id="lsr">${Object.entries(LEAVE).map(([k,n])=>`<option value="${k}" ${k==='1'?'selected':''}>${k} · ${n}</option>`).join('')}</select></td><td><select id="lsal"><option value="Y">ได้</option><option value="N">ไม่ได้</option></select></td><td><input id="lrem" placeholder="สูงสุด 28 ตัวอักษร" maxlength="28"></td></tr>
+    </tbody></table></div>
+    <div id="lmsg" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:12px"><button type="button" class="btn pri" id="lsave">บันทึกการลา</button><span class="hint">ตรวจโควตาตอนกดบันทึก (ระบบเดิมตรวจตอนเลือก "ได้ค่าแรง") · รอบโควตา = ปีปฏิทิน</span></div>`}
+   </div></div>`;
+  m.querySelectorAll('[data-emp]').forEach(b=>b.onclick=()=>{selEmp=b.dataset.emp;render()});
+  m.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{selTab=b.dataset.tab;render()});
+  $('#q').oninput=ev=>{const v=ev.target.value.toUpperCase();m.querySelectorAll('#elist .li').forEach(li=>li.hidden=!li.textContent.toUpperCase().includes(v))};
+  m.querySelectorAll('[data-k]').forEach(inp=>inp.onchange=()=>{const[id,d,i,f]=inp.dataset.k.split('|');const r=WORK[id+'|'+d][i];r[f]=f==='rest'?+inp.value:inp.value;toast('บันทึกแล้ว');render()});
+  m.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const[id,d,i]=b.dataset.del.split('|');WORK[id+'|'+d].splice(i,1);toast('ลบแถวแล้ว');render()});
+  const add=$('#addrow');if(add)add.onclick=()=>{const k=e.id+'|'+dk(P.to);(WORK[k]=WORK[k]||[]).push({type:'W',in:'08:00',out:'17:00',rest:60});render()};
+  const ls=$('#lsave');if(ls)ls.onclick=()=>{const l={from:$('#lf').value,to:$('#lt').value,days:+$('#ld').value,sr:+$('#lsr').value,sal:$('#lsal').value,rem:$('#lrem').value};
+    const err=checkQuota(e,l.sr,l.days,l.sal);const box=$('#lmsg');
+    if(err){box.innerHTML=`<div class="alert c-bad"><b>!</b><span>${err}<br><span class="hint">ระบบไม่บันทึกแถวนี้ — แก้จำนวนวัน หรือเลือก "ไม่ได้" ค่าแรง</span></span></div>`;return}
+    (LV[e.id]=LV[e.id]||[]).push(l);toast('บันทึกการลาแล้ว');render()};
+}
+
+function timeB(m){
+  const day=new Date(selDay+'T00:00:00');const list=EMP.filter(e=>depF==='*'||e.dep===depF);
+  const st=e=>{const k=e.id+'|'+selDay;const lv=(LV[e.id]||[]).find(l=>l.from<=selDay&&l.to>=selDay);
+    if(lv)return['ลา','c-warn'];if(ABSENT[k])return['ไม่มา','c-bad'];const w=WORK[k];if(!w)return['ยังไม่บันทึก','c-mute'];if(w[0].in>'08:00')return['สาย','c-warn'];return['มา','c-ok']};
+  const created=list.filter(e=>WORK[e.id+'|'+selDay]).length;
+  m.innerHTML=`<h1>เวลาทำงานและการลา</h1><p class="sub">ทำงานทีละวัน: เลือกวันที่ → สร้างเวลาปกติให้ทุกคน → แก้คนที่ไม่มา/สาย/OT ในตารางเดียว — รวม SCR-10, 11, 12</p>
+  <div class="paper pad" style="margin-bottom:12px"><div class="row">
+   <div class="field"><label for="day">วันที่</label><input type="date" id="day" value="${selDay}"></div>
+   <div class="field"><label for="dep">แผนก</label><select id="dep"><option value="*">ทุกแผนก</option>${[...new Set(EMP.map(e=>e.dep))].map(d=>`<option ${d===depF?'selected':''}>${d}</option>`).join('')}</select></div>
+   <span class="grow"></span>
+   <span class="hint">${isSun(day)?'<span class="chip c-info">วันอาทิตย์</span> ':''}บันทึกแล้ว ${created}/${list.length} คน</span>
+   <button type="button" class="btn pri" id="gen" ${created===list.length?'disabled':''}>สร้างเวลาปกติให้ทุกคน</button>
+  </div></div>
+  <div class="paper"><div class="tw"><table><thead><tr><th>รหัส</th><th>ชื่อ</th><th>สถานะ</th><th>ประเภท</th><th>เข้า</th><th>ออก</th><th class="num">พัก</th><th>OT เริ่ม</th><th>OT เลิก</th><th class="num">ชม. รวม</th></tr></thead><tbody>
+   ${list.map((e,ri)=>{const k=e.id+'|'+selDay,w=WORK[k]||[],r=w.find(x=>!x.type.startsWith('O')),o=w.find(x=>x.type.startsWith('O'));const[s,c]=st(e);
+    return `<tr><td class="mono">${e.id}</td><td>${esc(e.name)}<br><span class="hint">${e.dep}</span></td>
+     <td><select data-st="${e.id}" aria-label="สถานะ"><option ${s==='มา'||s==='สาย'?'selected':''}>มา</option><option ${s==='ไม่มา'?'selected':''}>ไม่มา</option><option ${s==='ลา'?'selected':''} disabled>ลา</option><option ${s==='ยังไม่บันทึก'?'selected':''} disabled>ยังไม่บันทึก</option></select> <span class="chip ${c}">${s}</span></td>
+     <td>${r?typeSel(r.type,`data-f="${e.id}|type" data-r="${ri}"`):'<span class="hint">–</span>'}</td>
+     <td><input class="mono" data-f="${e.id}|in" data-r="${ri}" value="${r?r.in:''}" ${r?'':'disabled'}></td><td><input class="mono" data-f="${e.id}|out" data-r="${ri}" value="${r?r.out:''}" ${r?'':'disabled'}></td>
+     <td class="num mono">${r?r.rest:''}</td>
+     <td><input class="mono" data-ot="${e.id}|in" data-r="${ri}" value="${o?o.in:''}" placeholder="—" ${r?'':'disabled'}></td><td><input class="mono" data-ot="${e.id}|out" data-r="${ri}" value="${o?o.out:''}" placeholder="—" ${r?'':'disabled'}></td>
+     <td class="num mono">${w.reduce((a,x)=>a+hrs(x),0).toFixed(2)}</td></tr>`}).join('')}
+  </tbody></table></div>
+  <div class="pad hint">คีย์บอร์ด: <span class="kbd">Enter</span> ลงแถวถัดไปในคอลัมน์เดิม · <span class="kbd">Tab</span> ไปช่องถัดไป · ใส่เวลา OT เริ่มแล้วระบบเติมเวลาเลิกตามกะ (17:20–20:10)</div></div>`;
+  $('#day').onchange=ev=>{selDay=ev.target.value;render()};$('#dep').onchange=ev=>{depF=ev.target.value;render()};
+  $('#gen').onclick=()=>{let n=0;list.forEach(e=>{const k=e.id+'|'+selDay;if(!WORK[k]&&!ABSENT[k]&&!(LV[e.id]||[]).some(l=>l.from<=selDay&&l.to>=selDay)){WORK[k]=[{type:isSun(day)?'S':'W',in:'08:00',out:'17:00',rest:60}];n++}});toast(`สร้างเวลาปกติ ${n} คน (ข้ามคนที่ไม่มา/ลา)`);render()};
+  m.querySelectorAll('[data-st]').forEach(s=>s.onchange=()=>{const k=s.dataset.st+'|'+selDay;if(s.value==='ไม่มา'){ABSENT[k]='ไม่มา';delete WORK[k]}else{delete ABSENT[k];WORK[k]=WORK[k]||[{type:'W',in:'08:00',out:'17:00',rest:60}]}render()});
+  m.querySelectorAll('[data-f]').forEach(inp=>inp.onchange=()=>{const[id,f]=inp.dataset.f.split('|');const r=WORK[id+'|'+selDay].find(x=>!x.type.startsWith('O'));r[f]=inp.value;render()});
+  m.querySelectorAll('[data-ot]').forEach(inp=>inp.onchange=()=>{const[id,f]=inp.dataset.ot.split('|');const w=WORK[id+'|'+selDay];let o=w.find(x=>x.type.startsWith('O'));
+    if(!inp.value){if(o)w.splice(w.indexOf(o),1)}else{if(!o){o={type:isSun(day)?'O2':'O1',in:'17:20',out:'20:10',rest:0};w.push(o)}o[f]=inp.value}render()});
+  m.querySelectorAll('td input').forEach(inp=>inp.addEventListener('keydown',ev=>{if(ev.key!=='Enter')return;ev.preventDefault();const attr=inp.dataset.f?'data-f':'data-ot';const key=inp.getAttribute(attr).split('|')[1];
+    const nx=m.querySelector(`[data-r="${+inp.dataset.r+1}"][${attr}$="|${key}"]`);inp.dispatchEvent(new Event('change'));setTimeout(()=>{const n2=document.querySelector(`[data-r="${+inp.dataset.r+1}"][${attr}$="|${key}"]`);if(n2)n2.focus()},0)}));
+}
+
+function timeC(m){
+  const list=EMP.filter(e=>depF==='*'||e.dep===depF);
+  const blank=list.reduce((a,e)=>a+DAYS.filter(d=>!isSun(d)&&cellCode(e,d).c==='').length,0);
+  let side='<div class="hint">คลิกช่องในตารางเพื่อดู/แก้รายละเอียดของวันนั้น</div>';
+  if(selCell){const[id,d]=selCell.split('|');const e=EMP.find(x=>x.id===id),dd=new Date(d+'T00:00:00'),w=WORK[selCell]||[],cc=cellCode(e,dd);
+    side=`<div class="mono" style="font-weight:500">${id}</div><div>${esc(e.name)}</div><div class="hint" style="margin-bottom:10px">${DOW[dd.getDay()]} ${th(dd)}</div>
+     ${cc.lv?`<div class="alert c-warn">ลา ${LEAVE[cc.lv.sr]} (${cc.lv.sal==='Y'?'ได้':'ไม่ได้'}ค่าแรง)</div>`:ABSENT[selCell]?'<div class="alert c-bad">ไม่มาทำงาน</div>':''}
+     ${w.map((r,i)=>`<div class="row" style="margin-top:8px"><span class="chip c-info">${r.type}</span><span class="mono">${r.in}–${r.out}</span><span class="hint">${hrs(r).toFixed(2)} ชม.</span></div>`).join('')}
+     <div class="row" style="margin-top:14px"><button type="button" class="btn out" data-act="W">ทำงานปกติ</button><button type="button" class="btn out" data-act="OT">+ OT</button><button type="button" class="btn out" data-act="X">ไม่มา</button><button type="button" class="btn txt" data-act="clr">ล้าง</button></div>`}
+  m.innerHTML=`<h1>เวลาทำงานและการลา</h1><p class="sub">เห็นทั้งงวด ${th(P.from,false)}–${th(P.to)} ในตารางเดียว — หาช่องว่างก่อนปิดงวดค่าแรง</p>
+  <div class="paper pad" style="margin-bottom:12px"><div class="row">
+   <div class="field"><label for="dep">แผนก</label><select id="dep"><option value="*">ทุกแผนก</option>${[...new Set(EMP.map(e=>e.dep))].map(d=>`<option ${d===depF?'selected':''}>${d}</option>`).join('')}</select></div>
+   <span class="chip c-ok">W ปกติ</span><span class="chip c-info">W+ มี OT</span><span class="chip c-warn">ลา / สาย</span><span class="chip c-bad">ขาด</span><span class="chip c-mute">· ยังไม่บันทึก</span>
+   <span class="grow"></span>${blank?`<span class="chip c-warn">วันทำงานที่ยังไม่บันทึก ${blank} ช่อง</span>`:'<span class="chip c-ok">ครบทุกวัน</span>'}
+  </div></div>
+  <div class="split" style="grid-template-columns:minmax(0,1fr) 260px">
+   <div class="paper tw"><table class="matrix"><thead><tr><th class="name">พนักงาน</th>${DAYS.map(d=>`<th class="${isSun(d)?'sun':''}">${DOW[d.getDay()]}<br>${d.getDate()}</th>`).join('')}<th class="num">วัน</th></tr></thead><tbody>
+    ${list.map(e=>{let n=0;return `<tr><td class="name"><span class="mono">${e.id}</span> ${esc(e.name.replace(/^(นาย|นางสาว|นาง)/,''))}</td>${DAYS.map(d=>{const c=cellCode(e,d);if(c.c==='W'||c.c==='OT'||c.c==='S')n++;const k=e.id+'|'+dk(d);return `<td class="${isSun(d)?'sun':''}"><button type="button" class="cell ${c.c} ${k===selCell?'sel':''}" data-cell="${k}" aria-label="${e.id} ${th(d)}">${c.t}</button></td>`}).join('')}<td class="num mono">${n}</td></tr>`}).join('')}
+   </tbody></table></div>
+   <div class="paper pad side">${side}</div></div>`;
+  $('#dep').onchange=ev=>{depF=ev.target.value;render()};
+  m.querySelectorAll('[data-cell]').forEach(b=>b.onclick=()=>{selCell=b.dataset.cell;render()});
+  m.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{const a=b.dataset.act;const sun=isSun(new Date(selCell.split('|')[1]+'T00:00:00'));
+    if(a==='clr'){delete WORK[selCell];delete ABSENT[selCell]}
+    else if(a==='X'){ABSENT[selCell]='ไม่มา';delete WORK[selCell]}
+    else if(a==='W'){delete ABSENT[selCell];WORK[selCell]=[{type:sun?'S':'W',in:'08:00',out:'17:00',rest:60}]}
+    else{delete ABSENT[selCell];WORK[selCell]=WORK[selCell]||[{type:sun?'S':'W',in:'08:00',out:'17:00',rest:60}];if(!WORK[selCell].some(r=>r.type.startsWith('O')))WORK[selCell].push({type:sun?'O2':'O1',in:'17:20',out:'20:10',rest:0})}
+    render()});
+}
+
+/* ---------- หน้า "ปิดงวดค่าแรง" ---------- */
+const CLOSE={
+ a:{name:'ทีละขั้น (wizard)',render:closeA},
+ b:{name:'หน้าเดียว (checklist ตามเมนูเดิม)',render:closeB}};
+const STEPS=['ตั้งงวด','ตรวจเวลาทำงาน','คำนวณค่าแรง','ไฟล์ส่งธนาคาร','SLIP และสรุป'];
+let cstep=0,cdone=[false,false,false,false,false,false];
+function issues(){const out=[];EMP.forEach(e=>{const miss=DAYS.filter(d=>!isSun(d)&&cellCode(e,d).c==='');if(miss.length)out.push({e,t:`ยังไม่บันทึกเวลา ${miss.length} วัน (${miss.slice(0,3).map(d=>d.getDate()).join(', ')}${miss.length>3?' …':''})`,lvl:'c-warn'});
+  DAYS.forEach(d=>{const w=WORK[e.id+'|'+dk(d)];if(w&&w.some(r=>r.in>'08:00'&&r.type==='W'))out.push({e,t:`มาสาย ${th(d)} (${w[0].in})`,lvl:'c-info'})})});return out}
+function pay(){return EMP.map(e=>{let d=0,ot=0;DAYS.forEach(x=>{(WORK[e.id+'|'+dk(x)]||[]).forEach(r=>{if(r.type.startsWith('O'))ot+=hrs(r);else d++})});
+  const base=e.clas==='รายเดือน'?Math.round(e.rate*30/2):d*e.rate;const otp=Math.round(ot*e.rate/8*1.5);return{e,d,ot,base,otp,tot:base+otp}})}
+function periodForm(){return `<div class="row"><div class="field"><label for="pf">จากวันที่</label><input id="pf" value="${th(P.from)}"></div><div class="field"><label for="pt">ถึงวันที่</label><input id="pt" value="${th(P.to)}"></div><div class="field"><label for="pp">วันที่จ่าย</label><input id="pp" value="${th(P.pay)}"></div><span class="hint">เติมให้อัตโนมัติตามรูปแบบ 12–26 จ่ายวันที่ 1 / 27–11 จ่ายวันที่ 16 — แก้ได้</span></div>`}
+function payTable(){const p=pay();const sum=p.reduce((a,x)=>a+x.tot,0);return `<div class="tw"><table><thead><tr><th>รหัส</th><th>ชื่อ</th><th>แผนก</th><th class="num">วันทำงาน</th><th class="num">ชม. OT</th><th class="num">ค่าแรง</th><th class="num">ค่า OT</th><th class="num">รวม</th></tr></thead><tbody>
+  ${p.map(x=>`<tr><td class="mono">${x.e.id}</td><td>${esc(x.e.name)}</td><td>${x.e.dep}</td><td class="num mono">${x.d}</td><td class="num mono">${x.ot.toFixed(2)}</td><td class="num mono">${x.base.toLocaleString()}</td><td class="num mono">${x.otp.toLocaleString()}</td><td class="num mono"><b>${x.tot.toLocaleString()}</b></td></tr>`).join('')}
+  <tr><td colspan="7" class="num"><b>รวมทั้งงวด</b></td><td class="num mono"><b>${sum.toLocaleString()}</b></td></tr></tbody></table></div><p class="hint">ตัวเลขสมมติเพื่อดูหน้าตาเท่านั้น ไม่ใช่สูตร BR-003..006</p>`}
+const bankBox=()=>`<div class="row"><div class="paper pad grow" style="box-shadow:none;border:1px solid var(--line)"><b>ttb — ค่าแรง (PAY_W)</b><p class="hint">Excel สำหรับวางลง template TMB SAP_EPORTAL</p><button type="button" class="btn out" data-toast="สร้างไฟล์ ttb แล้ว (ต้นแบบ)">ดาวน์โหลด Excel</button></div>
+  <div class="paper pad grow" style="box-shadow:none;border:1px solid var(--line)"><b>กสิกรไทย — OT (PAY_OT)</b><p class="hint">Excel สำหรับวางลง template CREATE TEXT VERSION 4.0</p><button type="button" class="btn out" data-toast="สร้างไฟล์กสิกรแล้ว (ต้นแบบ)">ดาวน์โหลด Excel</button></div></div>`;
+const slipBox=()=>`<div class="row"><button type="button" class="btn out" data-toast="เปิด PDF สลิป (ต้นแบบ)">พิมพ์ SLIP ทุกคน (PDF)</button><button type="button" class="btn out" data-toast="เปิด PDF สรุปค่าแรง (ต้นแบบ)">สรุปค่าแรงรายแผนก (PDF)</button><button type="button" class="btn out" data-toast="เปิด PDF เวลาทำงาน (ต้นแบบ)">เวลาทำงานทั้งงวด (PDF)</button></div>`;
+function closeA(m){
+  const iss=issues();
+  const body=[()=>periodForm(),
+   ()=>iss.length?`<div class="alert c-warn" style="margin-bottom:10px">พบ ${iss.length} รายการที่ควรตรวจก่อนคำนวณ — ไปแก้ได้ที่หน้าเวลาทำงาน หรือกดยืนยันว่าถูกต้องแล้ว</div><div class="tw"><table><tbody>${iss.map(i=>`<tr><td class="mono">${i.e.id}</td><td>${esc(i.e.name)}</td><td><span class="chip ${i.lvl}">${i.t}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="alert c-ok">เวลาทำงานครบทุกคน</div>',
+   ()=>payTable(),()=>bankBox(),()=>slipBox()][cstep]();
+  m.innerHTML=`<h1>ปิดงวดค่าแรง (ตัด WEEK)</h1><p class="sub">งวด ${th(P.from,false)}–${th(P.to)} · จ่าย ${th(P.pay)} — ทำตามลำดับทีละขั้น ย้อนกลับได้</p>
+  <div class="stepper">${STEPS.map((s,i)=>`<div class="step ${i===cstep?'on':''} ${cdone[i]&&i!==cstep?'done':''}"><span class="dot">${cdone[i]&&i!==cstep?'✓':i+1}</span>${s}</div>`).join('')}</div>
+  <div class="paper pad">${body}
+   <div class="row" style="margin-top:16px"><button type="button" class="btn" id="back" ${cstep===0?'disabled':''}>ย้อนกลับ</button><span class="grow"></span>
+   ${cstep<4?`<button type="button" class="btn pri" id="fwd">${['ยืนยันงวดนี้','ยืนยันเวลาทำงาน','ยืนยันยอดค่าแรง','เสร็จ ไปขั้นถัดไป'][cstep]}</button>`:'<button type="button" class="btn pri" id="fin">ปิดงวด</button>'}</div></div>`;
+  $('#back').onclick=()=>{cstep--;render()};const f=$('#fwd');if(f)f.onclick=()=>{cdone[cstep]=true;cstep++;render()};const fi=$('#fin');if(fi)fi.onclick=()=>{cdone[4]=true;toast('ปิดงวด 12–26/11/2569 แล้ว (ต้นแบบ)');render()};
+  m.querySelectorAll('[data-toast]').forEach(b=>b.onclick=()=>toast(b.dataset.toast));
+}
+function closeB(m){
+  const iss=issues();const items=[
+   {t:'ตั้งงวด',d:`${th(P.from,false)}–${th(P.to)} จ่าย ${th(P.pay)}`,btn:'แก้วันที่',menu:'SCR-40'},
+   {t:'พิมพ์เวลาทำงาน',d:iss.length?`ตรวจพบ ${iss.length} รายการ (ยังไม่บันทึก/มาสาย)`:'ครบทุกคน',btn:'คำนวณและพิมพ์',menu:'RPT-01'},
+   {t:'พิมพ์ค่าแรง',d:'เลือกแผนก หรือทุกแผนก',btn:'คำนวณและพิมพ์',menu:'SCR-41 / RPT-02'},
+   {t:'พิมพ์สรุปค่าแรง',d:'ค่าแรงทั่วไป',btn:'พิมพ์',menu:'RPT-03'},
+   {t:'ค่าแรงส่งแบงค์',d:'ttb (ค่าแรง) และกสิกร (OT)',btn:'สร้างไฟล์',menu:'SCR-42 / RPT-05'},
+   {t:'พิมพ์ SLIP',d:'ทุกคนในงวด',btn:'พิมพ์',menu:'RPT-04'}];
+  m.innerHTML=`<h1>ปิดงวดค่าแรง (ตัด WEEK)</h1><p class="sub">ทุกขั้นอยู่ในหน้าเดียวตามลำดับเมนู 6 เดิม — ขั้นถัดไปเปิดเมื่อขั้นก่อนเสร็จ</p>
+  <div class="paper pad" style="margin-bottom:12px"><div class="row"><b>งวด ${th(P.from,false)}–${th(P.to)}</b><span class="chip ${cdone.slice(0,6).every(Boolean)?'c-ok':'c-info'}">${cdone.slice(0,6).filter(Boolean).length}/6 ขั้น</span><span class="grow"></span><span class="hint">ผู้ทำล่าสุด: hr01 · 20/11/2569 16:42</span></div></div>
+  <div class="checklist">${items.map((it,i)=>{const done=cdone[i],ready=!done&&(i===0||cdone[i-1]);return `<div class="ck ${done?'done':ready?'ready':'locked'}"><span class="st">${done?'✓':i+1}</span>
+    <div style="min-width:0"><b>${it.t}</b> <span class="hint">${it.menu}</span><div class="hint">${it.d}</div>${i===2&&done?`<details style="margin-top:8px"><summary class="hint">ดูยอดค่าแรง</summary>${payTable()}</details>`:''}</div>
+    <button type="button" class="btn ${ready?'pri':'out'}" data-ck="${i}" ${!ready&&!done?'disabled':''}>${done?'ทำซ้ำ':it.btn}</button></div>`}).join('')}</div>`;
+  m.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>{const i=+b.dataset.ck;cdone[i]=true;toast(items[i].t+' — เสร็จ (ต้นแบบ)');render()});
+}
+
+/* ---------- route + switcher ---------- */
+const PAGES={time:TIME,close:CLOSE};
+let page='time',vari='a';
+function readHash(){const h=(location.hash||'').slice(1).match(/^(time|close)-([abc])$/);if(h&&PAGES[h[1]][h[2]]){page=h[1];vari=h[2]}}
+function render(){
+  const pv=PAGES[page];if(!pv[vari])vari='a';
+  document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('on',b.dataset.page===page));
+  const keys=Object.keys(pv);$('#vlabel').innerHTML=`<b>${vari.toUpperCase()}</b> / ${keys.length} · ${pv[vari].name}`;
+  const y=window.scrollY;pv[vari].render($('#main'));window.scrollTo(0,y);
+}
+function go(p,v){page=p;vari=v;try{history.replaceState(null,'','#'+p+'-'+v)}catch(e){location.hash=p+'-'+v}render()}
+function cycle(n){const k=Object.keys(PAGES[page]);go(page,k[(k.indexOf(vari)+n+k.length)%k.length])}
+$('#prev').onclick=()=>cycle(-1);$('#next').onclick=()=>cycle(1);
+document.addEventListener('keydown',ev=>{const t=ev.target;if(t.closest&&t.closest('input,textarea,select,[contenteditable]'))return;if(ev.key==='ArrowLeft')cycle(-1);if(ev.key==='ArrowRight')cycle(1)});
+document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>go(b.dataset.page,'a'));
+window.addEventListener('hashchange',()=>{readHash();render()});
+readHash();render();
+</script>
