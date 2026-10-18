@@ -20,6 +20,7 @@ status: accepted
 | สอบเทียบ | `calib` | เครื่องมือวัด, การสอบเทียบ | ถัดไป |
 | เงินสดย่อย | `cash` | เงินสดย่อย | ถัดไป |
 | (host `Web`) | `auth` | ผู้ใช้ระบบ (บัญชี login ของ ASP.NET Core Identity) | แรก |
+| (host `Web`) | `audit` | ประวัติการแก้ไข และการเข้าระบบ (ทุก module เพิ่มแถวได้ ตาม ADR 0003) | แรก |
 
 `auth` เป็นของ host ไม่ใช่ module ธุรกิจ เพราะ login มีชุดเดียวทั้งแอป module อื่นไม่อ่านตารางนี้ ใช้ชื่อผู้ใช้ปัจจุบันผ่าน `ICurrentUser` ใน `SharedKernel`
 

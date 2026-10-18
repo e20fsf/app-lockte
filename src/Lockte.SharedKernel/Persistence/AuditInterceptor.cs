@@ -74,7 +74,7 @@ public sealed class AuditInterceptor(ICurrentUser currentUser, TimeProvider cloc
                 _ => HistoryActions.Modified,
             };
             var table = entry.Metadata.AuditName();
-            var rowKey = RowKey(entry);
+            var rowKey = audited.BusinessKey;
             foreach (var p in changes)
             {
                 var secret = p.Metadata.IsSecret();
@@ -115,15 +115,6 @@ public sealed class AuditInterceptor(ICurrentUser currentUser, TimeProvider cloc
                 EntityState.Deleted => true,
                 _ => p.IsModified && !Equals(p.OriginalValue, p.CurrentValue),
             });
-
-    private static string RowKey(EntityEntry entry)
-    {
-        if (entry.Entity is IHasBusinessKey keyed) return keyed.BusinessKey;
-        var key = entry.Metadata.FindPrimaryKey();
-        if (key is null) return "";
-        var parts = key.Properties.Select(p => entry.Property(p.Name)).ToList();
-        return parts.Any(p => p.IsTemporary) ? "(ใหม่)" : string.Join(", ", parts.Select(p => Format(p.CurrentValue)));
-    }
 
     /// <summary>Culture-independent text, so history reads the same whoever saved it.</summary>
     private static string? Format(object? value) => value switch

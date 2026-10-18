@@ -51,8 +51,8 @@ Every table follows the convention in `SharedKernel/Persistence`:
 - Module DbContexts derive from `ModuleDbContext` (own schema, audit conventions, rowversion mismatch → `ConcurrencyConflictException`,
   whose message is shown to the user). Entities implement `IAudited` (CreatedBy/At, UpdatedBy/At, RowVersion).
 - `AuditInterceptor` stamps those columns and writes ประวัติการแก้ไข (`audit.History`) column by column, in the same save.
-  In the model, give tables/columns their Thai name with `HasAuditName(...)`, implement `IHasBusinessKey` so history shows
-  รหัสรายการ (e.g. รหัสพนักงาน), mark system-written columns `IsBookkeeping()` and sensitive ones `IsSecret()`.
+  In the model, give tables/columns their Thai name with `HasAuditName(...)`, give each entity its `BusinessKey` (required by `IAudited`)
+  so history shows รหัสรายการ (e.g. รหัสพนักงาน), mark system-written columns `IsBookkeeping()` and sensitive ones `IsSecret()`.
 - Batch jobs / calculations: do the row writes inside `AuditScope.SuppressRowChanges()` and record one
   `context.AddHistoryEvent(action, parameters, rowCount)` instead. The data-migration tool uses the same scope with no event.
 - The `audit` schema is migrated first (`LockteDatabase.MigrateAsync`); add each module's context there once it has migrations.

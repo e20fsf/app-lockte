@@ -19,6 +19,6 @@ status: accepted
 - **logic ทางธุรกิจต้องอยู่ใน service layer แยกจาก Blazor component** (เช่น คำนวณค่าแรง, บันทึกเวลาทำงาน, ORDER) เพื่อให้เพิ่ม Web API (Minimal API) ในแอปเดิมภายหลังได้ สำหรับแอป mobile หรือการต่อเครื่องลงเวลา โดยไม่เขียน logic ซ้ำ ระยะแรกยังไม่ทำ API
 - IIS ต้องเปิด feature WebSocket เพื่อให้ Blazor Server ทำงานได้ ถ้าเครือข่ายหลุด ผู้ใช้ผ่าน VPN (สำนักงานสีลม) จะเห็นข้อความ reconnect
 - ต้องเผื่อ RAM ใน VM สำหรับ Chromium ระหว่างพิมพ์รายงาน และต้องพิสูจน์ว่า Chromium รันจาก app pool ของ IIS ได้ — เป็นเกณฑ์หนึ่งของ prototype รายงาน คร.2 ถ้าไม่ผ่าน ทางสำรองคือ QuestPDF ซึ่งยังอยู่บน stack เดิม
-- การเข้าระบบใช้ ASP.NET Core Identity แบบ user/password ไม่ใช้ระบบ role ของ Identity มีเพียงธง `IsAdmin` ของบัญชี admin ซึ่งเห็นเฉพาะหน้าจัดการผู้ใช้ระบบ (#39)
+- การเข้าระบบใช้ ASP.NET Core Identity แบบ user/password ไม่ใช้ระบบ role ของ Identity มีเพียงธง `IsAdmin` ของบัญชี admin ซึ่งเห็นเฉพาะหน้าจัดการผู้ใช้ระบบและหน้าประวัติการแก้ไข (#39, #43)
 - การอ่าน `.accdb` ทำด้วยเครื่องมือย้ายข้อมูลแยกต่างหาก (.NET console) รันบน PC ที่มี Microsoft 365 Access Runtime ไม่รันบนเซิร์ฟเวอร์ เพราะ Microsoft ไม่สนับสนุนการใช้ ACE ฝั่ง server
 - ต้องอัปเกรด .NET major อย่างน้อยหนึ่งครั้งก่อน พ.ย. 2028
