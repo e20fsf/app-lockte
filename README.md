@@ -36,6 +36,7 @@ dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account 
 - Connection string: `ConnectionStrings:Lockte`; idle logout: `Auth:IdleTimeoutMinutes` (default 30).
 - New migration: `dotnet ef migrations add <Name> -p src/Lockte.Web -c AccountsDbContext -o Accounts/Migrations` (or `-c AuditDbContext -o Audit/Migrations`);
   module องค์กร: `dotnet ef migrations add <Name> -p src/Lockte.Org -s src/Lockte.Org -c OrgDbContext -o Data/Migrations`.
+  module พนักงานและค่าแรง: `dotnet ef migrations add <Name> -p src/Lockte.Hr -s src/Lockte.Hr -c HrDbContext -o Data/Migrations`.
 
 ### Solution layout (ADR 0002)
 

@@ -67,6 +67,7 @@
             <MudTextField T="string" Value="@("")" Label="หัวหน้าแผนก" Disabled="true" HelperText="เลือกจากทะเบียนพนักงานได้เมื่อทะเบียนพร้อม" />
         </MudItem>
         <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Code" Label="รหัสแผนก" MaxLength="OrgRegistry.DepartmentCodeLength" /></MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.StaffingTarget" Label="อัตรากำลัง" HideSpinButtons="true" Min="0" /></MudItem>
         <MudItem xs="12">
             <MudText Typo="Typo.subtitle2">กะที่แผนกทำงาน</MudText>
             @foreach (var shift in shifts)
@@ -117,7 +118,7 @@
     private void Edit(DepartmentDto d) => form = new DepartmentForm
     {
         Id = d.Id, SortOrder = d.SortOrder, Code = d.Code, Name = d.Name, Prefix = d.EmployeeIdPrefix, SectionId = d.SectionId,
-        HeadEmployeeId = d.HeadEmployeeId, RowVersion = d.RowVersion,
+        HeadEmployeeId = d.HeadEmployeeId, StaffingTarget = d.StaffingTarget, RowVersion = d.RowVersion,
         Shifts = d.Shifts.Select(s => new ShiftForm
         {
             ShiftId = s.ShiftId, SupervisorName = s.SupervisorName, ManagerName = s.ManagerName, FactoryManagerName = s.FactoryManagerName,
@@ -138,7 +139,7 @@
             var input = new DepartmentInput(form.Id, form.Code, form.Name, form.Prefix, form.SortOrder, form.SectionId,
                 form.HeadEmployeeId,
                 form.Shifts.Select(s => new DepartmentShiftInput(s.ShiftId, s.SupervisorName, s.ManagerName, s.FactoryManagerName)).ToList(),
-                form.RowVersion);
+                form.RowVersion, form.StaffingTarget);
             var result = await Services.RunAsync<OrgRegistry, ServiceResult>(r => r.SaveDepartmentAsync(input));
             foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
             if (!result.Succeeded) return;
@@ -168,6 +169,7 @@
         public string Prefix { get; set; } = "";
         public int? SectionId { get; set; }
         public int? HeadEmployeeId { get; set; }
+        public int? StaffingTarget { get; set; }
         public byte[]? RowVersion { get; set; }
         public List<ShiftForm> Shifts { get; set; } = [];
     }

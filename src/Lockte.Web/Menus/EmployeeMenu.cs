@@ -39,8 +39,8 @@ public static class EmployeeMenu
         ]),
         new(2, "ข้อมูลพนักงาน", 1,
         [
-            new("เพิ่มข้อมูลพนักงาน", Code: "SCR-02"),
-            new("แก้ไขข้อมูลพนักงาน", Code: "SCR-03"),
+            new("เพิ่มข้อมูลพนักงาน", Code: "SCR-02", Page: "hr/employees/new"),
+            new("แก้ไขข้อมูลพนักงาน", Code: "SCR-03", Page: "hr/employees"),
             new("พนักงานยังไม่ผ่านทดลองงาน", Code: "RPT-20"),
             new("พิมพ์รายชื่อพนักงาน", Code: "SCR-04"),
             new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05", Page: "org/departments"),

@@ -1,0 +1,78 @@
+@page "/hr/employees/new"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-02 เพิ่มข้อมูลพนักงาน (ฟอร์ม EMPLO). Same fields and order; a blank form is never saved (code and name are
+   required, instead of BR-051's delete on close). No วันลาออก here — recorded on SCR-33. The print buttons
+   (คร.2, สัญญาจ้าง, แบบฟอร์มรับพนักงาน) come with their tickets (#64, #66). *@
+<PageTitle>เพิ่มข้อมูลพนักงาน — LOCKTE</PageTitle>
+<h1 class="mb-4">เพิ่มข้อมูลพนักงาน</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <EmployeeFields Form="form" Departments="departments" Sections="sections" Shifts="shifts" Choices="choices" />
+    <MudStack Row="true" Class="mt-4" Spacing="2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton OnClick="SaveAndNextAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Add">รายการต่อไป</MudButton>
+        <MudSpacer />
+        <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private EmployeeFormModel form = new();
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private IReadOnlyList<SectionDto> sections = [];
+    private IReadOnlyList<ShiftDto> shifts = [];
+    private EmployeeChoices choices = new([], []);
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        (departments, sections, shifts) = await Services.RunAsync<OrgDirectory, (IReadOnlyList<DepartmentDto>, IReadOnlyList<SectionDto>, IReadOnlyList<ShiftDto>)>(
+            async d => (await d.GetDepartmentsAsync(), await d.GetSectionsAsync(), await d.GetShiftsAsync()));
+        choices = await Services.RunAsync<EmployeeDirectory, EmployeeChoices>(d => d.GetChoicesAsync());
+    }
+
+    /// <summary>บันทึก: stays on the saved employee (the next save edits it).</summary>
+    private async Task SaveAsync()
+    {
+        if (await TrySaveAsync() is { } saved) form = EmployeeFormModel.From(saved);
+    }
+
+    /// <summary>รายการต่อไป: saves, then a new blank record.</summary>
+    private async Task SaveAndNextAsync()
+    {
+        if (await TrySaveAsync() is not null) form = new EmployeeFormModel();
+    }
+
+    private async Task<EmployeeDto?> TrySaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = form.ToInput();
+            var result = await Services.RunAsync<EmployeeRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return null;
+
+            var saved = await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(result.Id!.Value));
+            Snackbar.Add($"บันทึก {saved?.Code} แล้ว", Severity.Success);
+            choices = await Services.RunAsync<EmployeeDirectory, EmployeeChoices>(d => d.GetChoicesAsync());
+            return saved;
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            return null;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

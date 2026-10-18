@@ -37,6 +37,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options) : Modul
             d.Property(x => x.SortOrder).HasAuditName("ลำดับ");
             d.Property(x => x.SectionId).HasAuditName("ฝ่าย");
             d.Property(x => x.HeadEmployeeId).HasAuditName("หัวหน้าแผนก");
+            d.Property(x => x.StaffingTarget).HasAuditName("อัตรากำลัง");
             d.HasIndex(x => x.Code).IsUnique();
             d.HasIndex(x => x.Name).IsUnique();
             d.HasOne(x => x.Section).WithMany().HasForeignKey(x => x.SectionId).OnDelete(DeleteBehavior.Restrict);

@@ -37,6 +37,7 @@ public sealed class OrgRegistry(OrgDbContext db)
         if (name is not null && await db.Departments.AnyAsync(d => d.Name == name && d.Id != input.Id))
             errors.Add($"มีแผนก '{name}' อยู่แล้ว");
         if (shiftIds.Count != input.Shifts.Count) errors.Add("เลือกกะซ้ำ");
+        if (input.StaffingTarget < 0) errors.Add("อัตรากำลังต้องไม่ติดลบ");
         var shifts = await db.Shifts.Where(s => shiftIds.Contains(s.Id)).ToListAsync();
         if (shifts.Count != shiftIds.Count) errors.Add("ไม่พบกะที่เลือก");
         if (errors.Count > 0) return new ServiceResult(false, errors);
@@ -51,6 +52,7 @@ public sealed class OrgRegistry(OrgDbContext db)
         department.SortOrder = input.SortOrder;
         department.SectionId = input.SectionId!.Value;
         department.HeadEmployeeId = input.HeadEmployeeId;
+        department.StaffingTarget = input.StaffingTarget;
         foreach (var dropped in department.Shifts.Where(h => !shiftIds.Contains(h.ShiftId)).ToList())
             db.Remove(dropped);
         foreach (var wanted in input.Shifts)
