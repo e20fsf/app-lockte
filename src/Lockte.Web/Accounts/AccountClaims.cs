@@ -16,6 +16,13 @@ public static class AccountClaims
     public static bool IsAdmin(ClaimsPrincipal user) => user.HasClaim(c => c.Type == Admin);
 
     public static bool MustChange(ClaimsPrincipal user) => user.HasClaim(c => c.Type == MustChangePassword);
+
+    /// <summary>
+    /// The one page this user may start from (base-relative): must change password → change-password page,
+    /// admin → user management, everyone else → เมนูหลัก.
+    /// </summary>
+    public static string HomeHref(ClaimsPrincipal user)
+        => MustChange(user) ? "Account/ChangePassword" : IsAdmin(user) ? "admin/users" : "";
 }
 
 /// <summary>Puts the display name and the admin / must-change-password flags into the login cookie.</summary>

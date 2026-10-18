@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Lockte.Web.Accounts.Migrations
 {
     [DbContext(typeof(AccountsDbContext))]
-    [Migration("20261018052316_InitialAccounts")]
+    [Migration("20261018054420_InitialAccounts")]
     partial class InitialAccounts
     {
         /// <inheritdoc />
@@ -32,7 +32,8 @@ namespace Lockte.Web.Accounts.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("AccessFailedCount")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:Bookkeeping", true);
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -68,7 +69,8 @@ namespace Lockte.Web.Accounts.Migrations
                         .HasColumnType("bit");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("datetimeoffset")
+                        .HasAnnotation("Lockte:Bookkeeping", true);
 
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("bit");

@@ -11,8 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString(AccountsRegistration.ConnectionStringName)
-    ?? throw new InvalidOperationException($"ConnectionStrings:{AccountsRegistration.ConnectionStringName} is not set.");
+var connectionString = AccountsRegistration.ConnectionString(builder.Configuration);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddMudServices();
@@ -20,6 +19,8 @@ builder.Services.AddMudServices();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<CurrentUser>());
 builder.Services.AddScoped<CircuitHandler, CurrentUserCircuitHandler>();
+builder.Services.AddScoped<CircuitActivity>();
+builder.Services.AddScoped<CircuitHandler, CircuitActivityHandler>();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingAuthStateProvider>();
 builder.Services.AddLockteAccounts(builder.Configuration);
@@ -56,6 +57,12 @@ app.MapPost("/Account/Logout", async (SignInManager<AppUser> signIn) =>
     await signIn.SignOutAsync();
     return TypedResults.LocalRedirect("~/Account/Login");
 });
+
+// Where a signed-in user starts; also the cookie's access-denied page, so a forbidden full page load
+// (admin opening "/", a user who must change the password) lands on the right page instead of looping.
+app.MapGet(AccountsRegistration.HomeEndpoint, (HttpContext context)
+    => TypedResults.LocalRedirect("~/" + AccountClaims.HomeHref(context.User)))
+    .RequireAuthorization(AuthPolicies.SignedIn);
 
 // idle.js pings this while the user is active: a fresh cookie with the full idle window each time.
 app.MapPost("/Account/KeepAlive", async (HttpContext context, SignInManager<AppUser> signIn) =>

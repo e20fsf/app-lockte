@@ -20,11 +20,10 @@ public sealed class UserAdminTests(LocalDbFixture db)
         Assert.True(user.IsActive);
         Assert.True(user.MustChangePassword);
         Assert.False(user.IsAdmin);
-        var row = await admin.Get<AccountsDbContext>().Users.FindAsync(user.Id);
-        Assert.Equal(AppUser.AdminUserName, row!.CreatedBy);
-        Assert.Equal(AppUser.AdminUserName, row.UpdatedBy);
-        Assert.InRange(row.CreatedAt, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1));
-        Assert.NotEmpty(row.RowVersion);
+        Assert.Equal(AppUser.AdminUserName, user.CreatedBy);
+        Assert.Equal(AppUser.AdminUserName, user.UpdatedBy);
+        Assert.InRange(user.CreatedAt, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1));
+        Assert.NotEmpty(user.RowVersion);
     }
 
     [Fact]
@@ -42,11 +41,24 @@ public sealed class UserAdminTests(LocalDbFixture db)
         }
 
         await using var check = db.Scope();
-        var row = (await check.Get<UserAdminService>().ListAsync()).Single(u => u.UserName == userName);
-        var stored = await check.Get<AccountsDbContext>().Users.FindAsync(row.Id);
-        Assert.Equal(AppUser.AdminUserName, stored!.CreatedBy);
-        Assert.Equal(userName, stored.UpdatedBy);
-        Assert.True(stored.UpdatedAt >= stored.CreatedAt);
+        var row = await Users.FindAsync(check.Get<UserAdminService>(), userName);
+        Assert.Equal(AppUser.AdminUserName, row.CreatedBy);
+        Assert.Equal(userName, row.UpdatedBy);
+        Assert.True(row.UpdatedAt >= row.CreatedAt);
+    }
+
+    [Fact]
+    public async Task Failed_logins_are_not_edits_and_do_not_change_last_edited_by()
+    {
+        var userName = Users.NewName();
+        await using (var admin = db.Scope(AppUser.AdminUserName))
+            await admin.Get<UserAdminService>().CreateAsync(userName, "สมชาย", "temp1234");
+
+        await using (var anonymous = db.Scope("anonymous"))
+            await anonymous.Get<AccountService>().CheckLoginAsync(userName, "wrong password");
+
+        await using var check = db.Scope();
+        Assert.Equal(AppUser.AdminUserName, (await Users.FindAsync(check.Get<UserAdminService>(), userName)).UpdatedBy);
     }
 
     [Fact]

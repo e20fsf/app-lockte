@@ -85,12 +85,10 @@
         await SignInManager.SignInAsync(user, isPersistent: false);
         Logger.LogInformation("Login: {UserName}", user.UserName);
 
-        if (result.Status == LoginStatus.MustChangePassword)
-            Navigation.NavigateTo("Account/ChangePassword");
-        else if (user.IsAdmin)
-            Navigation.NavigateTo("admin/users");
-        else
-            Navigation.NavigateTo(SafeReturnUrl());
+        // The cookie is only in the response, so HttpContext.User is not this user yet: decide from the account.
+        Navigation.NavigateTo(result.Status == LoginStatus.MustChangePassword || user.IsAdmin
+            ? AccountsRegistration.HomeEndpoint
+            : SafeReturnUrl());
     }
 
     /// <summary>Only a path inside this site ("menu/2" or "/menu/2"), never "//other-host" or an absolute URL.</summary>

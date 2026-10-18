@@ -19,7 +19,8 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
         var rows = await db.Users.AsNoTracking().OrderByDescending(u => u.IsAdmin).ThenBy(u => u.UserName).ToListAsync();
         return rows.Select(u => new UserSummary(
             u.Id, u.UserName!, u.DisplayName, u.IsAdmin, u.IsActive, u.MustChangePassword,
-            u.LockoutEnd > now ? u.LockoutEnd : null, u.RowVersion)).ToList();
+            u.LockoutEnd > now ? u.LockoutEnd : null,
+            u.CreatedBy, u.CreatedAt, u.UpdatedBy, u.UpdatedAt, u.RowVersion)).ToList();
     }
 
     /// <summary>New user starts with a temporary password and must change it at first login.</summary>

@@ -16,10 +16,10 @@ public sealed class CurrentUser(IHttpContextAccessor http) : ICurrentUser
     internal ClaimsPrincipal? CircuitUser { get; set; }
 
     /// <summary>Set by work that runs outside any user, e.g. the reset-admin command.</summary>
-    internal string? Fixed { get; set; }
+    internal string? OverrideUserName { get; set; }
 
     public string UserName
-        => Fixed ?? ((CircuitUser ?? http.HttpContext?.User)?.Identity?.Name is { Length: > 0 } name ? name : Anonymous);
+        => OverrideUserName ?? ((CircuitUser ?? http.HttpContext?.User)?.Identity?.Name is { Length: > 0 } name ? name : Anonymous);
 }
 
 internal sealed class CurrentUserCircuitHandler(AuthenticationStateProvider authState, CurrentUser currentUser)

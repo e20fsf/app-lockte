@@ -10,11 +10,8 @@
         var user = (await AuthState).User;
         if (user.Identity?.IsAuthenticated != true)
             Navigation.NavigateTo($"Account/Login?returnUrl={Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri))}", forceLoad: true);
-        else if (AccountClaims.MustChange(user))
-            Navigation.NavigateTo("Account/ChangePassword", forceLoad: true);
-        else if (AccountClaims.IsAdmin(user))
-            Navigation.NavigateTo("admin/users");
         else
-            Navigation.NavigateTo("");
+            // Change-password is a static page: needs a full load.
+            Navigation.NavigateTo(AccountClaims.HomeHref(user), forceLoad: AccountClaims.MustChange(user));
     }
 }

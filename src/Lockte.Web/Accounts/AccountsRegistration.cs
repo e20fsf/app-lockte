@@ -16,6 +16,11 @@ public sealed class AuthOptions
 public static class AccountsRegistration
 {
     public const string ConnectionStringName = "Lockte";
+    public const string HomeEndpoint = "/Account/Home";
+
+    public static string ConnectionString(IConfiguration config)
+        => config.GetConnectionString(ConnectionStringName)
+            ?? throw new InvalidOperationException($"ConnectionStrings:{ConnectionStringName} is not set.");
 
     /// <summary>
     /// Identity with the #39 rules. Used by the web host and by the tests, so both run the same policy.
@@ -23,8 +28,7 @@ public static class AccountsRegistration
     /// </summary>
     public static IServiceCollection AddLockteAccounts(this IServiceCollection services, IConfiguration config)
     {
-        var connectionString = config.GetConnectionString(ConnectionStringName)
-            ?? throw new InvalidOperationException($"ConnectionStrings:{ConnectionStringName} is not set.");
+        var connectionString = ConnectionString(config);
         var auth = config.GetSection(AuthOptions.Section).Get<AuthOptions>() ?? new AuthOptions();
         services.Configure<AuthOptions>(config.GetSection(AuthOptions.Section));
 
@@ -68,7 +72,7 @@ public static class AccountsRegistration
         {
             options.Cookie.Name = "Lockte.Auth";
             options.LoginPath = "/Account/Login";
-            options.AccessDeniedPath = "/";
+            options.AccessDeniedPath = HomeEndpoint; // a page this user may not open → their own start page
             // Session cookie; the ticket inside expires after the idle time. The idle script (idle.js) renews it
             // while the user is active and returns to login when not.
             options.ExpireTimeSpan = TimeSpan.FromMinutes(auth.IdleTimeoutMinutes);

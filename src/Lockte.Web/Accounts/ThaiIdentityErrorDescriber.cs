@@ -1,3 +1,4 @@
+using Lockte.SharedKernel.Persistence;
 using Microsoft.AspNetCore.Identity;
 
 namespace Lockte.Web.Accounts;
@@ -9,7 +10,7 @@ public sealed class ThaiIdentityErrorDescriber : IdentityErrorDescriber
         => new() { Code = nameof(DefaultError), Description = "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
 
     public override IdentityError ConcurrencyFailure()
-        => new() { Code = nameof(ConcurrencyFailure), Description = "รายการนี้ถูกผู้ใช้อื่นบันทึกไปก่อนแล้ว กรุณาโหลดข้อมูลใหม่แล้วแก้อีกครั้ง" };
+        => new() { Code = nameof(ConcurrencyFailure), Description = ConcurrencyConflictException.UserMessage };
 
     public override IdentityError PasswordMismatch()
         => new() { Code = nameof(PasswordMismatch), Description = "รหัสผ่านเดิมไม่ถูกต้อง" };

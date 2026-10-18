@@ -45,7 +45,7 @@
     private string HomeHref = "";
 
     protected override async Task OnParametersSetAsync()
-        => HomeHref = AccountClaims.IsAdmin((await AuthState).User) ? "admin/users" : "";
+        => HomeHref = AccountClaims.HomeHref((await AuthState).User);
 
     private static readonly MudTheme Theme = new()
     {

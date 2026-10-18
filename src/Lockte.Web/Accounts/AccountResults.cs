@@ -36,4 +36,8 @@ public sealed record UserSummary(
     bool IsActive,
     bool MustChangePassword,
     DateTimeOffset? LockedUntil,
+    string CreatedBy,
+    DateTimeOffset CreatedAt,
+    string UpdatedBy,
+    DateTimeOffset UpdatedAt,
     byte[] RowVersion);

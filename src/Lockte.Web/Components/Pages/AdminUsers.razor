@@ -24,6 +24,7 @@
         <MudTh>ชื่อ user</MudTh>
         <MudTh>ชื่อที่แสดง</MudTh>
         <MudTh>สถานะ</MudTh>
+        <MudTh>แก้ล่าสุด</MudTh>
         <MudTh></MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -35,6 +36,7 @@
             else { <MudChip T="string" Size="Size.Small" Color="Color.Success">ใช้งาน</MudChip> }
             @if (context.MustChangePassword) { <MudChip T="string" Size="Size.Small" Color="Color.Warning">รอเปลี่ยนรหัส</MudChip> }
         </MudTd>
+        <MudTd>@context.UpdatedBy @context.UpdatedAt.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiCulture)</MudTd>
         <MudTd Style="text-align:right">
             <MudButton Size="Size.Small" OnClick="() => StartTempPassword(context)" Disabled="busy">ตั้งรหัสชั่วคราว</MudButton>
             @if (!context.IsAdmin)
@@ -67,6 +69,7 @@
     private UserSummary? tempFor;
     private string tempPassword = "";
     private bool busy;
+    private static readonly System.Globalization.CultureInfo ThaiCulture = new("th-TH");
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 

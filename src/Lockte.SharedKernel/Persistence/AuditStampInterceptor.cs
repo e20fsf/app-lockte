@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Lockte.SharedKernel.Persistence;
 
 /// <summary>Fills CreatedBy/At and UpdatedBy/At on every <see cref="IAudited"/> row being saved.</summary>
 public sealed class AuditStampInterceptor(ICurrentUser currentUser, TimeProvider clock) : SaveChangesInterceptor
 {
+    public const string BookkeepingAnnotation = "Lockte:Bookkeeping";
+
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
         Stamp(eventData.Context);
@@ -30,7 +34,7 @@ public sealed class AuditStampInterceptor(ICurrentUser currentUser, TimeProvider
                 entry.Entity.CreatedBy = entry.Entity.UpdatedBy = currentUser.UserName;
                 entry.Entity.CreatedAt = entry.Entity.UpdatedAt = now;
             }
-            else if (entry.State == EntityState.Modified)
+            else if (entry.State == EntityState.Modified && ChangesWhatPeopleEdit(entry))
             {
                 entry.Entity.UpdatedBy = currentUser.UserName;
                 entry.Entity.UpdatedAt = now;
@@ -40,4 +44,22 @@ public sealed class AuditStampInterceptor(ICurrentUser currentUser, TimeProvider
             }
         }
     }
+
+    /// <summary>
+    /// Compares values, not IsModified (some callers mark every column modified): a save that only touches
+    /// bookkeeping columns, e.g. a failed-login counter, is not "last edited by".
+    /// </summary>
+    private static bool ChangesWhatPeopleEdit(EntityEntry<IAudited> entry)
+        => entry.Properties.Any(p =>
+            p.IsModified
+            && p.Metadata.FindAnnotation(BookkeepingAnnotation) is null
+            && !p.Metadata.IsConcurrencyToken
+            && !Equals(p.OriginalValue, p.CurrentValue));
+}
+
+public static class BookkeepingPropertyExtensions
+{
+    /// <summary>A column the system updates on its own (login counters and the like) — does not count as an edit.</summary>
+    public static PropertyBuilder<T> IsBookkeeping<T>(this PropertyBuilder<T> property)
+        => property.HasAnnotation(AuditStampInterceptor.BookkeepingAnnotation, true);
 }

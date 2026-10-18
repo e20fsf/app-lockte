@@ -20,7 +20,7 @@ internal static class ResetAdminCommand
 
         await using var scope = services.CreateAsyncScope();
         // No signed-in user on the server console: the change is recorded as "system".
-        scope.ServiceProvider.GetRequiredService<CurrentUser>().Fixed = SystemUser.Name;
+        scope.ServiceProvider.GetRequiredService<CurrentUser>().OverrideUserName = SystemUser.Name;
         await scope.ServiceProvider.GetRequiredService<AccountsDbContext>().Database.MigrateAsync();
 
         var result = await scope.ServiceProvider.GetRequiredService<UserAdminService>().ResetAdminAsync(password);
