@@ -1,0 +1,115 @@
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ISnackbar Snackbar
+
+@* The rows of SCR-15 / SCR-16, edited in place like the legacy continuous forms SUNDAY / HOLIDAY: a row is saved when
+   the user leaves a changed field (Access saved on leaving the record), the last row is a blank new row, and a row is
+   deleted with its own button (the record selector + Delete). A new row is saved once it has a date. *@
+<MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="max-width:48rem">
+    <thead>
+        <tr>
+            <th style="width:11rem">วันที่</th>
+            <th style="width:8rem">วัน</th>
+            <th>@TextLabel</th>
+            <th style="width:3rem"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in Rows.Append(newRow))
+        {
+            <tr @key="row">
+                <td>
+                    <MudDatePicker Date="row.Date" DateChanged="@(d => DateChangedAsync(row, d))" Culture="ThaiDate.Culture"
+                                   DateFormat="@ThaiDate.Format" Editable="true" Margin="Margin.Dense" Disabled="busy"
+                                   Placeholder="@(row.Id is null ? "เพิ่มวันที่" : null)" />
+                </td>
+                <td>@(row.Date is { } d ? ThaiDate.DayName(DateOnly.FromDateTime(d)) : "")</td>
+                <td>
+                    <MudTextField T="string" Value="row.Text" ValueChanged="@(t => TextChangedAsync(row, t))" Margin="Margin.Dense"
+                                  MaxLength="TextMaxLength" Placeholder="@TextPlaceholder" Disabled="busy" />
+                </td>
+                <td>
+                    @if (row.Id is not null)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" Disabled="busy"
+                                       aria-label="ลบแถวนี้" OnClick="@(() => DeleteAsync(row))" />
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+
+@code {
+    /// <summary>The saved rows to show, in date order.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<HolidayRow> Rows { get; set; } = [];
+
+    [Parameter, EditorRequired] public string TextLabel { get; set; } = "";
+    [Parameter] public int TextMaxLength { get; set; }
+    [Parameter] public string? TextPlaceholder { get; set; }
+
+    [Parameter, EditorRequired] public Func<HolidayRow, Task<ServiceResult>> Save { get; set; } = null!;
+    [Parameter, EditorRequired] public Func<HolidayRow, Task<ServiceResult>> Delete { get; set; } = null!;
+
+    /// <summary>After a save or delete (or a conflict): the page reloads <see cref="Rows"/>.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private HolidayRow newRow = new();
+    private bool busy;
+
+    private Task DateChangedAsync(HolidayRow row, DateTime? date)
+    {
+        row.Date = date;
+        return CommitAsync(row);
+    }
+
+    private Task TextChangedAsync(HolidayRow row, string? text)
+    {
+        row.Text = text;
+        return CommitAsync(row);
+    }
+
+    private async Task CommitAsync(HolidayRow row)
+    {
+        if (row.Id is null && row.Date is null) return; // a new row waits for its date
+        await RunAsync(async () =>
+        {
+            var result = await Save(row);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded)
+            {
+                row.Undo();
+                return;
+            }
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            if (row == newRow) newRow = new();
+            await Changed.InvokeAsync();
+        });
+    }
+
+    private Task DeleteAsync(HolidayRow row) => RunAsync(async () =>
+    {
+        var result = await Delete(row);
+        foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+        if (result.Succeeded) Snackbar.Add("ลบแล้ว", Severity.Success);
+        await Changed.InvokeAsync();
+    });
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await Changed.InvokeAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

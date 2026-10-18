@@ -1,0 +1,11 @@
+@* "กลับเมนูเดิม" of a screen: back to the menu page that lists its SCR/RPT code. *@
+@if (EmployeeMenu.FindItem(Code) is { } found)
+{
+    <MudButton Href="@EmployeeMenu.HrefOf(found.Page.Number)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">
+        กลับเมนูเดิม
+    </MudButton>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Code { get; set; } = "";
+}

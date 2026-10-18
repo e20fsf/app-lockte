@@ -1,4 +1,3 @@
-using System.Globalization;
 using Lockte.Hr.Data;
 using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
@@ -7,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Lockte.Hr;
 
 /// <summary>
-/// เพิ่ม/แก้ ปฏิทินวันหยุด: SCR-15 (วันหยุดประจำสัปดาห์) and SCR-16 (วันหยุดประเพณี). Each save carries the rowversion
+/// เพิ่ม/แก้ วันหยุดประจำสัปดาห์และวันหยุดประเพณี: SCR-15 (วันหยุดประจำสัปดาห์) and SCR-16 (วันหยุดประเพณี). Each save carries the rowversion
 /// the screen loaded; if the row changed since, it throws <see cref="ConcurrencyConflictException"/>.
 /// The date is required (as decided for SCR-05 instead of BR-051's "blank row is deleted"): a blank new row is not
 /// saved and clearing a date is an error, never a delete. A date appears once per register, so payroll never counts
@@ -27,12 +26,12 @@ public sealed class HolidayRegistry(HrDbContext db)
         var errors = new List<string>();
         if (input.Date is not { } date) errors.Add("กรุณากรอกวันที่");
         else if (await db.WeeklyHolidays.AnyAsync(w => w.Date == date && w.Id != input.Id))
-            errors.Add($"มีวันหยุดประจำสัปดาห์วันที่ {ThaiDate(date)} อยู่แล้ว");
+            errors.Add($"มีวันหยุดประจำสัปดาห์วันที่ {ThaiDate.Text(date)} อยู่แล้ว");
         if (label.Length > WeeklyLabelLength) errors.Add($"ป้ายยาวได้ไม่เกิน {WeeklyLabelLength} ตัว");
         if (errors.Count > 0) return new ServiceResult(false, errors);
 
         var holiday = input.Id is { } id ? await LoadAsync(db.WeeklyHolidays, id, input.RowVersion) : db.WeeklyHolidays.Add(new WeeklyHoliday()).Entity;
-        if (holiday is null) return ServiceResult.Fail("ไม่พบวันหยุดนี้ อาจถูกลบไปแล้ว");
+        if (holiday is null) return ServiceResult.Fail("ไม่พบวันหยุดประจำสัปดาห์นี้ อาจถูกลบไปแล้ว");
         holiday.Date = input.Date!.Value;
         holiday.Label = label;
         await db.SaveChangesAsync();
@@ -72,11 +71,21 @@ public sealed class HolidayRegistry(HrDbContext db)
         return ServiceResult.Ok();
     }
 
-    /// <summary>SCR-16: deletes one row, as the legacy datasheet did.</summary>
+    /// <summary>SCR-15: deletes one row, as the legacy continuous form did (record selector + Delete).</summary>
+    public async Task<ServiceResult> DeleteWeeklyHolidayAsync(int id, byte[] loadedRowVersion)
+    {
+        var holiday = await LoadAsync(db.WeeklyHolidays, id, loadedRowVersion);
+        if (holiday is null) return ServiceResult.Fail("ไม่พบวันหยุดประจำสัปดาห์นี้ อาจถูกลบไปแล้ว");
+        db.WeeklyHolidays.Remove(holiday);
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok();
+    }
+
+    /// <summary>SCR-16: deletes one row, as the legacy continuous form did (record selector + Delete).</summary>
     public async Task<ServiceResult> DeletePublicHolidayAsync(int id, byte[] loadedRowVersion)
     {
         var holiday = await LoadAsync(db.PublicHolidays, id, loadedRowVersion);
-        if (holiday is null) return ServiceResult.Fail("ไม่พบวันหยุดนี้ อาจถูกลบไปแล้ว");
+        if (holiday is null) return ServiceResult.Fail("ไม่พบวันหยุดประเพณีนี้ อาจถูกลบไปแล้ว");
         db.PublicHolidays.Remove(holiday);
         await db.SaveChangesAsync();
         return ServiceResult.Ok();
@@ -88,12 +97,12 @@ public sealed class HolidayRegistry(HrDbContext db)
         var errors = new List<string>();
         if (input.Date is not { } date) errors.Add("กรุณากรอกวันที่");
         else if (await db.PublicHolidays.AnyAsync(h => h.Date == date && h.Id != input.Id))
-            errors.Add($"มีวันหยุดประเพณีวันที่ {ThaiDate(date)} อยู่แล้ว");
+            errors.Add($"มีวันหยุดประเพณีวันที่ {ThaiDate.Text(date)} อยู่แล้ว");
         if (name?.Length > PublicHolidayNameLength) errors.Add($"ชื่อวันหยุดยาวได้ไม่เกิน {PublicHolidayNameLength} ตัว");
         if (errors.Count > 0) return new ServiceResult(false, errors);
 
         var holiday = input.Id is { } id ? await LoadAsync(db.PublicHolidays, id, input.RowVersion) : db.PublicHolidays.Add(new PublicHoliday()).Entity;
-        if (holiday is null) return ServiceResult.Fail("ไม่พบวันหยุดนี้ อาจถูกลบไปแล้ว");
+        if (holiday is null) return ServiceResult.Fail("ไม่พบวันหยุดประเพณีนี้ อาจถูกลบไปแล้ว");
         holiday.Date = input.Date!.Value;
         holiday.Name = name;
         await db.SaveChangesAsync();
@@ -107,11 +116,6 @@ public sealed class HolidayRegistry(HrDbContext db)
         if (row is not null && loadedRowVersion is not null) row.ExpectRowVersion(loadedRowVersion);
         return row;
     }
-
-    /// <summary>d/M/yyyy in พ.ศ., as the screens show dates.</summary>
-    internal static string ThaiDate(DateOnly date) => date.ToString("d/M/yyyy", ThaiCulture);
-
-    private static readonly CultureInfo ThaiCulture = new("th-TH");
 
     private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 }

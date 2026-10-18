@@ -122,10 +122,10 @@ public sealed class HolidayCalendarTests(LocalDbFixture db)
     public async Task Pressing_เพิ่ม_adds_four_more_weeks_after_the_last_date_of_each_label()
     {
         var year = OwnYear();
-        string sundays = "ส" + Guid.NewGuid().ToString("N")[..6], saturdays = "ส" + Guid.NewGuid().ToString("N")[..6];
-        var lastSunday = new DateOnly(year, 8, 2);
-        var lastSaturday = new DateOnly(year, 9, 5);
-        foreach (var (date, label) in new[] { (lastSunday.AddDays(-7), sundays), (lastSunday, sundays), (lastSaturday, saturdays) })
+        string weekly = "ส" + Guid.NewGuid().ToString("N")[..6], otherDay = "ส" + Guid.NewGuid().ToString("N")[..6];
+        var lastWeekly = new DateOnly(year, 8, 2);
+        var lastOtherDay = new DateOnly(year, 9, 5);
+        foreach (var (date, label) in new[] { (lastWeekly.AddDays(-7), weekly), (lastWeekly, weekly), (lastOtherDay, otherDay) })
             await AsHrAsync((registry, _) => registry.SaveWeeklyHolidayAsync(new WeeklyHolidayInput(null, date, label, null)));
 
         var result = await AsHrAsync((registry, _) => registry.AddNextWeeklyHolidaysAsync());
@@ -134,34 +134,36 @@ public sealed class HolidayCalendarTests(LocalDbFixture db)
         var listed = (await AsHrAsync((_, calendar) => calendar.GetWeeklyHolidaysAsync())).Where(w => w.Date.Year == year).ToList();
         Assert.Equal(
             [new DateOnly(year, 8, 9), new(year, 8, 16), new(year, 8, 23), new(year, 8, 30)],
-            listed.Where(w => w.Label == sundays && w.Date > lastSunday).Select(w => w.Date));
+            listed.Where(w => w.Label == weekly && w.Date > lastWeekly).Select(w => w.Date));
         Assert.Equal(
             [new DateOnly(year, 9, 12), new(year, 9, 19), new(year, 9, 26), new(year, 10, 3)],
-            listed.Where(w => w.Label == saturdays && w.Date > lastSaturday).Select(w => w.Date));
+            listed.Where(w => w.Label == otherDay && w.Date > lastOtherDay).Select(w => w.Date));
         Assert.True((await DaysOffAsync(new(year, 10, 3), new(year, 10, 3))).IsWeeklyHoliday(new(year, 10, 3)));
     }
 
     [Fact]
-    public async Task Weekly_holidays_are_deleted_by_date_range_and_a_public_holiday_by_row()
+    public async Task Weekly_holidays_are_deleted_by_date_range_or_by_row_and_a_public_holiday_by_row()
     {
         var year = OwnYear();
-        var sundays = Enumerable.Range(0, 4).Select(i => new DateOnly(year, 11, 1).AddDays(7 * i)).ToList();
-        foreach (var date in sundays)
+        var weeks = Enumerable.Range(0, 4).Select(i => new DateOnly(year, 11, 1).AddDays(7 * i)).ToList();
+        foreach (var date in weeks)
             await AsHrAsync((registry, _) => registry.SaveWeeklyHolidayAsync(new WeeklyHolidayInput(null, date, null, null)));
-        var holidayId = (await AsHrAsync((registry, _) => registry.SavePublicHolidayAsync(new PublicHolidayInput(null, sundays[1], "ลอยกระทง", null)))).Id!.Value;
+        var holidayId = (await AsHrAsync((registry, _) => registry.SavePublicHolidayAsync(new PublicHolidayInput(null, weeks[1], "ลอยกระทง", null)))).Id!.Value;
         var holiday = (await AsHrAsync((_, calendar) => calendar.GetPublicHolidaysAsync())).Single(h => h.Id == holidayId);
 
-        var range = await AsHrAsync((registry, _) => registry.DeleteWeeklyHolidaysAsync(sundays[1], sundays[2]));
+        var lastWeek = (await AsHrAsync((_, calendar) => calendar.GetWeeklyHolidaysAsync())).Single(w => w.Date == weeks[3]);
+        var oneRow = await AsHrAsync((registry, _) => registry.DeleteWeeklyHolidayAsync(lastWeek.Id, lastWeek.RowVersion));
+        var range = await AsHrAsync((registry, _) => registry.DeleteWeeklyHolidaysAsync(weeks[1], weeks[2]));
         var row = await AsHrAsync((registry, _) => registry.DeletePublicHolidayAsync(holidayId, holiday.RowVersion));
-        var backwards = await AsHrAsync((registry, _) => registry.DeleteWeeklyHolidaysAsync(sundays[3], sundays[0]));
+        var backwards = await AsHrAsync((registry, _) => registry.DeleteWeeklyHolidaysAsync(weeks[3], weeks[0]));
 
-        Assert.True(range.Succeeded && row.Succeeded);
+        Assert.True(oneRow.Succeeded && range.Succeeded && row.Succeeded);
         Assert.Equal(["วันที่เริ่มต้องไม่หลังวันที่สิ้นสุด"], backwards.Errors);
-        var daysOff = await DaysOffAsync(sundays[0], sundays[3]);
-        Assert.Equal([sundays[0], sundays[3]], daysOff.WeeklyHolidays.Order());
+        var daysOff = await DaysOffAsync(weeks[0], weeks[3]);
+        Assert.Equal([weeks[0]], daysOff.WeeklyHolidays);
         Assert.Empty(daysOff.PublicHolidays);
         await using var scope = db.Scope();
-        Assert.Contains(await scope.Get<HistoryService>().SearchAsync(new(Table: "วันหยุดประจำสัปดาห์", RowKey: Key(sundays[2]))),
+        Assert.Contains(await scope.Get<HistoryService>().SearchAsync(new(Table: "วันหยุดประจำสัปดาห์", RowKey: Key(weeks[2]))),
             r => r.Action == HistoryActions.Deleted && r.UserName == "hr1");
     }
 

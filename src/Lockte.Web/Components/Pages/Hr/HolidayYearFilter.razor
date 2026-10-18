@@ -1,0 +1,20 @@
+@using Lockte.SharedKernel
+
+@* ปี พ.ศ. to show on SCR-15 / SCR-16. Not on the legacy forms, which listed every row: the registers now keep every
+   year (BR-042 "ลบข้อมูลปีที่แล้ว" is not built), so the list would only grow. *@
+<MudSelect T="int?" Value="Year" ValueChanged="YearChanged" Label="ปี" Dense="true" Style="max-width:10rem" Class="mb-2">
+    <MudSelectItem T="int?" Value="null">ทุกปี</MudSelectItem>
+    @foreach (var y in Years.Append(DateTime.Today.Year).Distinct().Order())
+    {
+        <MudSelectItem T="int?" Value="y">@ThaiDate.BuddhistYear(y)</MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    /// <summary>The years that have rows (ค.ศ.); this year is always offered.</summary>
+    [Parameter, EditorRequired] public IEnumerable<int> Years { get; set; } = [];
+
+    /// <summary>ค.ศ.; null = every year.</summary>
+    [Parameter] public int? Year { get; set; }
+    [Parameter] public EventCallback<int?> YearChanged { get; set; }
+}

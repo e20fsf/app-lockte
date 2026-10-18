@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Lockte.Hr;
 
 /// <summary>
-/// The public, read-only face of the ปฏิทินวันหยุด: how work time, payroll and screens ask which days are
+/// The public, read-only face of วันหยุดประจำสัปดาห์ and วันหยุดประเพณี: how work time, payroll and screens ask which days are
 /// วันหยุดประจำสัปดาห์ or วันหยุดประเพณี. Writes go through <see cref="HolidayRegistry"/>.
 /// </summary>
 public sealed class HolidayCalendar(HrDbContext db)
