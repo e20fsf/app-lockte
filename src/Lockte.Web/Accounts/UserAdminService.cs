@@ -44,7 +44,7 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
         if (user is null) return AccountResult.Fail("ไม่พบผู้ใช้");
         if (user.IsAdmin && !active) return AccountResult.Fail("ปิดใช้งานบัญชี admin ไม่ได้");
 
-        db.ExpectRowVersion(user, loadedRowVersion);
+        user.ExpectRowVersion(loadedRowVersion);
         user.IsActive = active;
         return AccountResult.From(await users.UpdateSecurityStampAsync(user));
     }
@@ -55,7 +55,7 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
         var user = await users.FindByIdAsync(userId);
         if (user is null) return AccountResult.Fail("ไม่พบผู้ใช้");
 
-        db.ExpectRowVersion(user, loadedRowVersion);
+        user.ExpectRowVersion(loadedRowVersion);
         return await ApplyTemporaryPasswordAsync(user, temporaryPassword);
     }
 

@@ -41,10 +41,15 @@ public static class DbContextConcurrencyExtensions
     }
 
     /// <summary>
-    /// Makes the next save check the row against the rowversion the user loaded, not the one just read from the database.
+    /// Throws a conflict if the row just read from the database is no longer the one the screen loaded.
+    /// A save made between this read and SaveChanges is still caught by the rowversion check of the UPDATE.
+    /// Compared here rather than by overwriting the tracked original value: Identity's UserStore calls
+    /// <c>DbContext.Update</c>, which resets original values to the current ones.
     /// </summary>
-    public static void ExpectRowVersion<T>(this DbContext context, T entity, byte[] loadedRowVersion) where T : class, IAudited
-        => context.Entry(entity).Property(e => e.RowVersion).OriginalValue = loadedRowVersion;
+    public static void ExpectRowVersion(this IAudited entity, byte[] loadedRowVersion)
+    {
+        if (!entity.RowVersion.AsSpan().SequenceEqual(loadedRowVersion)) throw new ConcurrencyConflictException();
+    }
 }
 
 /// <summary>
