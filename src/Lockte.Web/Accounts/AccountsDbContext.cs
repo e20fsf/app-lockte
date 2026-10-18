@@ -19,10 +19,23 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> option
         builder.HasDefaultSchema(Schema);
         builder.Entity<AppUser>(user =>
         {
-            user.Property(u => u.DisplayName).HasMaxLength(100).IsRequired();
-            // Written by every login attempt; not an edit by a person.
+            user.HasAuditName("ผู้ใช้");
+            user.Property(u => u.UserName).HasAuditName("ชื่อ user");
+            user.Property(u => u.DisplayName).HasMaxLength(100).IsRequired().HasAuditName("ชื่อที่แสดง");
+            user.Property(u => u.IsActive).HasAuditName("ใช้งาน");
+            user.Property(u => u.IsAdmin).HasAuditName("admin");
+            user.Property(u => u.MustChangePassword).HasAuditName("ต้องเปลี่ยนรหัส");
+            user.Property(u => u.PasswordHash).HasAuditName("รหัสผ่าน").IsSecret();
+            // Written by every login attempt, derived copies, or Identity features this system does not use.
             user.Property(u => u.AccessFailedCount).IsBookkeeping();
             user.Property(u => u.LockoutEnd).IsBookkeeping();
+            user.Property(u => u.LockoutEnabled).IsBookkeeping();
+            user.Property(u => u.SecurityStamp).IsBookkeeping();
+            user.Property(u => u.NormalizedUserName).IsBookkeeping();
+            user.Property(u => u.NormalizedEmail).IsBookkeeping();
+            user.Property(u => u.EmailConfirmed).IsBookkeeping();
+            user.Property(u => u.PhoneNumberConfirmed).IsBookkeeping();
+            user.Property(u => u.TwoFactorEnabled).IsBookkeeping();
         });
         builder.ApplyLockteConventions();
     }

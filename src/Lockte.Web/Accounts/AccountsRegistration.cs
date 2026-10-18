@@ -1,4 +1,5 @@
 using Lockte.SharedKernel.Persistence;
+using Lockte.Web.Audit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -34,6 +35,8 @@ public static class AccountsRegistration
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpContextAccessor();
+        services.AddModuleDbContext<AuditDbContext>(connectionString, AuditDbContext.Schema);
+        services.AddScoped<HistoryService>();
         services.AddModuleDbContext<AccountsDbContext>(connectionString, AccountsDbContext.Schema);
 
         services.AddAuthentication(options =>

@@ -26,4 +26,6 @@ public sealed class AppUser : IdentityUser, IAudited
     public string UpdatedBy { get; set; } = "";
     public DateTimeOffset UpdatedAt { get; set; }
     public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => UserName ?? "";
 }

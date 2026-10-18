@@ -29,10 +29,12 @@ public sealed class LocalDbFixture : IAsyncLifetime
         collection.AddScoped<TestCurrentUser>();
         collection.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<TestCurrentUser>());
         collection.AddLockteAccounts(config);
+        collection.AddModuleDbContext<WidgetDbContext>(AccountsRegistration.ConnectionString(config), WidgetDbContext.Schema);
         services = collection.BuildServiceProvider(validateScopes: true);
 
+        await LockteDatabase.MigrateAsync(services);
         await using var scope = Scope(SystemUser.Name);
-        await scope.Get<AccountsDbContext>().Database.MigrateAsync();
+        await scope.Get<WidgetDbContext>().CreateTableAsync();
     }
 
     public async Task DisposeAsync()
