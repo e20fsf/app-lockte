@@ -1,0 +1,20 @@
+@* A page the user may not open: send them where they belong (see AuthPolicies). *@
+@inject NavigationManager Navigation
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+        if (user.Identity?.IsAuthenticated != true)
+            Navigation.NavigateTo($"Account/Login?returnUrl={Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri))}", forceLoad: true);
+        else if (AccountClaims.MustChange(user))
+            Navigation.NavigateTo("Account/ChangePassword", forceLoad: true);
+        else if (AccountClaims.IsAdmin(user))
+            Navigation.NavigateTo("admin/users");
+        else
+            Navigation.NavigateTo("");
+    }
+}

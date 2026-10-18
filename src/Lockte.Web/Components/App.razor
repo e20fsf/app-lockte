@@ -1,0 +1,38 @@
+@using Microsoft.Extensions.Options
+@inject IOptions<AuthOptions> AuthOptions
+
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["_content/MudBlazor/MudBlazor.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="icon" type="image/svg+xml" href="@Assets["brand/logo.svg"]" />
+    <ImportMap />
+    <HeadOutlet @rendermode="PageRenderMode" />
+</head>
+
+<body>
+    <Routes @rendermode="PageRenderMode" />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="@Assets["_content/MudBlazor/MudBlazor.min.js"]"></script>
+    @if (HttpContext.User.Identity?.IsAuthenticated == true)
+    {
+        <script src="@Assets["js/idle.js"]" data-timeout-minutes="@AuthOptions.Value.IdleTimeoutMinutes"></script>
+    }
+</body>
+
+</html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    // Account pages (login, change password) write the cookie, so they render as plain HTTP pages.
+    private IComponentRenderMode? PageRenderMode
+        => HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+}

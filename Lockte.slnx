@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Lockte.Hr/Lockte.Hr.csproj" />
+    <Project Path="src/Lockte.Org/Lockte.Org.csproj" />
+    <Project Path="src/Lockte.SharedKernel/Lockte.SharedKernel.csproj" />
+    <Project Path="src/Lockte.Web/Lockte.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Lockte.Web.Tests/Lockte.Web.Tests.csproj" />
+  </Folder>
+</Solution>

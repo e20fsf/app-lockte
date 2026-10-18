@@ -1,0 +1,42 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
+
+namespace Lockte.Web.Accounts;
+
+public static class AccountClaims
+{
+    public const string DisplayName = "lockte:display_name";
+    public const string Admin = "lockte:admin";
+    public const string MustChangePassword = "lockte:must_change_password";
+
+    public static string DisplayNameOf(ClaimsPrincipal user)
+        => user.FindFirstValue(DisplayName) ?? user.Identity?.Name ?? "";
+
+    public static bool IsAdmin(ClaimsPrincipal user) => user.HasClaim(c => c.Type == Admin);
+
+    public static bool MustChange(ClaimsPrincipal user) => user.HasClaim(c => c.Type == MustChangePassword);
+}
+
+/// <summary>Puts the display name and the admin / must-change-password flags into the login cookie.</summary>
+public sealed class AppClaimsPrincipalFactory(UserManager<AppUser> userManager, IOptions<IdentityOptions> options)
+    : UserClaimsPrincipalFactory<AppUser>(userManager, options)
+{
+    protected override async Task<ClaimsIdentity> GenerateClaimsAsync(AppUser user)
+    {
+        var identity = await base.GenerateClaimsAsync(user);
+        identity.AddClaim(new Claim(AccountClaims.DisplayName, user.DisplayName));
+        if (user.IsAdmin) identity.AddClaim(new Claim(AccountClaims.Admin, "1"));
+        if (user.MustChangePassword) identity.AddClaim(new Claim(AccountClaims.MustChangePassword, "1"));
+        return identity;
+    }
+}
+
+/// <summary>
+/// Identity asks this before every sign-in (SignIn.RequireConfirmedAccount = true):
+/// a deactivated user cannot sign in, even with the right password.
+/// </summary>
+public sealed class ActiveUserConfirmation : IUserConfirmation<AppUser>
+{
+    public Task<bool> IsConfirmedAsync(UserManager<AppUser> manager, AppUser user) => Task.FromResult(user.IsActive);
+}

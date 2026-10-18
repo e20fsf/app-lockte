@@ -1,0 +1,44 @@
+@page "/menu/{Number:int}"
+@attribute [Authorize]
+
+@if (menu is null)
+{
+    <PageTitle>ไม่พบเมนู — LOCKTE</PageTitle>
+    <MudAlert Severity="Severity.Warning">ไม่พบเมนู @Number</MudAlert>
+    <MudLink Href="">กลับเมนูหลัก</MudLink>
+}
+else
+{
+    <PageTitle>@menu.Title — LOCKTE</PageTitle>
+    <div class="menu-page">
+        @if (menu.Number == EmployeeMenu.Main)
+        {
+            <img src="brand/logo.svg" alt="LOCKTE" class="menu-logo" />
+        }
+        <h1 class="menu-title">@menu.Title</h1>
+        <MudStack Spacing="2" Class="menu-items">
+            @foreach (var item in menu.Items)
+            {
+                <MudButton Href="@item.Href" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                           EndIcon="@(item.SubMenu is null ? null : Icons.Material.Filled.ChevronRight)" Class="menu-item">
+                    @item.Text
+                </MudButton>
+            }
+            @if (menu.Back is { } back)
+            {
+                <MudButton Href="@EmployeeMenu.HrefOf(back)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
+                    กลับเมนูเดิม
+                </MudButton>
+            }
+        </MudStack>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Number { get; set; } = EmployeeMenu.Main;
+
+    private MenuPage? menu;
+
+    protected override void OnParametersSet() => menu = EmployeeMenu.Find(Number);
+}

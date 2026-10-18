@@ -1,0 +1,159 @@
+namespace Lockte.Web.Menus;
+
+/// <summary>An item on a menu page: opens another menu page, or a screen/report by its SCR/RPT code.</summary>
+public sealed record MenuItem(string Text, int? SubMenu = null, string? Code = null)
+{
+    public string Href => SubMenu is { } n ? EmployeeMenu.HrefOf(n) : $"hr/{Code}";
+}
+
+/// <summary>A menu page; <see cref="Back"/> is where its "กลับเมนูเดิม" goes (null on the main menu).</summary>
+public sealed record MenuPage(int Number, string Title, int? Back, IReadOnlyList<MenuItem> Items);
+
+/// <summary>
+/// โครงเมนูเดิมของ <c>พนักงาน.accdb</c> (Switchboard) ตาม <c>specs/employee/screens.md</c> "แผนผังเมนู" — same pages,
+/// order and "กลับเมนูเดิม" targets, including ⚠ oddities (เมนูหลัก "เวลาทำงาน" opens เมนู 7, เมนู 3 returns to เมนู 7).
+/// Left out as decided in #41/#14: ย้ายข้อมูล (SCR-60), ลบข้อมูลปีที่แล้ว (SCR-62), จบโปรแกรม, and menu pages 8 and 16
+/// which no item opens.
+/// </summary>
+public static class EmployeeMenu
+{
+    public const int Main = 1;
+
+    public static string HrefOf(int number) => number == Main ? "" : $"menu/{number}";
+
+    public static IReadOnlyList<MenuPage> Pages { get; } =
+    [
+        new(1, "เมนูหลัก", null,
+        [
+            new("ข้อมูลพนักงาน", SubMenu: 2),
+            new("เวลาทำงาน", SubMenu: 7),
+            new("การลางานและใบเตือน", SubMenu: 4),
+            new("ตัด WEEK", SubMenu: 12),
+            new("พิมพ์ใบลางาน, ใบลาออกและทะเบียนผู้ประกันสังคม", SubMenu: 18),
+            new("การประเมินผลพนักงาน", SubMenu: 11),
+        ]),
+        new(2, "ข้อมูลพนักงาน", 1,
+        [
+            new("เพิ่มข้อมูลพนักงาน", Code: "SCR-02"),
+            new("แก้ไขข้อมูลพนักงาน", Code: "SCR-03"),
+            new("พนักงานยังไม่บรรจุ", Code: "RPT-20"),
+            new("พิมพ์รายชื่อพนักงาน", Code: "SCR-04"),
+            new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05"),
+            new("พิมพ์หนังสือรับรอง, เกษียณและปลดออก", SubMenu: 19),
+            new("พิมพ์ใบอนุมัติบรรจุพนักงาน", Code: "SCR-06"),
+        ]),
+        new(7, "วันอาทิตย์และวันหยุด", 1,
+        [
+            new("บันทึกการทำงาน", SubMenu: 3),
+            new("พิมพ์ใบขออนุมัติทำล่วงเวลา", Code: "SCR-14"),
+            new("เพิ่มและแก้ไขวันอาทิตย์", Code: "SCR-15"),
+            new("เพิ่มและแก้ไขวันหยุด", Code: "SCR-16"),
+            new("รายงานทำล่วงเวลาจริง", Code: "RPT-14"),
+            new("รายงานการมาทำงาน", Code: "RPT-15"),
+        ]),
+        new(3, "เวลาทำงาน", 7,
+        [
+            new("บันทึก, แก้ไขและพิมพ์รายงานพนักงานไม่มาทำงาน", Code: "SCR-10"),
+            new("บันทึกเวลาทำงานให้ทุกคน", Code: "SCR-11"),
+            new("บันทึกเวลาทำงาน, OT, วันอาทิตย์และวันหยุด", Code: "SCR-12"),
+            new("แก้ไขและลบเวลาทำงาน", Code: "SCR-13"),
+            new("รายงานพนักงานที่มาทำงานสาย", Code: "RPT-12"),
+            new("รายงานสรุปชั่วโมงทำงาน", Code: "RPT-13"),
+        ]),
+        new(4, "การลางานและใบเตือน", 1,
+        [
+            new("บันทึกและแก้ไขการลางาน", Code: "SCR-30"),
+            new("พิมพ์รายงานการลางาน", SubMenu: 17),
+            new("ลบข้อมูลการลางาน", Code: "SCR-31"),
+            new("บันทึกและแก้ไขใบเตือน", Code: "SCR-32"),
+            new("พิมพ์รายงานใบเตือน", Code: "RPT-30"),
+        ]),
+        new(17, "พิมพ์รายงานการลางาน", 4,
+        [
+            new("พิมพ์ลางานทั้งแผนก", Code: "RPT-31"),
+            new("พิมพ์ลางานรายบุคคล", Code: "RPT-32"),
+            new("พิมพ์สรุปการลางาน", Code: "RPT-33"),
+            new("พิมพ์พนักงานขาดงาน", Code: "RPT-34"),
+        ]),
+        new(12, "ตัด WEEK", 1,
+        [
+            new("ตัด WEEK ตามปกติ", SubMenu: 6),
+            new("ตัด WEEK เป็น 2 ช่วง", SubMenu: 13),
+            new("วิธีการทำเงินเดือนส่งแบงค์ทหารไทย", Code: "RPT-06-TTB"),
+            new("วิธีการทำเงิน OT ส่งแบงค์กสิกรไทย", Code: "RPT-06-KBANK"),
+        ]),
+        new(6, "ตัด WEEK ปกติ", 12,
+        [
+            new("พิมพ์เวลาทำงาน", Code: "SCR-40"),
+            new("พิมพ์ค่าแรง", Code: "SCR-41"),
+            new("พิมพ์สรุปค่าแรง", SubMenu: 9),
+            new("พิมพ์ค่าแรงส่งแบงค์", Code: "SCR-42"),
+            new("พิมพ์ SLIP", Code: "RPT-04"),
+            new("พิมพ์ค่าแรงสิ้นเดือนและสรุป", Code: "SCR-43"),
+            new("คำนวณโบนัสและปรับค่าแรง", SubMenu: 10),
+        ]),
+        new(9, "พิมพ์สรุปค่าแรง", 6,
+        [
+            new("ค่าแรงทั่วไป", Code: "RPT-03"),
+            new("ค่าแรงงานรับจ้าง", Code: "SCR-44"),
+            new("สรุปค่าแรงแต่ละเดือน", Code: "RPT-09"),
+            new("รวมค่าแรง", Code: "RPT-10"),
+        ]),
+        new(10, "คำนวณโบนัสและพักร้อน", 6,
+        [
+            new("คำนวณโบนัส", Code: "SCR-50"),
+            new("คำนวณพักร้อน", Code: "SCR-51"),
+            new("ปรับค่าแรง", Code: "SCR-52"),
+            new("พิมพ์ค่าแรงรวมโบนัสส่งแบงค์ (ทหารไทย)", Code: "RPT-40"),
+            new("พิมพ์เงิน OT รวมโบนัสส่งแบงค์ (กสิกร)", Code: "RPT-41"),
+            new("พิมพ์ SLIP รวมโบนัส", Code: "RPT-42"),
+        ]),
+        new(13, "ตัด WEEK เป็น 2 ช่วง", 12,
+        [
+            new("ตัด WEEK ช่วงที่ 1 (27–31 ธันวาคม ของทุกปี)", SubMenu: 14),
+            new("ตัด WEEK ช่วงที่ 2 (1–11 มกราคม ของทุกปี)", SubMenu: 15),
+        ]),
+        new(14, "ตัด WEEK ช่วงที่ 1", 13,
+        [
+            new("พิมพ์เวลาทำงานช่วงที่ 1", Code: "SCR-40-1"),
+            new("พิมพ์ค่าแรงช่วงที่ 1", Code: "SCR-45"),
+            new("พิมพ์สรุปค่าแรงช่วงที่ 1", Code: "RPT-11-1"),
+            new("พิมพ์ SLIP ช่วงที่ 1", Code: "RPT-04-1"),
+        ]),
+        new(15, "ตัด WEEK ช่วงที่ 2", 13,
+        [
+            new("พิมพ์เวลาทำงานช่วงที่ 2", Code: "SCR-40-2"),
+            new("พิมพ์ค่าแรงช่วงที่ 2", Code: "SCR-46"),
+            new("พิมพ์สรุปค่าแรงช่วงที่ 2", Code: "RPT-11-2"),
+            new("พิมพ์ SLIP ช่วงที่ 2", Code: "RPT-04-2"),
+            new("พิมพ์ค่าแรงส่งแบงค์ทั้ง 2 ช่วง", Code: "SCR-47"),
+            new("พิมพ์สรุปค่าแรงทั้ง 2 ช่วง", Code: "RPT-11-12"),
+        ]),
+        new(11, "ประเมินผล", 1,
+        [
+            new("บันทึกการประเมินผล", Code: "SCR-53"),
+            new("ประเมินผลประจำปี", Code: "SCR-54"),
+        ]),
+        new(18, "พิมพ์ใบลาและใบลาออก", 1,
+        [
+            new("พิมพ์ใบลา", Code: "RPT-50"),
+            new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33"),
+            new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51"),
+            new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52"),
+        ]),
+        new(19, "พิมพ์หนังสือรับรอง", 2,
+        [
+            new("พิมพ์หนังสือรับรอง", Code: "RPT-53"),
+            new("พิมพ์หนังสือเกษียณหรือปลดออก", Code: "RPT-54"),
+        ]),
+    ];
+
+    public static MenuPage? Find(int number) => Pages.FirstOrDefault(p => p.Number == number);
+
+    /// <summary>The menu page holding the item with this code, and the item.</summary>
+    public static (MenuPage Page, MenuItem Item)? FindItem(string code)
+        => Pages.SelectMany(p => p.Items.Select(i => (Page: p, Item: i)))
+            .Where(x => string.Equals(x.Item.Code, code, StringComparison.OrdinalIgnoreCase))
+            .Select(x => ((MenuPage, MenuItem)?)(x.Page, x.Item))
+            .FirstOrDefault();
+}

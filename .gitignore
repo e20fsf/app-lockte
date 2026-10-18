@@ -3,6 +3,10 @@ node_modules/
 .pnpm-store/
 
 # Build output
+bin/
+obj/
+*.user
+TestResults/
 dist/
 build/
 out/

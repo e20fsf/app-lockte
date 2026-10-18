@@ -1,0 +1,5 @@
+@page "/"
+@attribute [Authorize]
+
+@* เมนูหลัก (เมนู 1). Its own page type, so moving between "/" and "/menu/n" never reuses a stale Number. *@
+<MenuView Number="EmployeeMenu.Main" />
