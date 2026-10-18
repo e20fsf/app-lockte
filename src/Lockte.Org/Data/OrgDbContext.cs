@@ -29,7 +29,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options) : Modul
         modelBuilder.Entity<Department>(d =>
         {
             d.HasAuditName("แผนก");
-            d.Property(x => x.Code).HasMaxLength(10).HasAuditName("รหัสแผนก");
+            d.Property(x => x.Code).HasMaxLength(OrgRegistry.DepartmentCodeLength).HasAuditName("รหัสแผนก");
             d.Property(x => x.Name).HasMaxLength(100).HasAuditName("ชื่อแผนก");
             d.Property(x => x.EmployeeIdPrefix).HasMaxLength(1).IsFixedLength().HasAuditName("ตัวอักษรนำหน้ารหัสพนักงาน");
             d.Property(x => x.SortOrder).HasAuditName("ลำดับ");
@@ -61,6 +61,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options) : Modul
         modelBuilder.Entity<ShiftSupervisor>(h =>
         {
             h.HasAuditName("หัวหน้ากะ");
+            h.Property(x => x.DepartmentId).HasAuditName("แผนก");
             h.Property(x => x.ShiftId).HasAuditName("กะ");
             h.Property(x => x.EmployeeId).HasAuditName("หัวหน้ากะ");
             h.HasIndex(x => new { x.DepartmentId, x.ShiftId }).IsUnique();

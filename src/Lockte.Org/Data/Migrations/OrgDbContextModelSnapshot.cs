@@ -250,7 +250,8 @@ namespace Lockte.Org.Data.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<int>("DepartmentId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
 
                     b.Property<int?>("EmployeeId")
                         .HasColumnType("int")

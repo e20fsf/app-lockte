@@ -20,7 +20,7 @@ public sealed class OrgTests(LocalDbFixture db)
         (await registry.SaveSectionAsync(new SectionInput(null, Unique("ผลิต"), 1, null))).Id!.Value);
 
     private static DepartmentInput NewDepartment(int sectionId, string? code = null, string? name = null) =>
-        new(null, code ?? Unique("D"), name ?? Unique("ไดคาสท์"), "d", 3, sectionId, null, "ผจก. ผลิต", "ผจก. โรงงาน", null);
+        new(null, code ?? Unique("D"), name ?? Unique("ไดคาสท์"), "d", 3, sectionId, null, "ผจก. ผลิต", "ผจก. โรงงาน", [], null);
 
     private Task<DepartmentDto> FindAsync(int id) => AsHrAsync(async (_, directory) => (await directory.GetDepartmentAsync(id))!);
 
@@ -62,7 +62,7 @@ public sealed class OrgTests(LocalDbFixture db)
     public async Task Department_needs_a_section_and_a_one_letter_prefix()
     {
         var result = await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(
-            new DepartmentInput(null, Unique("Q"), Unique("ประกัน"), "QA", 1, null, null, null, null, null)));
+            new DepartmentInput(null, Unique("Q"), Unique("ประกัน"), "QA", 1, null, null, null, null, [], null)));
 
         Assert.False(result.Succeeded);
         Assert.Contains("ตัวอักษรนำหน้ารหัสพนักงานต้องเป็นตัวอักษรอังกฤษ 1 ตัว", result.Errors);
@@ -79,7 +79,7 @@ public sealed class OrgTests(LocalDbFixture db)
 
         var result = await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(new DepartmentInput(
             loaded.Id, loaded.Code, newName, loaded.EmployeeIdPrefix, loaded.SortOrder, loaded.SectionId,
-            null, loaded.ManagerName, loaded.FactoryManagerName, loaded.RowVersion)));
+            null, loaded.ManagerName, loaded.FactoryManagerName, [], loaded.RowVersion)));
 
         Assert.True(result.Succeeded);
         Assert.Equal(newName, (await FindAsync(id)).Name);
@@ -96,7 +96,7 @@ public sealed class OrgTests(LocalDbFixture db)
         var id = (await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(NewDepartment(sectionId)))).Id!.Value;
         var loaded = await FindAsync(id);
         DepartmentInput Edit(string manager) => new(loaded.Id, loaded.Code, loaded.Name, loaded.EmployeeIdPrefix,
-            loaded.SortOrder, loaded.SectionId, null, manager, null, loaded.RowVersion);
+            loaded.SortOrder, loaded.SectionId, null, manager, null, [], loaded.RowVersion);
 
         await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(Edit("คนแรก")));
 
@@ -113,9 +113,9 @@ public sealed class OrgTests(LocalDbFixture db)
         var loaded = await FindAsync(id);
 
         var blankExisting = await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(new DepartmentInput(
-            loaded.Id, loaded.Code, "  ", loaded.EmployeeIdPrefix, 1, sectionId, null, null, null, loaded.RowVersion)));
+            loaded.Id, loaded.Code, "  ", loaded.EmployeeIdPrefix, 1, sectionId, null, null, null, [], loaded.RowVersion)));
         var blankNew = await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(
-            new DepartmentInput(null, "", "", "", 0, null, null, null, null, null)));
+            new DepartmentInput(null, "", "", "", 0, null, null, null, null, [], null)));
 
         Assert.True(blankExisting.Succeeded);
         Assert.True(blankNew.Succeeded);
@@ -125,9 +125,7 @@ public sealed class OrgTests(LocalDbFixture db)
     [Fact]
     public async Task Shift_register_holds_codes_with_times_and_knows_overnight_shifts()
     {
-        // Shift codes are single letters and tests share one database: take a free one.
-        var existing = await AsHrAsync((_, directory) => directory.GetShiftsAsync());
-        var code = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".First(c => existing.All(s => s.Code != c.ToString())).ToString();
+        var code = await FreeShiftCodeAsync();
 
         var saved = await AsHrAsync((registry, _) => registry.SaveShiftAsync(new ShiftInput(null, code.ToLowerInvariant(),
             new(20, 10), new(5, 10), new(0, 10), new(1, 10), new(5, 30), new(8, 10), 60, null)));
@@ -142,27 +140,66 @@ public sealed class OrgTests(LocalDbFixture db)
     }
 
     [Fact]
-    public async Task Shift_supervisor_is_per_department_and_shift_and_may_be_blank()
+    public async Task Shift_codes_are_A_to_G()
+    {
+        var result = await AsHrAsync((registry, _) => registry.SaveShiftAsync(new ShiftInput(null, "H",
+            new(8, 0), new(17, 0), null, null, null, null, 60, null)));
+
+        Assert.Equal(["รหัสกะต้องเป็น A ถึง G"], result.Errors);
+    }
+
+    [Fact]
+    public async Task Department_shifts_are_saved_with_it_and_keep_their_supervisor()
     {
         var sectionId = await NewSectionAsync();
-        var departmentId = (await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(NewDepartment(sectionId)))).Id!.Value;
-        var shifts = await AsHrAsync((_, directory) => directory.GetShiftsAsync());
-        if (shifts.Count == 0)
-        {
-            await AsHrAsync((registry, _) => registry.SaveShiftAsync(new ShiftInput(null, "D",
-                new(8, 0), new(17, 0), new(12, 0), new(13, 0), new(17, 20), new(20, 10), 60, null)));
-            shifts = await AsHrAsync((_, directory) => directory.GetShiftsAsync());
-        }
-        var shiftId = shifts[0].Id;
+        var (shiftA, shiftB) = (await ShiftAsync(), await ShiftAsync());
+        var id = (await AsHrAsync((registry, _) =>
+            registry.SaveDepartmentAsync(NewDepartment(sectionId) with { ShiftIds = [shiftA] }))).Id!.Value;
+        var withA = await FindAsync(id);
+        var blank = Assert.Single(withA.Shifts);
+        Assert.Null(blank.EmployeeId); // may stay blank until the employee register links one
 
-        await AsHrAsync((registry, _) => registry.SetShiftSupervisorAsync(departmentId, shiftId, works: true));
-        var blank = Assert.Single((await FindAsync(departmentId)).Shifts);
-        await AsHrAsync((registry, _) => registry.SetShiftSupervisorAsync(departmentId, shiftId, works: true, employeeId: 42));
-        var linked = Assert.Single((await FindAsync(departmentId)).Shifts);
-        await AsHrAsync((registry, _) => registry.SetShiftSupervisorAsync(departmentId, shiftId, works: false));
+        await AsHrAsync((registry, _) => registry.SetShiftSupervisorAsync(id, shiftA, employeeId: 42, blank.RowVersion));
+        var loaded = await FindAsync(id);
+        await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(Input(loaded, [shiftA, shiftB])));
+        var both = await FindAsync(id);
+        await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(Input(both, [shiftB])));
+        var onlyB = await FindAsync(id);
 
-        Assert.Null(blank.EmployeeId);
-        Assert.Equal((shiftId, 42), (linked.ShiftId, linked.EmployeeId));
-        Assert.Empty((await FindAsync(departmentId)).Shifts);
+        Assert.Equal([(shiftA, (int?)42), (shiftB, null)], both.Shifts.Select(s => (s.ShiftId, s.EmployeeId)).OrderBy(s => s.ShiftId == shiftB));
+        Assert.Equal([shiftB], onlyB.Shifts.Select(s => s.ShiftId));
+    }
+
+    [Fact]
+    public async Task Changing_only_the_shifts_of_a_stale_row_reports_a_conflict()
+    {
+        var sectionId = await NewSectionAsync();
+        var shift = await ShiftAsync();
+        var id = (await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(NewDepartment(sectionId)))).Id!.Value;
+        var loaded = await FindAsync(id);
+        await AsHrAsync((registry, _) => registry.SaveDepartmentAsync(Input(loaded, []) with { ManagerName = "คนอื่นแก้ก่อน" }));
+
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
+            AsHrAsync((registry, _) => registry.SaveDepartmentAsync(Input(loaded, [shift]))));
+        Assert.Empty((await FindAsync(id)).Shifts);
+    }
+
+    private static DepartmentInput Input(DepartmentDto d, IReadOnlyCollection<int> shiftIds) => new(
+        d.Id, d.Code, d.Name, d.EmployeeIdPrefix, d.SortOrder, d.SectionId, d.HeadEmployeeId, d.ManagerName,
+        d.FactoryManagerName, shiftIds, d.RowVersion);
+
+    /// <summary>Shift codes are A–G and tests share one database: take a free one.</summary>
+    private async Task<string> FreeShiftCodeAsync()
+    {
+        var existing = await AsHrAsync((_, directory) => directory.GetShiftsAsync());
+        return "ABCDEFG".Select(c => c.ToString()).First(c => existing.All(s => s.Code != c));
+    }
+
+    /// <summary>A shift to tick: an existing one, or a new one while codes are free.</summary>
+    private async Task<int> ShiftAsync()
+    {
+        var code = await FreeShiftCodeAsync();
+        return (await AsHrAsync((registry, _) => registry.SaveShiftAsync(new ShiftInput(null, code,
+            new(8, 0), new(17, 0), new(12, 0), new(13, 0), new(17, 20), new(20, 10), 60, null)))).Id!.Value;
     }
 }

@@ -23,14 +23,19 @@ public sealed class OrgDirectory(OrgDbContext db)
         => await Departments().FirstOrDefaultAsync(d => d.Id == id) is { } d ? ToDto(d) : null;
 
     public async Task<DepartmentDto?> FindDepartmentByCodeAsync(string code)
-        => await Departments().FirstOrDefaultAsync(d => d.Code == code.Trim().ToUpperInvariant()) is { } d ? ToDto(d) : null;
+    {
+        var normalized = OrgRegistry.Code(code);
+        return await Departments().FirstOrDefaultAsync(d => d.Code == normalized) is { } d ? ToDto(d) : null;
+    }
 
     public async Task<IReadOnlyList<ShiftDto>> GetShiftsAsync()
         => await db.Shifts.AsNoTracking().OrderBy(s => s.Code).Select(s => ToDto(s)).ToListAsync();
 
     public async Task<ShiftDto?> FindShiftByCodeAsync(string code)
-        => await db.Shifts.AsNoTracking().Where(s => s.Code == code.Trim().ToUpperInvariant())
-            .Select(s => ToDto(s)).FirstOrDefaultAsync();
+    {
+        var normalized = OrgRegistry.Code(code);
+        return await db.Shifts.AsNoTracking().Where(s => s.Code == normalized).Select(s => ToDto(s)).FirstOrDefaultAsync();
+    }
 
     private IQueryable<Department> Departments()
         => db.Departments.AsNoTracking().Include(d => d.Section).Include(d => d.ShiftSupervisors).ThenInclude(h => h.Shift);

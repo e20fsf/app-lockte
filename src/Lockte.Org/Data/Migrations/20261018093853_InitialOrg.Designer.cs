@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Lockte.Org.Data.Migrations
 {
     [DbContext(typeof(OrgDbContext))]
-    [Migration("20261018092624_InitialOrg")]
+    [Migration("20261018093853_InitialOrg")]
     partial class InitialOrg
     {
         /// <inheritdoc />
@@ -253,7 +253,8 @@ namespace Lockte.Org.Data.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<int>("DepartmentId")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
 
                     b.Property<int?>("EmployeeId")
                         .HasColumnType("int")
