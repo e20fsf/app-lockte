@@ -132,8 +132,7 @@ public sealed class OrgRegistry(OrgDbContext db)
         var row = id is null ? await query.FirstOrDefaultAsync()
             : await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
         if (row is null || loadedRowVersion is null) return row;
-        if (!row.RowVersion.AsSpan().SequenceEqual(loadedRowVersion)) throw new ConcurrencyConflictException();
-        db.ExpectRowVersion(row, loadedRowVersion); // and if someone saves in between
+        row.ExpectRowVersion(loadedRowVersion);
         return row;
     }
 
