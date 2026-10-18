@@ -76,6 +76,10 @@ namespace Lockte.Org.Data.Migrations
                         .HasColumnType("int")
                         .HasAnnotation("Lockte:AuditName", "ลำดับ");
 
+                    b.Property<int?>("StaffingTarget")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "อัตรากำลัง");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 

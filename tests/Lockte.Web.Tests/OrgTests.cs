@@ -26,7 +26,7 @@ public sealed class OrgTests(LocalDbFixture db)
     private Task<DepartmentDto> FindAsync(int id) => AsHrAsync(async (_, directory) => (await directory.GetDepartmentAsync(id))!);
 
     private static DepartmentInput Input(DepartmentDto d, IReadOnlyCollection<DepartmentShiftInput> shifts) => new(
-        d.Id, d.Code, d.Name, d.EmployeeIdPrefix, d.SortOrder, d.SectionId, d.HeadEmployeeId, shifts, d.RowVersion);
+        d.Id, d.Code, d.Name, d.EmployeeIdPrefix, d.SortOrder, d.SectionId, d.HeadEmployeeId, shifts, d.RowVersion, d.StaffingTarget);
 
     private static DepartmentInput Input(DepartmentDto d) => Input(d,
         d.Shifts.Select(s => new DepartmentShiftInput(s.ShiftId, s.SupervisorName, s.ManagerName, s.FactoryManagerName)).ToList());
