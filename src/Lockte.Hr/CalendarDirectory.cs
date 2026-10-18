@@ -7,7 +7,7 @@ namespace Lockte.Hr;
 /// The read side of ปฏิทินวันหยุด: SCR-15/16 lists and the questions time entry and payroll ask
 /// ("is this a วันหยุดประจำสัปดาห์ / วันหยุดประเพณี?"). Writes go through <see cref="CalendarRegistry"/>.
 /// </summary>
-public sealed class HrCalendar(HrDbContext db)
+public sealed class CalendarDirectory(HrDbContext db)
 {
     public async Task<HolidayCalendar> GetAsync(DateOnly from, DateOnly to)
     {

@@ -78,7 +78,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
         {
             h.HasAuditName("วันหยุดประเพณี");
             h.Property(x => x.Date).HasAuditName("วันที่");
-            h.Property(x => x.Name).HasMaxLength(CalendarRegistry.HolidayNameLength).HasAuditName("ชื่อวันหยุด");
+            h.Property(x => x.Name).HasMaxLength(CalendarRegistry.PublicHolidayNameLength).HasAuditName("ชื่อวันหยุด");
             h.HasIndex(x => x.Date).IsUnique();
         });
     }

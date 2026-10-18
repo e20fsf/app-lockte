@@ -7,7 +7,7 @@ public sealed record PublicHolidayDto(int Id, DateOnly Date, string? Name, byte[
 /// <summary>A row of SCR-15 to save. <see cref="Id"/> null = new; a blank label takes the legacy default "วันอาทิตย์".</summary>
 public sealed record WeeklyHolidayInput(int? Id, DateOnly? Date, string? Label, byte[]? RowVersion);
 
-/// <summary>A row of SCR-16 to save. <see cref="Id"/> null = new.</summary>
+/// <summary>A row of SCR-16 (วันหยุดประเพณี) to save. <see cref="Id"/> null = new.</summary>
 public sealed record PublicHolidayInput(int? Id, DateOnly? Date, string? Name, byte[]? RowVersion);
 
 /// <summary>

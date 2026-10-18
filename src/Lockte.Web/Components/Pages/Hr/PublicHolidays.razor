@@ -1,13 +1,12 @@
 @page "/hr/calendar/holidays"
 @attribute [Authorize]
-@using System.Globalization
 @using Lockte.Hr
 @using Lockte.SharedKernel
 @using Lockte.SharedKernel.Persistence
 @inject ScopedServices Services
 @inject ISnackbar Snackbar
 
-@* SCR-16 เพิ่มและแก้ไขวันหยุด (ฟอร์ม HOLIDAY): DATE + ITEM (ชื่อวันหยุด) one row at a time. A date is required —
+@* SCR-16 เพิ่มและแก้ไขวันหยุด (ฟอร์ม HOLIDAY) — วันหยุดประเพณี; the title keeps the legacy menu name on purpose: DATE + ITEM (ชื่อวันหยุด) one row at a time. A date is required —
    a blank row is never saved (instead of BR-051's delete on close). Shown one year at a time. *@
 <PageTitle>เพิ่มและแก้ไขวันหยุด — LOCKTE</PageTitle>
 <h1 class="mb-4">เพิ่มและแก้ไขวันหยุด</h1>
@@ -20,8 +19,8 @@
 <MudTable Items="rows" Dense="true" Hover="true" T="PublicHolidayDto" OnRowClick="@((TableRowClickEventArgs<PublicHolidayDto> e) => Edit(e.Item!))">
     <HeaderContent><MudTh>วันที่</MudTh><MudTh>วัน</MudTh><MudTh>ชื่อวันหยุด</MudTh></HeaderContent>
     <RowTemplate>
-        <MudTd>@context.Date.ToString("d/M/yyyy", ThaiCulture)</MudTd>
-        <MudTd>@context.Date.ToString("dddd", ThaiCulture)</MudTd>
+        <MudTd>@ThaiDate.Format(context.Date)</MudTd>
+        <MudTd>@context.Date.ToString("dddd", ThaiDate.Culture)</MudTd>
         <MudTd>@context.Name</MudTd>
     </RowTemplate>
     <NoRecordsContent><MudText>ไม่มีวันหยุดประเพณีในปีนี้</MudText></NoRecordsContent>
@@ -29,13 +28,13 @@
 
 <MudPaper Class="pa-4 mt-4" Outlined="true">
     <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-        <MudText Typo="Typo.h6">@(form.Id is null ? "เพิ่มวันหยุด" : "แก้วันหยุดที่เลือก")</MudText>
+        <MudText Typo="Typo.h6">@(form.Id is null ? "เพิ่มวันหยุดประเพณี" : "แก้วันหยุดประเพณีที่เลือก")</MudText>
         <MudSpacer />
         <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
     </MudStack>
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <MudDatePicker Editable="true" @bind-Date="form.Date" Label="วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Required="true" RequiredError="กรุณากรอกวันที่" Style="max-width:12rem" />
-        <MudTextField @bind-Value="form.Name" Label="ชื่อวันหยุด" MaxLength="CalendarRegistry.HolidayNameLength" Style="min-width:20rem" />
+        <MudDatePicker Editable="true" @bind-Date="form.Date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Required="true" RequiredError="กรุณากรอกวันที่" Style="max-width:12rem" />
+        <MudTextField @bind-Value="form.Name" Label="ชื่อวันหยุด" MaxLength="CalendarRegistry.PublicHolidayNameLength" Style="min-width:20rem" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
         @if (form.Id is not null)
         {
@@ -47,8 +46,6 @@
 <MudButton Href="@EmployeeMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
 
 @code {
-    private static readonly CultureInfo ThaiCulture = new("th-TH");
-
     private int year = DateTime.Today.Year;
     private IReadOnlyList<PublicHolidayDto> rows = [];
     private RowForm form = new();
@@ -63,7 +60,7 @@
     }
 
     private async Task ReloadAsync()
-        => rows = (await Services.RunAsync<HrCalendar, HolidayCalendar>(c => c.GetAsync(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31)))).PublicHolidays;
+        => rows = (await Services.RunAsync<CalendarDirectory, HolidayCalendar>(c => c.GetAsync(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31)))).PublicHolidays;
 
     private void New() => form = new RowForm();
 

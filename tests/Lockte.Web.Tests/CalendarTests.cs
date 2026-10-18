@@ -1,5 +1,6 @@
 using Lockte.Hr;
 using Lockte.SharedKernel.Persistence;
+using Lockte.Web.Audit;
 
 namespace Lockte.Web.Tests;
 
@@ -17,10 +18,10 @@ public sealed class CalendarTests(LocalDbFixture db)
     /// <summary>ITEM is Text(10); a label of its own keeps BR-014's "per label" runs apart.</summary>
     private static string NewLabel() => "ท" + Guid.NewGuid().ToString("N")[..6];
 
-    private async Task<T> AsHrAsync<T>(Func<CalendarRegistry, HrCalendar, Task<T>> action)
+    private async Task<T> AsHrAsync<T>(Func<CalendarRegistry, CalendarDirectory, Task<T>> action)
     {
         await using var scope = db.Scope("hr1");
-        return await action(scope.Get<CalendarRegistry>(), scope.Get<HrCalendar>());
+        return await action(scope.Get<CalendarRegistry>(), scope.Get<CalendarDirectory>());
     }
 
     [Fact]
@@ -112,4 +113,70 @@ public sealed class CalendarTests(LocalDbFixture db)
         Assert.Equal([sunday, sunday.AddDays(21)],
             (await AsHrAsync((_, c) => c.GetAsync(sunday, sunday.AddDays(21)))).WeeklyHolidays.Select(h => h.Date));
     }
+    [Fact]
+    public async Task Adding_four_weeks_is_one_history_event_not_a_row_per_day()
+    {
+        var sunday = NewSunday();
+        var label = NewLabel();
+        await AsHrAsync((r, _) => r.SaveWeeklyHolidayAsync(new WeeklyHolidayInput(null, sunday, label, null)));
+
+        await AsHrAsync((r, _) => r.AddNextFourWeeksAsync());
+
+        var history = await HistoryAsync(new(Table: "วันหยุดประจำสัปดาห์", UserName: "hr1"));
+        Assert.DoesNotContain(history, h => h.RowKey == Iso(sunday.AddDays(7)));
+        var job = Assert.Single(history, h => h.Kind == HistoryKind.Event && h.Detail?.Contains(Iso(sunday.AddDays(28))) == true);
+        Assert.Equal(CalendarRegistry.AddFourWeeksAction, job.Action);
+        Assert.True(job.RowCount >= 4);
+    }
+
+    [Fact]
+    public async Task Deleting_a_date_range_is_one_history_event()
+    {
+        var sunday = NewSunday();
+        foreach (var week in Enumerable.Range(0, 3))
+            await AsHrAsync((r, _) => r.SaveWeeklyHolidayAsync(new WeeklyHolidayInput(null, sunday.AddDays(7 * week), null, null)));
+
+        await AsHrAsync((r, _) => r.DeleteWeeklyHolidaysAsync(sunday, sunday.AddDays(14)));
+
+        var history = await HistoryAsync(new(Table: "วันหยุดประจำสัปดาห์", RowKey: Iso(sunday.AddDays(7))));
+        Assert.DoesNotContain(history, h => h.Action == HistoryActions.Deleted);
+        var job = Assert.Single(await HistoryAsync(new(Table: "วันหยุดประจำสัปดาห์")),
+            h => h.Kind == HistoryKind.Event && h.Detail?.Contains(Iso(sunday)) == true);
+        Assert.Equal((CalendarRegistry.DeleteRangeAction, (int?)3), (job.Action, job.RowCount));
+    }
+
+    [Fact]
+    public async Task Adding_four_weeks_skips_a_date_another_label_already_has()
+    {
+        var sunday = NewSunday();
+        var (labelA, labelB) = (NewLabel(), NewLabel());
+        await AsHrAsync((r, _) => r.SaveWeeklyHolidayAsync(new WeeklyHolidayInput(null, sunday, labelA, null)));
+        await AsHrAsync((r, _) => r.SaveWeeklyHolidayAsync(new WeeklyHolidayInput(null, sunday.AddDays(21), labelB, null)));
+
+        await AsHrAsync((r, _) => r.AddNextFourWeeksAsync());
+
+        var days = (await AsHrAsync((_, c) => c.GetAsync(sunday, sunday.AddDays(49)))).WeeklyHolidays;
+        Assert.Equal(Enumerable.Range(0, 8).Select(w => sunday.AddDays(7 * w)), days.Select(d => d.Date)); // each date once
+        Assert.Equal(labelB, days.Single(d => d.Date == sunday.AddDays(21)).Label); // A's fourth week was already B's
+    }
+
+    [Fact]
+    public async Task The_calendar_only_answers_for_the_period_it_read()
+    {
+        var sunday = NewSunday();
+        var calendar = await AsHrAsync((_, c) => c.GetAsync(sunday, sunday.AddDays(6)));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => calendar.IsWeeklyHoliday(sunday.AddDays(7)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => calendar.IsPublicHoliday(sunday.AddDays(-1)));
+    }
+
+    /// <summary>Row keys and event parameters use culture-independent dates.</summary>
+    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    private async Task<IReadOnlyList<HistoryRow>> HistoryAsync(HistoryFilter filter)
+    {
+        await using var scope = db.Scope();
+        return await scope.Get<HistoryService>().SearchAsync(filter);
+    }
 }
+
