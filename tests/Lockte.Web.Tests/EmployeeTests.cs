@@ -11,8 +11,13 @@ public sealed class EmployeeTests(LocalDbFixture db)
 {
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6];
 
-    /// <summary>Tests share one database: every test makes its own employee codes (letter + 3 characters).</summary>
-    private static string NewCode() => "T" + Guid.NewGuid().ToString("N")[..3].ToUpperInvariant();
+    private static int lastCode;
+
+    /// <summary>
+    /// Tests share one fresh database per run: every test makes its own employee codes (letter + 3 digits).
+    /// A counter, not random characters, so two codes never collide (4 characters leave too little room for chance).
+    /// </summary>
+    private static string NewCode() => $"T{Interlocked.Increment(ref lastCode):D3}";
 
     private static DateOnly Today => DateOnly.FromDateTime(TimeProvider.System.GetLocalNow().DateTime);
 
