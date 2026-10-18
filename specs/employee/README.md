@@ -68,7 +68,7 @@ flowchart TD
 | [business-rules.md](business-rules.md) | กฎธุรกิจ BR-001…BR-073 ครอบคลุมทุก flow ในเมนูและ flow ที่ไม่มีทางเข้า | ถอดครบ — รอยืนยัน | ดู open-questions ก. |
 | [screens.md](screens.md) | แผนผังเมนูครบ 116 รายการ + หน้าจอ SCR-xx | ถอดครบ — รอยืนยัน (control ทุกตัวอยู่ใน `source/_extract/พนักงาน/legacy/`forms) | Q-01, Q-12, Q-36, Q-38 |
 | [reports.md](reports.md) | รายงาน RPT-xx ครอบคลุม 75 รายงาน | ถอดครบ — รอยืนยัน (เลย์เอาต์อยู่ใน `source/_extract/พนักงาน/legacy/`reports) | Q-02, Q-12, Q-39, Q-40 |
-| [print-samples.md](print-samples.md) | หน้าตาเอกสารพิมพ์จริงจากตัวอย่าง PDF 40 แบบ | ถอดจากตัวอย่าง — รอยืนยัน | Q-40, Q-47 |
+| [print-samples.md](print-samples.md) | หน้าตาเอกสารพิมพ์จริงจากตัวอย่าง PDF 40 แบบ | ถอดจากตัวอย่าง — รอยืนยัน | Q-40, Q-47, Q-48 |
 | [integrations.md](integrations.md) | ส่งธนาคาร ttb/กสิกร, ประกันสังคม, คร.2 (INT-01…INT-07) | ถอดครบ — รอยืนยัน | Q-02, Q-03, Q-37, Q-41, Q-42 |
 | [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบข้อมูล Audit การย้ายข้อมูล การพิมพ์ | ถอดครบ — รอยืนยัน (ข้อมูลระบบเดิม + บันทึกสำหรับระบบใหม่) | Q-01, Q-33, Q-40, Q-43 |
 | [acceptance.md](acceptance.md) | เกณฑ์ตรวจรับ AC-xx | ร่าง (ใช้ตอนสร้างระบบใหม่) | – |
