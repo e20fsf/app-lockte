@@ -1,3 +1,4 @@
+using Lockte.Org;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public sealed class LocalDbFixture : IAsyncLifetime
         collection.AddScoped<TestCurrentUser>();
         collection.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<TestCurrentUser>());
         collection.AddLockteAccounts(config);
+        collection.AddOrgModule(AccountsRegistration.ConnectionString(config));
         collection.AddModuleDbContext<WidgetDbContext>(AccountsRegistration.ConnectionString(config), WidgetDbContext.Schema);
         services = collection.BuildServiceProvider(validateScopes: true);
 

@@ -34,7 +34,8 @@ dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account 
   The login needs to create databases; each run makes its own `LockteTests_*` database and drops it. Keep credentials out of git
   (env var for tests, `dotnet user-secrets` for `ConnectionStrings:Lockte` when running the app).
 - Connection string: `ConnectionStrings:Lockte`; idle logout: `Auth:IdleTimeoutMinutes` (default 30).
-- New migration: `dotnet ef migrations add <Name> -p src/Lockte.Web -c AccountsDbContext -o Accounts/Migrations` (or `-c AuditDbContext -o Audit/Migrations`).
+- New migration: `dotnet ef migrations add <Name> -p src/Lockte.Web -c AccountsDbContext -o Accounts/Migrations` (or `-c AuditDbContext -o Audit/Migrations`);
+  module องค์กร: `dotnet ef migrations add <Name> -p src/Lockte.Org -s src/Lockte.Org -c OrgDbContext -o Data/Migrations`.
 
 ### Solution layout (ADR 0002)
 
@@ -42,7 +43,7 @@ dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account 
 |---|---|
 | `src/Lockte.Web` | Blazor Server host: login, user management (`Accounts/`), change history (`Audit/`, schema `audit`), legacy menu (`Menus/`), pages |
 | `src/Lockte.SharedKernel` | Non-business shared code: audit columns + rowversion convention, concurrency conflict (`Persistence/`) |
-| `src/Lockte.Org` | module องค์กร, schema `org` |
+| `src/Lockte.Org` | module องค์กร, schema `org`: ฝ่าย, แผนก, กะ, หัวหน้ากะ — others read via `OrgDirectory`, SCR-05 writes via `OrgRegistry`; migrations in `Data/Migrations` (`-p src/Lockte.Org -c OrgDbContext`) |
 | `src/Lockte.Hr` | module พนักงานและค่าแรง, schema `hr` |
 | `tests/Lockte.Web.Tests` | Tests through the services, on LocalDB |
 

@@ -20,6 +20,7 @@ builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<CurrentUser>());
 builder.Services.AddScoped<CircuitHandler, CurrentUserCircuitHandler>();
 builder.Services.AddScoped<CircuitActivity>();
+builder.Services.AddScoped<ScopedServices>();
 builder.Services.AddScoped<CircuitHandler, CircuitActivityHandler>();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingAuthStateProvider>();

@@ -1,7 +1,7 @@
 @page "/admin/users"
 @attribute [Authorize(Policy = AuthPolicies.Admin)]
 @using Lockte.SharedKernel.Persistence
-@inject IServiceScopeFactory ScopeFactory
+@inject ScopedServices Services
 @inject ISnackbar Snackbar
 
 <PageTitle>จัดการ user — LOCKTE</PageTitle>
@@ -73,17 +73,7 @@
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
-    [CascadingParameter]
-    private Task<AuthenticationState> AuthState { get; set; } = default!;
-
-    // A fresh scope (DbContext) per action: a circuit lives long and must not reuse tracked rows.
-    // The new scope does not know the circuit's user, so hand it over for CreatedBy/UpdatedBy.
-    private async Task<T> UseAsync<T>(Func<UserAdminService, Task<T>> action)
-    {
-        await using var scope = ScopeFactory.CreateAsyncScope();
-        scope.ServiceProvider.GetRequiredService<CurrentUser>().CircuitUser = (await AuthState).User;
-        return await action(scope.ServiceProvider.GetRequiredService<UserAdminService>());
-    }
+    private Task<T> UseAsync<T>(Func<UserAdminService, Task<T>> action) => Services.RunAsync(action);
 
     private async Task ReloadAsync() => users = await UseAsync(s => s.ListAsync());
 
