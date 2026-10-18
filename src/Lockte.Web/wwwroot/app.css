@@ -1,0 +1,32 @@
+html, body { font-family: "Leelawadee UI", Tahoma, sans-serif; margin: 0; background: #fafafa; }
+h1:focus { outline: none; }
+
+/* แถบหัว */
+.app-bar .brand { display: flex; align-items: center; gap: .6rem; color: inherit; text-decoration: none; }
+.app-bar .brand-logo { height: 36px; }
+.app-bar .brand-text { font-size: 1.1rem; font-weight: 600; }
+.app-bar .user-name { margin-right: .25rem; }
+
+/* เมนูเดิม: ปุ่มเรียงลงทีละรายการเหมือน Switchboard */
+.menu-page { max-width: 560px; margin: 0 auto; text-align: center; }
+.menu-logo { height: 110px; margin-bottom: .5rem; }
+.menu-title { font-size: 1.6rem; margin: 0 0 1.25rem; }
+.menu-item { justify-content: flex-start; text-transform: none; font-size: 1rem; }
+
+/* หน้า login / เปลี่ยนรหัส (static HTML) */
+.account-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
+.account-card { width: 100%; max-width: 360px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 2rem; text-align: center; }
+.account-card form { display: flex; flex-direction: column; text-align: left; }
+.account-card h1 { font-size: 1.4rem; margin: .5rem 0 1rem; }
+.account-card label { margin-top: .75rem; font-size: .95rem; }
+.account-card input { padding: .5rem; font-size: 1rem; border: 1px solid #bbb; border-radius: 4px; font-family: inherit; }
+.account-card button[type=submit]:not(.link-button) { margin-top: 1.25rem; padding: .6rem; font-size: 1rem; font-family: inherit; color: #fff; background: #C62828; border: 0; border-radius: 4px; cursor: pointer; }
+.account-logo { height: 90px; }
+.account-company { margin: .25rem 0 0; color: #555; }
+.account-error { color: #C62828; margin: .25rem 0; }
+.account-notice { color: #555; background: #fff8e1; padding: .5rem; border-radius: 4px; }
+.account-hint { margin-top: 1rem; font-size: .9rem; color: #666; text-align: center; }
+.link-button { background: none; border: 0; color: #C62828; cursor: pointer; font: inherit; text-decoration: underline; }
+
+#blazor-error-ui { background: lightyellow; bottom: 0; box-shadow: 0 -1px 2px rgba(0,0,0,.2); display: none; left: 0; padding: .6rem 1.25rem .7rem; position: fixed; width: 100%; z-index: 2000; }
+#blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: .75rem; top: .5rem; }

@@ -1,0 +1,58 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="Theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Surface" Class="app-bar">
+        <a href="@HomeHref" class="brand">
+            <img src="brand/logo.svg" alt="" class="brand-logo" />
+            <span class="brand-text">LOCKTE · โปรแกรมพนักงานและค่าแรง</span>
+        </a>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                <span class="user-name">@AccountClaims.DisplayNameOf(context.User)</span>
+                <MudMenu Icon="@Icons.Material.Filled.ArrowDropDown" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                    <MudMenuItem Href="Account/ChangePassword" ForceLoad="true">เปลี่ยนรหัสผ่าน</MudMenuItem>
+                </MudMenu>
+                <form action="Account/Logout" method="post" class="ml-2">
+                    <AntiforgeryToken />
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Logout">ออกจากระบบ</MudButton>
+                </form>
+            </Authorized>
+        </AuthorizeView>
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    เกิดข้อผิดพลาด <a href="." class="reload">โหลดหน้าใหม่</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private string HomeHref = "";
+
+    protected override async Task OnParametersSetAsync()
+        => HomeHref = AccountClaims.HomeHref((await AuthState).User);
+
+    private static readonly MudTheme Theme = new()
+    {
+        PaletteLight = new PaletteLight { Primary = "#C62828", AppbarBackground = "#FFFFFF" },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = ["Leelawadee UI", "Tahoma", "sans-serif"] },
+        },
+    };
+}

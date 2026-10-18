@@ -1,0 +1,137 @@
+@page "/admin/users"
+@attribute [Authorize(Policy = AuthPolicies.Admin)]
+@using Lockte.SharedKernel.Persistence
+@inject IServiceScopeFactory ScopeFactory
+@inject ISnackbar Snackbar
+
+<PageTitle>จัดการ user — LOCKTE</PageTitle>
+<h1 class="mb-4">จัดการ user</h1>
+
+<MudPaper Class="pa-4 mb-6" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">เพิ่ม user</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="newUserName" Label="ชื่อ user" HelperText="อังกฤษ/ตัวเลข เช่น somchai" /></MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="newDisplayName" Label="ชื่อที่แสดง" /></MudItem>
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="newPassword" Label="รหัสชั่วคราว" HelperText="อย่างน้อย 8 ตัว" /></MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="busy">เพิ่ม</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudTable Items="users" Dense="true" Hover="true" Loading="users is null">
+    <HeaderContent>
+        <MudTh>ชื่อ user</MudTh>
+        <MudTh>ชื่อที่แสดง</MudTh>
+        <MudTh>สถานะ</MudTh>
+        <MudTh>แก้ล่าสุด</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.UserName</MudTd>
+        <MudTd>@context.DisplayName</MudTd>
+        <MudTd>
+            @if (!context.IsActive) { <MudChip T="string" Size="Size.Small" Color="Color.Default">ปิดใช้งาน</MudChip> }
+            else if (context.LockedUntil is { } until) { <MudChip T="string" Size="Size.Small" Color="Color.Error">ล็อกถึง @until.ToLocalTime().ToString("HH:mm") น.</MudChip> }
+            else { <MudChip T="string" Size="Size.Small" Color="Color.Success">ใช้งาน</MudChip> }
+            @if (context.MustChangePassword) { <MudChip T="string" Size="Size.Small" Color="Color.Warning">รอเปลี่ยนรหัส</MudChip> }
+        </MudTd>
+        <MudTd>@context.UpdatedBy @context.UpdatedAt.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiCulture)</MudTd>
+        <MudTd Style="text-align:right">
+            <MudButton Size="Size.Small" OnClick="() => StartTempPassword(context)" Disabled="busy">ตั้งรหัสชั่วคราว</MudButton>
+            @if (!context.IsAdmin)
+            {
+                <MudButton Size="Size.Small" Color="@(context.IsActive ? Color.Error : Color.Success)"
+                           OnClick="() => SetActiveAsync(context, !context.IsActive)" Disabled="busy">
+                    @(context.IsActive ? "ปิดใช้งาน" : "เปิดใช้งาน")
+                </MudButton>
+            }
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@if (tempFor is { } target)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6">ตั้งรหัสชั่วคราวให้ @target.DisplayName (@target.UserName)</MudText>
+        <MudText Typo="Typo.body2" Class="mb-2">ผู้ใช้จะถูกบังคับเปลี่ยนรหัสตอน login ครั้งถัดไป และถ้าถูกล็อกอยู่จะปลดล็อกด้วย</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudTextField @bind-Value="tempPassword" Label="รหัสชั่วคราว" HelperText="อย่างน้อย 8 ตัว" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SetTempPasswordAsync" Disabled="busy">บันทึก</MudButton>
+            <MudButton OnClick="() => tempFor = null">ยกเลิก</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    private IReadOnlyList<UserSummary>? users;
+    private string newUserName = "", newDisplayName = "", newPassword = "";
+    private UserSummary? tempFor;
+    private string tempPassword = "";
+    private bool busy;
+    private static readonly System.Globalization.CultureInfo ThaiCulture = new("th-TH");
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    // A fresh scope (DbContext) per action: a circuit lives long and must not reuse tracked rows.
+    // The new scope does not know the circuit's user, so hand it over for CreatedBy/UpdatedBy.
+    private async Task<T> UseAsync<T>(Func<UserAdminService, Task<T>> action)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<CurrentUser>().CircuitUser = (await AuthState).User;
+        return await action(scope.ServiceProvider.GetRequiredService<UserAdminService>());
+    }
+
+    private async Task ReloadAsync() => users = await UseAsync(s => s.ListAsync());
+
+    private Task CreateAsync() => RunAsync(
+        s => s.CreateAsync(newUserName, newDisplayName, newPassword),
+        $"เพิ่ม user {newUserName.Trim()} แล้ว",
+        () => newUserName = newDisplayName = newPassword = "");
+
+    private Task SetActiveAsync(UserSummary user, bool active) => RunAsync(
+        s => s.SetActiveAsync(user.Id, active, user.RowVersion),
+        active ? $"เปิดใช้งาน {user.UserName} แล้ว" : $"ปิดใช้งาน {user.UserName} แล้ว");
+
+    private void StartTempPassword(UserSummary user)
+    {
+        tempFor = user;
+        tempPassword = "";
+    }
+
+    private Task SetTempPasswordAsync() => RunAsync(
+        s => s.SetTemporaryPasswordAsync(tempFor!.Id, tempPassword, tempFor.RowVersion),
+        $"ตั้งรหัสชั่วคราวให้ {tempFor!.UserName} แล้ว",
+        () => tempFor = null);
+
+    private async Task RunAsync(Func<UserAdminService, Task<AccountResult>> action, string done, Action? onSuccess = null)
+    {
+        busy = true;
+        try
+        {
+            var result = await UseAsync(action);
+            if (result.Succeeded)
+            {
+                Snackbar.Add(done, Severity.Success);
+                onSuccess?.Invoke();
+            }
+            else
+            {
+                foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            }
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            tempFor = null;
+        }
+        finally
+        {
+            await ReloadAsync();
+            busy = false;
+        }
+    }
+}

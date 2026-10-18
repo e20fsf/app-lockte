@@ -1,0 +1,14 @@
+@page "/Error"
+@attribute [AllowAnonymous]
+@using System.Diagnostics
+
+<PageTitle>เกิดข้อผิดพลาด — LOCKTE</PageTitle>
+<h1>เกิดข้อผิดพลาด</h1>
+<p>กรุณาลองใหม่ ถ้ายังเกิดซ้ำ แจ้งผู้ดูแลระบบพร้อมรหัสนี้: <code>@RequestId</code></p>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId => Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

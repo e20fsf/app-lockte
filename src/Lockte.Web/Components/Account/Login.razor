@@ -1,0 +1,110 @@
+@page "/Account/Login"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Options
+@inject AccountService Accounts
+@inject SignInManager<AppUser> SignInManager
+@inject NavigationManager Navigation
+@inject IOptions<AuthOptions> AuthOptions
+@inject ILogger<Login> Logger
+
+<PageTitle>เข้าสู่ระบบ — LOCKTE</PageTitle>
+
+<h1>เข้าสู่ระบบ</h1>
+
+@if (notice is not null)
+{
+    <p class="account-notice">@notice</p>
+}
+@if (error is not null)
+{
+    <p class="account-error" role="alert">@error</p>
+}
+
+<EditForm Model="Input" method="post" OnValidSubmit="LoginAsync" FormName="login">
+    <DataAnnotationsValidator />
+    <label for="username">ชื่อ user</label>
+    <InputText id="username" @bind-Value="Input.UserName" autocomplete="username" autofocus />
+    <ValidationMessage For="() => Input.UserName" class="account-error" />
+
+    <label for="password">รหัสผ่าน</label>
+    <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="current-password" />
+    <ValidationMessage For="() => Input.Password" class="account-error" />
+
+    <button type="submit">เข้าสู่ระบบ</button>
+</EditForm>
+<p class="account-hint">ลืมรหัสผ่าน — ติดต่อผู้ดูแลระบบเพื่อขอรหัสชั่วคราว</p>
+
+@code {
+    private string? error;
+    private string? notice;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    /// <summary>"idle": sent here by idle.js after the idle timeout.</summary>
+    [SupplyParameterFromQuery]
+    private string? Reason { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            if (Reason == "idle")
+                notice = $"ไม่ได้ใช้งานเกิน {AuthOptions.Value.IdleTimeoutMinutes} นาที กรุณาเข้าสู่ระบบใหม่";
+        }
+    }
+
+    private async Task LoginAsync()
+    {
+        var result = await Accounts.CheckLoginAsync(Input.UserName, Input.Password);
+        switch (result.Status)
+        {
+            case LoginStatus.LockedOut:
+                Logger.LogWarning("Login locked out: {UserName}", Input.UserName);
+                error = $"ใส่รหัสผ่านผิดหลายครั้ง บัญชีถูกล็อกถึง {result.LockedUntil!.Value.ToLocalTime():HH:mm} น.";
+                return;
+            case LoginStatus.Disabled:
+                error = "บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ";
+                return;
+            case LoginStatus.Invalid:
+                error = "ชื่อ user หรือรหัสผ่านไม่ถูกต้อง";
+                return;
+        }
+
+        var user = (await Accounts.FindAsync(result.UserId!))!;
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        Logger.LogInformation("Login: {UserName}", user.UserName);
+
+        // The cookie is only in the response, so HttpContext.User is not this user yet: decide from the account.
+        Navigation.NavigateTo(result.Status == LoginStatus.MustChangePassword || user.IsAdmin
+            ? AccountsRegistration.HomeEndpoint
+            : SafeReturnUrl());
+    }
+
+    /// <summary>Only a path inside this site ("menu/2" or "/menu/2"), never "//other-host" or an absolute URL.</summary>
+    private string SafeReturnUrl()
+    {
+        var url = ReturnUrl is ['/', .. var rest] ? rest : ReturnUrl;
+        return url is { Length: > 0 } && Uri.IsWellFormedUriString(url, UriKind.Relative)
+            && !url.StartsWith('/') && !url.StartsWith('\\') ? url : "";
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "กรุณากรอกชื่อ user")]
+        public string UserName { get; set; } = "";
+
+        [Required(ErrorMessage = "กรุณากรอกรหัสผ่าน")]
+        public string Password { get; set; } = "";
+    }
+}

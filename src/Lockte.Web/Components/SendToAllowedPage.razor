@@ -1,0 +1,17 @@
+@* A page the user may not open: send them where they belong (see AuthPolicies). *@
+@inject NavigationManager Navigation
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+        if (user.Identity?.IsAuthenticated != true)
+            Navigation.NavigateTo($"Account/Login?returnUrl={Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri))}", forceLoad: true);
+        else
+            // Change-password is a static page: needs a full load.
+            Navigation.NavigateTo(AccountClaims.HomeHref(user), forceLoad: AccountClaims.MustChange(user));
+    }
+}
