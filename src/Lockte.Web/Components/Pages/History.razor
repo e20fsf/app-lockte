@@ -1,11 +1,12 @@
 @page "/history"
-@attribute [Authorize(Policy = AuthPolicies.AnyUser)]
+@attribute [Authorize]
 @using System.Globalization
 @using Lockte.SharedKernel.Persistence
 @using Lockte.Web.Audit
 @inject IServiceScopeFactory ScopeFactory
 
-@* หน้าค้นประวัติ (#39, #43): one page for every user. Read-only — history cannot be deleted. *@
+@* หน้าค้นประวัติ (#39, #43): one page for every user (staff; admin sees only user management, #41).
+   Read-only — history cannot be deleted. *@
 <PageTitle>ประวัติการแก้ไข — LOCKTE</PageTitle>
 <h1 class="mb-4">ประวัติการแก้ไข</h1>
 
@@ -82,10 +83,9 @@
         busy = true;
         try
         {
-            // Dates are the server's (factory) local days; "ถึงวันที่" includes the whole day.
             var filter = new HistoryFilter(
-                from is { } f ? StartOfLocalDay(f) : null,
-                to is { } t ? StartOfLocalDay(t.AddDays(1)) : null,
+                from is { } f ? DateOnly.FromDateTime(f) : null,
+                to is { } t ? DateOnly.FromDateTime(t) : null,
                 userName, table, rowKey);
             await using var scope = ScopeFactory.CreateAsyncScope();
             rows = await scope.ServiceProvider.GetRequiredService<HistoryService>().SearchAsync(filter);
@@ -95,9 +95,6 @@
             busy = false;
         }
     }
-
-    private static DateTimeOffset StartOfLocalDay(DateTime day)
-        => new(day.Date, TimeZoneInfo.Local.GetUtcOffset(day.Date));
 
     private static string? NewOrDetail(HistoryRow row) => row.Kind switch
     {

@@ -13,12 +13,14 @@ public sealed class AccountService(UserManager<AppUser> users, SignInManager<App
     /// </summary>
     public async Task<LoginResult> CheckLoginAsync(string userName, string password)
     {
-        var (result, detail) = await CheckAsync(userName.Trim(), password);
-        await history.RecordLoginAsync(userName.Trim(), result.CanSignIn, detail);
+        userName = userName.Trim();
+        var (result, detail) = await CheckPasswordAsync(userName, password);
+        await history.RecordLoginAsync(userName, result.CanSignIn, detail);
         return result;
     }
 
-    private async Task<(LoginResult, string Detail)> CheckAsync(string userName, string password)
+    /// <summary>The outcome, and the reason written to the login history.</summary>
+    private async Task<(LoginResult, string Detail)> CheckPasswordAsync(string userName, string password)
     {
         var user = await users.FindByNameAsync(userName);
         if (user is null) return (new(LoginStatus.Invalid), "ไม่พบชื่อ user");

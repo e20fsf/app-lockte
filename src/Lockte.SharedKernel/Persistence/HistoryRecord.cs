@@ -40,6 +40,14 @@ public sealed class HistoryRecord
     public Guid? ChangeSet { get; set; }
 }
 
+/// <summary><see cref="HistoryRecord.Action"/> of <see cref="HistoryKind.Change"/> rows.</summary>
+public static class HistoryActions
+{
+    public const string Added = "เพิ่ม";
+    public const string Modified = "แก้";
+    public const string Deleted = "ลบ";
+}
+
 public static class HistoryModel
 {
     public const string Schema = "audit";

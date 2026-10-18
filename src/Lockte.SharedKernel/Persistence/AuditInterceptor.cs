@@ -67,7 +67,12 @@ public sealed class AuditInterceptor(ICurrentUser currentUser, TimeProvider cloc
             }
 
             if (scope.RowChangesSuppressed) continue;
-            var action = entry.State switch { EntityState.Added => "เพิ่ม", EntityState.Deleted => "ลบ", _ => "แก้" };
+            var action = entry.State switch
+            {
+                EntityState.Added => HistoryActions.Added,
+                EntityState.Deleted => HistoryActions.Deleted,
+                _ => HistoryActions.Modified,
+            };
             var table = entry.Metadata.AuditName();
             var rowKey = RowKey(entry);
             foreach (var p in changes)

@@ -26,7 +26,7 @@ public sealed class HistoryTests(LocalDbFixture db)
 
         var rows = await SearchAsync(new(Table: "ผู้ใช้", RowKey: userName));
 
-        Assert.All(rows, r => Assert.Equal(("เพิ่ม", AppUser.AdminUserName, HistoryKind.Change), (r.Action, r.UserName, r.Kind)));
+        Assert.All(rows, r => Assert.Equal((HistoryActions.Added, AppUser.AdminUserName, HistoryKind.Change), (r.Action, r.UserName, r.Kind)));
         var displayName = Assert.Single(rows, r => r.Column == "ชื่อที่แสดง");
         Assert.Null(displayName.OldValue);
         Assert.Equal("สมชาย ใจดี", displayName.NewValue);
@@ -46,7 +46,7 @@ public sealed class HistoryTests(LocalDbFixture db)
             await service.SetActiveAsync(user.Id, false, user.RowVersion);
         }
 
-        var edits = (await SearchAsync(new(RowKey: userName))).Where(r => r.Action == "แก้").ToList();
+        var edits = (await SearchAsync(new(RowKey: userName))).Where(r => r.Action == HistoryActions.Modified).ToList();
 
         var change = Assert.Single(edits);
         Assert.Equal(("ผู้ใช้", "ใช้งาน", "ใช่", "ไม่ใช่", AppUser.AdminUserName),
@@ -89,7 +89,7 @@ public sealed class HistoryTests(LocalDbFixture db)
         }
 
         var logins = await SearchAsync(new(Table: HistoryService.LoginTable, RowKey: userName));
-        var edits = (await SearchAsync(new(Table: "ผู้ใช้", RowKey: userName))).Where(r => r.Action != "เพิ่ม");
+        var edits = (await SearchAsync(new(Table: "ผู้ใช้", RowKey: userName))).Where(r => r.Action != HistoryActions.Added);
 
         Assert.Equal(
             [(HistoryService.LoginSucceeded, "รหัสชั่วคราว ต้องเปลี่ยนรหัส"), (HistoryService.LoginFailed, "รหัสผ่านผิด")],
@@ -114,14 +114,19 @@ public sealed class HistoryTests(LocalDbFixture db)
             await widgets.SaveChangesAsync();
         }
 
-        var rows = (await SearchAsync(new(Table: WidgetDbContext.AuditName, RowKey: code))).Reverse().ToList(); // oldest first
+        var rows = await SearchAsync(new(Table: WidgetDbContext.AuditName, RowKey: code));
 
         // Columns without an audit name show the property name; values are culture-independent text.
-        Assert.Equal(
-            [("เพิ่ม", "รหัส", null, code), ("เพิ่ม", "ชื่อ", null, "ผ้าเบรก"), ("เพิ่ม", "Price", null, "10.5"),
-             ("แก้", "Price", "10.5", "12"),
-             ("ลบ", "รหัส", code, null), ("ลบ", "ชื่อ", "ผ้าเบรก", null), ("ลบ", "Price", "12", null)],
-            rows.Select(r => (r.Action, r.Column, r.OldValue, r.NewValue)));
+        // Rows of one save share a time, so compare as a set.
+        string?[][] expected =
+        [
+            [HistoryActions.Added, "รหัส", null, code], [HistoryActions.Added, "ชื่อ", null, "ผ้าเบรก"],
+            [HistoryActions.Added, "Price", null, "10.5"],
+            [HistoryActions.Modified, "Price", "10.5", "12"],
+            [HistoryActions.Deleted, "รหัส", code, null], [HistoryActions.Deleted, "ชื่อ", "ผ้าเบรก", null],
+            [HistoryActions.Deleted, "Price", "12", null],
+        ];
+        Assert.Equivalent(expected, rows.Select(r => new[] { r.Action, r.Column, r.OldValue, r.NewValue }), strict: true);
         Assert.All(rows, r => Assert.Equal("somchai", r.UserName));
     }
 
@@ -169,20 +174,19 @@ public sealed class HistoryTests(LocalDbFixture db)
     }
 
     [Fact]
-    public async Task Search_filters_by_time_window()
+    public async Task Search_filters_by_local_days()
     {
         var code = NewCode();
-        var before = DateTimeOffset.UtcNow.AddSeconds(-1);
         await using (var scope = db.Scope("somchai"))
         {
             var widgets = scope.Get<WidgetDbContext>();
             widgets.Add(new Widget { Code = code, Name = "เวลา", Price = 1 });
             await widgets.SaveChangesAsync();
         }
-        var after = DateTimeOffset.UtcNow.AddSeconds(1);
+        var today = DateOnly.FromDateTime(DateTime.Now);
 
-        Assert.NotEmpty(await SearchAsync(new(From: before, To: after, RowKey: code)));
-        Assert.Empty(await SearchAsync(new(From: after, RowKey: code)));
-        Assert.Empty(await SearchAsync(new(To: before, RowKey: code)));
+        Assert.NotEmpty(await SearchAsync(new(From: today, To: today, RowKey: code))); // "ถึงวันที่" includes the whole day
+        Assert.Empty(await SearchAsync(new(From: today.AddDays(1), RowKey: code)));
+        Assert.Empty(await SearchAsync(new(To: today.AddDays(-1), RowKey: code)));
     }
 }

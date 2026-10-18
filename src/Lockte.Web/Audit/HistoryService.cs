@@ -3,10 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Lockte.Web.Audit;
 
-/// <summary>Search filter of the history page; every part optional. <see cref="RowKey"/> matches part of the key.</summary>
+/// <summary>
+/// Search filter of the history page; every part optional. Dates are days at the factory (server local time),
+/// both included. <see cref="RowKey"/> matches part of the key.
+/// </summary>
 public sealed record HistoryFilter(
-    DateTimeOffset? From = null,
-    DateTimeOffset? To = null,
+    DateOnly? From = null,
+    DateOnly? To = null,
     string? UserName = null,
     string? Table = null,
     string? RowKey = null,
@@ -41,8 +44,16 @@ public sealed class HistoryService(AuditDbContext db)
     public async Task<IReadOnlyList<HistoryRow>> SearchAsync(HistoryFilter filter)
     {
         var query = db.History.AsNoTracking();
-        if (filter.From is { } from) query = query.Where(h => h.At >= from);
-        if (filter.To is { } to) query = query.Where(h => h.At < to);
+        if (filter.From is { } from)
+        {
+            var start = StartOfLocalDay(from);
+            query = query.Where(h => h.At >= start);
+        }
+        if (filter.To is { } to)
+        {
+            var end = StartOfLocalDay(to.AddDays(1));
+            query = query.Where(h => h.At < end);
+        }
         if (!string.IsNullOrWhiteSpace(filter.UserName)) query = query.Where(h => h.UserName == filter.UserName.Trim());
         if (!string.IsNullOrWhiteSpace(filter.Table)) query = query.Where(h => h.Table == filter.Table);
         if (!string.IsNullOrWhiteSpace(filter.RowKey)) query = query.Where(h => h.RowKey!.Contains(filter.RowKey.Trim()));
@@ -53,6 +64,12 @@ public sealed class HistoryService(AuditDbContext db)
             .Select(h => new HistoryRow(h.Id, h.At, h.UserName, h.Kind, h.Table, h.RowKey, h.Action,
                 h.Column, h.OldValue, h.NewValue, h.Detail, h.RowCount))
             .ToListAsync();
+    }
+
+    private static DateTimeOffset StartOfLocalDay(DateOnly day)
+    {
+        var midnight = day.ToDateTime(TimeOnly.MinValue);
+        return new DateTimeOffset(midnight, TimeZoneInfo.Local.GetUtcOffset(midnight));
     }
 
     /// <summary>Table names that appear in the history, for the filter list.</summary>
