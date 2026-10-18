@@ -39,7 +39,7 @@ dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account 
 |---|---|
 | `src/Lockte.Web` | Blazor Server host: login, user management (`Accounts/`), change history (`Audit/`, schema `audit`), legacy menu (`Menus/`), pages |
 | `src/Lockte.SharedKernel` | Non-business shared code: audit columns + rowversion convention, concurrency conflict (`Persistence/`) |
-| `src/Lockte.Org` | module องค์กร, schema `org` |
+| `src/Lockte.Org` | module องค์กร, schema `org`: ฝ่าย, แผนก, กะ, หัวหน้ากะ — others read via `OrgDirectory`, SCR-05 writes via `OrgRegistry`; migrations in `Data/Migrations` (`-p src/Lockte.Org -c OrgDbContext`) |
 | `src/Lockte.Hr` | module พนักงานและค่าแรง, schema `hr` |
 | `tests/Lockte.Web.Tests` | Tests through the services, on LocalDB |
 

@@ -1,9 +1,12 @@
 namespace Lockte.Web.Menus;
 
-/// <summary>An item on a menu page: opens another menu page, or a screen/report by its SCR/RPT code.</summary>
-public sealed record MenuItem(string Text, int? SubMenu = null, string? Code = null)
+/// <summary>
+/// An item on a menu page: opens another menu page, or a screen/report by its SCR/RPT code — its own
+/// <see cref="Page"/> once built, the placeholder until then.
+/// </summary>
+public sealed record MenuItem(string Text, int? SubMenu = null, string? Code = null, string? Page = null)
 {
-    public string Href => SubMenu is { } n ? EmployeeMenu.HrefOf(n) : $"hr/{Code}";
+    public string Href => SubMenu is { } n ? EmployeeMenu.HrefOf(n) : Page ?? $"hr/{Code}";
 }
 
 /// <summary>A menu page; <see cref="Back"/> is where its "กลับเมนูเดิม" goes (null on the main menu).</summary>
@@ -38,7 +41,7 @@ public static class EmployeeMenu
             new("แก้ไขข้อมูลพนักงาน", Code: "SCR-03"),
             new("พนักงานยังไม่บรรจุ", Code: "RPT-20"),
             new("พิมพ์รายชื่อพนักงาน", Code: "SCR-04"),
-            new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05"),
+            new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05", Page: "org/departments"),
             new("พิมพ์หนังสือรับรอง, เกษียณและปลดออก", SubMenu: 19),
             new("พิมพ์ใบอนุมัติบรรจุพนักงาน", Code: "SCR-06"),
         ]),

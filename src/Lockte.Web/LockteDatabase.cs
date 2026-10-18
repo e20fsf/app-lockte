@@ -1,3 +1,4 @@
+using Lockte.Org;
 using Lockte.Web.Accounts;
 using Lockte.Web.Audit;
 using Microsoft.EntityFrameworkCore;
@@ -15,5 +16,6 @@ public static class LockteDatabase
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<AccountsDbContext>().Database.MigrateAsync();
+        await OrgModule.MigrateAsync(services);
     }
 }

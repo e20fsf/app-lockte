@@ -3,7 +3,7 @@
 @using System.Globalization
 @using Lockte.SharedKernel.Persistence
 @using Lockte.Web.Audit
-@inject IServiceScopeFactory ScopeFactory
+@inject ScopedServices Services
 
 @* หน้าค้นประวัติ (#39, #43): one page for every user, admin included.
    Read-only — history cannot be deleted. *@
@@ -73,8 +73,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await using (var scope = ScopeFactory.CreateAsyncScope())
-            tables = await scope.ServiceProvider.GetRequiredService<HistoryService>().TablesAsync();
+        tables = await Services.RunAsync<HistoryService, IReadOnlyList<string>>(h => h.TablesAsync());
         await SearchAsync();
     }
 
@@ -87,8 +86,7 @@
                 from is { } f ? DateOnly.FromDateTime(f) : null,
                 to is { } t ? DateOnly.FromDateTime(t) : null,
                 userName, table, rowKey);
-            await using var scope = ScopeFactory.CreateAsyncScope();
-            rows = await scope.ServiceProvider.GetRequiredService<HistoryService>().SearchAsync(filter);
+            rows = await Services.RunAsync<HistoryService, IReadOnlyList<HistoryRow>>(h => h.SearchAsync(filter));
         }
         finally
         {
