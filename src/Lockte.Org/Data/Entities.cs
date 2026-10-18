@@ -5,7 +5,7 @@ namespace Lockte.Org.Data;
 // Internal to the module (ADR 0002): other modules see DTOs from OrgDirectory, never these.
 
 /// <summary>ฝ่าย — กลุ่มของแผนก.</summary>
-internal sealed class Section : IAudited, IHasBusinessKey
+internal sealed class Section : IAudited
 {
     public int Id { get; set; }
     public string Name { get; set; } = "";
@@ -24,7 +24,7 @@ internal sealed class Section : IAudited, IHasBusinessKey
 /// แผนก — one row per department for the whole company (#16), replacing T-แผนก's one row per department × shift.
 /// The shifts it works are its <see cref="ShiftSupervisors"/>.
 /// </summary>
-internal sealed class Department : IAudited, IHasBusinessKey
+internal sealed class Department : IAudited
 {
     public int Id { get; set; }
     /// <summary>รหัสแผนก (business key, unique).</summary>
@@ -56,7 +56,7 @@ internal sealed class Department : IAudited, IHasBusinessKey
 }
 
 /// <summary>กะ — company-wide shift register A–G with standard times (T-SHIFT rows that have a code).</summary>
-internal sealed class Shift : IAudited, IHasBusinessKey
+internal sealed class Shift : IAudited
 {
     public int Id { get; set; }
     public string Code { get; set; } = "";
@@ -80,7 +80,7 @@ internal sealed class Shift : IAudited, IHasBusinessKey
 }
 
 /// <summary>หัวหน้ากะ — department × shift → employee (blank allowed). The row also says the department works that shift.</summary>
-internal sealed class ShiftSupervisor : IAudited, IHasBusinessKey
+internal sealed class ShiftSupervisor : IAudited
 {
     public int Id { get; set; }
     public int DepartmentId { get; set; }

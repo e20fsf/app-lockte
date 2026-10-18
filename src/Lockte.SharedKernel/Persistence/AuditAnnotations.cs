@@ -41,7 +41,10 @@ public static class AuditAnnotations
     internal static bool IsSecret(this IReadOnlyProperty property) => property.FindAnnotation(Secret) is not null;
 }
 
-/// <summary>A row's business key for the history (รหัสพนักงาน, ชื่อ user…). Without it, the primary key is used.</summary>
+/// <summary>
+/// รหัสรายการ: the key a user searches the history by (รหัสพนักงาน, ชื่อ user…). Required of every
+/// <see cref="IAudited"/> row; known before the save, unlike a database-generated id.
+/// </summary>
 public interface IHasBusinessKey
 {
     string BusinessKey { get; }

@@ -38,7 +38,7 @@ public sealed class WidgetDbContext(DbContextOptions<WidgetDbContext> options) :
         """);
 }
 
-public sealed class Widget : IAudited, IHasBusinessKey
+public sealed class Widget : IAudited
 {
     public int Id { get; set; }
     public string Code { get; set; } = "";
