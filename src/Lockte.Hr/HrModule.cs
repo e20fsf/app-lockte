@@ -14,6 +14,8 @@ public static class HrModule
         services.AddModuleDbContext<HrDbContext>(connectionString, HrDbContext.Schema);
         services.AddScoped<EmployeeDirectory>();
         services.AddScoped<EmployeeRegistry>();
+        services.AddScoped<HrCalendar>();
+        services.AddScoped<CalendarRegistry>();
         return services;
     }
 

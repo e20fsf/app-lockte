@@ -1,0 +1,135 @@
+@page "/hr/calendar/weekly"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-15 เพิ่มและแก้ไขวันอาทิตย์ (ฟอร์ม SUNDAY): DATE + ITEM one row at a time; "เพิ่ม" adds four more weeks
+   (BR-014); "ลบ" deletes a date range (มาโคร ลบวันอาทิตย์1). A date is required — a blank row is never saved
+   (instead of BR-051's delete on close). Shown one year at a time. *@
+<PageTitle>เพิ่มและแก้ไขวันอาทิตย์ — LOCKTE</PageTitle>
+<h1 class="mb-4">เพิ่มและแก้ไขวันอาทิตย์</h1>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2" Wrap="Wrap.Wrap">
+    <MudNumericField T="int" Value="year" ValueChanged="YearChangedAsync" Label="ปี (ค.ศ.)" Style="max-width:8rem" />
+    <MudText Typo="Typo.body2">พ.ศ. @(year + 543)</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddFourWeeksAsync" Disabled="busy">เพิ่ม 4 สัปดาห์</MudButton>
+</MudStack>
+
+<MudTable Items="rows" Dense="true" Hover="true" T="WeeklyHolidayDto" OnRowClick="@((TableRowClickEventArgs<WeeklyHolidayDto> e) => Edit(e.Item!))">
+    <HeaderContent><MudTh>วันที่</MudTh><MudTh>วัน</MudTh><MudTh>ป้าย</MudTh></HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Date.ToString("d/M/yyyy", ThaiCulture)</MudTd>
+        <MudTd>@context.Date.ToString("dddd", ThaiCulture)</MudTd>
+        <MudTd>@context.Label</MudTd>
+    </RowTemplate>
+    <NoRecordsContent><MudText>ไม่มีวันหยุดประจำสัปดาห์ในปีนี้</MudText></NoRecordsContent>
+</MudTable>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">@(form.Id is null ? "เพิ่มวัน" : "แก้วันที่เลือก")</MudText>
+        <MudSpacer />
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+    </MudStack>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="form.Date" Label="วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Required="true" RequiredError="กรุณากรอกวันที่" Style="max-width:12rem" />
+        <MudTextField @bind-Value="form.Label" Label="ป้าย" Placeholder="@CalendarRegistry.DefaultWeeklyLabel" MaxLength="CalendarRegistry.WeeklyLabelLength" Style="max-width:12rem" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy">ลบวันนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">ลบเป็นช่วงวันที่</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="rangeFrom" Label="ตั้งแต่วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Style="max-width:12rem" />
+        <MudDatePicker Editable="true" @bind-Date="rangeTo" Label="ถึงวันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Style="max-width:12rem" />
+        <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="DeleteRangeAsync" Disabled="busy || rangeFrom is null || rangeTo is null">ลบ</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private static readonly CultureInfo ThaiCulture = new("th-TH");
+
+    private int year = DateTime.Today.Year;
+    private IReadOnlyList<WeeklyHolidayDto> rows = [];
+    private RowForm form = new();
+    private DateTime? rangeFrom, rangeTo;
+    private bool busy;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task YearChangedAsync(int value)
+    {
+        year = value;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+        => rows = (await Services.RunAsync<HrCalendar, HolidayCalendar>(c => c.GetAsync(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31)))).WeeklyHolidays;
+
+    private void New() => form = new RowForm();
+
+    private void Edit(WeeklyHolidayDto row)
+        => form = new RowForm { Id = row.Id, Date = row.Date.ToDateTime(TimeOnly.MinValue), Label = row.Label, RowVersion = row.RowVersion };
+
+    private Task SaveAsync()
+    {
+        var input = new WeeklyHolidayInput(form.Id, form.Date is { } d ? DateOnly.FromDateTime(d) : null, form.Label, form.RowVersion);
+        return RunAsync(r => r.SaveWeeklyHolidayAsync(input), "บันทึกแล้ว");
+    }
+
+    private Task DeleteAsync() => RunAsync(r => r.DeleteWeeklyHolidayAsync(form.Id!.Value, form.RowVersion!), "ลบแล้ว");
+
+    private Task AddFourWeeksAsync() => RunAsync(r => r.AddNextFourWeeksAsync(), "เพิ่มอีก 4 สัปดาห์แล้ว");
+
+    private async Task DeleteRangeAsync()
+    {
+        var (from, to) = (DateOnly.FromDateTime(rangeFrom!.Value), DateOnly.FromDateTime(rangeTo!.Value));
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบวันหยุดประจำสัปดาห์",
+            $"ลบทุกวันตั้งแต่ {from.ToString("d/M/yyyy", ThaiCulture)} ถึง {to.ToString("d/M/yyyy", ThaiCulture)}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed == true) await RunAsync(r => r.DeleteWeeklyHolidaysAsync(from, to), "ลบแล้ว");
+    }
+
+    private async Task RunAsync(Func<CalendarRegistry, Task<ServiceResult>> action, string done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync(action);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(done, Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class RowForm
+    {
+        public int? Id { get; set; }
+        public DateTime? Date { get; set; }
+        public string? Label { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

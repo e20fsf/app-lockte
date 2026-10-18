@@ -7,8 +7,8 @@
    แผนก → ฝ่าย (still editable). *@
 <MudGrid Spacing="2">
     <MudItem xs="6" sm="2"><MudTextField T="string" Value="Form.Code" ValueChanged="@(t => Form.Code = EmployeeFormRules.NormalizeCode(t) ?? "")"
-                                        Label="รหัส" Required="true" MaxLength="EmployeeRegistry.CodeLength" /></MudItem>
-    <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.Name" Label="ชื่อ-สกุล" Required="true" /></MudItem>
+                                        Label="รหัส" Required="true" RequiredError="กรุณากรอกรหัสพนักงาน" MaxLength="EmployeeRegistry.CodeLength" /></MudItem>
+    <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.Name" Label="ชื่อ-สกุล" Required="true" RequiredError="กรุณากรอกชื่อ-สกุล" /></MudItem>
     <MudItem xs="6" sm="2">
         <MudSelect T="string" @bind-Value="Form.EnglishTitle" Label="คำนำหน้า (อังกฤษ)" Clearable="true">
             @foreach (var title in EmployeeLookups.EnglishTitles)
@@ -27,20 +27,20 @@
             }
         </MudSelect>
     </MudItem>
-    <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.BirthDate" Label="วันเกิด" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+    <MudItem xs="6" sm="2"><MudDatePicker Editable="true" @bind-Date="Form.BirthDate" Label="วันเกิด" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
     <MudItem xs="12" sm="4">
         <MudTextField T="string" Value="Form.NationalId" ValueChanged="NationalIdChanged" Label="เลขบัตรประชาชน" MaxLength="15" />
     </MudItem>
     <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.SocialSecurityNo" Label="เลขประกันสังคม" MaxLength="15" /></MudItem>
 
     <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.IdCardPlace" Label="ที่ออกบัตร" /></MudItem>
-    <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.IdCardIssued" Label="วันออกบัตร" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+    <MudItem xs="6" sm="2"><MudDatePicker Editable="true" @bind-Date="Form.IdCardIssued" Label="วันออกบัตร" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
     <MudItem xs="12" sm="6"><MudTextField @bind-Value="Form.RegisteredAddress" Label="ที่อยู่ทะเบียนบ้าน" /></MudItem>
     <MudItem xs="12" sm="6"><MudTextField @bind-Value="Form.CurrentAddress" Label="ที่อยู่ปัจจุบัน" /></MudItem>
     <MudItem xs="6" sm="3"><MudTextField @bind-Value="Form.Telephone" Label="โทรศัพท์" /></MudItem>
     <MudItem xs="6" sm="3"><MudTextField @bind-Value="Form.Nationality" Label="สัญชาติ" /></MudItem>
 
-    <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.StartDate" Label="วันเริ่มงาน" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+    <MudItem xs="6" sm="2"><MudDatePicker Editable="true" @bind-Date="Form.StartDate" Label="วันเริ่มงาน" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
     <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.ListNo" Label="ลำดับที่" MaxLength="4" /></MudItem>
     <MudItem xs="6" sm="2">
         <MudSelect T="string" @bind-Value="Form.Education" Label="วุฒิ" Clearable="true">
@@ -111,7 +111,7 @@
 
     @if (IsEdit)
     {
-        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.ResignDate" Label="วันลาออก" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker Editable="true" @bind-Date="Form.ResignDate" Label="วันลาออก" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
         <MudItem xs="12" sm="10"><MudTextField @bind-Value="Form.Memo" Label="หมายเหตุ" /></MudItem>
     }
 </MudGrid>
