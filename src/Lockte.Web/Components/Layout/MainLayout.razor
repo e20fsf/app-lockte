@@ -12,7 +12,7 @@
             <span class="brand-text">LOCKTE · โปรแกรมพนักงานและค่าแรง</span>
         </a>
         <MudSpacer />
-        <AuthorizeView Policy="@AuthPolicies.Staff">
+        <AuthorizeView Policy="@AuthPolicies.StaffOrAdmin">
             <MudButton Href="history" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" Class="mr-2">ประวัติการแก้ไข</MudButton>
         </AuthorizeView>
         <AuthorizeView>
