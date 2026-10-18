@@ -39,6 +39,8 @@ internal sealed class Department : IAudited
     public Section Section { get; set; } = null!;
     /// <summary>หัวหน้าแผนก: an employee of module พนักงานและค่าแรง; blank until the employee register exists.</summary>
     public int? HeadEmployeeId { get; set; }
+    /// <summary>อัตรากำลัง (T-แผนก2.QTY): planned headcount, shown against the actual count (BR-054).</summary>
+    public int? StaffingTarget { get; set; }
 
     public List<DepartmentShift> Shifts { get; set; } = [];
 

@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lockte.SharedKernel\Lockte.SharedKernel.csproj" />
+    <!-- Public services only (OrgDirectory): แผนก and กะ (ADR 0002). -->
+    <ProjectReference Include="..\Lockte.Org\Lockte.Org.csproj" />
   </ItemGroup>
 
   <ItemGroup>

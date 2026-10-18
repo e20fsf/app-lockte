@@ -8,15 +8,18 @@ namespace Lockte.Hr;
 
 public static class HrModule
 {
+    /// <summary>Needs module องค์กร registered too (แผนก and กะ come from its <c>OrgDirectory</c>).</summary>
     public static IServiceCollection AddHrModule(this IServiceCollection services, string connectionString)
     {
         services.AddModuleDbContext<HrDbContext>(connectionString, HrDbContext.Schema);
+        services.AddScoped<EmployeeDirectory>();
+        services.AddScoped<EmployeeRegistry>();
         services.AddScoped<HolidayCalendar>();
         services.AddScoped<HolidayRegistry>();
         return services;
     }
 
-    /// <summary>Brings schema <c>hr</c> up to date (called by the host after <c>org</c>).</summary>
+    /// <summary>Brings schema <c>hr</c> up to date (called by the host after <c>org</c>, which its foreign keys point to).</summary>
     public static async Task MigrateAsync(IServiceProvider services)
     {
         await using var scope = services.CreateAsyncScope();

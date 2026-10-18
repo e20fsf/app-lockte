@@ -1,0 +1,151 @@
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.Org
+
+@* The fields of ฟอร์ม EMPLO (SCR-02) / EMPLO2 (SCR-03), in the legacy order, with the BR-052 fill-ins:
+   เงินเดือน → ค่าแรง/วัน (rounded on SCR-02, not on SCR-03 ⚠), เลขบัตรประชาชน → เลขประกันสังคม,
+   แผนก → ฝ่าย (still editable). *@
+<MudGrid Spacing="2">
+    <MudItem xs="6" sm="2"><MudTextField T="string" Value="Form.Code" ValueChanged="@(t => Form.Code = EmployeeFormRules.NormalizeCode(t) ?? "")"
+                                        Label="รหัส" Required="true" MaxLength="EmployeeRegistry.CodeLength" /></MudItem>
+    <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.Name" Label="ชื่อ-สกุล" Required="true" /></MudItem>
+    <MudItem xs="6" sm="2">
+        <MudSelect T="string" @bind-Value="Form.EnglishTitle" Label="คำนำหน้า (อังกฤษ)" Clearable="true">
+            @foreach (var title in EmployeeLookups.EnglishTitles)
+            {
+                <MudSelectItem T="string" Value="title">@title</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" sm="4"><MudTextField @bind-Value="Form.EnglishName" Label="ชื่ออังกฤษ" /></MudItem>
+
+    <MudItem xs="6" sm="2">
+        <MudSelect T="string" @bind-Value="Form.Sex" Label="เพศ" Clearable="true">
+            @foreach (var (value, text) in EmployeeLookups.Sexes)
+            {
+                <MudSelectItem T="string" Value="value">@text</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.BirthDate" Label="วันเกิด" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+    <MudItem xs="12" sm="4">
+        <MudTextField T="string" Value="Form.NationalId" ValueChanged="NationalIdChanged" Label="เลขบัตรประชาชน" MaxLength="15" />
+    </MudItem>
+    <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.SocialSecurityNo" Label="เลขประกันสังคม" MaxLength="15" /></MudItem>
+
+    <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.IdCardPlace" Label="ที่ออกบัตร" /></MudItem>
+    <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.IdCardIssued" Label="วันออกบัตร" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+    <MudItem xs="12" sm="6"><MudTextField @bind-Value="Form.RegisteredAddress" Label="ที่อยู่ทะเบียนบ้าน" /></MudItem>
+    <MudItem xs="12" sm="6"><MudTextField @bind-Value="Form.CurrentAddress" Label="ที่อยู่ปัจจุบัน" /></MudItem>
+    <MudItem xs="6" sm="3"><MudTextField @bind-Value="Form.Telephone" Label="โทรศัพท์" /></MudItem>
+    <MudItem xs="6" sm="3"><MudTextField @bind-Value="Form.Nationality" Label="สัญชาติ" /></MudItem>
+
+    <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.StartDate" Label="วันเริ่มงาน" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+    <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.ListNo" Label="ลำดับที่" MaxLength="4" /></MudItem>
+    <MudItem xs="6" sm="2">
+        <MudSelect T="string" @bind-Value="Form.Education" Label="วุฒิ" Clearable="true">
+            @foreach (var level in EmployeeLookups.EducationLevels)
+            {
+                <MudSelectItem T="string" Value="level">@level</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudSelect T="int?" Value="Form.DepartmentId" ValueChanged="DepartmentChanged" Label="แผนก" Clearable="true">
+            @foreach (var d in Departments)
+            {
+                <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudSelect T="int?" @bind-Value="Form.SectionId" Label="ฝ่าย" Clearable="true">
+            @foreach (var s in Sections)
+            {
+                <MudSelectItem T="int?" Value="s.Id">@s.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+
+    <MudItem xs="6" sm="3">
+        <MudAutocomplete T="string" @bind-Value="Form.Position" Label="ตำแหน่ง" SearchFunc="@((t, _) => Filter(EmployeeLookups.Positions, t))"
+                         CoerceValue="true" Clearable="true" />
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudAutocomplete T="string" @bind-Value="Form.Duty" Label="หน้าที่" SearchFunc="@((t, _) => Filter(Choices.Duties, t))"
+                         CoerceValue="true" Clearable="true" />
+    </MudItem>
+    <MudItem xs="6" sm="2">
+        <MudSelect T="int?" @bind-Value="Form.EmployeeType" Label="ประเภท" Clearable="true">
+            @foreach (var (value, text) in EmployeeTypes.Names)
+            {
+                <MudSelectItem T="int?" Value="value">@text</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" sm="2">
+        <MudNumericField T="double" Value="Form.Salary" ValueChanged="SalaryChanged" Label="เงินเดือน" HideSpinButtons="true" Format="N2" />
+    </MudItem>
+    <MudItem xs="6" sm="2"><MudNumericField @bind-Value="Form.DailyWage" Label="ค่าแรง/วัน" HideSpinButtons="true" /></MudItem>
+
+    <MudItem xs="6" sm="2">
+        <MudSelect T="int?" @bind-Value="Form.ShiftId" Label="กะ" Clearable="true">
+            @foreach (var s in Shifts)
+            {
+                <MudSelectItem T="int?" Value="s.Id">@s.Code</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" sm="2">
+        <MudSelect T="bool" @bind-Value="Form.HotAllowance" Label="ได้ HOT">
+            <MudSelectItem T="bool" Value="false">ไม่ได้</MudSelectItem>
+            <MudSelectItem T="bool" Value="true">ได้</MudSelectItem>
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.BankAccountTtb" Label="บัญชีทหารไทย" MaxLength="10" /></MudItem>
+    <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.BankAccountKbank" Label="บัญชีกสิกร" /></MudItem>
+    <MudItem xs="12" sm="4">
+        <MudAutocomplete T="string" @bind-Value="Form.Hospital" Label="โรงพยาบาล" SearchFunc="@((t, _) => Filter(Choices.Hospitals, t))"
+                         CoerceValue="true" Clearable="true" />
+    </MudItem>
+
+    @if (IsEdit)
+    {
+        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="Form.ResignDate" Label="วันลาออก" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="12" sm="10"><MudTextField @bind-Value="Form.Memo" Label="หมายเหตุ" /></MudItem>
+    }
+</MudGrid>
+
+@code {
+    private static readonly CultureInfo ThaiCulture = new("th-TH");
+
+    [Parameter, EditorRequired] public EmployeeFormModel Form { get; set; } = null!;
+    [Parameter, EditorRequired] public IReadOnlyList<DepartmentDto> Departments { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<SectionDto> Sections { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<ShiftDto> Shifts { get; set; } = [];
+    [Parameter, EditorRequired] public EmployeeChoices Choices { get; set; } = new([], []);
+    /// <summary>SCR-03 (แก้ไข): shows วันลาออก / หมายเหตุ and does not round ค่าแรง/วัน.</summary>
+    [Parameter] public bool IsEdit { get; set; }
+
+    private void SalaryChanged(double salary)
+    {
+        Form.Salary = salary;
+        Form.DailyWage = IsEdit ? EmployeeFormRules.DailyWageOnEdit(salary) : EmployeeFormRules.DailyWageOnAdd(salary);
+    }
+
+    private void DepartmentChanged(int? departmentId)
+    {
+        Form.DepartmentId = departmentId;
+        if (Departments.FirstOrDefault(d => d.Id == departmentId) is { } department)
+            Form.SectionId = EmployeeFormRules.SectionOnDepartmentChosen(department);
+    }
+
+    private void NationalIdChanged(string? nationalId)
+    {
+        Form.NationalId = nationalId;
+        Form.SocialSecurityNo = EmployeeFormRules.SocialSecurityNoFor(nationalId);
+    }
+
+    private static Task<IEnumerable<string>> Filter(IReadOnlyList<string> values, string? text)
+        => Task.FromResult(string.IsNullOrWhiteSpace(text) ? values : values.Where(v => v.Contains(text.Trim())));
+}

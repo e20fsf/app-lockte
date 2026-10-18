@@ -67,7 +67,7 @@ public sealed class OrgDirectory(OrgDbContext db)
         d.Shifts.OrderBy(h => h.Shift.Code)
             .Select(h => new DepartmentShiftDto(h.ShiftId, h.Shift.Code, h.SupervisorEmployeeId, h.SupervisorName,
                 h.ManagerName, h.FactoryManagerName, h.RowVersion)).ToList(),
-        d.RowVersion);
+        d.RowVersion, d.StaffingTarget);
 
     private static ShiftDto ToDto(Shift s) => new(
         s.Id, s.Code, s.WorkIn, s.WorkOut, s.BreakStart, s.BreakEnd, s.OvertimeIn, s.OvertimeOut, s.RestMinutes, s.RowVersion);

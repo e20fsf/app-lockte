@@ -44,7 +44,8 @@ public sealed record DepartmentDto(
     string SectionName,
     int? HeadEmployeeId,
     IReadOnlyList<DepartmentShiftDto> Shifts,
-    byte[] RowVersion);
+    byte[] RowVersion,
+    int? StaffingTarget);
 
 /// <summary>
 /// A row of SCR-05 to save, with the shifts the department works. <see cref="Id"/> null = new row;
@@ -59,7 +60,8 @@ public sealed record DepartmentInput(
     int? SectionId,
     int? HeadEmployeeId,
     IReadOnlyCollection<DepartmentShiftInput> Shifts,
-    byte[]? RowVersion);
+    byte[]? RowVersion,
+    int? StaffingTarget = null);
 
 /// <summary>A shift ticked on SCR-05 with its printed names. หัวหน้ากะ is linked separately (SetShiftSupervisorAsync).</summary>
 public sealed record DepartmentShiftInput(int ShiftId, string? SupervisorName, string? ManagerName, string? FactoryManagerName);

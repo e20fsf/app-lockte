@@ -11,9 +11,6 @@ namespace Lockte.Hr.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "hr");
-
             migrationBuilder.CreateTable(
                 name: "PublicHolidays",
                 schema: "hr",

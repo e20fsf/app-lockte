@@ -18,6 +18,6 @@ public static class LockteDatabase
         await scope.ServiceProvider.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<AccountsDbContext>().Database.MigrateAsync();
         await OrgModule.MigrateAsync(services);
-        await HrModule.MigrateAsync(services);
+        await HrModule.MigrateAsync(services); // after org: its foreign keys point there
     }
 }
