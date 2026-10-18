@@ -7,7 +7,7 @@ namespace Lockte.Web.Accounts;
 /// ผู้ใช้ระบบ (#39): ชื่อ user ตั้งเอง + ชื่อที่แสดง ไม่ผูกทะเบียนพนักงาน ไม่มี role.
 /// Never deleted — deactivated instead so the change history still names the person.
 /// </summary>
-public sealed class AppUser : IdentityUser, IAudited
+public sealed class AppUser : IdentityUser, IAudited, IHasBusinessKey
 {
     public const string AdminUserName = "admin";
 
@@ -26,4 +26,6 @@ public sealed class AppUser : IdentityUser, IAudited
     public string UpdatedBy { get; set; } = "";
     public DateTimeOffset UpdatedAt { get; set; }
     public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => UserName ?? "";
 }

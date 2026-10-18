@@ -1,7 +1,7 @@
 namespace Lockte.SharedKernel.Persistence;
 
 /// <summary>
-/// แบบแผนกลางของทุกตาราง: สร้างโดย/เมื่อ + แก้ล่าสุดโดย/เมื่อ (เติมโดย <see cref="AuditStampInterceptor"/>)
+/// แบบแผนกลางของทุกตาราง: สร้างโดย/เมื่อ + แก้ล่าสุดโดย/เมื่อ (เติมโดย <see cref="AuditInterceptor"/>)
 /// และ rowversion สำหรับตรวจการแก้ชนกัน (ตั้งโดย <see cref="ModelBuilderExtensions.ApplyLockteConventions"/>).
 /// </summary>
 public interface IAudited

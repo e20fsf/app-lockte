@@ -8,10 +8,12 @@ public static class ModelBuilderExtensions
 
     /// <summary>
     /// Call last in every module's OnModelCreating: maps the <see cref="IAudited"/> columns of each entity
-    /// (rowversion as the concurrency token) the same way in every schema.
+    /// (rowversion as the concurrency token) the same way in every schema, and the history table the
+    /// <see cref="AuditInterceptor"/> writes to (created only by the context that owns it).
     /// </summary>
-    public static ModelBuilder ApplyLockteConventions(this ModelBuilder modelBuilder)
+    public static ModelBuilder ApplyLockteConventions(this ModelBuilder modelBuilder, bool ownsHistoryTable = false)
     {
+        HistoryModel.Map(modelBuilder, ownsHistoryTable);
         foreach (var entityType in modelBuilder.Model.GetEntityTypes()
                      .Where(t => typeof(IAudited).IsAssignableFrom(t.ClrType) && !t.IsOwned()))
         {

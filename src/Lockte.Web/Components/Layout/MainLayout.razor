@@ -14,6 +14,7 @@
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
+                <MudButton Href="history" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" Class="mr-2">ประวัติการแก้ไข</MudButton>
                 <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
                 <span class="user-name">@AccountClaims.DisplayNameOf(context.User)</span>
                 <MudMenu Icon="@Icons.Material.Filled.ArrowDropDown" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">

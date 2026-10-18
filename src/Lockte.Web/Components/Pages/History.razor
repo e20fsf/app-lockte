@@ -1,0 +1,108 @@
+@page "/history"
+@attribute [Authorize(Policy = AuthPolicies.AnyUser)]
+@using System.Globalization
+@using Lockte.SharedKernel.Persistence
+@using Lockte.Web.Audit
+@inject IServiceScopeFactory ScopeFactory
+
+@* หน้าค้นประวัติ (#39, #43): one page for every user. Read-only — history cannot be deleted. *@
+<PageTitle>ประวัติการแก้ไข — LOCKTE</PageTitle>
+<h1 class="mb-4">ประวัติการแก้ไข</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudGrid Spacing="2">
+        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="to" Label="ถึงวันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="12" sm="2"><MudTextField @bind-Value="userName" Label="ผู้แก้ (ชื่อ user)" Clearable="true" /></MudItem>
+        <MudItem xs="12" sm="2">
+            <MudSelect T="string" @bind-Value="table" Label="ตาราง" Clearable="true">
+                @foreach (var t in tables)
+                {
+                    <MudSelectItem Value="t">@t</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="2"><MudTextField @bind-Value="rowKey" Label="รหัสรายการ" HelperText="เช่น รหัสพนักงาน" Clearable="true" /></MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Search">ค้นหา</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (rows is { Count: HistoryService.DefaultMax })
+{
+    <MudAlert Severity="Severity.Info" Class="mb-2">แสดง @HistoryService.DefaultMax รายการล่าสุด — กรองให้แคบลงเพื่อดูรายการที่เก่ากว่า</MudAlert>
+}
+
+<MudTable Items="rows" Dense="true" Hover="true" Loading="busy" Breakpoint="Breakpoint.Sm">
+    <HeaderContent>
+        <MudTh>เวลา</MudTh>
+        <MudTh>ผู้แก้</MudTh>
+        <MudTh>ตาราง</MudTh>
+        <MudTh>รหัสรายการ</MudTh>
+        <MudTh>การกระทำ</MudTh>
+        <MudTh>ช่อง</MudTh>
+        <MudTh>ค่าเดิม</MudTh>
+        <MudTh>ค่าใหม่ / รายละเอียด</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="เวลา" Style="white-space:nowrap">@context.At.ToLocalTime().ToString("d/M/yyyy HH:mm:ss", ThaiCulture)</MudTd>
+        <MudTd DataLabel="ผู้แก้">@context.UserName</MudTd>
+        <MudTd DataLabel="ตาราง">@context.Table</MudTd>
+        <MudTd DataLabel="รหัสรายการ">@context.RowKey</MudTd>
+        <MudTd DataLabel="การกระทำ">@(context.Kind == HistoryKind.Event ? $"งาน: {context.Action}" : context.Action)</MudTd>
+        <MudTd DataLabel="ช่อง">@context.Column</MudTd>
+        <MudTd DataLabel="ค่าเดิม">@context.OldValue</MudTd>
+        <MudTd DataLabel="ค่าใหม่ / รายละเอียด">@NewOrDetail(context)</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>ไม่พบประวัติตามเงื่อนไข</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private static readonly CultureInfo ThaiCulture = new("th-TH");
+
+    private DateTime? from = DateTime.Today.AddDays(-7);
+    private DateTime? to = DateTime.Today;
+    private string? userName, table, rowKey;
+    private IReadOnlyList<string> tables = [];
+    private IReadOnlyList<HistoryRow>? rows;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using (var scope = ScopeFactory.CreateAsyncScope())
+            tables = await scope.ServiceProvider.GetRequiredService<HistoryService>().TablesAsync();
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        busy = true;
+        try
+        {
+            // Dates are the server's (factory) local days; "ถึงวันที่" includes the whole day.
+            var filter = new HistoryFilter(
+                from is { } f ? StartOfLocalDay(f) : null,
+                to is { } t ? StartOfLocalDay(t.AddDays(1)) : null,
+                userName, table, rowKey);
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            rows = await scope.ServiceProvider.GetRequiredService<HistoryService>().SearchAsync(filter);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static DateTimeOffset StartOfLocalDay(DateTime day)
+        => new(day.Date, TimeZoneInfo.Local.GetUtcOffset(day.Date));
+
+    private static string? NewOrDetail(HistoryRow row) => row.Kind switch
+    {
+        HistoryKind.Change => row.NewValue,
+        _ when row.RowCount is { } n => $"{row.Detail} ({n:N0} แถว)",
+        _ => row.Detail,
+    };
+}

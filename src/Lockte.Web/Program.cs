@@ -35,10 +35,7 @@ if (args is ["reset-admin", .. var rest])
     return await ResetAdminCommand.RunAsync(app.Services, rest);
 
 if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
-{
-    await using var scope = app.Services.CreateAsyncScope();
-    await scope.ServiceProvider.GetRequiredService<AccountsDbContext>().Database.MigrateAsync();
-}
+    await LockteDatabase.MigrateAsync(app.Services);
 
 if (!app.Environment.IsDevelopment())
 {
