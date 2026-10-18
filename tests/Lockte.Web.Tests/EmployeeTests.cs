@@ -53,7 +53,7 @@ public sealed class EmployeeTests(LocalDbFixture db)
         var employee = await AddAsync(new EmployeeInput
         {
             Code = $" {code.ToLowerInvariant()} ", Name = "นาย  สมชาย  ใจดี", Sex = "M", StartDate = new(2024, 5, 1),
-            DepartmentId = department.Id, ShiftId = shiftD.Id, EmployeeType = EmployeeTypes.Monthly,
+            DepartmentId = department.Id, SectionId = department.SectionId, ShiftId = shiftD.Id, EmployeeType = EmployeeTypes.Monthly,
             Salary = 12_295, DailyWage = 409.83, BankAccountTtb = "1234567890",
         });
 
@@ -123,12 +123,50 @@ public sealed class EmployeeTests(LocalDbFixture db)
         => Assert.Equal("3100700000001", EmployeeFormRules.SocialSecurityNoFor(" 3100700000001 "));
 
     [Fact]
-    public async Task Choosing_a_department_shows_its_section()
+    public async Task Section_is_copied_from_the_department_and_stays_the_employees_own()
     {
         var department = await NewDepartmentAsync();
-        var employee = await AddAsync(new EmployeeInput { Code = NewCode(), Name = "เลือกแผนก", DepartmentId = department.Id });
+        var otherSection = (await OrgAsync((r, _) => r.SaveSectionAsync(new SectionInput(null, Unique("สโตร์"), 2, null)))).Id!.Value;
 
-        Assert.Equal(department.SectionName, employee.SectionName);
+        var copied = EmployeeFormRules.SectionOnDepartmentChosen(department);
+        var employee = await AddAsync(new EmployeeInput
+        {
+            Code = NewCode(), Name = "เลือกแผนก", DepartmentId = department.Id, SectionId = copied,
+        });
+        var edited = await AsHrAsync((r, _) => r.SaveAsync(employee.ToInput() with { SectionId = otherSection }));
+        var unknown = await AsHrAsync((r, _) => r.SaveAsync(employee.ToInput() with { SectionId = int.MaxValue }));
+
+        Assert.Equal((department.SectionId, department.SectionName), (employee.SectionId, employee.SectionName));
+        Assert.True(edited.Succeeded); // HR may set another ฝ่าย, as SECTION was editable
+        var after = (await AsHrAsync((_, d) => d.GetAsync(employee.Id)))!;
+        Assert.Equal((otherSection, department.Id), (after.SectionId!.Value, after.DepartmentId!.Value));
+        Assert.Equal(["ไม่พบฝ่ายที่เลือก"], unknown.Errors);
+    }
+
+    [Fact]
+    public async Task Evaluation_fields_are_kept_when_the_form_saves_other_fields()
+    {
+        var employee = await AddAsync(new EmployeeInput
+        {
+            Code = NewCode(), Name = "ประเมิน", Evaluation1Date = new(2026, 1, 15), Evaluation1Score = 80, Evaluation1Grade = "B",
+            Evaluation2Date = new(2026, 3, 15), Evaluation2Score = 90, Evaluation2Grade = "A", ProbationPassedDate = new(2026, 4, 1),
+        });
+
+        await AsHrAsync((r, _) => r.SaveAsync(employee.ToInput() with { Telephone = "081" }));
+
+        var after = (await AsHrAsync((_, d) => d.GetAsync(employee.Id)))!;
+        Assert.Equal((new DateOnly(2026, 1, 15), (int?)80, "B", new DateOnly(2026, 3, 15), (int?)90, "A", new DateOnly(2026, 4, 1)),
+            (after.Evaluation1Date!.Value, after.Evaluation1Score, after.Evaluation1Grade, after.Evaluation2Date!.Value,
+             after.Evaluation2Score, after.Evaluation2Grade, after.ProbationPassedDate!.Value));
+    }
+
+    [Fact]
+    public async Task Editing_needs_the_rowversion_the_screen_loaded()
+    {
+        var employee = await AddAsync(new EmployeeInput { Code = NewCode(), Name = "ไม่มี rowversion" });
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            AsHrAsync((r, _) => r.SaveAsync(employee.ToInput() with { RowVersion = null })));
     }
 
     [Fact]

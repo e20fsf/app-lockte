@@ -43,7 +43,7 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
     /// <summary>พนักงานยังไม่ผ่านทดลองงาน (RPT-20, BR-053), by start date.</summary>
     public async Task<IReadOnlyList<EmployeeDto>> ListOnProbationAsync()
     {
-        var earliestStart = Today.AddDays(-89);
+        var earliestStart = Probation.EarliestStartOnProbation(Today);
         var rows = await db.Employees.AsNoTracking()
             .Where(e => e.ResignDate == null && e.StartDate >= earliestStart)
             .OrderBy(e => e.StartDate).ThenBy(e => e.Code)
@@ -92,6 +92,7 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
     private async Task<IReadOnlyList<EmployeeDto>> ToDtosAsync(IReadOnlyList<Employee> rows)
     {
         var departments = (await org.GetDepartmentsAsync()).ToDictionary(d => d.Id);
+        var sections = (await org.GetSectionsAsync()).ToDictionary(s => s.Id, s => s.Name);
         var shifts = (await org.GetShiftsAsync()).ToDictionary(s => s.Id);
         var today = Today;
         return rows.Select(e =>
@@ -104,11 +105,15 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
                 IdCardPlace = e.IdCardPlace, IdCardIssued = e.IdCardIssued, RegisteredAddress = e.RegisteredAddress,
                 CurrentAddress = e.CurrentAddress, Telephone = e.Telephone, Nationality = e.Nationality,
                 StartDate = e.StartDate, ListNo = e.ListNo, Education = e.Education,
-                DepartmentId = e.DepartmentId, DepartmentName = department?.Name, SectionName = department?.SectionName,
+                DepartmentId = e.DepartmentId, DepartmentName = department?.Name,
+                SectionId = e.SectionId, SectionName = e.SectionId is { } sec ? sections.GetValueOrDefault(sec) : null,
                 Position = e.Position, Duty = e.Duty, EmployeeType = e.EmployeeType, Salary = e.Salary, DailyWage = e.DailyWage,
                 ShiftId = e.ShiftId, ShiftCode = e.ShiftId is { } s ? shifts.GetValueOrDefault(s)?.Code : null,
                 HotAllowance = e.HotAllowance, BankAccountTtb = e.BankAccountTtb, BankAccountKbank = e.BankAccountKbank,
-                Hospital = e.Hospital, ResignDate = e.ResignDate, Memo = e.Memo, RowVersion = e.RowVersion,
+                Hospital = e.Hospital, ResignDate = e.ResignDate, Memo = e.Memo,
+                Evaluation1Date = e.Evaluation1Date, Evaluation1Score = e.Evaluation1Score, Evaluation1Grade = e.Evaluation1Grade,
+                Evaluation2Date = e.Evaluation2Date, Evaluation2Score = e.Evaluation2Score, Evaluation2Grade = e.Evaluation2Grade,
+                ProbationPassedDate = e.ProbationPassedDate, RowVersion = e.RowVersion,
                 OnProbation = Probation.IsOnProbation(e.StartDate, e.ResignDate, today),
             };
         }).ToList();

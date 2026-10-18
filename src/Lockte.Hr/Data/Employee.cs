@@ -5,7 +5,8 @@ namespace Lockte.Hr.Data;
 /// <summary>
 /// พนักงาน — one row per person, including those who resigned (T-EMPLO). Internal to the module (ADR 0002):
 /// other modules and screens see <see cref="EmployeeDto"/> from <see cref="EmployeeDirectory"/>.
-/// Evaluation fields (DATE_1/2, POINT_1/2, GRED_1/2, DATE_3) and the photo come with their own tickets.
+/// The evaluation fields are stored now (the data migration and payroll need them) and get their screen with
+/// SCR-53/54 (#67); the photo is not kept (empty for everyone working).
 /// </summary>
 internal sealed class Employee : IAudited
 {
@@ -26,14 +27,19 @@ internal sealed class Employee : IAudited
     public string? RegisteredAddress { get; set; }
     public string? CurrentAddress { get; set; }
     public string? Telephone { get; set; }
-    public string Nationality { get; set; } = EmployeeInput.DefaultNationality;
+    public string Nationality { get; set; } = "";
     public DateOnly? StartDate { get; set; }
     /// <summary>ลำดับที่ (NO).</summary>
     public string? ListNo { get; set; }
     /// <summary>วุฒิการศึกษา (POINT).</summary>
     public string? Education { get; set; }
-    /// <summary>แผนก in module องค์กร (org.Departments, FK across schemas). ฝ่าย is the department's.</summary>
+    /// <summary>แผนก in module องค์กร (org.Departments, FK across schemas).</summary>
     public int? DepartmentId { get; set; }
+    /// <summary>
+    /// ฝ่าย (SECTION) in module องค์กร (org.Sections): copied from the department when it is chosen (BR-052) and
+    /// editable, so it is the employee's own value — a later change of the department's ฝ่าย does not rewrite it.
+    /// </summary>
+    public int? SectionId { get; set; }
     public string? Position { get; set; }
     /// <summary>หน้าที่ (WORK), e.g. "D11 ฉีดก้ามเบรก".</summary>
     public string? Duty { get; set; }
@@ -56,6 +62,21 @@ internal sealed class Employee : IAudited
     public DateOnly? ResignDate { get; set; }
     /// <summary>หมายเหตุ (MEM).</summary>
     public string? Memo { get; set; }
+
+    /// <summary>วันประเมินครั้งที่ 1 (DATE_1, BR-055).</summary>
+    public DateOnly? Evaluation1Date { get; set; }
+    /// <summary>คะแนนประเมินครั้งที่ 1 (POINT_1, BR-055) — also read by payroll as a set wage per period (BR-003 ⚠ Q-09).</summary>
+    public int? Evaluation1Score { get; set; }
+    /// <summary>เกรดประเมินครั้งที่ 1 (GRED_1, BR-055) — set = not in ค่าแรงสิ้นเดือน (BR-063).</summary>
+    public string? Evaluation1Grade { get; set; }
+    /// <summary>วันประเมินครั้งที่ 2 (DATE_2).</summary>
+    public DateOnly? Evaluation2Date { get; set; }
+    /// <summary>คะแนนประเมินครั้งที่ 2 (POINT_2).</summary>
+    public int? Evaluation2Score { get; set; }
+    /// <summary>เกรดประเมินครั้งที่ 2 (GRED_2).</summary>
+    public string? Evaluation2Grade { get; set; }
+    /// <summary>วันผ่านทดลองงาน (DATE_3, BR-055).</summary>
+    public DateOnly? ProbationPassedDate { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

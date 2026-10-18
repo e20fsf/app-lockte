@@ -96,6 +96,32 @@ namespace Lockte.Hr.Data.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasAnnotation("Lockte:AuditName", "คำนำหน้า (อังกฤษ)");
 
+                    b.Property<DateOnly?>("Evaluation1Date")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันประเมินครั้งที่ 1");
+
+                    b.Property<string>("Evaluation1Grade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "เกรดประเมินครั้งที่ 1");
+
+                    b.Property<int?>("Evaluation1Score")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "คะแนนประเมินครั้งที่ 1");
+
+                    b.Property<DateOnly?>("Evaluation2Date")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันประเมินครั้งที่ 2");
+
+                    b.Property<string>("Evaluation2Grade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "เกรดประเมินครั้งที่ 2");
+
+                    b.Property<int?>("Evaluation2Score")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "คะแนนประเมินครั้งที่ 2");
+
                     b.Property<string>("Hospital")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
@@ -146,6 +172,10 @@ namespace Lockte.Hr.Data.Migrations
                         .HasColumnType("nvarchar(18)")
                         .HasAnnotation("Lockte:AuditName", "ตำแหน่ง");
 
+                    b.Property<DateOnly?>("ProbationPassedDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันผ่านทดลองงาน");
+
                     b.Property<string>("RegisteredAddress")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
@@ -164,6 +194,10 @@ namespace Lockte.Hr.Data.Migrations
                     b.Property<double>("Salary")
                         .HasColumnType("float")
                         .HasAnnotation("Lockte:AuditName", "เงินเดือน");
+
+                    b.Property<int?>("SectionId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ฝ่าย");
 
                     b.Property<string>("Sex")
                         .HasMaxLength(1)
@@ -205,6 +239,8 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.HasIndex("Name");
+
+                    b.HasIndex("SectionId");
 
                     b.HasIndex("ShiftId");
 

@@ -30,8 +30,9 @@ public static class EmployeeLookups
 }
 
 /// <summary>
-/// One SCR-02/03 form to save. <see cref="Id"/> null = new employee; <see cref="RowVersion"/> = as loaded.
+/// One SCR-02/03 form to save. <see cref="Id"/> null = new employee; editing needs <see cref="RowVersion"/> as loaded.
 /// Code and name are required (a blank row is never saved, instead of BR-051's delete on close).
+/// The evaluation fields have no screen yet (#67): a form must send back what it loaded.
 /// </summary>
 public sealed record EmployeeInput
 {
@@ -56,6 +57,7 @@ public sealed record EmployeeInput
     public string? ListNo { get; init; }
     public string? Education { get; init; }
     public int? DepartmentId { get; init; }
+    public int? SectionId { get; init; }
     public string? Position { get; init; }
     public string? Duty { get; init; }
     public int? EmployeeType { get; init; }
@@ -68,6 +70,13 @@ public sealed record EmployeeInput
     public string? Hospital { get; init; }
     public DateOnly? ResignDate { get; init; }
     public string? Memo { get; init; }
+    public DateOnly? Evaluation1Date { get; init; }
+    public int? Evaluation1Score { get; init; }
+    public string? Evaluation1Grade { get; init; }
+    public DateOnly? Evaluation2Date { get; init; }
+    public int? Evaluation2Score { get; init; }
+    public string? Evaluation2Grade { get; init; }
+    public DateOnly? ProbationPassedDate { get; init; }
     public byte[]? RowVersion { get; init; }
 }
 
@@ -94,7 +103,8 @@ public sealed record EmployeeDto
     public string? Education { get; init; }
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }
-    /// <summary>ฝ่าย of the department (BR-052: chosen with the department).</summary>
+    /// <summary>ฝ่าย of the employee (copied from the department when chosen, BR-052).</summary>
+    public int? SectionId { get; init; }
     public string? SectionName { get; init; }
     public string? Position { get; init; }
     public string? Duty { get; init; }
@@ -109,6 +119,13 @@ public sealed record EmployeeDto
     public string? Hospital { get; init; }
     public DateOnly? ResignDate { get; init; }
     public string? Memo { get; init; }
+    public DateOnly? Evaluation1Date { get; init; }
+    public int? Evaluation1Score { get; init; }
+    public string? Evaluation1Grade { get; init; }
+    public DateOnly? Evaluation2Date { get; init; }
+    public int? Evaluation2Score { get; init; }
+    public string? Evaluation2Grade { get; init; }
+    public DateOnly? ProbationPassedDate { get; init; }
     public required byte[] RowVersion { get; init; }
 
     public bool IsWorking => ResignDate is null;
@@ -126,9 +143,12 @@ public sealed record EmployeeDto
         BirthDate = BirthDate, NationalId = NationalId, SocialSecurityNo = SocialSecurityNo, IdCardPlace = IdCardPlace,
         IdCardIssued = IdCardIssued, RegisteredAddress = RegisteredAddress, CurrentAddress = CurrentAddress,
         Telephone = Telephone, Nationality = Nationality, StartDate = StartDate, ListNo = ListNo, Education = Education,
-        DepartmentId = DepartmentId, Position = Position, Duty = Duty, EmployeeType = EmployeeType, Salary = Salary,
+        DepartmentId = DepartmentId, SectionId = SectionId, Position = Position, Duty = Duty, EmployeeType = EmployeeType, Salary = Salary,
         DailyWage = DailyWage, ShiftId = ShiftId, HotAllowance = HotAllowance, BankAccountTtb = BankAccountTtb,
-        BankAccountKbank = BankAccountKbank, Hospital = Hospital, ResignDate = ResignDate, Memo = Memo, RowVersion = RowVersion,
+        BankAccountKbank = BankAccountKbank, Hospital = Hospital, ResignDate = ResignDate, Memo = Memo,
+        Evaluation1Date = Evaluation1Date, Evaluation1Score = Evaluation1Score, Evaluation1Grade = Evaluation1Grade,
+        Evaluation2Date = Evaluation2Date, Evaluation2Score = Evaluation2Score, Evaluation2Grade = Evaluation2Grade,
+        ProbationPassedDate = ProbationPassedDate, RowVersion = RowVersion,
     };
 }
 

@@ -27,6 +27,8 @@ public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org)
         if (name is null) errors.Add("กรุณากรอกชื่อ-สกุล");
         if (input.DepartmentId is { } departmentId && await org.GetDepartmentAsync(departmentId) is null)
             errors.Add("ไม่พบแผนกที่เลือก");
+        if (input.SectionId is { } sectionId && (await org.GetSectionsAsync()).All(s => s.Id != sectionId))
+            errors.Add("ไม่พบฝ่ายที่เลือก");
         if (input.ShiftId is { } shiftId && (await org.GetShiftsAsync()).All(s => s.Id != shiftId))
             errors.Add("ไม่พบกะที่เลือก");
         if (input.Sex is { } sex && !EmployeeLookups.Sexes.ContainsKey(sex)) errors.Add("เพศต้องเป็น M หรือ F");
@@ -38,7 +40,8 @@ public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org)
         {
             employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == id);
             if (employee is null) return ServiceResult.Fail("ไม่พบพนักงานคนนี้");
-            if (input.RowVersion is { } loaded) employee.ExpectRowVersion(loaded);
+            employee.ExpectRowVersion(input.RowVersion
+                ?? throw new ArgumentException("Editing needs the rowversion the screen loaded.", nameof(input)));
         }
         else
         {
@@ -63,6 +66,7 @@ public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org)
         employee.ListNo = Clean(input.ListNo);
         employee.Education = Clean(input.Education);
         employee.DepartmentId = input.DepartmentId;
+        employee.SectionId = input.SectionId;
         employee.Position = Clean(input.Position);
         employee.Duty = Clean(input.Duty);
         employee.EmployeeType = input.EmployeeType;
@@ -75,6 +79,13 @@ public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org)
         employee.Hospital = Clean(input.Hospital);
         employee.ResignDate = input.ResignDate;
         employee.Memo = Clean(input.Memo);
+        employee.Evaluation1Date = input.Evaluation1Date;
+        employee.Evaluation1Score = input.Evaluation1Score;
+        employee.Evaluation1Grade = Clean(input.Evaluation1Grade);
+        employee.Evaluation2Date = input.Evaluation2Date;
+        employee.Evaluation2Score = input.Evaluation2Score;
+        employee.Evaluation2Grade = Clean(input.Evaluation2Grade);
+        employee.ProbationPassedDate = input.ProbationPassedDate;
         await db.SaveChangesAsync();
         return ServiceResult.Ok(employee.Id);
     }

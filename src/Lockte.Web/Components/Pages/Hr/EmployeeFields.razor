@@ -3,7 +3,8 @@
 @using Lockte.Org
 
 @* The fields of ฟอร์ม EMPLO (SCR-02) / EMPLO2 (SCR-03), in the legacy order, with the BR-052 fill-ins:
-   เงินเดือน → ค่าแรง/วัน (rounded on SCR-02, not on SCR-03 ⚠), เลขบัตรประชาชน → เลขประกันสังคม, แผนก → ฝ่าย. *@
+   เงินเดือน → ค่าแรง/วัน (rounded on SCR-02, not on SCR-03 ⚠), เลขบัตรประชาชน → เลขประกันสังคม,
+   แผนก → ฝ่าย (still editable). *@
 <MudGrid Spacing="2">
     <MudItem xs="6" sm="2"><MudTextField T="string" Value="Form.Code" ValueChanged="@(t => Form.Code = EmployeeFormRules.NormalizeCode(t) ?? "")"
                                         Label="รหัส" Required="true" MaxLength="EmployeeRegistry.CodeLength" /></MudItem>
@@ -50,7 +51,7 @@
         </MudSelect>
     </MudItem>
     <MudItem xs="6" sm="3">
-        <MudSelect T="int?" @bind-Value="Form.DepartmentId" Label="แผนก" Clearable="true">
+        <MudSelect T="int?" Value="Form.DepartmentId" ValueChanged="DepartmentChanged" Label="แผนก" Clearable="true">
             @foreach (var d in Departments)
             {
                 <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
@@ -58,7 +59,12 @@
         </MudSelect>
     </MudItem>
     <MudItem xs="6" sm="3">
-        <MudTextField T="string" Value="@(Departments.FirstOrDefault(d => d.Id == Form.DepartmentId)?.SectionName)" Label="ฝ่าย" ReadOnly="true" />
+        <MudSelect T="int?" @bind-Value="Form.SectionId" Label="ฝ่าย" Clearable="true">
+            @foreach (var s in Sections)
+            {
+                <MudSelectItem T="int?" Value="s.Id">@s.Name</MudSelectItem>
+            }
+        </MudSelect>
     </MudItem>
 
     <MudItem xs="6" sm="3">
@@ -115,6 +121,7 @@
 
     [Parameter, EditorRequired] public EmployeeFormModel Form { get; set; } = null!;
     [Parameter, EditorRequired] public IReadOnlyList<DepartmentDto> Departments { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<SectionDto> Sections { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlyList<ShiftDto> Shifts { get; set; } = [];
     [Parameter, EditorRequired] public EmployeeChoices Choices { get; set; } = new([], []);
     /// <summary>SCR-03 (แก้ไข): shows วันลาออก / หมายเหตุ and does not round ค่าแรง/วัน.</summary>
@@ -124,6 +131,13 @@
     {
         Form.Salary = salary;
         Form.DailyWage = IsEdit ? EmployeeFormRules.DailyWageOnEdit(salary) : EmployeeFormRules.DailyWageOnAdd(salary);
+    }
+
+    private void DepartmentChanged(int? departmentId)
+    {
+        Form.DepartmentId = departmentId;
+        if (Departments.FirstOrDefault(d => d.Id == departmentId) is { } department)
+            Form.SectionId = EmployeeFormRules.SectionOnDepartmentChosen(department);
     }
 
     private void NationalIdChanged(string? nationalId)

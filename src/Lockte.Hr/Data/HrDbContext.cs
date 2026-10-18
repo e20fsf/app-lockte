@@ -37,6 +37,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             e.Property(x => x.ListNo).HasMaxLength(4).HasAuditName("ลำดับที่");
             e.Property(x => x.Education).HasMaxLength(12).HasAuditName("วุฒิ");
             e.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            e.Property(x => x.SectionId).HasAuditName("ฝ่าย");
             e.Property(x => x.Position).HasMaxLength(18).HasAuditName("ตำแหน่ง");
             e.Property(x => x.Duty).HasMaxLength(255).HasAuditName("หน้าที่");
             e.Property(x => x.EmployeeType).HasAuditName("ประเภท");
@@ -49,9 +50,17 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             e.Property(x => x.Hospital).HasMaxLength(255).HasAuditName("โรงพยาบาล");
             e.Property(x => x.ResignDate).HasAuditName("วันลาออก");
             e.Property(x => x.Memo).HasMaxLength(255).HasAuditName("หมายเหตุ");
+            e.Property(x => x.Evaluation1Date).HasAuditName("วันประเมินครั้งที่ 1");
+            e.Property(x => x.Evaluation1Score).HasAuditName("คะแนนประเมินครั้งที่ 1");
+            e.Property(x => x.Evaluation1Grade).HasMaxLength(50).HasAuditName("เกรดประเมินครั้งที่ 1");
+            e.Property(x => x.Evaluation2Date).HasAuditName("วันประเมินครั้งที่ 2");
+            e.Property(x => x.Evaluation2Score).HasAuditName("คะแนนประเมินครั้งที่ 2");
+            e.Property(x => x.Evaluation2Grade).HasMaxLength(50).HasAuditName("เกรดประเมินครั้งที่ 2");
+            e.Property(x => x.ProbationPassedDate).HasAuditName("วันผ่านทดลองงาน");
             e.HasIndex(x => x.Code).IsUnique();
             e.HasIndex(x => x.Name);
             e.HasIndex(x => x.DepartmentId);
+            e.HasIndex(x => x.SectionId);
             e.HasIndex(x => x.ShiftId);
         });
     }

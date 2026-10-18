@@ -32,7 +32,7 @@
                 ยังไม่ผ่านทดลองงาน · ครบ 90 วัน @loaded.NinetyDayDate?.ToString("d/M/yyyy", ThaiCulture) · ครบทดลองงาน @loaded.ProbationEndDate?.ToString("d/M/yyyy", ThaiCulture)
             </MudAlert>
         }
-        <EmployeeFields Form="form" Departments="departments" Shifts="shifts" Choices="choices" IsEdit="true" />
+        <EmployeeFields Form="form" Departments="departments" Sections="sections" Shifts="shifts" Choices="choices" IsEdit="true" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" Class="mt-4">บันทึก</MudButton>
     </MudPaper>
 }
@@ -89,6 +89,7 @@
     private EmployeeDto? loaded;
     private EmployeeFormModel? form;
     private IReadOnlyList<DepartmentDto> departments = [];
+    private IReadOnlyList<SectionDto> sections = [];
     private IReadOnlyList<ShiftDto> shifts = [];
     private EmployeeChoices choices = new([], []);
     private EmployeeStatistics? stats;
@@ -96,8 +97,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        (departments, shifts) = await Services.RunAsync<OrgDirectory, (IReadOnlyList<DepartmentDto>, IReadOnlyList<ShiftDto>)>(
-            async d => (await d.GetDepartmentsAsync(), await d.GetShiftsAsync()));
+        (departments, sections, shifts) = await Services.RunAsync<OrgDirectory, (IReadOnlyList<DepartmentDto>, IReadOnlyList<SectionDto>, IReadOnlyList<ShiftDto>)>(
+            async d => (await d.GetDepartmentsAsync(), await d.GetSectionsAsync(), await d.GetShiftsAsync()));
         await ReloadSideDataAsync();
     }
 
