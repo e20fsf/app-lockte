@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Lockte.Org;
 
 /// <summary>
-/// เพิ่ม/แก้ ทะเบียนองค์กร: SCR-05 (แผนก กับกะที่ทำ) and the ฝ่าย / กะ registers (filled by the data-migration
-/// tool; shift times are edited from SCR-11). Each save carries the rowversion the screen loaded; if the row
+/// เพิ่ม/แก้ ทะเบียนองค์กร: SCR-05 (แผนก กับกะที่ทำ) and the ฝ่าย / กะ registers (ฝ่าย filled by the data-migration
+/// tool; กะ A–G seeded by the database migration, times edited from SCR-11). Each save carries the rowversion the screen loaded; if the row
 /// changed since, it throws <see cref="ConcurrencyConflictException"/>.
 /// </summary>
 public sealed class OrgRegistry(OrgDbContext db)
@@ -16,18 +16,17 @@ public sealed class OrgRegistry(OrgDbContext db)
 
     /// <summary>
     /// Saves one SCR-05 row with the shifts the department works, in one transaction. A shift it keeps keeps its
-    /// หัวหน้ากะ. As in the legacy screen (BR-051, macro <c>ลบแผนก</c>), a row whose name is blank is not kept:
-    /// a new one is ignored, an existing one is deleted together with its หัวหน้ากะ rows.
+    /// หัวหน้ากะ. The name is required (decided 2026-10-18 instead of BR-051's "blank row is deleted"): clearing it
+    /// is an error, never a delete, and a blank new row is not saved.
     /// </summary>
     public async Task<ServiceResult> SaveDepartmentAsync(DepartmentInput input)
     {
         var name = Clean(input.Name);
-        if (name is null) return input.Id is { } id ? await DeleteDepartmentAsync(id, input.RowVersion) : ServiceResult.Ok();
-
         var code = Code(input.Code);
         var prefix = Code(input.EmployeeIdPrefix);
-        var shiftIds = input.ShiftIds.ToHashSet();
+        var shiftIds = input.Shifts.Select(s => s.ShiftId).ToHashSet();
         var errors = new List<string>();
+        if (name is null) errors.Add("กรุณากรอกชื่อแผนก");
         if (code is null) errors.Add("กรุณากรอกรหัสแผนก");
         else if (code.Length > DepartmentCodeLength) errors.Add($"รหัสแผนกยาวได้ไม่เกิน {DepartmentCodeLength} ตัว");
         if (!IsOneLetter(prefix)) errors.Add("ตัวอักษรนำหน้ารหัสพนักงานต้องเป็นตัวอักษรอังกฤษ 1 ตัว");
@@ -35,39 +34,39 @@ public sealed class OrgRegistry(OrgDbContext db)
             errors.Add("กรุณาเลือกฝ่าย");
         if (code is not null && await db.Departments.AnyAsync(d => d.Code == code && d.Id != input.Id))
             errors.Add($"มีรหัสแผนก '{code}' อยู่แล้ว");
-        if (await db.Departments.AnyAsync(d => d.Name == name && d.Id != input.Id))
+        if (name is not null && await db.Departments.AnyAsync(d => d.Name == name && d.Id != input.Id))
             errors.Add($"มีแผนก '{name}' อยู่แล้ว");
+        if (shiftIds.Count != input.Shifts.Count) errors.Add("เลือกกะซ้ำ");
         var shifts = await db.Shifts.Where(s => shiftIds.Contains(s.Id)).ToListAsync();
         if (shifts.Count != shiftIds.Count) errors.Add("ไม่พบกะที่เลือก");
         if (errors.Count > 0) return new ServiceResult(false, errors);
 
         var department = input.Id is { } existingId
-            ? await LoadAsync(db.Departments.Include(d => d.ShiftSupervisors).ThenInclude(h => h.Shift), existingId, input.RowVersion)
+            ? await LoadAsync(DepartmentsWithShifts(), existingId, input.RowVersion)
             : db.Departments.Add(new Department()).Entity;
-        if (department is null) return ServiceResult.Fail("ไม่พบแผนกนี้ อาจถูกลบไปแล้ว");
+        if (department is null) return ServiceResult.Fail("ไม่พบแผนกนี้");
         department.Code = code!;
-        department.Name = name;
+        department.Name = name!;
         department.EmployeeIdPrefix = prefix!;
         department.SortOrder = input.SortOrder;
         department.SectionId = input.SectionId!.Value;
         department.HeadEmployeeId = input.HeadEmployeeId;
-        department.ManagerName = Clean(input.ManagerName);
-        department.FactoryManagerName = Clean(input.FactoryManagerName);
-        foreach (var dropped in department.ShiftSupervisors.Where(h => !shiftIds.Contains(h.ShiftId)).ToList())
+        foreach (var dropped in department.Shifts.Where(h => !shiftIds.Contains(h.ShiftId)).ToList())
             db.Remove(dropped);
-        foreach (var shift in shifts.Where(s => department.ShiftSupervisors.All(h => h.ShiftId != s.Id)))
-            department.ShiftSupervisors.Add(new ShiftSupervisor { Department = department, Shift = shift });
+        foreach (var wanted in input.Shifts)
+        {
+            var row = department.Shifts.FirstOrDefault(h => h.ShiftId == wanted.ShiftId);
+            if (row is null)
+            {
+                row = new DepartmentShift { Department = department, Shift = shifts.Single(s => s.Id == wanted.ShiftId) };
+                department.Shifts.Add(row);
+            }
+            row.SupervisorName = Clean(wanted.SupervisorName);
+            row.ManagerName = Clean(wanted.ManagerName);
+            row.FactoryManagerName = Clean(wanted.FactoryManagerName);
+        }
         await db.SaveChangesAsync();
         return ServiceResult.Ok(department.Id);
-    }
-
-    private async Task<ServiceResult> DeleteDepartmentAsync(int id, byte[]? rowVersion)
-    {
-        var department = await LoadAsync(db.Departments.Include(d => d.ShiftSupervisors).ThenInclude(h => h.Shift), id, rowVersion);
-        if (department is null) return ServiceResult.Ok(); // already gone
-        db.Remove(department); // its หัวหน้ากะ rows go with it (and into the history)
-        await db.SaveChangesAsync();
-        return ServiceResult.Ok();
     }
 
     /// <summary>
@@ -76,10 +75,10 @@ public sealed class OrgRegistry(OrgDbContext db)
     /// </summary>
     public async Task<ServiceResult> SetShiftSupervisorAsync(int departmentId, int shiftId, int? employeeId, byte[] loadedRowVersion)
     {
-        var row = await LoadAsync(db.ShiftSupervisors.Include(h => h.Department).Include(h => h.Shift)
+        var row = await LoadAsync(db.DepartmentShifts.Include(h => h.Department).Include(h => h.Shift)
             .Where(h => h.DepartmentId == departmentId && h.ShiftId == shiftId), null, loadedRowVersion);
         if (row is null) return ServiceResult.Fail("แผนกนี้ไม่ได้ทำงานกะนี้");
-        row.EmployeeId = employeeId;
+        row.SupervisorEmployeeId = employeeId;
         await db.SaveChangesAsync();
         return ServiceResult.Ok(row.Id);
     }
@@ -135,6 +134,9 @@ public sealed class OrgRegistry(OrgDbContext db)
         row.ExpectRowVersion(loadedRowVersion);
         return row;
     }
+
+    private IQueryable<Department> DepartmentsWithShifts()
+        => db.Departments.Include(d => d.Shifts).ThenInclude(h => h.Shift);
 
     private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 

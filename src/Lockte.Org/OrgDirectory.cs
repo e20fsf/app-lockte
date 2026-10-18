@@ -28,6 +28,28 @@ public sealed class OrgDirectory(OrgDbContext db)
         return await Departments().FirstOrDefaultAsync(d => d.Code == normalized) is { } d ? ToDto(d) : null;
     }
 
+    /// <summary>
+    /// By ชื่อสะกดมาตรฐาน, ignoring surrounding spaces. Legacy records (EMPLO.DEPARTMENT, T-แผนก2) refer to a
+    /// department by name (DQ-5).
+    /// </summary>
+    public async Task<DepartmentDto?> FindDepartmentByNameAsync(string name)
+    {
+        var trimmed = name.Trim();
+        return await Departments().FirstOrDefaultAsync(d => d.Name == trimmed) is { } d ? ToDto(d) : null;
+    }
+
+    /// <summary>
+    /// Departments whose employee IDs start with <paramref name="prefix"/> (the letter, or a whole ID like "D385").
+    /// More than one is possible: อัดผ้าเบรก and ประกอบ share "A" in the legacy data (DQ-8).
+    /// </summary>
+    public async Task<IReadOnlyList<DepartmentDto>> FindDepartmentsByEmployeeIdPrefixAsync(string prefix)
+    {
+        var letter = OrgRegistry.Code(prefix)?[..1];
+        if (letter is null) return [];
+        return (await Departments().Where(d => d.EmployeeIdPrefix == letter).OrderBy(d => d.SortOrder).ToListAsync())
+            .Select(ToDto).ToList();
+    }
+
     public async Task<IReadOnlyList<ShiftDto>> GetShiftsAsync()
         => await db.Shifts.AsNoTracking().OrderBy(s => s.Code).Select(s => ToDto(s)).ToListAsync();
 
@@ -38,13 +60,13 @@ public sealed class OrgDirectory(OrgDbContext db)
     }
 
     private IQueryable<Department> Departments()
-        => db.Departments.AsNoTracking().Include(d => d.Section).Include(d => d.ShiftSupervisors).ThenInclude(h => h.Shift);
+        => db.Departments.AsNoTracking().Include(d => d.Section).Include(d => d.Shifts).ThenInclude(h => h.Shift);
 
     private static DepartmentDto ToDto(Department d) => new(
         d.Id, d.Code, d.Name, d.EmployeeIdPrefix, d.SortOrder, d.SectionId, d.Section.Name, d.HeadEmployeeId,
-        d.ManagerName, d.FactoryManagerName,
-        d.ShiftSupervisors.OrderBy(h => h.Shift.Code)
-            .Select(h => new ShiftSupervisorDto(h.ShiftId, h.Shift.Code, h.EmployeeId, h.RowVersion)).ToList(),
+        d.Shifts.OrderBy(h => h.Shift.Code)
+            .Select(h => new DepartmentShiftDto(h.ShiftId, h.Shift.Code, h.SupervisorEmployeeId, h.SupervisorName,
+                h.ManagerName, h.FactoryManagerName, h.RowVersion)).ToList(),
         d.RowVersion);
 
     private static ShiftDto ToDto(Shift s) => new(

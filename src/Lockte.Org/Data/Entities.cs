@@ -22,7 +22,7 @@ internal sealed class Section : IAudited
 
 /// <summary>
 /// แผนก — one row per department for the whole company (#16), replacing T-แผนก's one row per department × shift.
-/// The shifts it works are its <see cref="ShiftSupervisors"/>.
+/// The shifts it works, with what T-แผนก kept per shift, are its <see cref="Shifts"/>.
 /// </summary>
 internal sealed class Department : IAudited
 {
@@ -39,12 +39,8 @@ internal sealed class Department : IAudited
     public Section Section { get; set; } = null!;
     /// <summary>หัวหน้าแผนก: an employee of module พนักงานและค่าแรง; blank until the employee register exists.</summary>
     public int? HeadEmployeeId { get; set; }
-    /// <summary>ผู้จัดการ (T-แผนก.MANAGER) — a name printed on documents.</summary>
-    public string? ManagerName { get; set; }
-    /// <summary>ผู้จัดการโรงงาน (T-แผนก.FACTORY MANAGER) — printed on certificates (BR-070).</summary>
-    public string? FactoryManagerName { get; set; }
 
-    public List<ShiftSupervisor> ShiftSupervisors { get; set; } = [];
+    public List<DepartmentShift> Shifts { get; set; } = [];
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
@@ -79,15 +75,25 @@ internal sealed class Shift : IAudited
     string IHasBusinessKey.BusinessKey => Code;
 }
 
-/// <summary>หัวหน้ากะ — department × shift → employee (blank allowed). The row also says the department works that shift.</summary>
-internal sealed class ShiftSupervisor : IAudited
+/// <summary>
+/// แผนกในกะ — a shift the department works (T-แผนก row), with its หัวหน้ากะ and the names T-แผนก printed per
+/// department × shift.
+/// </summary>
+internal sealed class DepartmentShift : IAudited
 {
     public int Id { get; set; }
     public int DepartmentId { get; set; }
     public Department Department { get; set; } = null!;
     public int ShiftId { get; set; }
     public Shift Shift { get; set; } = null!;
-    public int? EmployeeId { get; set; }
+    /// <summary>หัวหน้ากะ: an employee of module พนักงานและค่าแรง; blank until the employee register links one.</summary>
+    public int? SupervisorEmployeeId { get; set; }
+    /// <summary>ชื่อหัวหน้า (T-แผนก.SUPER) — printed on documents.</summary>
+    public string? SupervisorName { get; set; }
+    /// <summary>ผู้จัดการ (T-แผนก.MANAGER) — printed on documents.</summary>
+    public string? ManagerName { get; set; }
+    /// <summary>ผู้จัดการโรงงาน (T-แผนก.FACTORY MANAGER) — printed on certificates (BR-070).</summary>
+    public string? FactoryManagerName { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

@@ -7,15 +7,15 @@
 @inject ISnackbar Snackbar
 
 @* SCR-05 เพิ่มและแก้ไขรายชื่อแผนก (ฟอร์ม แผนก2). Same fields in the same order — ลำดับ, แผนก, ตัวอักษรนำหน้า, ฝ่าย,
-   หัวหน้า, ผู้จัดการ, กะ, ผู้จัดการโรงงาน — on the company-wide register (#16): one row per department with its
-   shifts ticked, instead of one row per department × shift; รหัสแผนก is new (business key). As before there is no
-   delete button: clear the name and save (BR-051). ฝ่าย and กะ come from the data migration; shift times are
-   edited from SCR-11. *@
+   หัวหน้า, ผู้จัดการ, กะ, ผู้จัดการโรงงาน — and, as before, one list row per department × shift. Saved on the
+   company-wide register (#16): one department with the shifts it works; หัวหน้า / ผู้จัดการ / ผู้จัดการโรงงาน stay per
+   shift as in T-แผนก. รหัสแผนก is new (business key). There is no delete: the name is required (decided instead of
+   BR-051's "blank row is deleted"). ฝ่าย come from the data migration; กะ A–G are set up with the database. *@
 <PageTitle>เพิ่มและแก้ไขรายชื่อแผนก — LOCKTE</PageTitle>
 <h1 class="mb-4">เพิ่มและแก้ไขรายชื่อแผนก</h1>
 
-<MudTable Items="departments" Dense="true" Hover="true" Loading="departments is null" T="DepartmentDto"
-          OnRowClick="@((TableRowClickEventArgs<DepartmentDto> e) => Edit(e.Item!))">
+<MudTable Items="rows" Dense="true" Hover="true" Loading="departments is null" T="ListRow"
+          OnRowClick="@((TableRowClickEventArgs<ListRow> e) => Edit(e.Item!.Department))">
     <HeaderContent>
         <MudTh>ลำดับ</MudTh>
         <MudTh>แผนก</MudTh>
@@ -28,15 +28,15 @@
         <MudTh>รหัสแผนก</MudTh>
     </HeaderContent>
     <RowTemplate>
-        <MudTd>@context.SortOrder</MudTd>
-        <MudTd>@context.Name</MudTd>
-        <MudTd>@context.EmployeeIdPrefix</MudTd>
-        <MudTd>@context.SectionName</MudTd>
-        <MudTd></MudTd>
-        <MudTd>@context.ManagerName</MudTd>
-        <MudTd>@string.Join(", ", context.Shifts.Select(s => s.ShiftCode))</MudTd>
-        <MudTd>@context.FactoryManagerName</MudTd>
-        <MudTd>@context.Code</MudTd>
+        <MudTd>@context.Department.SortOrder</MudTd>
+        <MudTd>@context.Department.Name</MudTd>
+        <MudTd>@context.Department.EmployeeIdPrefix</MudTd>
+        <MudTd>@context.Department.SectionName</MudTd>
+        <MudTd>@context.Shift?.SupervisorName</MudTd>
+        <MudTd>@context.Shift?.ManagerName</MudTd>
+        <MudTd>@context.Shift?.ShiftCode</MudTd>
+        <MudTd>@context.Shift?.FactoryManagerName</MudTd>
+        <MudTd>@context.Department.Code</MudTd>
     </RowTemplate>
     <NoRecordsContent><MudText>ยังไม่มีแผนก</MudText></NoRecordsContent>
 </MudTable>
@@ -53,7 +53,7 @@
     }
     <MudGrid Spacing="2">
         <MudItem xs="4" sm="1"><MudNumericField @bind-Value="form.SortOrder" Label="ลำดับ" HideSpinButtons="true" /></MudItem>
-        <MudItem xs="8" sm="3"><MudTextField @bind-Value="form.Name" Label="แผนก" HelperText="ล้างชื่อแล้วบันทึก = ลบแผนก" /></MudItem>
+        <MudItem xs="8" sm="3"><MudTextField @bind-Value="form.Name" Label="แผนก" Required="true" /></MudItem>
         <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Prefix" Label="ตัวอักษรนำหน้ารหัสพนักงาน" MaxLength="1" /></MudItem>
         <MudItem xs="6" sm="3">
             <MudSelect T="int?" @bind-Value="form.SectionId" Label="ฝ่าย">
@@ -64,29 +64,33 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="3">
-            <MudTextField T="string" Value="@("")" Label="หัวหน้า" Disabled="true" HelperText="เลือกจากทะเบียนพนักงานได้เมื่อทะเบียนพร้อม" />
+            <MudTextField T="string" Value="@("")" Label="หัวหน้าแผนก" Disabled="true" HelperText="เลือกจากทะเบียนพนักงานได้เมื่อทะเบียนพร้อม" />
         </MudItem>
-        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Manager" Label="ผู้จัดการ" /></MudItem>
-        <MudItem xs="12" sm="8">
-            <MudText Typo="Typo.subtitle2">กะ</MudText>
-            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="4">
-                @foreach (var shift in shifts)
-                {
-                    <MudStack Spacing="0">
-                        <MudCheckBox T="bool" Value="form.ShiftIds.Contains(shift.Id)" ValueChanged="@(on => ToggleShift(shift.Id, on))" Label="@($"กะ {shift.Code}")" />
-                        <MudTextField T="string" Value="@("")" Label="หัวหน้ากะ" Disabled="true" Margin="Margin.Dense" Style="max-width:10rem" />
-                    </MudStack>
-                }
-            </MudStack>
-        </MudItem>
-        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.FactoryManager" Label="ผู้จัดการโรงงาน" /></MudItem>
         <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Code" Label="รหัสแผนก" MaxLength="OrgRegistry.DepartmentCodeLength" /></MudItem>
+        <MudItem xs="12">
+            <MudText Typo="Typo.subtitle2">กะที่แผนกทำงาน</MudText>
+            @foreach (var shift in shifts)
+            {
+                var row = form.Shifts.FirstOrDefault(s => s.ShiftId == shift.Id);
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                    <MudCheckBox T="bool" Value="row is not null" ValueChanged="@(on => ToggleShift(shift.Id, on))" Label="@($"กะ {shift.Code}")" Style="min-width:6rem" />
+                    @if (row is not null)
+                    {
+                        <MudTextField @bind-Value="row.SupervisorName" Label="หัวหน้า" Margin="Margin.Dense" Style="max-width:14rem" />
+                        <MudTextField @bind-Value="row.ManagerName" Label="ผู้จัดการ" Margin="Margin.Dense" Style="max-width:14rem" />
+                        <MudTextField @bind-Value="row.FactoryManagerName" Label="ผู้จัดการโรงงาน" Margin="Margin.Dense" Style="max-width:14rem" />
+                        <MudTextField T="string" Value="@("")" Label="หัวหน้ากะ (พนักงาน)" Disabled="true" Margin="Margin.Dense" Style="max-width:12rem" />
+                    }
+                </MudStack>
+            }
+        </MudItem>
     </MudGrid>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" Class="mt-2">บันทึก</MudButton>
 </MudPaper>
 
 @code {
     private IReadOnlyList<DepartmentDto>? departments;
+    private IReadOnlyList<ListRow> rows = [];
     private IReadOnlyList<SectionDto> sections = [];
     private IReadOnlyList<ShiftDto> shifts = [];
     private DepartmentForm form = new();
@@ -99,21 +103,31 @@
     }
 
     private async Task ReloadAsync()
-        => (departments, sections, shifts) = await Services.RunAsync<OrgDirectory, (IReadOnlyList<DepartmentDto>, IReadOnlyList<SectionDto>, IReadOnlyList<ShiftDto>)>(
+    {
+        (departments, sections, shifts) = await Services.RunAsync<OrgDirectory, (IReadOnlyList<DepartmentDto>, IReadOnlyList<SectionDto>, IReadOnlyList<ShiftDto>)>(
             async d => (await d.GetDepartmentsAsync(), await d.GetSectionsAsync(), await d.GetShiftsAsync()));
+        // One list row per department × shift, like the legacy form.
+        rows = departments.SelectMany(d => d.Shifts.Count == 0
+            ? [new ListRow(d, null)]
+            : d.Shifts.Select(s => new ListRow(d, s))).ToList();
+    }
 
     private void New() => form = new DepartmentForm { SortOrder = (departments?.Count ?? 0) + 1 };
 
     private void Edit(DepartmentDto d) => form = new DepartmentForm
     {
         Id = d.Id, SortOrder = d.SortOrder, Code = d.Code, Name = d.Name, Prefix = d.EmployeeIdPrefix, SectionId = d.SectionId,
-        HeadEmployeeId = d.HeadEmployeeId, Manager = d.ManagerName, FactoryManager = d.FactoryManagerName, RowVersion = d.RowVersion,
-        ShiftIds = d.Shifts.Select(s => s.ShiftId).ToHashSet(),
+        HeadEmployeeId = d.HeadEmployeeId, RowVersion = d.RowVersion,
+        Shifts = d.Shifts.Select(s => new ShiftForm
+        {
+            ShiftId = s.ShiftId, SupervisorName = s.SupervisorName, ManagerName = s.ManagerName, FactoryManagerName = s.FactoryManagerName,
+        }).ToList(),
     };
 
     private void ToggleShift(int shiftId, bool on)
     {
-        if (on) form.ShiftIds.Add(shiftId); else form.ShiftIds.Remove(shiftId);
+        if (!on) form.Shifts.RemoveAll(s => s.ShiftId == shiftId);
+        else if (form.Shifts.All(s => s.ShiftId != shiftId)) form.Shifts.Add(new ShiftForm { ShiftId = shiftId });
     }
 
     private async Task SaveAsync()
@@ -122,7 +136,9 @@
         try
         {
             var input = new DepartmentInput(form.Id, form.Code, form.Name, form.Prefix, form.SortOrder, form.SectionId,
-                form.HeadEmployeeId, form.Manager, form.FactoryManager, form.ShiftIds, form.RowVersion);
+                form.HeadEmployeeId,
+                form.Shifts.Select(s => new DepartmentShiftInput(s.ShiftId, s.SupervisorName, s.ManagerName, s.FactoryManagerName)).ToList(),
+                form.RowVersion);
             var result = await Services.RunAsync<OrgRegistry, ServiceResult>(r => r.SaveDepartmentAsync(input));
             foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
             if (!result.Succeeded) return;
@@ -152,9 +168,17 @@
         public string Prefix { get; set; } = "";
         public int? SectionId { get; set; }
         public int? HeadEmployeeId { get; set; }
-        public string? Manager { get; set; }
-        public string? FactoryManager { get; set; }
         public byte[]? RowVersion { get; set; }
-        public HashSet<int> ShiftIds { get; set; } = [];
+        public List<ShiftForm> Shifts { get; set; } = [];
     }
+
+    private sealed class ShiftForm
+    {
+        public int ShiftId { get; set; }
+        public string? SupervisorName { get; set; }
+        public string? ManagerName { get; set; }
+        public string? FactoryManagerName { get; set; }
+    }
+
+    private sealed record ListRow(DepartmentDto Department, DepartmentShiftDto? Shift);
 }

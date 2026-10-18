@@ -34,7 +34,8 @@ dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account 
   The login needs to create databases; each run makes its own `LockteTests_*` database and drops it. Keep credentials out of git
   (env var for tests, `dotnet user-secrets` for `ConnectionStrings:Lockte` when running the app).
 - Connection string: `ConnectionStrings:Lockte`; idle logout: `Auth:IdleTimeoutMinutes` (default 30).
-- New migration: `dotnet ef migrations add <Name> -p src/Lockte.Web -c AccountsDbContext -o Accounts/Migrations` (or `-c AuditDbContext -o Audit/Migrations`).
+- New migration: `dotnet ef migrations add <Name> -p src/Lockte.Web -c AccountsDbContext -o Accounts/Migrations` (or `-c AuditDbContext -o Audit/Migrations`);
+  module องค์กร: `dotnet ef migrations add <Name> -p src/Lockte.Org -s src/Lockte.Org -c OrgDbContext -o Data/Migrations`.
 
 ### Solution layout (ADR 0002)
 

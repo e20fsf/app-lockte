@@ -52,19 +52,9 @@ namespace Lockte.Org.Data.Migrations
                         .IsFixedLength()
                         .HasAnnotation("Lockte:AuditName", "ตัวอักษรนำหน้ารหัสพนักงาน");
 
-                    b.Property<string>("FactoryManagerName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasAnnotation("Lockte:AuditName", "ผู้จัดการโรงงาน");
-
                     b.Property<int?>("HeadEmployeeId")
                         .HasColumnType("int")
                         .HasAnnotation("Lockte:AuditName", "หัวหน้าแผนก");
-
-                    b.Property<string>("ManagerName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasAnnotation("Lockte:AuditName", "ผู้จัดการ");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -107,6 +97,75 @@ namespace Lockte.Org.Data.Migrations
                     b.ToTable("Departments", "org");
 
                     b.HasAnnotation("Lockte:AuditName", "แผนก");
+                });
+
+            modelBuilder.Entity("Lockte.Org.Data.DepartmentShift", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
+
+                    b.Property<string>("FactoryManagerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ผู้จัดการโรงงาน");
+
+                    b.Property<string>("ManagerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ผู้จัดการ");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("ShiftId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "กะ");
+
+                    b.Property<int?>("SupervisorEmployeeId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "หัวหน้ากะ");
+
+                    b.Property<string>("SupervisorName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อหัวหน้า");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShiftId");
+
+                    b.HasIndex("DepartmentId", "ShiftId")
+                        .IsUnique();
+
+                    b.ToTable("DepartmentShifts", "org");
+
+                    b.HasAnnotation("Lockte:AuditName", "แผนกในกะ");
                 });
 
             modelBuilder.Entity("Lockte.Org.Data.Section", b =>
@@ -233,60 +292,6 @@ namespace Lockte.Org.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "กะ");
                 });
 
-            modelBuilder.Entity("Lockte.Org.Data.ShiftSupervisor", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("int")
-                        .HasAnnotation("Lockte:AuditName", "แผนก");
-
-                    b.Property<int?>("EmployeeId")
-                        .HasColumnType("int")
-                        .HasAnnotation("Lockte:AuditName", "หัวหน้ากะ");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int>("ShiftId")
-                        .HasColumnType("int")
-                        .HasAnnotation("Lockte:AuditName", "กะ");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShiftId");
-
-                    b.HasIndex("DepartmentId", "ShiftId")
-                        .IsUnique();
-
-                    b.ToTable("ShiftSupervisors", "org");
-
-                    b.HasAnnotation("Lockte:AuditName", "หัวหน้ากะ");
-                });
-
             modelBuilder.Entity("Lockte.SharedKernel.Persistence.HistoryRecord", b =>
                 {
                     b.Property<long>("Id")
@@ -363,12 +368,12 @@ namespace Lockte.Org.Data.Migrations
                     b.Navigation("Section");
                 });
 
-            modelBuilder.Entity("Lockte.Org.Data.ShiftSupervisor", b =>
+            modelBuilder.Entity("Lockte.Org.Data.DepartmentShift", b =>
                 {
                     b.HasOne("Lockte.Org.Data.Department", "Department")
-                        .WithMany("ShiftSupervisors")
+                        .WithMany("Shifts")
                         .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Lockte.Org.Data.Shift", "Shift")
@@ -384,7 +389,7 @@ namespace Lockte.Org.Data.Migrations
 
             modelBuilder.Entity("Lockte.Org.Data.Department", b =>
                 {
-                    b.Navigation("ShiftSupervisors");
+                    b.Navigation("Shifts");
                 });
 #pragma warning restore 612, 618
         }

@@ -21,8 +21,18 @@ public sealed record ShiftDto(
     public bool CrossesMidnight => WorkOut < WorkIn;
 }
 
-/// <summary>A shift the department works, and its หัวหน้ากะ (blank until the employee register links one).</summary>
-public sealed record ShiftSupervisorDto(int ShiftId, string ShiftCode, int? EmployeeId, byte[] RowVersion);
+/// <summary>
+/// A shift the department works: its หัวหน้ากะ (blank until the employee register links one) and the names printed
+/// on documents for this department in this shift.
+/// </summary>
+public sealed record DepartmentShiftDto(
+    int ShiftId,
+    string ShiftCode,
+    int? SupervisorEmployeeId,
+    string? SupervisorName,
+    string? ManagerName,
+    string? FactoryManagerName,
+    byte[] RowVersion);
 
 public sealed record DepartmentDto(
     int Id,
@@ -33,14 +43,12 @@ public sealed record DepartmentDto(
     int SectionId,
     string SectionName,
     int? HeadEmployeeId,
-    string? ManagerName,
-    string? FactoryManagerName,
-    IReadOnlyList<ShiftSupervisorDto> Shifts,
+    IReadOnlyList<DepartmentShiftDto> Shifts,
     byte[] RowVersion);
 
 /// <summary>
 /// A row of SCR-05 to save, with the shifts the department works. <see cref="Id"/> null = new row;
-/// <see cref="RowVersion"/> = as loaded.
+/// <see cref="RowVersion"/> = as loaded. Name is required: a row is never deleted by clearing it.
 /// </summary>
 public sealed record DepartmentInput(
     int? Id,
@@ -50,10 +58,11 @@ public sealed record DepartmentInput(
     int SortOrder,
     int? SectionId,
     int? HeadEmployeeId,
-    string? ManagerName,
-    string? FactoryManagerName,
-    IReadOnlyCollection<int> ShiftIds,
+    IReadOnlyCollection<DepartmentShiftInput> Shifts,
     byte[]? RowVersion);
+
+/// <summary>A shift ticked on SCR-05 with its printed names. หัวหน้ากะ is linked separately (SetShiftSupervisorAsync).</summary>
+public sealed record DepartmentShiftInput(int ShiftId, string? SupervisorName, string? ManagerName, string? FactoryManagerName);
 
 public sealed record SectionInput(int? Id, string Name, int SortOrder, byte[]? RowVersion);
 
