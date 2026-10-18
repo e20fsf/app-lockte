@@ -12,6 +12,8 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     public const string Schema = "hr";
 
     internal DbSet<Employee> Employees => Set<Employee>();
+    internal DbSet<WeeklyHoliday> WeeklyHolidays => Set<WeeklyHoliday>();
+    internal DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -62,6 +64,22 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             e.HasIndex(x => x.DepartmentId);
             e.HasIndex(x => x.SectionId);
             e.HasIndex(x => x.ShiftId);
+        });
+
+        modelBuilder.Entity<WeeklyHoliday>(h =>
+        {
+            h.HasAuditName("วันหยุดประจำสัปดาห์");
+            h.Property(x => x.Date).HasAuditName("วันที่");
+            h.Property(x => x.Label).HasMaxLength(CalendarRegistry.WeeklyLabelLength).HasAuditName("ป้าย");
+            h.HasIndex(x => x.Date).IsUnique();
+        });
+
+        modelBuilder.Entity<PublicHoliday>(h =>
+        {
+            h.HasAuditName("วันหยุดประเพณี");
+            h.Property(x => x.Date).HasAuditName("วันที่");
+            h.Property(x => x.Name).HasMaxLength(CalendarRegistry.PublicHolidayNameLength).HasAuditName("ชื่อวันหยุด");
+            h.HasIndex(x => x.Date).IsUnique();
         });
     }
 }

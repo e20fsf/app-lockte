@@ -53,7 +53,7 @@
     }
     <MudGrid Spacing="2">
         <MudItem xs="4" sm="1"><MudNumericField @bind-Value="form.SortOrder" Label="ลำดับ" HideSpinButtons="true" /></MudItem>
-        <MudItem xs="8" sm="3"><MudTextField @bind-Value="form.Name" Label="แผนก" Required="true" /></MudItem>
+        <MudItem xs="8" sm="3"><MudTextField @bind-Value="form.Name" Label="แผนก" Required="true" RequiredError="กรุณากรอกชื่อแผนก" /></MudItem>
         <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Prefix" Label="ตัวอักษรนำหน้ารหัสพนักงาน" MaxLength="1" /></MudItem>
         <MudItem xs="6" sm="3">
             <MudSelect T="int?" @bind-Value="form.SectionId" Label="ฝ่าย">
