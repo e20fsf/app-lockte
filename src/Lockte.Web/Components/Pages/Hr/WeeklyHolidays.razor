@@ -1,0 +1,171 @@
+@page "/hr/weekly-holidays"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-15 เพิ่มและแก้ไขวันอาทิตย์ (ฟอร์ม SUNDAY): the list of วันหยุดประจำสัปดาห์ (วันที่, ป้าย) entered one row at a time,
+   "เพิ่ม" = four more weeks after each label's last date (BR-014), "ลบ" = every date in a range (ฟอร์ม ลบวันอาทิตย์).
+   The date is required (decided instead of BR-051's "blank row is deleted"), so a blank row is never saved. *@
+<PageTitle>เพิ่มและแก้ไขวันอาทิตย์ — LOCKTE</PageTitle>
+<h1 class="mb-4">เพิ่มและแก้ไขวันอาทิตย์</h1>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-2">
+    <MudSelect T="int?" @bind-Value="year" Label="ปี" Dense="true" Style="max-width:10rem">
+        <MudSelectItem T="int?" Value="null">ทุกปี</MudSelectItem>
+        @foreach (var y in years)
+        {
+            <MudSelectItem T="int?" Value="y">@(y + 543)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNextAsync" Disabled="busy">
+        เพิ่ม @HolidayRegistry.WeeksPerAdd สัปดาห์
+    </MudButton>
+</MudStack>
+
+<MudTable Items="Shown" Dense="true" Hover="true" Loading="holidays is null" T="WeeklyHolidayDto"
+          OnRowClick="@((TableRowClickEventArgs<WeeklyHolidayDto> e) => Edit(e.Item!))">
+    <HeaderContent>
+        <MudTh>วันที่</MudTh>
+        <MudTh>วัน</MudTh>
+        <MudTh>ป้าย</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@ThaiDate(context.Date)</MudTd>
+        <MudTd>@context.Date.ToString("dddd", ThaiCulture)</MudTd>
+        <MudTd>@context.Label</MudTd>
+    </RowTemplate>
+    <NoRecordsContent><MudText>ยังไม่มีวันหยุดประจำสัปดาห์</MudText></NoRecordsContent>
+</MudTable>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">@(form.Id is null ? "เพิ่มวันหยุด" : $"แก้วันหยุด {ThaiDate(form.LoadedDate!.Value)}")</MudText>
+        <MudSpacer />
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+    </MudStack>
+    <MudGrid Spacing="2">
+        <MudItem xs="6" sm="3">
+            <MudDatePicker @bind-Date="form.Date" Label="วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Editable="true" Required="true" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudTextField @bind-Value="form.Label" Label="ป้าย" MaxLength="HolidayRegistry.WeeklyLabelLength"
+                          Placeholder="@HolidayRegistry.DefaultWeeklyLabel" />
+        </MudItem>
+    </MudGrid>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" Class="mt-2">บันทึก</MudButton>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">ลบวันอาทิตย์</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="6" sm="3"><MudDatePicker @bind-Date="deleteFrom" Label="ตั้งแต่วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Editable="true" /></MudItem>
+        <MudItem xs="6" sm="3"><MudDatePicker @bind-Date="deleteTo" Label="ถึงวันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Editable="true" /></MudItem>
+    </MudGrid>
+    <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DeleteRangeAsync" Disabled="busy" Class="mt-2"
+               StartIcon="@Icons.Material.Filled.Delete">ลบ</MudButton>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(7)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">
+    กลับเมนูเดิม
+</MudButton>
+
+@code {
+    private static readonly CultureInfo ThaiCulture = new("th-TH");
+
+    private IReadOnlyList<WeeklyHolidayDto>? holidays;
+    private IReadOnlyList<int> years = [];
+    private int? year = DateTime.Today.Year;
+    private WeeklyHolidayForm form = new();
+    private DateTime? deleteFrom, deleteTo;
+    private bool busy;
+
+    private IEnumerable<WeeklyHolidayDto> Shown => (holidays ?? []).Where(h => year is null || h.Date.Year == year);
+
+    private static string ThaiDate(DateOnly date) => date.ToString("d/M/yyyy", ThaiCulture);
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        holidays = await Services.RunAsync<HolidayCalendar, IReadOnlyList<WeeklyHolidayDto>>(c => c.GetWeeklyHolidaysAsync());
+        years = holidays.Select(h => h.Date.Year).Append(DateTime.Today.Year).Distinct().Order().ToList();
+    }
+
+    private void New() => form = new WeeklyHolidayForm();
+
+    private void Edit(WeeklyHolidayDto h) => form = new WeeklyHolidayForm
+    {
+        Id = h.Id, Date = h.Date.ToDateTime(TimeOnly.MinValue), LoadedDate = h.Date, Label = h.Label, RowVersion = h.RowVersion,
+    };
+
+    private Task SaveAsync() => RunAsync(async () =>
+    {
+        var input = new WeeklyHolidayInput(form.Id, form.Date is { } d ? DateOnly.FromDateTime(d) : null, form.Label, form.RowVersion);
+        var result = await Services.RunAsync<HolidayRegistry, ServiceResult>(r => r.SaveWeeklyHolidayAsync(input));
+        if (!Report(result, "บันทึกแล้ว")) return;
+        await ReloadAsync();
+        if (holidays!.FirstOrDefault(h => h.Id == result.Id) is { } saved) Edit(saved); else New();
+    });
+
+    private Task AddNextAsync() => RunAsync(async () =>
+    {
+        var result = await Services.RunAsync<HolidayRegistry, ServiceResult>(r => r.AddNextWeeklyHolidaysAsync());
+        if (!Report(result, $"เพิ่มวันหยุดอีก {HolidayRegistry.WeeksPerAdd} สัปดาห์แล้ว")) return;
+        await ReloadAsync();
+        year = holidays!.Count > 0 ? holidays[^1].Date.Year : year; // show the year the new dates went into
+    });
+
+    private Task DeleteRangeAsync() => RunAsync(async () =>
+    {
+        if (deleteFrom is not { } from || deleteTo is not { } to)
+        {
+            Snackbar.Add("กรุณากรอกช่วงวันที่ที่จะลบ", Severity.Error);
+            return;
+        }
+        var result = await Services.RunAsync<HolidayRegistry, ServiceResult>(
+            r => r.DeleteWeeklyHolidaysAsync(DateOnly.FromDateTime(from), DateOnly.FromDateTime(to)));
+        if (!Report(result, "ลบแล้ว")) return;
+        await ReloadAsync();
+        New();
+    });
+
+    private bool Report(ServiceResult result, string success)
+    {
+        foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+        if (result.Succeeded) Snackbar.Add(success, Severity.Success);
+        return result.Succeeded;
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            New();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class WeeklyHolidayForm
+    {
+        public int? Id { get; set; }
+        public DateTime? Date { get; set; }
+        public DateOnly? LoadedDate { get; set; }
+        public string? Label { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

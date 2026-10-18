@@ -1,3 +1,4 @@
+using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Web.Accounts;
 using Lockte.Web.Audit;
@@ -17,5 +18,6 @@ public static class LockteDatabase
         await scope.ServiceProvider.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<AccountsDbContext>().Database.MigrateAsync();
         await OrgModule.MigrateAsync(services);
+        await HrModule.MigrateAsync(services);
     }
 }
