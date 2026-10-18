@@ -29,7 +29,10 @@ dotnet run --project src/Lockte.Web           # migrates the database on start, 
 dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account / reset its password (temporary)
 ```
 
-- Tests use another SQL Server when the env var `LOCKTE_TEST_SQL` is set to a connection string (without `Database=`).
+- Tests use another SQL Server when the env var `LOCKTE_TEST_SQL` is set to a connection string (without `Database=`),
+  e.g. the shared dev server: `Server=<host>;User Id=<login>;Password=<password>;TrustServerCertificate=true`.
+  The login needs to create databases; each run makes its own `LockteTests_*` database and drops it. Keep credentials out of git
+  (env var for tests, `dotnet user-secrets` for `ConnectionStrings:Lockte` when running the app).
 - Connection string: `ConnectionStrings:Lockte`; idle logout: `Auth:IdleTimeoutMinutes` (default 30).
 - New migration: `dotnet ef migrations add <Name> -p src/Lockte.Web -c AccountsDbContext -o Accounts/Migrations`.
 

@@ -12,6 +12,8 @@ public sealed record MenuPage(int Number, string Title, int? Back, IReadOnlyList
 /// <summary>
 /// โครงเมนูเดิมของ <c>พนักงาน.accdb</c> (Switchboard) ตาม <c>specs/employee/screens.md</c> "แผนผังเมนู" — same pages,
 /// order and "กลับเมนูเดิม" targets, including ⚠ oddities (เมนูหลัก "เวลาทำงาน" opens เมนู 7, เมนู 3 returns to เมนู 7).
+/// Labels use the <c>CONTEXT.md</c> terms where the legacy ones are listed as _Avoid_ (ตัด WEEK → ปิดงวดค่าแรง,
+/// บรรจุ → ผ่านทดลองงาน); the legacy labels stay in screens.md.
 /// Left out as decided in #41/#14: ย้ายข้อมูล (SCR-60), ลบข้อมูลปีที่แล้ว (SCR-62), จบโปรแกรม, and menu pages 8 and 16
 /// which no item opens.
 /// </summary>
@@ -28,7 +30,7 @@ public static class EmployeeMenu
             new("ข้อมูลพนักงาน", SubMenu: 2),
             new("เวลาทำงาน", SubMenu: 7),
             new("การลางานและใบเตือน", SubMenu: 4),
-            new("ตัด WEEK", SubMenu: 12),
+            new("ปิดงวดค่าแรง", SubMenu: 12),
             new("พิมพ์ใบลางาน, ใบลาออกและทะเบียนผู้ประกันสังคม", SubMenu: 18),
             new("การประเมินผลพนักงาน", SubMenu: 11),
         ]),
@@ -36,11 +38,11 @@ public static class EmployeeMenu
         [
             new("เพิ่มข้อมูลพนักงาน", Code: "SCR-02"),
             new("แก้ไขข้อมูลพนักงาน", Code: "SCR-03"),
-            new("พนักงานยังไม่บรรจุ", Code: "RPT-20"),
+            new("พนักงานยังไม่ผ่านทดลองงาน", Code: "RPT-20"),
             new("พิมพ์รายชื่อพนักงาน", Code: "SCR-04"),
             new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05"),
             new("พิมพ์หนังสือรับรอง, เกษียณและปลดออก", SubMenu: 19),
-            new("พิมพ์ใบอนุมัติบรรจุพนักงาน", Code: "SCR-06"),
+            new("พิมพ์ใบอนุมัติผ่านทดลองงาน", Code: "SCR-06"),
         ]),
         new(7, "วันอาทิตย์และวันหยุด", 1,
         [
@@ -75,14 +77,14 @@ public static class EmployeeMenu
             new("พิมพ์สรุปการลางาน", Code: "RPT-33"),
             new("พิมพ์พนักงานขาดงาน", Code: "RPT-34"),
         ]),
-        new(12, "ตัด WEEK", 1,
+        new(12, "ปิดงวดค่าแรง", 1,
         [
-            new("ตัด WEEK ตามปกติ", SubMenu: 6),
-            new("ตัด WEEK เป็น 2 ช่วง", SubMenu: 13),
+            new("ปิดงวดค่าแรงตามปกติ", SubMenu: 6),
+            new("ปิดงวดค่าแรงเป็น 2 ช่วง", SubMenu: 13),
             new("วิธีการทำเงินเดือนส่งแบงค์ทหารไทย", Code: "RPT-06-TTB"),
             new("วิธีการทำเงิน OT ส่งแบงค์กสิกรไทย", Code: "RPT-06-KBANK"),
         ]),
-        new(6, "ตัด WEEK ปกติ", 12,
+        new(6, "ปิดงวดค่าแรงตามปกติ", 12,
         [
             new("พิมพ์เวลาทำงาน", Code: "SCR-40"),
             new("พิมพ์ค่าแรง", Code: "SCR-41"),
@@ -108,19 +110,19 @@ public static class EmployeeMenu
             new("พิมพ์เงิน OT รวมโบนัสส่งแบงค์ (กสิกร)", Code: "RPT-41"),
             new("พิมพ์ SLIP รวมโบนัส", Code: "RPT-42"),
         ]),
-        new(13, "ตัด WEEK เป็น 2 ช่วง", 12,
+        new(13, "ปิดงวดค่าแรงเป็น 2 ช่วง", 12,
         [
-            new("ตัด WEEK ช่วงที่ 1 (27–31 ธันวาคม ของทุกปี)", SubMenu: 14),
-            new("ตัด WEEK ช่วงที่ 2 (1–11 มกราคม ของทุกปี)", SubMenu: 15),
+            new("ปิดงวดค่าแรงช่วงที่ 1 (27–31 ธันวาคม ของทุกปี)", SubMenu: 14),
+            new("ปิดงวดค่าแรงช่วงที่ 2 (1–11 มกราคม ของทุกปี)", SubMenu: 15),
         ]),
-        new(14, "ตัด WEEK ช่วงที่ 1", 13,
+        new(14, "ปิดงวดค่าแรงช่วงที่ 1", 13,
         [
             new("พิมพ์เวลาทำงานช่วงที่ 1", Code: "SCR-40-1"),
             new("พิมพ์ค่าแรงช่วงที่ 1", Code: "SCR-45"),
             new("พิมพ์สรุปค่าแรงช่วงที่ 1", Code: "RPT-11-1"),
             new("พิมพ์ SLIP ช่วงที่ 1", Code: "RPT-04-1"),
         ]),
-        new(15, "ตัด WEEK ช่วงที่ 2", 13,
+        new(15, "ปิดงวดค่าแรงช่วงที่ 2", 13,
         [
             new("พิมพ์เวลาทำงานช่วงที่ 2", Code: "SCR-40-2"),
             new("พิมพ์ค่าแรงช่วงที่ 2", Code: "SCR-46"),
