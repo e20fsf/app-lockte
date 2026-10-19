@@ -16,6 +16,7 @@ public static class HrModule
         services.AddScoped<EmployeeRegistry>();
         services.AddScoped<CalendarDirectory>();
         services.AddScoped<CalendarRegistry>();
+        services.AddScoped<HrDataReset>();
         return services;
     }
 
@@ -24,6 +25,22 @@ public static class HrModule
     {
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<HrDbContext>().Database.MigrateAsync();
+    }
+}
+
+/// <summary>
+/// ลบข้อมูลทั้งหมดของ module ก่อนการย้ายข้อมูลรอบใหม่ (#47: ลบแล้วโหลดใหม่ทั้งชุด). For the data-migration tool only:
+/// a bulk delete, so it writes no history. Tables added later that point to an employee are deleted here first.
+/// </summary>
+public sealed class HrDataReset(HrDbContext db)
+{
+    public async Task DeleteAllAsync()
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.WeeklyHolidays.ExecuteDeleteAsync();
+        await db.PublicHolidays.ExecuteDeleteAsync();
+        await db.Employees.ExecuteDeleteAsync();
+        await transaction.CommitAsync();
     }
 }
 

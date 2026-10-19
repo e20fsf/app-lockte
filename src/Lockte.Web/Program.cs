@@ -1,5 +1,6 @@
 using Lockte.Hr;
 using Lockte.Org;
+using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web;
 using Lockte.Web.Accounts;
@@ -29,6 +30,7 @@ builder.Services.AddAuthorization(AuthPolicies.Configure);
 
 builder.Services.AddOrgModule(connectionString);
 builder.Services.AddHrModule(connectionString);
+builder.Services.AddSalesModule(connectionString);
 
 var app = builder.Build();
 

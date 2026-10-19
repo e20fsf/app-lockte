@@ -46,7 +46,28 @@ dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account 
 | `src/Lockte.SharedKernel` | Non-business shared code: audit columns + rowversion convention, concurrency conflict (`Persistence/`) |
 | `src/Lockte.Org` | module องค์กร, schema `org`: ฝ่าย, แผนก, กะ, หัวหน้ากะ — others read via `OrgDirectory`, SCR-05 writes via `OrgRegistry`; migrations in `Data/Migrations` (`-p src/Lockte.Org -c OrgDbContext`) |
 | `src/Lockte.Hr` | module พนักงานและค่าแรง, schema `hr` |
+| `src/Lockte.Sales` | module ขายและส่งของ, schema `sales`: so far only the minimal ทะเบียนลูกค้า (รหัส + ชื่อ) the employee program needs |
+| `src/Lockte.Migration` | เครื่องมือย้ายข้อมูล — console run on a PC, reads a copy of the `.accdb` (see below) |
 | `tests/Lockte.Web.Tests` | Tests through the services, on LocalDB |
+
+### เครื่องมือย้ายข้อมูล (data migration, #47)
+
+Runs on a Windows PC with Microsoft 365 / Access Runtime (64-bit ACE OLE DB 16.0), never on the server (ADR 0001).
+The database must exist and be migrated first (start the web app on it once). Each run **deletes** the master data
+of `org`, `hr` and `sales` and loads it again from a copy of the file (the file itself is not changed), through the
+modules' registries, with no change history:
+
+```
+dotnet run --project src/Lockte.Migration -- --source "<copy of พนักงาน.accdb>" --connection "<connection string>"
+    --confirm <database name> --out <report folder> [--map code-map.csv]
+```
+
+`--confirm` must repeat the database name of the connection string (env `LOCKTE_MIGRATION_SQL` can hold the connection
+instead). The report folder gets `dq-exceptions.csv` (rows not loaded as they are, by DQ-x / NF-06), `row-counts.csv`
+(legacy rows = not migrated by design + DQ + loaded, and loaded = rows in the database) and `code-map-used.csv`
+(what every department / customer / shift value became). Edit that file and pass it back as `--map` to give
+departments, customers or shifts other codes or names (columns `kind,legacy,code,name,prefix`). The reports hold real
+names — keep them out of git. Tests build a fake `.accdb` (`FakeLegacyFile`) with fictional data.
 
 Every table follows the convention in `SharedKernel/Persistence`:
 

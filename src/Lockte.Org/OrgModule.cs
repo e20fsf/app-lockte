@@ -13,6 +13,7 @@ public static class OrgModule
         services.AddModuleDbContext<OrgDbContext>(connectionString, OrgDbContext.Schema);
         services.AddScoped<OrgDirectory>();
         services.AddScoped<OrgRegistry>();
+        services.AddScoped<OrgDataReset>();
         return services;
     }
 
@@ -21,6 +22,24 @@ public static class OrgModule
     {
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<OrgDbContext>().Database.MigrateAsync();
+    }
+}
+
+/// <summary>
+/// ลบข้อมูลทั้งหมดของ module ก่อนการย้ายข้อมูลรอบใหม่ (#47: ลบแล้วโหลดใหม่ทั้งชุด), including the กะ that the database
+/// migration seeded — the tool loads them again from T-SHIFT. For the data-migration tool only: a bulk delete, so it
+/// writes no history.
+/// </summary>
+public sealed class OrgDataReset(OrgDbContext db)
+{
+    public async Task DeleteAllAsync()
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.DepartmentShifts.ExecuteDeleteAsync();
+        await db.Departments.ExecuteDeleteAsync();
+        await db.Shifts.ExecuteDeleteAsync();
+        await db.Sections.ExecuteDeleteAsync();
+        await transaction.CommitAsync();
     }
 }
 
