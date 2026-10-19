@@ -2,6 +2,7 @@
 
 > สถานะ: ถอดครบ — รอยืนยัน (2026-10-05)
 > ที่มา: SaveAsText รายงาน 17 ชิ้น (`source/_extract/เงินสดย่อย/reports/`, สรุป `_reports_compact.txt`) · ทุกรายงานเปิดแบบ Print Preview
+> หน้าตาเอกสารจริงจากตัวอย่าง PDF (lot 3, 10 ไฟล์) อยู่ใน [print-samples.md](print-samples.md) · แบบแผนการพิมพ์ร่วมอยู่ใน [../print-forms.md](../print-forms.md)
 > จำนวนเงิน: รูปแบบ Standard (คั่นหลักพัน 2 ตำแหน่ง) · ตัวอักษรจำนวนเงิน RND-C · เลขลำดับ = `=1` สะสมทั้งรายงาน (Running Sum Over All)
 
 ## RPT-01 — ใบสำคัญจ่ายเงิน (PAYMENT VOUCHER)

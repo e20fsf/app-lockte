@@ -58,6 +58,7 @@ flowchart LR
 | [business-rules.md](business-rules.md) | กฎธุรกิจ BR-001…031 (ไม่มีการคำนวณ/ปัดเศษ, ไม่มี state machine) | ถอดครบ — รอยืนยัน (ส่วนใหญ่ ✅ จากโค้ด) | 10 |
 | [screens.md](screens.md) | แผนผังเมนู + หน้าจอ SCR-01…06 | ถอดครบ — รอยืนยัน | 1 |
 | [reports.md](reports.md) | รายงาน RPT-01…06 (59 รายงานเดิม) | ถอดครบ — รอยืนยัน | 3 |
+| [print-samples.md](print-samples.md) | หน้าตาเอกสารพิมพ์จริงจากตัวอย่าง PDF 58 ไฟล์ (ทุก RPT) | ถอดจากตัวอย่าง — รอยืนยัน | Q-13, Q-14, Q-15 (หลักฐานเพิ่มแล้ว) |
 | [integrations.md](integrations.md) | import/export | ถอดครบ — ไม่มีการเชื่อมต่ออัตโนมัติ (มีความเชื่อมโยงเชิงเนื้อหากับโปรแกรมอื่น INT-01) | 2 |
 | [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล การพิมพ์ | ถอดครบ — รอยืนยัน | 9 |
 | [acceptance.md](acceptance.md) | เกณฑ์ตรวจรับ AC-01…14 | ร่าง (ใช้ตอนสร้างระบบใหม่) | 1 |
