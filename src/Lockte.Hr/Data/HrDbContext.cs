@@ -16,6 +16,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
     internal DbSet<Absence> Absences => Set<Absence>();
     internal DbSet<WorkTime> WorkTimes => Set<WorkTime>();
+    internal DbSet<Leave> Leaves => Set<Leave>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -111,6 +112,27 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             w.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             w.HasIndex(x => new { x.Date, x.EmployeeId });
             w.HasIndex(x => new { x.EmployeeId, x.Date });
+        });
+
+        // One table for every year (#41); not unique on (employee, FROM_D, TO_D, FROM_T): the legacy data may repeat.
+        modelBuilder.Entity<Leave>(l =>
+        {
+            l.HasAuditName(LeaveRegistry.LeaveTable);
+            l.Property(x => x.RecordedOn).HasAuditName("วันที่บันทึก");
+            l.Property(x => x.EmployeeId).HasAuditName("พนักงาน");
+            l.Property(x => x.FromDate).HasAuditName("ตั้งแต่วันที่");
+            l.Property(x => x.ToDate).HasAuditName("ถึงวันที่");
+            l.Property(x => x.FromTime).HasAuditName("ตั้งแต่เวลา");
+            l.Property(x => x.ToTime).HasAuditName("ถึงเวลา");
+            l.Property(x => x.Days).HasAuditName("จำนวนวัน");
+            l.Property(x => x.Type).HasMaxLength(LeaveTypes.Length).HasAuditName("ประเภท");
+            l.Property(x => x.Paid).HasAuditName("ได้ค่าแรง");
+            l.Property(x => x.Remark).HasMaxLength(LeaveRegistry.RemarkLength).HasAuditName("เหตุผล");
+            l.Property(x => x.DailyWage).HasAuditName("ค่าแรง/วัน");
+            l.Property(x => x.Pay).HasAuditName("จ่ายค่าแรง");
+            l.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            l.HasIndex(x => new { x.EmployeeId, x.FromDate });
+            l.HasIndex(x => x.FromDate);
         });
     }
 }

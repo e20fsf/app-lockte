@@ -20,6 +20,8 @@ public static class HrModule
         services.AddScoped<AbsenceRegistry>();
         services.AddScoped<WorkTimeDirectory>();
         services.AddScoped<WorkTimeRegistry>();
+        services.AddScoped<LeaveDirectory>();
+        services.AddScoped<LeaveRegistry>();
         return services;
     }
 
@@ -49,6 +51,7 @@ public sealed class HrDataReset(HrDbContext db)
         await using var transaction = await db.Database.BeginTransactionAsync();
         await db.WeeklyHolidays.ExecuteDeleteAsync();
         await db.PublicHolidays.ExecuteDeleteAsync();
+        await db.Leaves.ExecuteDeleteAsync();
         await db.Employees.ExecuteDeleteAsync();
         await transaction.CommitAsync();
     }

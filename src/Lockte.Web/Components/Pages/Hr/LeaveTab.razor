@@ -1,0 +1,333 @@
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* แท็บการลาของหน้ารายคน (SCR-30 ฟอร์ม LEAVE_A + subform สรุปการลา subform1 + LEAVE1, #41 / prototype #22): the quota of the
+   calendar year against each BR-020 limit, then the person's leave of the year, edited in the table one row at a time.
+   Choosing ได้ค่าแรง is the legacy check point (BR-020) and saves the row, as SAL_AfterUpdate → Macro1 did: the legacy
+   message shows in a box; a failed check clears จำนวนวัน and saves nothing. ลบข้อมูลการลา by date range is SCR-31 (BR-022). *@
+<MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+    <MudSelect T="int" Value="year" ValueChanged="ChangeYearAsync" Label="ปี" Dense="true" Style="max-width:8rem">
+        @foreach (var y in Years)
+        {
+            <MudSelectItem T="int" Value="y">@(y + 543)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudText Typo="Typo.body2">ค่าแรง/วัน <b>@Employee.DailyWage.ToString("#,##0.00")</b></MudText>
+    <MudText Typo="Typo.caption">โควตานับรอบปีปฏิทิน 1 ม.ค.–31 ธ.ค. ตามวันเริ่มลา</MudText>
+</MudStack>
+
+@if (summary is not null)
+{
+    <MudSimpleTable Dense="true" Bordered="true" Style="max-width:40rem">
+        <thead>
+            <tr><th>โควตาลาได้ค่าแรง</th><th style="text-align:right">ใช้ไป</th><th style="text-align:right">สิทธิ์</th><th style="text-align:right">คงเหลือ</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var q in summary.Quotas)
+            {
+                <tr>
+                    <td>@q.Name</td>
+                    <td style="text-align:right">@Days(q.Used)</td>
+                    <td style="text-align:right">@Days(q.Limit)</td>
+                    <td style="text-align:right">
+                        @if (q.Note is { } note)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Warning">@note</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="@(q.Left < 0 ? Color.Error : Color.Default)">@Days(q.Left)</MudText>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+    <MudText Typo="Typo.caption" Class="mt-1 d-block">
+        วันลาได้ค่าแรงทั้งปี @Days(summary.PaidDays) วัน · รวมค่าแรง @summary.PaidPay.ToString("#,##0.00") บาท
+        @if (summary.PaidDaysByType.Count > 0)
+        {
+            <span> · @string.Join(", ", LeaveTypes.Codes.Where(summary.PaidDaysByType.ContainsKey).Select(c => $"{LeaveTypes.Names[c]} {Days(summary.PaidDaysByType[c])}"))</span>
+        }
+    </MudText>
+}
+
+<MudSimpleTable Dense="true" Hover="true" Class="mt-4">
+    <thead>
+        <tr>
+            <th>วันที่บันทึก</th><th>ตั้งแต่วันที่</th><th>ถึงวันที่</th><th>ตั้งแต่เวลา</th><th>ถึงเวลา</th>
+            <th style="text-align:right">จำนวนวัน</th><th>ประเภท</th><th>ได้ค่าแรง</th><th>เหตุผล</th>
+            <th style="text-align:right">ค่าแรง/วัน</th><th style="text-align:right">จ่ายค่าแรง</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in rows)
+        {
+            if (editing?.Id == row.Id)
+            {
+                @EditRow(editing)
+            }
+            else
+            {
+                <tr @key="row.Id" style="cursor:pointer" @onclick="() => Edit(row)">
+                    <td>@ThaiDate.Format(row.RecordedOn)</td>
+                    <td>@ThaiDate.Format(row.FromDate)</td>
+                    <td>@ThaiDate.Format(row.ToDate)</td>
+                    <td>@TimeText.Format(row.FromTime)</td>
+                    <td>@TimeText.Format(row.ToTime)</td>
+                    <td style="text-align:right">@Days(row.Days)</td>
+                    <td>@row.Type @row.TypeName</td>
+                    <td>@PaidText(row.Paid)</td>
+                    <td>@row.Remark</td>
+                    <td style="text-align:right">@row.DailyWage.ToString("#,##0.00")</td>
+                    <td style="text-align:right">@row.Pay.ToString("#,##0.00")</td>
+                    <td></td>
+                </tr>
+            }
+        }
+        @if (editing is { Id: null })
+        {
+            @EditRow(editing)
+        }
+        @if (rows.Count == 0 && editing is null)
+        {
+            <tr><td colspan="12"><MudText Typo="Typo.body2">ไม่มีการลาในปีนี้</MudText></td></tr>
+        }
+    </tbody>
+    @if (rows.Count > 0)
+    {
+        <tfoot>
+            <tr>
+                <td colspan="5"><b>รวม @rows.Count ครั้ง</b></td>
+                <td style="text-align:right"><b>@Days(rows.Sum(r => r.Days))</b></td>
+                <td colspan="4"></td>
+                <td style="text-align:right"><b>@rows.Sum(r => r.Pay).ToString("#,##0.00")</b></td>
+                <td></td>
+            </tr>
+        </tfoot>
+    }
+</MudSimpleTable>
+<MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow"
+               Disabled="busy || editing is not null">เพิ่มการลา</MudButton>
+    <MudText Typo="Typo.caption">คลิกแถวเพื่อแก้ · เลือก "ได้ค่าแรง" แล้วระบบตรวจโควตาและบันทึกทันทีเหมือนระบบเดิม · จำนวนวันหน่วย 1/8 วัน (0.125 = 1 ชม.)</MudText>
+</MudStack>
+
+<MudPaper Outlined="true" Class="pa-4 mt-4">
+    <MudText Typo="Typo.h6" Class="mb-2">ลบข้อมูลการลา (@Employee.Code)</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="deleteFrom" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                       Style="max-width:11rem" />
+        <MudDatePicker Editable="true" @bind-Date="deleteTo" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                       Style="max-width:11rem" />
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || deleteFrom is null || deleteTo is null"
+                   OnClick="DeleteRangeAsync">ลบข้อมูล</MudButton>
+    </MudStack>
+    <MudText Typo="Typo.caption">ลบการลาที่วันเริ่มลาอยู่ในช่วงนี้ (ทุกปี ไม่ใช่เฉพาะปีที่แสดง)</MudText>
+</MudPaper>
+
+@code {
+    private static readonly IReadOnlyList<TimeOnly> FromTimes = [new(8, 0), new(13, 0)];
+    private static readonly IReadOnlyList<TimeOnly> ToTimes = [new(12, 0), new(17, 0)];
+
+    [Parameter, EditorRequired] public EmployeeDto Employee { get; set; } = null!;
+
+    private int year = DateTime.Today.Year;
+    private int? loadedFor;
+    private LeaveSummary? summary;
+    private IReadOnlyList<LeaveDto> rows = [];
+    private RowForm? editing;
+    private DateTime? deleteFrom = DateTime.Today;
+    private DateTime? deleteTo = DateTime.Today;
+    private bool busy;
+
+    private IEnumerable<int> Years => Enumerable.Range(DateTime.Today.Year - 2, 4).Append(year).Distinct().Order();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (loadedFor == Employee.Id) return;
+        loadedFor = Employee.Id;
+        editing = null;
+        await ReloadAsync();
+    }
+
+    private async Task ChangeYearAsync(int value)
+    {
+        year = value;
+        editing = null;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var (id, y) = (Employee.Id, year);
+        summary = await Services.RunAsync<LeaveDirectory, LeaveSummary>(d => d.GetSummaryAsync(id, y));
+        rows = await Services.RunAsync<LeaveDirectory, IReadOnlyList<LeaveDto>>(d => d.ListOfEmployeeAsync(id, y));
+    }
+
+    private void Edit(LeaveDto row)
+    {
+        if (busy) return;
+        editing = new RowForm
+        {
+            Id = row.Id, RecordedOn = ToDateTime(row.RecordedOn), FromDate = ToDateTime(row.FromDate), ToDate = ToDateTime(row.ToDate),
+            FromTime = TimeText.Format(row.FromTime), ToTime = TimeText.Format(row.ToTime), Days = row.Days, Type = row.Type,
+            Paid = row.Paid, Remark = row.Remark, DailyWage = row.DailyWage, RowVersion = row.RowVersion,
+        };
+    }
+
+    /// <summary>A new row of today with the legacy defaults (08:00–17:00, the employee's ค่าแรง/วัน).</summary>
+    private void AddRow()
+    {
+        var day = year == DateTime.Today.Year ? DateTime.Today : new DateTime(year, 1, 1);
+        editing = new RowForm
+        {
+            RecordedOn = DateTime.Today, FromDate = day, ToDate = day, FromTime = TimeText.Format(LeaveRegistry.DefaultFromTime),
+            ToTime = TimeText.Format(LeaveRegistry.DefaultToTime), DailyWage = Employee.DailyWage,
+        };
+    }
+
+    private RenderFragment EditRow(RowForm f) => @<tr>
+        <td><MudDatePicker Editable="true" @bind-Date="f.RecordedOn" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="min-width:8rem" /></td>
+        <td><MudDatePicker Editable="true" Date="f.FromDate" DateChanged="@(d => { f.FromDate = d; if (f.ToDate is null || f.ToDate < d) f.ToDate = d; })"
+                           Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="min-width:8rem" /></td>
+        <td><MudDatePicker Editable="true" @bind-Date="f.ToDate" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="min-width:8rem" /></td>
+        <td><TimeBox @bind-Text="f.FromTime" Choices="FromTimes" Style="min-width:5.5rem" /></td>
+        <td><TimeBox @bind-Text="f.ToTime" Choices="ToTimes" Style="min-width:5.5rem" /></td>
+        <td><MudNumericField T="double?" @bind-Value="f.Days" Step="0.125" Min="0" HideSpinButtons="true" Style="min-width:4.5rem" /></td>
+        <td>
+            <MudSelect T="string" @bind-Value="f.Type" Style="min-width:10rem">
+                @foreach (var sr in LeaveTypes.Codes)
+                {
+                    <MudSelectItem T="string" Value="sr">@sr @LeaveTypes.Names[sr]</MudSelectItem>
+                }
+            </MudSelect>
+        </td>
+        <td>
+            <MudSelect T="bool?" Value="f.Paid" ValueChanged="ChoosePaidAsync" Disabled="busy" Style="min-width:4.5rem">
+                <MudSelectItem T="bool?" Value="true">Y ได้</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">N ไม่ได้</MudSelectItem>
+            </MudSelect>
+        </td>
+        <td><MudTextField @bind-Value="f.Remark" MaxLength="LeaveRegistry.RemarkLength" Style="min-width:7rem" /></td>
+        <td><MudNumericField T="double?" @bind-Value="f.DailyWage" Min="0" HideSpinButtons="true" Style="min-width:5rem" /></td>
+        <td></td>
+        <td style="white-space:nowrap">
+            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Primary" Size="Size.Small" Disabled="busy" OnClick="() => SaveAsync()" title="บันทึก" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Disabled="busy" OnClick="@(() => editing = null)" title="ยกเลิก" />
+            @if (f.Id is not null)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="busy" OnClick="DeleteRowAsync" title="ลบแถวนี้" />
+            }
+        </td>
+    </tr>;
+
+    /// <summary>SAL AfterUpdate (BR-020): the check point, which also saves the row.</summary>
+    private Task ChoosePaidAsync(bool? paid)
+    {
+        editing!.Paid = paid;
+        return SaveAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        var f = editing!;
+        if (!TimeText.TryParse(f.FromTime, out var fromTime) || !TimeText.TryParse(f.ToTime, out var toTime))
+        {
+            Snackbar.Add("เวลาต้องเป็น ชั่วโมง:นาที เช่น 08:00", Severity.Error);
+            return;
+        }
+        var input = new LeaveInput(f.Id, Employee.Id, ToDateOnly(f.RecordedOn), ToDateOnly(f.FromDate), ToDateOnly(f.ToDate), fromTime, toTime,
+            f.Days, f.Type, f.Paid, f.Remark, f.DailyWage, f.RowVersion);
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<LeaveRegistry, LeaveSaveResult>(r => r.SaveAsync(input));
+            if (result.Quota is { Message: { } message } quota)
+                await Dialogs.ShowMessageBoxAsync(quota.Title, message, yesText: "OK");
+            if (result.Quota is { CanSave: false })
+            {
+                f.Days = null; // the legacy SUM_D = Null: the row is not saved
+                return;
+            }
+            foreach (var e in result.Save.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Save.Succeeded) return;
+            if (result.Quota?.Message is null) Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            editing = null;
+            await ReloadAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            editing = null;
+            await ReloadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private Task DeleteRowAsync() => RunAsync(r => r.DeleteAsync(editing!.Id!.Value, editing.RowVersion!), _ => "ลบแถวแล้ว");
+
+    private async Task DeleteRangeAsync()
+    {
+        var (from, to, id) = (DateOnly.FromDateTime(deleteFrom!.Value), DateOnly.FromDateTime(deleteTo!.Value), Employee.Id);
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบข้อมูลการลา",
+            $"ลบการลาของ {Employee.Code} {Employee.Name} ที่เริ่มลาวันที่ {ThaiDate.Format(from)} ถึง {ThaiDate.Format(to)}?",
+            yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        await RunAsync(r => r.DeleteRangeAsync(id, from, to), n => $"การลบข้อมูลการลางานเสร็จเรียบร้อยแล้ว ({n} แถว)");
+    }
+
+    private async Task RunAsync(Func<LeaveRegistry, Task<ServiceResult>> action, Func<int?, string> done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync(action);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(done(result.Id), Severity.Success);
+            editing = null;
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            editing = null;
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private static string Days(double? days) => days?.ToString("0.###") ?? "";
+
+    private static string PaidText(bool? paid) => paid switch { true => "Y", false => "N", null => "" };
+
+    private static DateTime ToDateTime(DateOnly date) => date.ToDateTime(TimeOnly.MinValue);
+
+    private static DateOnly? ToDateOnly(DateTime? date) => date is { } d ? DateOnly.FromDateTime(d) : null;
+
+    private sealed class RowForm
+    {
+        public int? Id { get; set; }
+        public DateTime? RecordedOn { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public string? FromTime { get; set; }
+        public string? ToTime { get; set; }
+        public double? Days { get; set; }
+        public string? Type { get; set; }
+        public bool? Paid { get; set; }
+        public string? Remark { get; set; }
+        public double? DailyWage { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}
