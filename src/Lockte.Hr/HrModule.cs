@@ -52,6 +52,8 @@ public sealed class HrDataReset(HrDbContext db)
         await db.WeeklyHolidays.ExecuteDeleteAsync();
         await db.PublicHolidays.ExecuteDeleteAsync();
         await db.Leaves.ExecuteDeleteAsync();
+        await db.WorkTimes.ExecuteDeleteAsync();
+        await db.Absences.ExecuteDeleteAsync();
         await db.Employees.ExecuteDeleteAsync();
         await transaction.CommitAsync();
     }

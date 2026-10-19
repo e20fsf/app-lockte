@@ -20,7 +20,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
     public const string Usage = """
         Lockte.Migration --source <พนักงาน.accdb> --connection "<SQL Server connection string>" --confirm <database>
                          --out <folder> [--map <code-map.csv>]
-          ลบข้อมูลหลักในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
+          ลบข้อมูลหลักและประวัติในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
           --connection ใช้ env LOCKTE_MIGRATION_SQL แทนได้ · รายงานเขียนลง <folder>
         """;
 
@@ -52,13 +52,14 @@ public static class MigrationTool
     public const string UserName = "migration";
 
     public static IServiceCollection AddMasterDataMigration(this IServiceCollection services)
-        => services.AddScoped<MasterDataMigration>()
-            // The delete-everything services of the modules: registered for this tool only, never in the web app.
-            .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>();
+        => services.AddScoped<MasterDataMigration>().AddScoped<HistoryMigration>()
+            // The delete-everything and bulk-load services of the modules: registered for this tool only, never in the web app.
+            .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>();
 
     /// <summary>
-    /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data,
-    /// writes the DQ report, the row counts and the code map used into <paramref name="outputFolder"/>.
+    /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data
+    /// (#47) and the history (#51), writes the DQ report, the row counts, the monthly totals of 2026, the WORK_T check and
+    /// the code map used into <paramref name="outputFolder"/>.
     /// </summary>
     [SupportedOSPlatform("windows")]
     public static async Task<MigrationReport> RunAsync(IServiceProvider services, string sourceFile, string? codeMapFile, string outputFolder)
@@ -67,6 +68,7 @@ public static class MigrationTool
         var legacy = LegacyDatabase.ReadAccessFile(sourceFile);
         await using var scope = services.CreateAsyncScope();
         var report = await scope.ServiceProvider.GetRequiredService<MasterDataMigration>().RunAsync(legacy, map);
+        await scope.ServiceProvider.GetRequiredService<HistoryMigration>().RunAsync(legacy, report);
         report.WriteTo(outputFolder);
         return report;
     }
