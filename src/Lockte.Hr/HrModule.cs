@@ -56,6 +56,7 @@ public sealed class HrDataReset(HrDbContext db)
         await db.Leaves.ExecuteDeleteAsync();
         await db.WorkTimes.ExecuteDeleteAsync();
         await db.Absences.ExecuteDeleteAsync();
+        await db.PayResults.ExecuteDeleteAsync();
         await db.PayPeriodTimeTotals.ExecuteDeleteAsync();
         await db.PayPeriods.ExecuteDeleteAsync();
         await db.Employees.ExecuteDeleteAsync();

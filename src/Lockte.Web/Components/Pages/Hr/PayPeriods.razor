@@ -83,7 +83,39 @@
         </MudStack>
     </MudPaper>
 
-    @* 3–6: their tickets add the work; the order and the lock are here already *@
+    @* 3 พิมพ์ค่าแรง (SCR-41): คำนวณ BR-003..006, then RPT-02 for one แผนก or all (the legacy * ) *@
+    <MudPaper Outlined="true" Class="pa-4 mb-3">
+        @StepTitle(PayPeriodStep.PayCalculated)
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CalculatePayAsync" StartIcon="@Icons.Material.Filled.Calculate"
+                       Disabled="busy || !period.CanDo(PayPeriodStep.PayCalculated)">คำนวณค่าแรง</MudButton>
+            <MudSelect T="int" @bind-Value="departmentId" Label="แผนก" Style="max-width:16rem" Dense="true">
+                <MudSelectItem T="int" Value="0">ทุกแผนก</MudSelectItem>
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int" Value="d.Id">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Href="@PayReportHref" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       Disabled="period.CompletedStep < PayPeriodStep.PayCalculated">พิมพ์ค่าแรง (PDF)</MudButton>
+            @if (period.PayCalculatedAt is { } payAt)
+            {
+                <MudText Typo="Typo.caption">คำนวณล่าสุด @payAt.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiDate.Culture) โดย @period.PayCalculatedBy</MudText>
+            }
+        </MudStack>
+    </MudPaper>
+
+    @* 4 พิมพ์สรุปค่าแรง (RPT-03): printing it marks the step done *@
+    <MudPaper Outlined="true" Class="pa-4 mb-3">
+        @StepTitle(PayPeriodStep.SummaryPrinted)
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
+            <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/pay-summary")" Target="_blank" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="SummaryOpenedAsync"
+                       Disabled="!period.CanDo(PayPeriodStep.SummaryPrinted)">พิมพ์สรุปค่าแรง (PDF)</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    @* 5–6: their tickets add the work; the order and the lock are here already *@
     @foreach (var step in LaterSteps)
     {
         <MudPaper Outlined="true" Class="pa-4 mb-3">
@@ -97,13 +129,17 @@
 
 @code {
     private static readonly PayPeriodStep[] LaterSteps =
-        [PayPeriodStep.PayCalculated, PayPeriodStep.SummaryPrinted, PayPeriodStep.BankPrinted, PayPeriodStep.SlipPrinted];
+        [PayPeriodStep.BankPrinted, PayPeriodStep.SlipPrinted];
 
     private IReadOnlyList<PayPeriodDto> periods = [];
     private PayPeriodDto? period;
     private PayPeriodCheck? check;
     private PeriodForm form = new();
+    private IReadOnlyList<Lockte.Org.DepartmentDto> departments = [];
+    private int departmentId;
     private bool busy;
+
+    private string PayReportHref => $"reports/hr/pay-periods/{period?.Id}/pay" + (departmentId == 0 ? "" : $"?department={departmentId}");
 
     private static string Label(PayPeriodDto p) => $"{ThaiDate.Format(p.From)} – {ThaiDate.Format(p.To)} (จ่าย {ThaiDate.Format(p.PayDate)})";
 
@@ -124,6 +160,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        departments = await Services.RunAsync<Lockte.Org.OrgDirectory, IReadOnlyList<Lockte.Org.DepartmentDto>>(d => d.GetDepartmentsAsync());
         await LoadPeriodsAsync();
         if (periods.Count > 0) await SelectAsync(periods[0].Id);
         else await NewPeriodAsync();
@@ -200,6 +237,35 @@
         {
             busy = false;
         }
+    }
+
+    private async Task CalculatePayAsync()
+    {
+        if (period is null) return;
+        var id = period.Id;
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<PayPeriodRegistry, ServiceResult>(r => r.CalculatePayAsync(id));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"คำนวณค่าแรงแล้ว {result.Id} คน — กดพิมพ์ค่าแรง (PDF)", Severity.Success);
+            await LoadPeriodsAsync();
+            await SelectAsync(id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>The PDF opens in a new tab and marks the step done there; show it here a moment later.</summary>
+    private async Task SummaryOpenedAsync()
+    {
+        if (period is null) return;
+        var id = period.Id;
+        await Task.Delay(TimeSpan.FromSeconds(8));
+        await LoadPeriodsAsync();
+        await SelectAsync(id);
     }
 
     private static DateTime Day(DateOnly d) => d.ToDateTime(TimeOnly.MinValue);

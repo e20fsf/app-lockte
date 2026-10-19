@@ -1,0 +1,72 @@
+@using Lockte.Hr
+@* RPT-03 สรุปค่าแรงรายแผนก (รายงาน สรุปค่าแรง, BR-060, print-samples.md): ระดับ B — the header line of วันหยุด/วันทำงาน,
+   one line per แผนก (Thai order), the totals and the four signatures as the legacy printed them. The legacy query also
+   carried จำนวนรายการโอน/ค่าธรรมเนียม but the report never showed them, so neither does this. *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.Period.From)&emsp;ถึงวันที่ @ReportText.Date(Report.Period.To)&emsp;วันที่จ่าย @ReportText.Date(Report.Period.PayDate)</p>
+<p class="sub"><span>วันอาทิตย์ @Report.WeeklyHolidays วัน</span>&emsp;&emsp;<span>วันหยุด @Report.PublicHolidays วัน</span>&emsp;&emsp;<span>วันทำงาน @Report.WorkDays วัน</span>&emsp;&emsp;<span>รวม @Report.TotalDays วัน</span>&emsp;&emsp;<span>คิดค่าแรง @Report.PaidDays วัน</span></p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    var sum = Report.Sum;
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:28%" /><col style="width:13%" /><col style="width:14%" /><col style="width:13%" />
+            <col style="width:13%" /><col style="width:12%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับ</th><th>แผนก</th><th class="num">จำนวนพนักงาน</th><th class="num">ค่าแรง</th>
+                <th class="num">ค่าล่วงเวลา</th><th class="num">รวม</th><th class="num">%ค่าล่วงเวลา</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.DepartmentName</td>
+                    <td class="num">@line.Employees</td>
+                    <td class="num">@ReportText.Baht(line.PayNormal)</td>
+                    <td class="num">@ReportText.Baht(line.PayOvertime)</td>
+                    <td class="num">@ReportText.Baht(line.Total)</td>
+                    <td class="num">@Percent(line)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td></td>
+                <td>รวม</td>
+                <td class="num">@sum.Employees</td>
+                <td class="num">@ReportText.Baht(sum.PayNormal)</td>
+                <td class="num">@ReportText.Baht(sum.PayOvertime)</td>
+                <td class="num">@ReportText.Baht(sum.Total)</td>
+                <td class="num">@Percent(sum)</td>
+            </tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+    <table style="margin-top:36pt">
+        <tr>
+            <td style="text-align:center">.................................<br />บุคคล</td>
+            <td style="text-align:center">.................................<br />ผู้จัดการโรงงาน</td>
+            <td style="text-align:center">.................................<br />สมุห์บัญชี</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td style="text-align:center;padding-top:30pt">.................................<br />กรรมการผู้จัดการ</td>
+            <td></td>
+        </tr>
+    </table>
+}
+
+@code {
+    /// <summary>The title the legacy report printed under the company name.</summary>
+    public const string Title = "ค่าแรงพนักงาน";
+
+    [Parameter, EditorRequired] public PaySummaryReport Report { get; set; } = default!;
+
+    private static string Percent(DepartmentPayTotal line) => line.OvertimePercent is { } p ? ReportText.Decimal2(p) : "";
+}

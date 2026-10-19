@@ -19,6 +19,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<Leave> Leaves => Set<Leave>();
     internal DbSet<PayPeriod> PayPeriods => Set<PayPeriod>();
     internal DbSet<PayPeriodTimeTotal> PayPeriodTimeTotals => Set<PayPeriodTimeTotal>();
+    internal DbSet<PayResult> PayResults => Set<PayResult>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -146,7 +147,22 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             p.Property(x => x.CompletedStep).HasAuditName("ขั้นที่ทำแล้ว");
             p.Property(x => x.TimeCalculatedAt).HasAuditName("คำนวณเวลาเมื่อ");
             p.Property(x => x.TimeCalculatedBy).HasMaxLength(ModelBuilderExtensions.UserNameLength).HasAuditName("คำนวณเวลาโดย");
+            p.Property(x => x.PayCalculatedAt).HasAuditName("คำนวณค่าแรงเมื่อ");
+            p.Property(x => x.PayCalculatedBy).HasMaxLength(ModelBuilderExtensions.UserNameLength).HasAuditName("คำนวณค่าแรงโดย");
             p.HasIndex(x => x.FromDate).IsUnique();
+        });
+
+        // Written only by คำนวณค่าแรง (one history event) and the data migration; one row per employee per period.
+        modelBuilder.Entity<PayResult>(r =>
+        {
+            r.HasAuditName("ค่าแรงของงวด");
+            r.Property(x => x.PayNormal).HasPrecision(18, 2);
+            r.Property(x => x.PayOvertime).HasPrecision(18, 2);
+            r.Property(x => x.Hot).HasPrecision(18, 2);
+            r.HasOne(x => x.PayPeriod).WithMany().HasForeignKey(x => x.PayPeriodId).OnDelete(DeleteBehavior.Cascade);
+            r.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            r.HasIndex(x => new { x.PayPeriodId, x.EmployeeId }).IsUnique();
+            r.HasIndex(x => x.EmployeeId);
         });
 
         // Written only by the calculation (one history event); one row per employee per period.

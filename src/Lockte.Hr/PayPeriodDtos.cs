@@ -82,7 +82,8 @@ public sealed record PayPeriodDates(DateOnly From, DateOnly To, DateOnly PayDate
 
 /// <summary>A งวดค่าแรง and how far its close got.</summary>
 public sealed record PayPeriodDto(int Id, DateOnly From, DateOnly To, DateOnly PayDate, PayPeriodStep CompletedStep,
-    DateTimeOffset? TimeCalculatedAt, string? TimeCalculatedBy, byte[] RowVersion)
+    DateTimeOffset? TimeCalculatedAt, string? TimeCalculatedBy, byte[] RowVersion, DateTimeOffset? PayCalculatedAt = null,
+    string? PayCalculatedBy = null)
 {
     public int Days => Dates.Days;
 
@@ -132,3 +133,41 @@ public sealed record PayPeriodCheck(IReadOnlyList<DateOnly> DaysWithoutTime, IRe
 
 /// <summary>A เวลาทำงาน row with a เวลาเข้าจริง (LATE).</summary>
 public sealed record LateArrival(DateOnly Date, string EmployeeCode, string EmployeeName, TimeOnly? WorkIn, TimeOnly Late);
+
+/// <summary>A line of RPT-02 ค่าแรงรายคน: the employee's <see cref="EmployeePay"/> as calculated.</summary>
+public sealed record PayLine(EmployeePay Pay, int? DepartmentId, string? DepartmentName);
+
+/// <summary>
+/// RPT-02 ค่าแรงรายคน (ตามแผนก), รายงาน ค่าแรง1 ← คิวรี คำนวณค่าแรง73: one department (null = ทุกแผนก, the legacy
+/// <c>*</c>), the lines with PAY_W + PAY_OT &gt; 0 by รหัส ↑.
+/// </summary>
+public sealed record PayReport(PayPeriodDto Period, string? DepartmentName, IReadOnlyList<PayLine> Lines);
+
+/// <summary>A line of RPT-03: one department's จำนวนพนักงาน and Σ of the period (BR-060).</summary>
+public sealed record DepartmentPayTotal(string? DepartmentName, int Employees, decimal PayNormal, decimal PayOvertime, decimal Hot)
+{
+    /// <summary>รวม: ΣPAY_W + ΣPAY_OT + ΣHOT.</summary>
+    public decimal Total => PayNormal + PayOvertime + Hot;
+
+    /// <summary>% ค่าล่วงเวลา: ΣPAY_OT / ΣPAY_W × 100 (blank when ΣPAY_W is 0: Access printed an error there).</summary>
+    public decimal? OvertimePercent => PayNormal == 0 ? null : PayOvertime / PayNormal * 100;
+}
+
+/// <summary>
+/// RPT-03 สรุปค่าแรงรายแผนก (BR-060, รายงาน สรุปค่าแรง): every paid employee counted in the department they were paid
+/// under, by department name (Thai order, blank first), with the period's วันหยุด counts for the header.
+/// </summary>
+public sealed record PaySummaryReport(PayPeriodDto Period, int WeeklyHolidays, int PublicHolidays, IReadOnlyList<DepartmentPayTotal> Lines)
+{
+    /// <summary>รวม: TO − FROM + 1.</summary>
+    public int TotalDays => Period.Days;
+
+    /// <summary>วันทำงาน: TO − FROM + 1 − SUNDAY − HOLIDAY.</summary>
+    public int WorkDays => TotalDays - WeeklyHolidays - PublicHolidays;
+
+    /// <summary>คิดค่าแรง: TO − FROM + 1 − SUNDAY.</summary>
+    public int PaidDays => TotalDays - WeeklyHolidays;
+
+    public DepartmentPayTotal Sum => new(null, Lines.Sum(l => l.Employees), Lines.Sum(l => l.PayNormal), Lines.Sum(l => l.PayOvertime),
+        Lines.Sum(l => l.Hot));
+}
