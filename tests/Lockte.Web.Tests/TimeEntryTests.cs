@@ -167,7 +167,7 @@ public sealed class TimeEntryTests(LocalDbFixture db)
         var result = await AsHrAsync(s => s.Get<WorkTimeRegistry>().DeleteOfEmployeeAsync(day, employee.Id, WorkTypes.Normal));
 
         Assert.Equal((true, (int?)2), (result.Succeeded, result.Id));
-        Assert.Equal(["O1", "S"], (await OfEmployeeAsync(employee, day, day)).Select(r => r.Type));
+        Assert.Equal(["S", "O1"], (await OfEmployeeAsync(employee, day, day)).Select(r => r.Type)); // by เวลาเข้า: 08:00, 17:20
         Assert.Single(await OfEmployeeAsync(employee, day.AddDays(1), day.AddDays(1)));
         Assert.Single(await OfEmployeeAsync(other, day, day));
     }
