@@ -13,7 +13,6 @@ public static class OrgModule
         services.AddModuleDbContext<OrgDbContext>(connectionString, OrgDbContext.Schema);
         services.AddScoped<OrgDirectory>();
         services.AddScoped<OrgRegistry>();
-        services.AddScoped<OrgDataReset>();
         return services;
     }
 
@@ -22,6 +21,13 @@ public static class OrgModule
     {
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<OrgDbContext>().Database.MigrateAsync();
+    }
+
+    /// <summary>For tools that fill the database but leave migrating to the host.</summary>
+    public static async Task<bool> IsUpToDateAsync(IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return !(await scope.ServiceProvider.GetRequiredService<OrgDbContext>().Database.GetPendingMigrationsAsync()).Any();
     }
 }
 

@@ -13,6 +13,8 @@ namespace Lockte.Org;
 public sealed class OrgRegistry(OrgDbContext db)
 {
     public const int DepartmentCodeLength = 10;
+    /// <summary>Names of departments, sections and people printed on documents.</summary>
+    public const int NameLength = 100;
 
     /// <summary>
     /// Saves one SCR-05 row with the shifts the department works, in one transaction. A shift it keeps keeps its
@@ -83,6 +85,16 @@ public sealed class OrgRegistry(OrgDbContext db)
         row.SupervisorEmployeeId = employeeId;
         await db.SaveChangesAsync();
         return ServiceResult.Ok(row.Id);
+    }
+
+    /// <summary>หัวหน้าแผนก; <paramref name="employeeId"/> null = blank.</summary>
+    public async Task<ServiceResult> SetDepartmentHeadAsync(int departmentId, int? employeeId, byte[] loadedRowVersion)
+    {
+        var department = await LoadAsync(db.Departments, departmentId, loadedRowVersion);
+        if (department is null) return ServiceResult.Fail("ไม่พบแผนกนี้");
+        department.HeadEmployeeId = employeeId;
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(department.Id);
     }
 
     public async Task<ServiceResult> SaveSectionAsync(SectionInput input)

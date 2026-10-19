@@ -62,6 +62,7 @@ dotnet run --project src/Lockte.Migration -- --source "<copy of พนักง�
     --confirm <database name> --out <report folder> [--map code-map.csv]
 ```
 
+A run is not one transaction: if it stops halfway, run it again (it starts by deleting everything).
 `--confirm` must repeat the database name of the connection string (env `LOCKTE_MIGRATION_SQL` can hold the connection
 instead). The report folder gets `dq-exceptions.csv` (rows not loaded as they are, by DQ-x / NF-06), `row-counts.csv`
 (legacy rows = not migrated by design + DQ + loaded, and loaded = rows in the database) and `code-map-used.csv`

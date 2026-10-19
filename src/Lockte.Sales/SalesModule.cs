@@ -13,7 +13,6 @@ public static class SalesModule
         services.AddModuleDbContext<SalesDbContext>(connectionString, SalesDbContext.Schema);
         services.AddScoped<CustomerDirectory>();
         services.AddScoped<CustomerRegistry>();
-        services.AddScoped<SalesDataReset>();
         return services;
     }
 
@@ -22,6 +21,13 @@ public static class SalesModule
     {
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<SalesDbContext>().Database.MigrateAsync();
+    }
+
+    /// <summary>For tools that fill the database but leave migrating to the host.</summary>
+    public static async Task<bool> IsUpToDateAsync(IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return !(await scope.ServiceProvider.GetRequiredService<SalesDbContext>().Database.GetPendingMigrationsAsync()).Any();
     }
 }
 

@@ -11,7 +11,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options) : Modul
 {
     public const string Schema = "org";
     /// <summary>Names of departments, sections and people printed on documents.</summary>
-    public const int NameLength = 100;
+    internal const int NameLength = OrgRegistry.NameLength;
 
     internal DbSet<Section> Sections => Set<Section>();
     internal DbSet<Department> Departments => Set<Department>();

@@ -1,4 +1,7 @@
 using System.Runtime.Versioning;
+using Lockte.Hr;
+using Lockte.Org;
+using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,7 +52,9 @@ public static class MigrationTool
     public const string UserName = "migration";
 
     public static IServiceCollection AddMasterDataMigration(this IServiceCollection services)
-        => services.AddScoped<MasterDataMigration>();
+        => services.AddScoped<MasterDataMigration>()
+            // The delete-everything services of the modules: registered for this tool only, never in the web app.
+            .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>();
 
     /// <summary>
     /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data,

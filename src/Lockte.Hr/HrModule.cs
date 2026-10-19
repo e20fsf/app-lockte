@@ -16,7 +16,6 @@ public static class HrModule
         services.AddScoped<EmployeeRegistry>();
         services.AddScoped<CalendarDirectory>();
         services.AddScoped<CalendarRegistry>();
-        services.AddScoped<HrDataReset>();
         return services;
     }
 
@@ -25,6 +24,13 @@ public static class HrModule
     {
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<HrDbContext>().Database.MigrateAsync();
+    }
+
+    /// <summary>For tools that fill the database but leave migrating to the host.</summary>
+    public static async Task<bool> IsUpToDateAsync(IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return !(await scope.ServiceProvider.GetRequiredService<HrDbContext>().Database.GetPendingMigrationsAsync()).Any();
     }
 }
 

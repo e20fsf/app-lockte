@@ -90,7 +90,7 @@ public sealed class MigrationTests(MigrationDbFixture db) : IDisposable
         Assert.Null(office.Shifts.Single().SupervisorEmployeeId);
         Assert.Contains(report.Exceptions, e => e.Table == "แผนก" && e.Key == "บุคคลและธุรการ กะ D" && e.Action == MigrationReport.LoadedBlank);
 
-        // วันหยุด and ลูกค้างานรับจ้าง
+        // วันหยุดประจำสัปดาห์ / วันหยุดประเพณี and the ลูกค้า of งานรับจ้างผลิต
         var calendar = await ReadAsync(s => s.Get<CalendarDirectory>().GetAsync(new DateOnly(2025, 1, 1), new DateOnly(2025, 12, 31)));
         Assert.Equal([(new DateOnly(2025, 1, 5), "วันอาทิตย์"), (new DateOnly(2025, 1, 12), "วันอาทิตย์")],
             calendar.WeeklyHolidays.Select(h => (h.Date, h.Label)));
@@ -271,8 +271,8 @@ public sealed class MigrationTests(MigrationDbFixture db) : IDisposable
             Id = 0, RowVersion = [], DepartmentId = null, SectionId = null, ShiftId = null,
         }) + $" {Code(shiftCodes, e.ShiftId)}"));
         var calendar = await scope.Get<CalendarDirectory>().GetAsync(DateOnly.MinValue, DateOnly.MaxValue);
-        lines.AddRange(calendar.WeeklyHolidays.Select(h => $"อาทิตย์ {h.Date} {h.Label}"));
-        lines.AddRange(calendar.PublicHolidays.Select(h => $"วันหยุด {h.Date} {h.Name}"));
+        lines.AddRange(calendar.WeeklyHolidays.Select(h => $"วันหยุดประจำสัปดาห์ {h.Date} {h.Label}"));
+        lines.AddRange(calendar.PublicHolidays.Select(h => $"วันหยุดประเพณี {h.Date} {h.Name}"));
         lines.AddRange((await scope.Get<CustomerDirectory>().GetAllAsync()).Select(c => $"ลูกค้า {c.Code} {c.Name}"));
         return string.Join("\n", lines);
     }

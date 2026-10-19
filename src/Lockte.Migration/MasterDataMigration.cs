@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Lockte.Hr;
 using Lockte.Org;
-using Lockte.Org.Data;
 using Lockte.Sales;
 using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
@@ -11,7 +10,7 @@ namespace Lockte.Migration;
 
 /// <summary>
 /// ย้ายข้อมูลหลัก (#47): deletes the master data of modules พนักงานและค่าแรง, องค์กร and ขายและส่งของ, then loads
-/// ฝ่าย, กะ, แผนก (with its shifts and หัวหน้า), พนักงาน, วันหยุด and ลูกค้างานรับจ้าง from the legacy tables — through each
+/// ฝ่าย, กะ, แผนก (with its shifts and หัวหน้า), พนักงาน, วันหยุดประจำสัปดาห์ / วันหยุดประเพณี and the ลูกค้า of งานรับจ้างผลิต from the legacy tables — through each
 /// module's public registry, so a loaded row passes the same checks as one keyed on screen. Nothing it does is written
 /// to the change history (#41). A legacy row or value the registers cannot take as it is goes to the DQ report
 /// (data-model DQ-x, NF-06) instead of stopping the run; every table is counted back afterwards.
@@ -31,6 +30,8 @@ public sealed partial class MasterDataMigration(
     CalendarDirectory calendarDirectory)
 {
     private const string Other = "NF-06";
+    private const string TitleSpelling = "DQ-3";
+    private const string PrefixClash = "DQ-8";
     private const string Duplicate = "DQ-2";
     private const string DepartmentByName = "DQ-5";
     private const string DelFlag = "DEL";
@@ -46,8 +47,10 @@ public sealed partial class MasterDataMigration(
     private readonly List<LoadedDepartmentShift> departmentShifts = [];
     private readonly List<(int Id, string Name, bool Working)> loadedEmployees = [];
 
+    /// <summary>Once per instance (it is scoped): the run keeps what it loaded in fields.</summary>
     public async Task<MigrationReport> RunAsync(LegacyDatabase legacyDatabase, CodeMap codeMap)
     {
+        if (report is not null) throw new InvalidOperationException("MasterDataMigration runs once per scope.");
         (legacy, map, report) = (legacyDatabase, codeMap, new MigrationReport());
         using (audit.SuppressRowChanges())
         {
@@ -67,7 +70,7 @@ public sealed partial class MasterDataMigration(
         return report;
     }
 
-    // ---------- ลูกค้างานรับจ้าง (T-ชื่อลูกค้า → ทะเบียนลูกค้าของ module ขายและส่งของ) ----------
+    // ---------- ลูกค้างานรับจ้างผลิต (T-ชื่อลูกค้า → ทะเบียนลูกค้าของ module ขายและส่งของ) ----------
 
     private async Task LoadCustomersAsync()
     {
@@ -94,7 +97,7 @@ public sealed partial class MasterDataMigration(
             var (legacyCode, code, name) = group.First();
             var saved = await customers.SaveAsync(new CustomerInput(null, code, name ?? "", null));
             if (saved.Succeeded) tally.Loaded++;
-            else Reject(tally, table, legacyCode, Other, string.Join(" · ", saved.Errors));
+            else Reject(tally, table, legacyCode, Other, Errors(saved));
         }
     }
 
@@ -131,7 +134,7 @@ public sealed partial class MasterDataMigration(
                 tally.Loaded++;
                 shiftIds[input.Code] = saved.Id!.Value;
             }
-            else Reject(tally, table, legacyCode, Other, string.Join(" · ", saved.Errors));
+            else Reject(tally, table, legacyCode, Other, Errors(saved));
         }
     }
 
@@ -169,9 +172,9 @@ public sealed partial class MasterDataMigration(
         foreach (var name in listed.Concat(extra))
         {
             order++;
-            if (name.Length > OrgDbContext.NameLength)
+            if (name.Length > OrgRegistry.NameLength)
             {
-                Reject(tally, table, name, Other, $"ชื่อฝ่ายยาวเกิน {OrgDbContext.NameLength} ตัว");
+                Reject(tally, table, name, Other, $"ชื่อฝ่ายยาวเกิน {OrgRegistry.NameLength} ตัว");
                 continue;
             }
             var saved = await org.SaveSectionAsync(new SectionInput(null, name, order, null));
@@ -180,7 +183,7 @@ public sealed partial class MasterDataMigration(
                 tally.Loaded++;
                 sectionIds[name] = saved.Id!.Value;
             }
-            else Reject(tally, table, name, Other, string.Join(" · ", saved.Errors));
+            else Reject(tally, table, name, Other, Errors(saved));
         }
     }
 
@@ -219,7 +222,7 @@ public sealed partial class MasterDataMigration(
                 foreach (var member in members)
                 {
                     var others = string.Join(", ", members.Where(m => m != member).Select(m => m.LegacyName));
-                    Reject(departmentsTally, table, member.LegacyName, "DQ-8",
+                    Reject(departmentsTally, table, member.LegacyName, PrefixClash,
                         $"รหัสแผนก '{group.Key}' ซ้ำกับ {others} — ใส่รหัสของแผนกนี้ในตารางจับคู่", rows: member.Rows.Count);
                     shiftsTally.Rejected += member.Rows.Count;
                 }
@@ -246,7 +249,7 @@ public sealed partial class MasterDataMigration(
             var rowCount = members.Sum(m => m.Rows.Count);
             if (!saved.Succeeded)
             {
-                Reject(departmentsTally, table, first.LegacyName, Other, string.Join(" · ", saved.Errors), rows: rowCount);
+                Reject(departmentsTally, table, first.LegacyName, Other, Errors(saved), rows: rowCount);
                 shiftsTally.Rejected += shifts.Count;
                 continue;
             }
@@ -268,7 +271,7 @@ public sealed partial class MasterDataMigration(
         var prefix = entry?.Prefix?.ToUpperInvariant()
             ?? prefixes.GroupBy(p => p).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? "";
         if (entry?.Prefix is null && prefixes.Distinct().Count() > 1)
-            report.Add(table, legacyName, "DQ-8", $"ตัวอักษรนำหน้ารหัสพนักงานไม่ตรงกันระหว่างกะ: {string.Join(", ", prefixes.Select(p => p + "*"))}",
+            report.Add(table, legacyName, PrefixClash, $"ตัวอักษรนำหน้ารหัสพนักงานไม่ตรงกันระหว่างกะ: {string.Join(", ", prefixes.Select(p => p + "*"))}",
                 $"โหลดโดยใช้ตัวอักษร {prefix} (ตัวที่ใช้มากที่สุด)");
         var sections = rows.Select(r => r.Text("SECTION")).OfType<string>().Distinct().ToList();
         if (sections.Count > 1)
@@ -301,8 +304,8 @@ public sealed partial class MasterDataMigration(
     private string? PrintedName(LegacyRow row, string column, string key)
     {
         var name = row.Text(column);
-        if (name is null || name.Length <= OrgDbContext.NameLength) return name;
-        report.Add("แผนก", key, Other, $"{column} ยาวเกิน {OrgDbContext.NameLength} ตัว", MigrationReport.LoadedBlank);
+        if (name is null || name.Length <= OrgRegistry.NameLength) return name;
+        report.Add("แผนก", key, Other, $"{column} ยาวเกิน {OrgRegistry.NameLength} ตัว", MigrationReport.LoadedBlank);
         return null;
     }
 
@@ -338,7 +341,7 @@ public sealed partial class MasterDataMigration(
             var saved = await employees.SaveAsync(Employee(row, code));
             if (!saved.Succeeded)
             {
-                RejectAll(counts, table, code, Other, string.Join(" · ", saved.Errors));
+                RejectAll(counts, table, code, Other, Errors(saved));
                 continue;
             }
             foreach (var t in counts) t.Loaded++;
@@ -427,7 +430,7 @@ public sealed partial class MasterDataMigration(
         var listed = EmployeeLookups.EnglishTitles.FirstOrDefault(t =>
             string.Equals(t.TrimEnd('.'), title.TrimEnd('.'), StringComparison.OrdinalIgnoreCase));
         if (listed is null) return title;
-        report.Add("EMPLO", code, "DQ-3", $"NAME TITLE '{title}'", $"โหลดโดยแก้เป็น {listed}");
+        report.Add("EMPLO", code, TitleSpelling, $"NAME TITLE '{title}'", $"โหลดโดยแก้เป็น {listed}");
         return listed;
     }
 
@@ -440,7 +443,12 @@ public sealed partial class MasterDataMigration(
         foreach (var shift in departmentShifts.Where(s => s.SupervisorName is not null))
         {
             var matches = byName[PersonName(shift.SupervisorName!)].ToList();
-            if (matches.Count > 1 && matches.Count(m => m.Working) == 1) matches = matches.Where(m => m.Working).ToList();
+            if (matches.Count > 1 && matches.Count(m => m.Working) == 1)
+            {
+                report.Add("แผนก", shift.Key, Other,
+                    $"ชื่อหัวหน้า (SUPER) '{shift.SupervisorName}' ตรงกับพนักงาน {matches.Count} คน — ผูกกับคนที่ยังทำงานอยู่", "โหลดโดยผูกกับคนที่ยังทำงานอยู่");
+                matches = matches.Where(m => m.Working).ToList();
+            }
             if (matches.Count != 1)
             {
                 report.Add("แผนก", shift.Key, Other,
@@ -450,8 +458,9 @@ public sealed partial class MasterDataMigration(
             }
             var department = (await orgDirectory.GetDepartmentAsync(shift.DepartmentId))!;
             var rowVersion = department.Shifts.Single(h => h.ShiftId == shift.ShiftId).RowVersion;
-            if ((await org.SetShiftSupervisorAsync(shift.DepartmentId, shift.ShiftId, matches[0].Id, rowVersion)).Succeeded)
-                linked[shift] = matches[0].Id;
+            var set = await org.SetShiftSupervisorAsync(shift.DepartmentId, shift.ShiftId, matches[0].Id, rowVersion);
+            if (set.Succeeded) linked[shift] = matches[0].Id;
+            else report.Add("แผนก", shift.Key, Other, $"ผูกหัวหน้ากะไม่ได้: {Errors(set)}", MigrationReport.LoadedBlank);
         }
 
         // หัวหน้าแผนก = the one หัวหน้ากะ of every shift of the department (the legacy file has no separate head).
@@ -459,10 +468,10 @@ public sealed partial class MasterDataMigration(
         {
             var heads = group.Select(s => linked.TryGetValue(s, out var id) ? id : (int?)null).Distinct().ToList();
             if (heads is not [{ } head]) continue;
-            var d = (await orgDirectory.GetDepartmentAsync(group.Key))!;
-            await org.SaveDepartmentAsync(new DepartmentInput(d.Id, d.Code, d.Name, d.EmployeeIdPrefix, d.SortOrder, d.SectionId, head,
-                d.Shifts.Select(h => new DepartmentShiftInput(h.ShiftId, h.SupervisorName, h.ManagerName, h.FactoryManagerName)).ToList(),
-                d.RowVersion, d.StaffingTarget));
+            var department = (await orgDirectory.GetDepartmentAsync(group.Key))!;
+            var set = await org.SetDepartmentHeadAsync(department.Id, head, department.RowVersion);
+            if (!set.Succeeded)
+                report.Add("แผนก", department.Name, Other, $"ตั้งหัวหน้าแผนกไม่ได้: {Errors(set)}", MigrationReport.LoadedBlank);
         }
     }
 
@@ -478,7 +487,7 @@ public sealed partial class MasterDataMigration(
     [GeneratedRegex(@"\s+")]
     private static partial Regex Spaces();
 
-    // ---------- วันหยุด (T-SUNDAY, T-HOLIDAY) ----------
+    // ---------- วันหยุดประจำสัปดาห์ (T-SUNDAY), วันหยุดประเพณี (T-HOLIDAY) ----------
 
     private Task LoadWeeklyHolidaysAsync() => LoadDaysAsync("SUNDAY", "hr.WeeklyHolidays", CalendarRegistry.DefaultWeeklyLabel,
         (date, item) => calendar.SaveWeeklyHolidayAsync(new WeeklyHolidayInput(null, date, item, null)));
@@ -506,7 +515,7 @@ public sealed partial class MasterDataMigration(
             if (!OneValue(tally, table, Iso(group.Key), "วันที่", group.ToList(), c => c.Item)) continue;
             var saved = await save(group.Key, group.First().Item);
             if (saved.Succeeded) tally.Loaded++;
-            else Reject(tally, table, Iso(group.Key), Other, string.Join(" · ", saved.Errors));
+            else Reject(tally, table, Iso(group.Key), Other, Errors(saved));
         }
     }
 
@@ -574,6 +583,8 @@ public sealed partial class MasterDataMigration(
         if (report.CodeMapUsed.Any(u => u.Kind == kind && string.Equals(u.Legacy.Trim(), legacyValue.Trim(), StringComparison.OrdinalIgnoreCase))) return;
         report.CodeMapUsed.Add(new CodeMapUse(kind, legacyValue, code, name, prefix, entry is not null));
     }
+
+    private static string Errors(ServiceResult result) => string.Join(" · ", result.Errors);
 
     private static TimeOnly Time(DateTime legacy) => TimeOnly.FromDateTime(legacy);
 
