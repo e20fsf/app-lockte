@@ -1,0 +1,219 @@
+@page "/hr/time/normal"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-11 บันทึกเวลาทำงานให้ทุกคน (ฟอร์ม วันทำงาน + SHIFT subform): วันที่ → "สร้างเวลาปกติทันที" (BR-010, มาโคร แมโคร2).
+   As the legacy (⚠ kept, #41) the job does not stop a second press or a วันหยุด: the page only shows what the day
+   already has, so HR can see it before pressing. Shift times can be edited here as in the subform.
+   Not built: "สร้าง OT เปิดฟอร์ม" (NO_OT, data stopped 2015, Q-38) and "แผนกตกแต่ง2ทำงานยามาดะ" (BR-009, unused since
+   2025, Q-11). *@
+<PageTitle>บันทึกเวลาทำงานให้ทุกคน — LOCKTE</PageTitle>
+<h1 class="mb-4">บันทึกเวลาทำงานให้ทุกคน</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" Date="day" DateChanged="DayChangedAsync" Label="วันที่" Culture="ThaiDate.Culture"
+                       DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+        <MudText>@Day.ToString("dddd", ThaiDate.Culture)</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GenerateAsync" Disabled="busy"
+                   StartIcon="@Icons.Material.Filled.PlaylistAdd">สร้างเวลาปกติทันที</MudButton>
+    </MudStack>
+
+    @if (dayOff is not null)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">วันนี้เป็น@(dayOff)</MudAlert>
+    }
+    <MudText Class="mt-2">
+        ไม่มาทำงาน @absentCount คน (<MudLink Href="hr/time/absences">บันทึกไม่มาทำงาน</MudLink> ก่อนสร้างเวลา) ·
+        เวลาปกติของวันนี้มีอยู่แล้ว @normalCount แถว
+    </MudText>
+    @if (normalCount > 0)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">ถ้ากดสร้างอีกครั้ง จะได้เวลาปกติซ้ำ (เหมือนระบบเดิม)</MudAlert>
+    }
+</MudPaper>
+
+<MudText Typo="Typo.h6" Class="mt-6 mb-2">เวลากะ</MudText>
+<MudTable Items="shifts" Dense="true" Hover="true" T="ShiftDto" OnRowClick="@((TableRowClickEventArgs<ShiftDto> e) => EditShift(e.Item!))">
+    <HeaderContent>
+        <MudTh>กะ</MudTh><MudTh>เข้า</MudTh><MudTh>ออก</MudTh><MudTh>พัก</MudTh><MudTh>เลิกพัก</MudTh>
+        <MudTh>เริ่ม OT</MudTh><MudTh>เลิก OT</MudTh><MudTh>นาทีพัก</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Code</MudTd>
+        <MudTd>@Time(context.WorkIn)</MudTd>
+        <MudTd>@Time(context.WorkOut)@(context.CrossesMidnight ? " (+1)" : "")</MudTd>
+        <MudTd>@Time(context.BreakStart)</MudTd>
+        <MudTd>@Time(context.BreakEnd)</MudTd>
+        <MudTd>@Time(context.OvertimeIn)</MudTd>
+        <MudTd>@Time(context.OvertimeOut)</MudTd>
+        <MudTd>@context.RestMinutes</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@if (shiftForm is not null)
+{
+    <MudPaper Class="pa-4 mt-2" Outlined="true">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">แก้เวลากะ @shiftForm.Code (ชั่วโมง:นาที)</MudText>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+            <MudTextField @bind-Value="shiftForm.WorkIn" Label="เข้า" Style="max-width:6rem" />
+            <MudTextField @bind-Value="shiftForm.WorkOut" Label="ออก" Style="max-width:6rem" />
+            <MudTextField @bind-Value="shiftForm.BreakStart" Label="พัก" Style="max-width:6rem" />
+            <MudTextField @bind-Value="shiftForm.BreakEnd" Label="เลิกพัก" Style="max-width:6rem" />
+            <MudTextField @bind-Value="shiftForm.OvertimeIn" Label="เริ่ม OT" Style="max-width:6rem" />
+            <MudTextField @bind-Value="shiftForm.OvertimeOut" Label="เลิก OT" Style="max-width:6rem" />
+            <MudSelect T="int" @bind-Value="shiftForm.RestMinutes" Label="นาทีพัก" Style="max-width:7rem">
+                @foreach (var m in ShiftDto.RestMinuteChoices)
+                {
+                    <MudSelectItem T="int" Value="m">@m</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveShiftAsync" Disabled="busy">บันทึกเวลากะ</MudButton>
+            <MudButton OnClick="@(() => shiftForm = null)">ยกเลิก</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+<MudText Typo="Typo.h6" Class="mt-6 mb-2">เวลาทำงานของวันนี้ (@workTimes.Count แถว)</MudText>
+<MudTable Items="workTimes" Dense="true" T="WorkTimeDto" Height="24rem" FixedHeader="true">
+    <HeaderContent><MudTh>รหัส</MudTh><MudTh>ชื่อ-นามสกุล</MudTh><MudTh>ประเภท</MudTh><MudTh>เข้า</MudTh><MudTh>ออก</MudTh><MudTh>นาทีพัก</MudTh></HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.EmployeeCode</MudTd>
+        <MudTd>@context.EmployeeName</MudTd>
+        <MudTd>@context.Type</MudTd>
+        <MudTd>@Time(context.WorkIn)</MudTd>
+        <MudTd>@Time(context.WorkOut)@(context.CrossesMidnight ? " (+1)" : "")</MudTd>
+        <MudTd>@context.RestMinutes</MudTd>
+    </RowTemplate>
+    <NoRecordsContent><MudText>ยังไม่มีเวลาทำงานในวันนี้</MudText></NoRecordsContent>
+</MudTable>
+
+<MudButton Href="@EmployeeMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? day = DateTime.Today;
+    private IReadOnlyList<ShiftDto> shifts = [];
+    private IReadOnlyList<WorkTimeDto> workTimes = [];
+    private int absentCount;
+    private int normalCount;
+    private string? dayOff;
+    private ShiftForm? shiftForm;
+    private bool busy;
+
+    private DateOnly Day => DateOnly.FromDateTime(day ?? DateTime.Today);
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task DayChangedAsync(DateTime? value)
+    {
+        day = value;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var date = Day;
+        shifts = await Services.RunAsync<OrgDirectory, IReadOnlyList<ShiftDto>>(o => o.GetShiftsAsync());
+        workTimes = await Services.RunAsync<WorkTimeDirectory, IReadOnlyList<WorkTimeDto>>(d => d.ListAsync(date));
+        normalCount = workTimes.Count(w => w.Type == WorkTypes.Normal);
+        absentCount = (await Services.RunAsync<AbsenceDirectory, IReadOnlyList<AbsenceDto>>(d => d.ListAsync(date))).Count;
+        var calendar = await Services.RunAsync<CalendarDirectory, HolidayCalendar>(c => c.GetAsync(date, date));
+        dayOff = calendar.IsPublicHoliday(date) ? $"วันหยุดประเพณี{(calendar.PublicHolidays[0].Name is { } n ? $" ({n})" : "")}"
+            : calendar.IsWeeklyHoliday(date) ? "วันหยุดประจำสัปดาห์" : null;
+    }
+
+    private async Task GenerateAsync()
+    {
+        busy = true;
+        try
+        {
+            var date = Day;
+            var result = await Services.RunAsync<WorkTimeRegistry, ServiceResult>(r => r.GenerateNormalTimeAsync(date));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"การบันทึกเสร็จเรียบร้อยแล้ว — เพิ่มเวลาปกติ {result.Id} แถว", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private void EditShift(ShiftDto s) => shiftForm = new ShiftForm
+    {
+        Id = s.Id, Code = s.Code, WorkIn = Time(s.WorkIn), WorkOut = Time(s.WorkOut), BreakStart = Time(s.BreakStart),
+        BreakEnd = Time(s.BreakEnd), OvertimeIn = Time(s.OvertimeIn), OvertimeOut = Time(s.OvertimeOut),
+        RestMinutes = s.RestMinutes, RowVersion = s.RowVersion,
+    };
+
+    private async Task SaveShiftAsync()
+    {
+        var f = shiftForm!;
+        if (!TryTime(f.WorkIn, out var workIn) || workIn is null || !TryTime(f.WorkOut, out var workOut) || workOut is null)
+        {
+            Snackbar.Add("กรุณากรอกเวลาเข้าและออกเป็น ชั่วโมง:นาที เช่น 08:00", Severity.Error);
+            return;
+        }
+        if (!TryTime(f.BreakStart, out var breakStart) || !TryTime(f.BreakEnd, out var breakEnd)
+            || !TryTime(f.OvertimeIn, out var otIn) || !TryTime(f.OvertimeOut, out var otOut))
+        {
+            Snackbar.Add("เวลาต้องเป็น ชั่วโมง:นาที เช่น 17:20", Severity.Error);
+            return;
+        }
+        busy = true;
+        try
+        {
+            var input = new ShiftInput(f.Id, f.Code, workIn.Value, workOut.Value, breakStart, breakEnd, otIn, otOut, f.RestMinutes, f.RowVersion);
+            var result = await Services.RunAsync<OrgRegistry, ServiceResult>(r => r.SaveShiftAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded)
+            {
+                Snackbar.Add("บันทึกเวลากะแล้ว", Severity.Success);
+                shiftForm = null;
+            }
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            shiftForm = null;
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private static string Time(TimeOnly? t) => t?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "";
+
+    /// <summary>Blank = no time; otherwise H:mm or HH:mm.</summary>
+    private static bool TryTime(string? text, out TimeOnly? time)
+    {
+        time = null;
+        if (string.IsNullOrWhiteSpace(text)) return true;
+        if (!TimeOnly.TryParseExact(text.Trim(), ["H:mm", "HH:mm", "H.mm", "HH.mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var t))
+            return false;
+        time = t;
+        return true;
+    }
+
+    private sealed class ShiftForm
+    {
+        public int Id { get; set; }
+        public string Code { get; set; } = "";
+        public string? WorkIn { get; set; }
+        public string? WorkOut { get; set; }
+        public string? BreakStart { get; set; }
+        public string? BreakEnd { get; set; }
+        public string? OvertimeIn { get; set; }
+        public string? OvertimeOut { get; set; }
+        public int RestMinutes { get; set; }
+        public byte[] RowVersion { get; set; } = [];
+    }
+}
