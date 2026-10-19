@@ -17,6 +17,8 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<Absence> Absences => Set<Absence>();
     internal DbSet<WorkTime> WorkTimes => Set<WorkTime>();
     internal DbSet<Leave> Leaves => Set<Leave>();
+    internal DbSet<PayPeriod> PayPeriods => Set<PayPeriod>();
+    internal DbSet<PayPeriodTimeTotal> PayPeriodTimeTotals => Set<PayPeriodTimeTotal>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -133,6 +135,28 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             l.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             l.HasIndex(x => new { x.EmployeeId, x.FromDate });
             l.HasIndex(x => x.FromDate);
+        });
+
+        modelBuilder.Entity<PayPeriod>(p =>
+        {
+            p.HasAuditName(PayPeriodRegistry.PayPeriodTable);
+            p.Property(x => x.FromDate).HasAuditName("จากวันที่");
+            p.Property(x => x.ToDate).HasAuditName("ถึงวันที่");
+            p.Property(x => x.PayDate).HasAuditName("วันที่จ่าย");
+            p.Property(x => x.CompletedStep).HasAuditName("ขั้นที่ทำแล้ว");
+            p.Property(x => x.TimeCalculatedAt).HasAuditName("คำนวณเวลาเมื่อ");
+            p.Property(x => x.TimeCalculatedBy).HasMaxLength(ModelBuilderExtensions.UserNameLength).HasAuditName("คำนวณเวลาโดย");
+            p.HasIndex(x => x.FromDate).IsUnique();
+        });
+
+        // Written only by the calculation (one history event); one row per employee per period.
+        modelBuilder.Entity<PayPeriodTimeTotal>(t =>
+        {
+            t.HasAuditName("เวลาทำงานรวมของงวด");
+            t.HasOne(x => x.PayPeriod).WithMany().HasForeignKey(x => x.PayPeriodId).OnDelete(DeleteBehavior.Cascade);
+            t.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            t.HasIndex(x => new { x.PayPeriodId, x.EmployeeId }).IsUnique();
+            t.HasIndex(x => x.EmployeeId);
         });
     }
 }

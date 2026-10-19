@@ -1,0 +1,100 @@
+@page "/document-numbers"
+@attribute [Authorize]
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@using Lockte.Web.Reports
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* เลขเอกสารควบคุม (#40, #52): ผู้ควบคุมเอกสารแก้รหัสเอกสารและฉบับที่ได้เองโดยไม่แก้โปรแกรม. Not in the legacy menu (the
+   numbers were typed into each Access report); reached from เมนูหลัก. What prints is รหัสเอกสาร + ฉบับที่ exactly as
+   stored — the spaces in front of ฉบับที่ differ between the legacy forms and are kept. *@
+<PageTitle>เลขเอกสารควบคุม — LOCKTE</PageTitle>
+<h1 class="mb-4">เลขเอกสารควบคุม</h1>
+
+<MudSimpleTable Dense="true" Hover="true" Outlined="true">
+    <thead>
+        <tr><th>เอกสาร</th><th>รหัสเอกสาร</th><th>ฉบับที่</th><th>พิมพ์เป็น</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var d in rows)
+        {
+            @if (editing?.Id == d.Id)
+            {
+                <tr>
+                    <td>@d.Name <MudText Typo="Typo.caption">@d.Key</MudText></td>
+                    <td><MudTextField @bind-Value="editing.Code" Immediate="true" MaxLength="DocumentNumberService.TextLength" /></td>
+                    <td><MudTextField @bind-Value="editing.Edition" Immediate="true" MaxLength="DocumentNumberService.TextLength"
+                                      HelperText="เว้นวรรคหน้าคำว่า ฉบับที่ ได้ ตามแบบเดิม" /></td>
+                    <td><code>@Shown(editing.Code + editing.Edition)</code></td>
+                    <td style="white-space:nowrap">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+                        <MudButton Size="Size.Small" OnClick="@(() => editing = null)">ยกเลิก</MudButton>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                <tr>
+                    <td>@d.Name <MudText Typo="Typo.caption">@d.Key</MudText></td>
+                    <td>@d.Code</td>
+                    <td><code>@Shown(d.Edition)</code></td>
+                    <td><code>@Shown(d.PrintedText)</code></td>
+                    <td><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => Edit(d))" aria-label="แก้" /></td>
+                </tr>
+            }
+        }
+    </tbody>
+</MudSimpleTable>
+<MudText Typo="Typo.caption" Class="mt-2">ช่อง "พิมพ์เป็น" แสดงช่องว่างเป็น ␣ เพื่อให้เห็นการเว้นวรรค</MudText>
+
+<MudButton Href="" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูหลัก</MudButton>
+
+@code {
+    private IReadOnlyList<DocumentNumberDto> rows = [];
+    private EditForm? editing;
+    private bool busy;
+
+    /// <summary>Spaces made visible, so a missing or extra one is seen before printing.</summary>
+    private static string Shown(string? text) => (text ?? "").Replace(' ', '␣');
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync() => rows = await Services.RunAsync<DocumentNumberService, IReadOnlyList<DocumentNumberDto>>(s => s.ListAsync());
+
+    private void Edit(DocumentNumberDto d) => editing = new EditForm { Id = d.Id, Code = d.Code, Edition = d.Edition, RowVersion = d.RowVersion };
+
+    private async Task SaveAsync()
+    {
+        var f = editing!;
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<DocumentNumberService, ServiceResult>(s => s.SaveAsync(new DocumentNumberInput(f.Id, f.Code, f.Edition, f.RowVersion)));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded)
+            {
+                Snackbar.Add("บันทึกเลขเอกสารแล้ว", Severity.Success);
+                editing = null;
+            }
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            editing = null;
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class EditForm
+    {
+        public int Id { get; set; }
+        public string? Code { get; set; }
+        public string? Edition { get; set; }
+        public byte[] RowVersion { get; set; } = [];
+    }
+}

@@ -22,6 +22,8 @@ public static class HrModule
         services.AddScoped<WorkTimeRegistry>();
         services.AddScoped<LeaveDirectory>();
         services.AddScoped<LeaveRegistry>();
+        services.AddScoped<PayPeriodDirectory>();
+        services.AddScoped<PayPeriodRegistry>();
         return services;
     }
 
@@ -54,6 +56,8 @@ public sealed class HrDataReset(HrDbContext db)
         await db.Leaves.ExecuteDeleteAsync();
         await db.WorkTimes.ExecuteDeleteAsync();
         await db.Absences.ExecuteDeleteAsync();
+        await db.PayPeriodTimeTotals.ExecuteDeleteAsync();
+        await db.PayPeriods.ExecuteDeleteAsync();
         await db.Employees.ExecuteDeleteAsync();
         await transaction.CommitAsync();
     }

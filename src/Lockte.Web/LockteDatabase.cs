@@ -3,6 +3,7 @@ using Lockte.Org;
 using Lockte.Sales;
 using Lockte.Web.Accounts;
 using Lockte.Web.Audit;
+using Lockte.Web.Reports;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lockte.Web;
@@ -18,6 +19,7 @@ public static class LockteDatabase
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<AccountsDbContext>().Database.MigrateAsync();
+        await scope.ServiceProvider.GetRequiredService<ReportsDbContext>().Database.MigrateAsync();
         await OrgModule.MigrateAsync(services);
         await HrModule.MigrateAsync(services); // after org: its foreign keys point there
         await SalesModule.MigrateAsync(services);

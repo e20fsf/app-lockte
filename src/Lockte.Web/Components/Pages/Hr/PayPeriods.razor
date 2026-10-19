@@ -1,0 +1,219 @@
+@page "/hr/pay-periods"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* ปิดงวดค่าแรงตามปกติ (เมนู 6) as one page (#22 แบบ B): the steps in the menu's order — ตั้งงวด (SCR-40 dates, filled in by
+   the 12–26 / 27–11 pattern, Q-04) → พิมพ์เวลาทำงาน (BR-007/001/002 → RPT-01) → พิมพ์ค่าแรง → พิมพ์สรุปค่าแรง → ส่งแบงค์
+   → SLIP. A step opens once the one before it is done; doing a calculation again reopens the steps after it (Q-22).
+   คำเตือนก่อนคำนวณ (วันที่ยังไม่บันทึกเวลา / มาสาย) are shown and asked about, never blocking. Steps after
+   พิมพ์เวลาทำงาน come with their own tickets (#53 on). *@
+<PageTitle>ปิดงวดค่าแรงตามปกติ — LOCKTE</PageTitle>
+<h1 class="mb-4">ปิดงวดค่าแรงตามปกติ</h1>
+
+<MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-4">
+    <MudSelect T="int" Value="period?.Id ?? 0" ValueChanged="SelectAsync" Label="งวดค่าแรง" Style="max-width:24rem" Disabled="periods.Count == 0">
+        @foreach (var p in periods)
+        {
+            <MudSelectItem T="int" Value="p.Id">@Label(p)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="NewPeriodAsync" Disabled="busy">ตั้งงวดใหม่</MudButton>
+</MudStack>
+
+@* 1 ตั้งงวด *@
+<MudPaper Outlined="true" Class="pa-4 mb-3">
+    @StepTitle(PayPeriodStep.Set)
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+        <MudDatePicker Editable="true" @bind-Date="form.From" Label="จากวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+        <MudDatePicker Editable="true" @bind-Date="form.To" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+        <MudDatePicker Editable="true" @bind-Date="form.PayDate" Label="วันที่จ่าย" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">@(form.Id is null ? "บันทึกงวดใหม่" : "บันทึกวันที่")</MudButton>
+        @if (form.Id is null && periods.Count > 0)
+        {
+            <MudButton OnClick="@(() => SelectAsync(periods[0].Id))">ยกเลิก</MudButton>
+        }
+    </MudStack>
+    @if (form.Id is null)
+    {
+        <MudText Typo="Typo.caption">ระบบเติมวันที่ตามรอบ 12–26 (จ่ายวันที่ 1) / 27–11 (จ่ายวันที่ 16) — แก้ได้ก่อนบันทึก</MudText>
+    }
+    else if (period is { CompletedStep: > PayPeriodStep.Set })
+    {
+        <MudText Typo="Typo.caption">ถ้าเปลี่ยนจากวันที่หรือถึงวันที่ ต้องคำนวณเวลาทำงานใหม่</MudText>
+    }
+</MudPaper>
+
+@if (period is not null && form.Id is not null)
+{
+    @* 2 พิมพ์เวลาทำงาน *@
+    <MudPaper Outlined="true" Class="pa-4 mb-3">
+        @StepTitle(PayPeriodStep.TimeCalculated)
+        @if (check is { HasWarnings: true })
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                <b>คำเตือนก่อนคำนวณ</b>
+                @if (check.DaysWithoutTime.Count > 0)
+                {
+                    <div>วันที่ยังไม่บันทึกเวลาปกติ: @string.Join(", ", check.DaysWithoutTime.Select(ThaiDate.Format))</div>
+                }
+                @if (check.LateArrivals.Count > 0)
+                {
+                    <div>มาสาย @check.LateArrivals.Count รายการ:
+                        @string.Join(", ", check.LateArrivals.Take(10).Select(l => $"{ThaiDate.Format(l.Date)} {l.EmployeeCode} {TimeText(l.Late)}"))@(check.LateArrivals.Count > 10 ? " …" : "")
+                    </div>
+                }
+            </MudAlert>
+        }
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CalculateTimeAsync" Disabled="busy"
+                       StartIcon="@Icons.Material.Filled.Calculate">คำนวณเวลาทำงาน</MudButton>
+            <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/time")" Target="_blank" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="period.CompletedStep < PayPeriodStep.TimeCalculated">
+                พิมพ์เวลาทำงาน (PDF)
+            </MudButton>
+            @if (period.TimeCalculatedAt is { } at)
+            {
+                <MudText Typo="Typo.caption">คำนวณล่าสุด @at.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiDate.Culture) โดย @period.TimeCalculatedBy</MudText>
+            }
+        </MudStack>
+    </MudPaper>
+
+    @* 3–6: their tickets add the work; the order and the lock are here already *@
+    @foreach (var step in LaterSteps)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mb-3">
+            @StepTitle(step)
+            <MudText Typo="Typo.body2" Class="mt-1">ยังไม่เปิดใช้ในระบบใหม่</MudText>
+        </MudPaper>
+    }
+}
+
+<MudButton Href="@EmployeeMenu.HrefOf(12)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>
+
+@code {
+    private static readonly PayPeriodStep[] LaterSteps =
+        [PayPeriodStep.PayCalculated, PayPeriodStep.SummaryPrinted, PayPeriodStep.BankPrinted, PayPeriodStep.SlipPrinted];
+
+    private IReadOnlyList<PayPeriodDto> periods = [];
+    private PayPeriodDto? period;
+    private PayPeriodCheck? check;
+    private PeriodForm form = new();
+    private bool busy;
+
+    private static string Label(PayPeriodDto p) => $"{ThaiDate.Format(p.From)} – {ThaiDate.Format(p.To)} (จ่าย {ThaiDate.Format(p.PayDate)})";
+
+    private RenderFragment StepTitle(PayPeriodStep step) => __builder =>
+    {
+        var number = (int)step + 1;
+        var (text, color) = period is null || form.Id is null
+            ? (step == PayPeriodStep.Set ? "ทำได้" : "ล็อก", step == PayPeriodStep.Set ? Color.Info : Color.Default)
+            : period.CompletedStep >= step ? ("ทำแล้ว", Color.Success)
+            : period.CanDo(step) ? ("ทำได้", Color.Info)
+            : ($"ล็อก — ต้องทำขั้น {PayPeriodSteps.Names[step - 1]} ก่อน", Color.Default);
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudAvatar Size="Size.Small" Color="@(color == Color.Success ? Color.Success : Color.Primary)">@number</MudAvatar>
+            <MudText Typo="Typo.h6">@PayPeriodSteps.Names[step]</MudText>
+            <MudChip T="string" Size="Size.Small" Color="color" Variant="Variant.Outlined">@text</MudChip>
+        </MudStack>
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPeriodsAsync();
+        if (periods.Count > 0) await SelectAsync(periods[0].Id);
+        else await NewPeriodAsync();
+    }
+
+    private async Task LoadPeriodsAsync()
+        => periods = await Services.RunAsync<PayPeriodDirectory, IReadOnlyList<PayPeriodDto>>(d => d.ListAsync());
+
+    private async Task SelectAsync(int id)
+    {
+        period = await Services.RunAsync<PayPeriodDirectory, PayPeriodDto?>(d => d.GetAsync(id));
+        if (period is null) return;
+        form = new PeriodForm
+        {
+            Id = period.Id, From = Day(period.From), To = Day(period.To), PayDate = Day(period.PayDate), RowVersion = period.RowVersion,
+        };
+        check = await Services.RunAsync<PayPeriodDirectory, PayPeriodCheck>(d => d.CheckAsync(id));
+    }
+
+    private async Task NewPeriodAsync()
+    {
+        var dates = await Services.RunAsync<PayPeriodDirectory, PayPeriodDates>(d => d.DefaultDatesAsync());
+        period = null;
+        check = null;
+        form = new PeriodForm { From = Day(dates.From), To = Day(dates.To), PayDate = Day(dates.PayDate) };
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new PayPeriodInput(form.Id, Date(form.From), Date(form.To), Date(form.PayDate), form.RowVersion);
+            var result = await Services.RunAsync<PayPeriodRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกงวดค่าแรงแล้ว", Severity.Success);
+            await LoadPeriodsAsync();
+            await SelectAsync(result.Id!.Value);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            if (form.Id is { } id) await SelectAsync(id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task CalculateTimeAsync()
+    {
+        if (period is null) return;
+        var id = period.Id;
+        check = await Services.RunAsync<PayPeriodDirectory, PayPeriodCheck>(d => d.CheckAsync(id));
+        if (check.HasWarnings)
+        {
+            var go = await Dialogs.ShowMessageBoxAsync("คำเตือนก่อนคำนวณ",
+                $"มีวันที่ยังไม่บันทึกเวลาปกติ {check.DaysWithoutTime.Count} วัน และมาสาย {check.LateArrivals.Count} รายการ — คำนวณเวลาทำงานต่อหรือไม่?",
+                yesText: "คำนวณ", cancelText: "ยกเลิก");
+            if (go != true) return;
+        }
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<PayPeriodRegistry, ServiceResult>(r => r.CalculateTimeAsync(id));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"คำนวณเวลาทำงานแล้ว {result.Id} คน — กดพิมพ์เวลาทำงาน (PDF)", Severity.Success);
+            await LoadPeriodsAsync();
+            await SelectAsync(id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static DateTime Day(DateOnly d) => d.ToDateTime(TimeOnly.MinValue);
+
+    private static string TimeText(TimeOnly t) => t.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static DateOnly? Date(DateTime? d) => d is { } v ? DateOnly.FromDateTime(v) : null;
+
+    private sealed class PeriodForm
+    {
+        public int? Id { get; set; }
+        public DateTime? From { get; set; }
+        public DateTime? To { get; set; }
+        public DateTime? PayDate { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}
