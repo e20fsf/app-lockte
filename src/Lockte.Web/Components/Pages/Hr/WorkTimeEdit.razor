@@ -13,7 +13,7 @@
 
 @* SCR-13 แก้ไขและลบเวลาทำงาน (ฟอร์ม EMPLO3 + subform E_WORK1) as หน้ารายคน (#41, prototype #22 แบบ A): พนักงานทางซ้าย,
    ข้อมูลพนักงานด้านบน, the person's เวลาทำงาน of the period below, edited in the table one row at a time (BR-013).
-   No pay period exists yet: the period is a date range (ตั้งแต่–ถึง) until the pay-period ticket gives the open one.
+   The period shown is the newest งวดค่าแรง (#52), today ±16 days while there is none; HR may change the dates.
    "ลบข้อมูลเฉพาะคน" / "ลบข้อมูลทั้งวัน" are BR-015 (ฟอร์ม วันทำงาน2 / วันทำงาน3): W or O1 only, as the legacy.
    Unlike the legacy, deleting every employee's rows asks first.
    The same หน้ารายคน has the การลา tab (SCR-30, #41): เมนู 4 "บันทึกและแก้ไขการลางาน" (/hr/leave) and "ลบข้อมูลการลางาน"
@@ -204,6 +204,12 @@
         startChoices = shifts.SelectMany(s => new[] { s.WorkIn, s.OvertimeIn }).OfType<TimeOnly>().Distinct().Order().ToList();
         endChoices = shifts.SelectMany(s => new[] { s.WorkOut, s.OvertimeOut }).OfType<TimeOnly>().Distinct().Order().ToList();
         employees = (await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync())).ToList();
+        var periods = await Services.RunAsync<PayPeriodDirectory, IReadOnlyList<PayPeriodDto>>(d => d.ListAsync());
+        if (periods.Count > 0)
+        {
+            from = periods[0].From.ToDateTime(TimeOnly.MinValue);
+            to = periods[0].To.ToDateTime(TimeOnly.MinValue);
+        }
     }
 
     private async Task SelectAsync(int id)

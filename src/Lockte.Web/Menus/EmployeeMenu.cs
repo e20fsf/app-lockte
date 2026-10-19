@@ -36,6 +36,8 @@ public static class EmployeeMenu
             new("ปิดงวดค่าแรง", SubMenu: 12),
             new("พิมพ์ใบลางาน, ใบลาออกและทะเบียนผู้ประกันสังคม", SubMenu: 18),
             new("การประเมินผลพนักงาน", SubMenu: 11),
+            // New (#52): the legacy typed the numbers into each report; ข้อมูลหลักเลขเอกสารควบคุม has no legacy menu item.
+            new("เลขเอกสารควบคุม", Page: "document-numbers"),
         ]),
         new(2, "ข้อมูลพนักงาน", 1,
         [
@@ -89,7 +91,7 @@ public static class EmployeeMenu
         ]),
         new(6, "ปิดงวดค่าแรงตามปกติ", 12,
         [
-            new("พิมพ์เวลาทำงาน", Code: "SCR-40"),
+            new("พิมพ์เวลาทำงาน", Code: "SCR-40", Page: "hr/pay-periods"),
             new("พิมพ์ค่าแรง", Code: "SCR-41"),
             new("พิมพ์สรุปค่าแรง", SubMenu: 9),
             new("พิมพ์ค่าแรงส่งแบงค์", Code: "SCR-42"),

@@ -1,0 +1,53 @@
+@using Lockte.Hr
+@* RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13, print-samples.md): ระดับ B — data, columns, order and totals as the
+   legacy; the look is แบบกลาง (ReportHtml). Rows come ready from PayPeriodDirectory.GetTimeReportAsync (BR-002, BR-005). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.Period.From) ถึงวันที่ @ReportText.Date(Report.Period.To)</p>
+<p class="sub"><span>วันอาทิตย์ @Report.WeeklyHolidays วัน</span>&emsp;&emsp;<span>วันหยุด @Report.PublicHolidays วัน</span>&emsp;&emsp;<span>วันทำงาน @Report.WorkDays วัน</span>&emsp;&emsp;<span>รวมทั้งหมด @Report.TotalDays วัน</span></p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:9%" /><col style="width:26%" />
+            <col style="width:8%" /><col style="width:8%" /><col style="width:8.5%" /><col style="width:8%" />
+            <col style="width:9.5%" /><col style="width:7%" /><col style="width:9%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th class="num">วันปกติ</th><th class="num">วันลา</th>
+                <th class="num">OTวันปกติ</th><th class="num">วันอาทิตย์</th><th class="num">OTวันอาทิตย์</th><th class="num">วันหยุด</th>
+                <th class="num">OTวันหยุด</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.Code</td>
+                    <td>@line.Name</td>
+                    <td class="num">@ReportText.Decimal2(line.Normal)</td>
+                    <td class="num">@ReportText.Decimal2(line.PaidLeave)</td>
+                    <td class="num">@ReportText.Decimal2(line.Overtime)</td>
+                    <td class="num">@ReportText.Decimal2(line.Sunday)</td>
+                    <td class="num">@ReportText.Decimal2(line.SundayOvertime)</td>
+                    <td class="num">@ReportText.Decimal2(line.Holiday)</td>
+                    <td class="num">@ReportText.Decimal2(line.HolidayOvertime)</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="10">รวม @Report.Lines.Count คน</td></tr>
+            <tr><td colspan="10" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    /// <summary>The title the legacy report printed under the company name.</summary>
+    public const string Title = "คำนวณเวลาทำงาน";
+
+    [Parameter, EditorRequired] public TimeReport Report { get; set; } = default!;
+}

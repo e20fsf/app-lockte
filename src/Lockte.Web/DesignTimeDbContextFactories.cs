@@ -1,6 +1,7 @@
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
 using Lockte.Web.Audit;
+using Lockte.Web.Reports;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -26,4 +27,9 @@ internal sealed class AccountsDbContextFactory : IDesignTimeDbContextFactory<Acc
 internal sealed class AuditDbContextFactory : IDesignTimeDbContextFactory<AuditDbContext>
 {
     public AuditDbContext CreateDbContext(string[] args) => new(DesignTime.Options<AuditDbContext>(AuditDbContext.Schema));
+}
+
+internal sealed class ReportsDbContextFactory : IDesignTimeDbContextFactory<ReportsDbContext>
+{
+    public ReportsDbContext CreateDbContext(string[] args) => new(DesignTime.Options<ReportsDbContext>(ReportsDbContext.Schema));
 }
