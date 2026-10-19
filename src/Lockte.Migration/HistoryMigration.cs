@@ -1,5 +1,6 @@
 using System.Globalization;
 using Lockte.Hr;
+using Lockte.SharedKernel.Persistence;
 
 namespace Lockte.Migration;
 
@@ -8,9 +9,12 @@ namespace Lockte.Migration;
 /// employees: เวลาทำงานตั้งแต่ 1 ม.ค. 2568 (E_WORK + ADD_EW into one table) and การลาปี 2569 (LEAVE + LEAVE_ADD into one
 /// table). The rows are taken as the legacy kept them — no quota check, a blank TYPE allowed — and the repeats BR-007
 /// removes before every calculation are loaded once (DQ-2). Nothing is written to the change history. Adds to the
-/// report: the row counts, ยอดสรุปรายเดือนปี 2026 (AC-10) and the WORK_T check of every migrated row (AC-01).
+/// report: the row counts, ยอดสรุปรายเดือนปี 2026 (AC-10) and the WORK_T check of every migrated row (AC-01). Then
+/// งวดที่เปิดอยู่: the one row of ตั้งวันที่ตัดWEEK becomes a งวดค่าแรง at its first step, and ไม่มาทำงาน (NO_WORK) is
+/// loaded from that period's first day on, so สร้างเวลาปกติ (BR-010) and RPT-17 work again on those days.
 /// </summary>
-public sealed class HistoryMigration(HrHistoryImport import, EmployeeDirectory employeeDirectory)
+public sealed class HistoryMigration(HrHistoryImport import, EmployeeDirectory employeeDirectory, PayPeriodRegistry payPeriods,
+    PayPeriodDirectory payPeriodDirectory, AbsenceRegistry absences, AbsenceDirectory absenceDirectory, AuditScope audit)
 {
     private const string Other = "NF-06";
     private const string BlankDate = "DQ-1";
@@ -18,8 +22,13 @@ public sealed class HistoryMigration(HrHistoryImport import, EmployeeDirectory e
     private const string Orphan = "DQ-6";
     private const string LateCut = "DQ-7";
     private const string BlankType = "DQ-12";
+    private const string AbsenceDate = "DQ-10";
     private const string WorkTimeTable = "hr.WorkTimes";
     private const string LeaveTable = "hr.Leaves";
+    private const string PayPeriodTable = "hr.PayPeriods";
+    private const string AbsenceTable = "hr.Absences";
+    /// <summary>The legacy's oldest data (ADD_EW goes back to 2016): a NO_WORK date before it is a typing slip (DQ-10).</summary>
+    private static readonly DateOnly OldestLegacyDate = new(2016, 1, 1);
     private static readonly DateOnly MonthlyFrom = new(2026, 1, 1);
     private static readonly DateOnly MonthlyTo = new(2026, 12, 31);
 
@@ -34,6 +43,11 @@ public sealed class HistoryMigration(HrHistoryImport import, EmployeeDirectory e
         employeeIds = (await employeeDirectory.SearchAsync()).ToDictionary(e => e.Code, e => e.Id, StringComparer.OrdinalIgnoreCase);
         await LoadWorkTimesAsync();
         await LoadLeavesAsync();
+        using (audit.SuppressRowChanges())
+        {
+            var openPeriod = await LoadOpenPeriodAsync();
+            await LoadAbsencesAsync(openPeriod);
+        }
     }
 
     // ---------- เวลาทำงาน (E_WORK + ADD_EW) ----------
@@ -227,12 +241,112 @@ public sealed class HistoryMigration(HrHistoryImport import, EmployeeDirectory e
         }
     }
 
+    // ---------- งวดที่เปิดอยู่ (ตั้งวันที่ตัดWEEK, NO_WORK) ----------
+
+    /// <summary>
+    /// The legacy keeps one row: the period last set on SCR-40. It is loaded at <see cref="PayPeriodStep.Set"/> (the legacy
+    /// keeps no step), so the new system calculates it again. Returns the newest period loaded, or null when none could be.
+    /// </summary>
+    private async Task<PayPeriodDates?> LoadOpenPeriodAsync()
+    {
+        const string table = "ตั้งวันที่ตัดWEEK";
+        var rows = legacy[table];
+        var tally = new Tally(table, PayPeriodTable) { Source = rows.Count };
+        PayPeriodDates? open = null;
+        foreach (var row in rows)
+        {
+            var (from, to, payDate) = (Day(row.Date("FROM_DA")), Day(row.Date("TO_DA")), Day(row.Date("PAY_D")));
+            if (row.Number("DAY") is { } days and not 0)
+                report.Add(table, "DAY", Other, $"จำนวนวันจ่ายของงวด 2 ช่วง (BR-008) = {days} — งวดค่าแรงของระบบใหม่ไม่มีช่องนี้",
+                    MigrationReport.LoadedBlank);
+            var saved = await payPeriods.SaveAsync(new PayPeriodInput(null, from, to, payDate, null));
+            if (!saved.Succeeded)
+            {
+                Reject(tally, table, from is { } f ? Iso(f) : "(FROM_DA ว่าง)", Other, string.Join(" · ", saved.Errors));
+                continue;
+            }
+            tally.Loaded++;
+            if (open is null || from > open.From) open = new PayPeriodDates(from!.Value, to!.Value, payDate!.Value);
+        }
+        report.Tables.Add(tally.Count((await payPeriodDirectory.ListAsync()).Count));
+        return open;
+    }
+
+    /// <summary>
+    /// ไม่มาทำงาน from the open period's first day on, with no end: days keyed ahead for the next period come too. Earlier
+    /// days stay in Access (ไม่ย้ายตามกติกา). A blank or impossible date (DQ-10) is not loaded, nor a second row of the
+    /// same employee on the same day (the new system records an absence once a day).
+    /// </summary>
+    private async Task LoadAbsencesAsync(PayPeriodDates? open)
+    {
+        const string table = "NO_WORK";
+        var rows = legacy[table];
+        var tally = new Tally(table, AbsenceTable) { Source = rows.Count };
+        if (open is null)
+        {
+            tally.Excluded = rows.Count;
+            if (rows.Count > 0)
+                report.Add(table, $"{rows.Count} แถว", Other, "ไม่มีงวดที่เปิดอยู่ที่ย้ายได้ จึงไม่รู้ว่าจะย้ายไม่มาทำงานตั้งแต่วันไหน",
+                    "ไม่ย้าย — บันทึกเองที่ SCR-10 หลังตั้งงวด");
+            report.Tables.Add(tally.Count(0));
+            return;
+        }
+        var latest = new DateOnly(open.To.Year + 1, 12, 31);
+        var loaded = new HashSet<(DateOnly Day, int EmployeeId)>();
+        foreach (var row in rows)
+        {
+            if (Day(row.Date("DATE1")) is not { } day)
+            {
+                Reject(tally, table, $"(DATE1 ว่าง) {row.Text("ID1")}", AbsenceDate, "ไม่มีวันที่");
+                continue;
+            }
+            if (day < OldestLegacyDate || day > latest)
+            {
+                Reject(tally, table, $"{Iso(day)} {row.Text("ID1")}", AbsenceDate,
+                    $"ปีผิด (คีย์ พ.ศ. ลงช่อง ค.ศ. หรือพิมพ์ผิด) — ไม่อยู่ระหว่างปี {OldestLegacyDate.Year} ถึง {latest.Year}");
+                continue;
+            }
+            if (day < open.From)
+            {
+                tally.Excluded++; // before the open period: stays in Access
+                continue;
+            }
+            if (EmployeeId(tally, table, row, Iso(day), "ID1") is not { } employee) continue;
+            var key = $"{Iso(day)} {employee.Code}";
+            if (!loaded.Add((day, employee.Id)))
+            {
+                Reject(tally, table, key, Duplicate, "บันทึกไม่มาทำงานซ้ำในวันเดียวกัน — โหลดแถวแรก");
+                continue;
+            }
+            var saved = await absences.SaveAsync(new AbsenceInput(null, day, employee.Id, Clock(row.Date("W_IN")), row.Text("REMARK"), null));
+            if (saved.Succeeded) tally.Loaded++;
+            else
+            {
+                loaded.Remove((day, employee.Id));
+                Reject(tally, table, key, Other, string.Join(" · ", saved.Errors));
+            }
+        }
+        report.Tables.Add(tally.Count(await CountAbsencesAsync(open.From, loaded.Select(l => l.Day).DefaultIfEmpty(open.From).Max())));
+    }
+
+    /// <summary>
+    /// ไม่มาทำงาน in the new table through its public read side, day by day from <paramref name="from"/> to
+    /// <paramref name="to"/>: the run deleted the table first, so the days loaded hold all its rows.
+    /// </summary>
+    private async Task<int> CountAbsencesAsync(DateOnly from, DateOnly to)
+    {
+        var count = 0;
+        for (var day = from; day <= to; day = day.AddDays(1))
+            count += (await absenceDirectory.ListAsync(day)).Count;
+        return count;
+    }
+
     // ---------- helpers ----------
 
     /// <summary>The employee of the row's ID; a blank ID (BR-051) or one not in EMPLO (DQ-6, Q-15) is not loaded.</summary>
-    private (string Code, int Id)? EmployeeId(Tally tally, string table, LegacyRow row, string day)
+    private (string Code, int Id)? EmployeeId(Tally tally, string table, LegacyRow row, string day, string column = "ID")
     {
-        if (EmployeeFormRules.NormalizeCode(row.Text("ID")) is not { } code)
+        if (EmployeeFormRules.NormalizeCode(row.Text(column)) is not { } code)
         {
             Reject(tally, table, $"{day} (ID ว่าง)", Other, "ไม่มีรหัสพนักงาน (ระบบเดิมลบแถวนี้ BR-051)");
             return null;
@@ -261,6 +375,8 @@ public sealed class HistoryMigration(HrHistoryImport import, EmployeeDirectory e
     /// </summary>
     private static TimeOnly? Clock(DateTime? legacyTime)
         => legacyTime is { } t ? new TimeOnly(TimeSpan.FromSeconds(Math.Round(t.TimeOfDay.TotalSeconds) % 86400).Ticks) : null;
+
+    private static DateOnly? Day(DateTime? legacyDate) => legacyDate is { } d ? DateOnly.FromDateTime(d) : null;
 
     private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
