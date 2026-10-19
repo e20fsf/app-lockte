@@ -5,7 +5,7 @@ using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
-// เครื่องมือย้ายข้อมูล (#47): runs on a PC with the Access runtime, never on the server (ADR 0001).
+// เครื่องมือย้ายข้อมูล (#47, #51): runs on a PC with the Access runtime, never on the server (ADR 0001).
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 if (!OperatingSystem.IsWindows())
 {
@@ -41,5 +41,8 @@ var report = await MigrationTool.RunAsync(services, options.SourceFile, options.
 foreach (var table in report.Tables)
     Console.WriteLine($"{table.LegacyTable,-12} → {table.NewTable,-22} ต้นทาง {table.SourceRows,4}  โหลด {table.Loaded,4}  " +
         $"DQ {table.Rejected,3}  ไม่ย้าย {table.Excluded,3}  ในฐานข้อมูล {table.InDatabase,4}  {(table.Balanced ? "ตรง" : "ไม่ตรง")}");
+foreach (var month in report.MonthlyTotals.Where(m => !m.Balanced))
+    Console.WriteLine($"ยอดรายเดือนไม่ตรง: {month.Table} {month.Month} {month.Measure} ควรเป็น {month.Expected} ในฐานข้อมูล {month.InDatabase}");
+Console.WriteLine($"WORK_T (AC-01): ตรวจ {report.WorkTChecked} แถว ไม่ตรง {report.WorkTMismatches.Count} แถว");
 Console.WriteLine($"ข้อยกเว้น DQ {report.Exceptions.Count} รายการ — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
-return report.Balanced ? 0 : 1;
+return report.Balanced && report.WorkTMatches ? 0 : 1;

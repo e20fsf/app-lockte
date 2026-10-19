@@ -18,29 +18,57 @@ public sealed class LegacyRow(IReadOnlyDictionary<string, object?> values)
 
     public DateTime? Date(string column) => this[column] as DateTime?;
 
-    public double? Number(string column) => this[column] is { } value ? Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture) : null;
+    /// <summary>A Single column (SUM_D, SALA_DAY, PAY) is read by its shortest text, so 10.4 stays 10.4 and not 10.3999996.</summary>
+    public double? Number(string column) => this[column] switch
+    {
+        null => null,
+        float f => double.Parse(f.ToString(System.Globalization.CultureInfo.InvariantCulture), System.Globalization.CultureInfo.InvariantCulture),
+        var value => Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture),
+    };
 }
 
 /// <summary>
 /// The tables of <c>พนักงาน.accdb</c> that the migration reads, in the order Access returns their rows (the legacy
 /// tables have no primary key, so this order is what keeps two runs on the same file alike).
 /// </summary>
-public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<LegacyRow>> tables)
+public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<LegacyRow>> tables, IReadOnlyDictionary<string, int>? sourceRows = null)
 {
     /// <summary>Tables of the master data (#47), named as in data-model.md.</summary>
     public static IReadOnlyList<string> MasterDataTables { get; } =
         ["EMPLO", "แผนก", "แผนก2", "ฝ่าย", "SHIFT", "ชื่อลูกค้า", "SUNDAY", "HOLIDAY"];
 
+    /// <summary>ประวัติที่ย้าย (#51, ข้อตัดสิน #17): เวลาทำงานตั้งแต่ <see cref="WorkTimeFrom"/>, การลาปี 2569.</summary>
+    public static readonly DateOnly WorkTimeFrom = new(2025, 1, 1);
+    public static readonly DateOnly LeaveFrom = new(2026, 1, 1);
+
+    /// <summary>
+    /// The history tables, read only from their first date on (ADD_EW has 528,745 rows back to 2016): a row with the date
+    /// blank is read too, for the DQ report. The rows left in Access are counted, as ไม่ย้ายตามกติกา.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> HistoryTables { get; } = new Dictionary<string, string>
+    {
+        ["E_WORK"] = WhereFrom("DATE", WorkTimeFrom),
+        ["ADD_EW"] = WhereFrom("DATE", WorkTimeFrom),
+        ["LEAVE"] = WhereFrom("FROM_D", LeaveFrom),
+        ["LEAVE_ADD"] = WhereFrom("FROM_D", LeaveFrom),
+    };
+
+    private static string WhereFrom(string column, DateOnly from)
+        => $"[{column}] >= #{from.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}# OR [{column}] IS NULL";
+
     public IReadOnlyList<LegacyRow> this[string table]
         => tables.TryGetValue(table, out var rows) ? rows : throw new KeyNotFoundException($"ไม่พบตาราง {table} ในไฟล์ต้นทาง");
 
+    /// <summary>Every row of the legacy table, also the ones not read because of the date filter.</summary>
+    public int SourceRows(string table) => sourceRows?.TryGetValue(table, out var count) == true ? count : this[table].Count;
+
     /// <summary>
-    /// Reads <paramref name="tableNames"/> from a <b>copy</b> of <paramref name="accdbPath"/> made in a temp folder,
+    /// Reads the master-data and history tables from a <b>copy</b> of <paramref name="accdbPath"/> made in a temp folder,
     /// opened read-only, so the source file is never touched (opening it in Access once changed it, see the extractor
     /// fix of 2026-10-13). Runs on the PC, never on the server (ADR 0001: ACE is not supported server-side).
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public static LegacyDatabase ReadAccessFile(string accdbPath, IEnumerable<string>? tableNames = null)
+    public static LegacyDatabase ReadAccessFile(string accdbPath)
     {
         if (!File.Exists(accdbPath)) throw new FileNotFoundException($"ไม่พบไฟล์ {accdbPath}", accdbPath);
         var folder = Directory.CreateTempSubdirectory("lockte-migration-");
@@ -50,14 +78,21 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
             File.Copy(accdbPath, copy);
             File.SetAttributes(copy, FileAttributes.ReadOnly);
             var tables = new Dictionary<string, IReadOnlyList<LegacyRow>>(StringComparer.OrdinalIgnoreCase);
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             using (var connection = new OleDbConnection($"Provider=Microsoft.ACE.OLEDB.16.0;Data Source={copy};Mode=Read;"))
             {
                 connection.Open();
-                foreach (var table in tableNames ?? MasterDataTables)
-                    tables[table] = Read(connection, table);
+                foreach (var table in MasterDataTables)
+                    tables[table] = Read(connection, table, null);
+                foreach (var (table, where) in HistoryTables)
+                {
+                    tables[table] = Read(connection, table, where);
+                    using var count = new OleDbCommand($"SELECT COUNT(*) FROM [{table}]", connection);
+                    counts[table] = Convert.ToInt32(count.ExecuteScalar());
+                }
             }
             OleDbConnection.ReleaseObjectPool();
-            return new LegacyDatabase(tables);
+            return new LegacyDatabase(tables, counts);
         }
         finally
         {
@@ -67,9 +102,9 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     }
 
     [SupportedOSPlatform("windows")]
-    private static List<LegacyRow> Read(OleDbConnection connection, string table)
+    private static List<LegacyRow> Read(OleDbConnection connection, string table, string? where)
     {
-        using var command = new OleDbCommand($"SELECT * FROM [{table}]", connection);
+        using var command = new OleDbCommand($"SELECT * FROM [{table}]{(where is null ? "" : " WHERE " + where)}", connection);
         using var reader = command.ExecuteReader();
         var rows = new List<LegacyRow>();
         while (reader.Read())

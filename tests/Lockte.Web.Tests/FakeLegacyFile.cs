@@ -4,7 +4,7 @@ using System.Runtime.Versioning;
 namespace Lockte.Web.Tests;
 
 /// <summary>
-/// A made-up <c>พนักงาน.accdb</c> with the master-data tables and their legacy column types (data-model.md), written
+/// A made-up <c>พนักงาน.accdb</c> with the master-data and history tables and their legacy column types (data-model.md), written
 /// through ADOX + the ACE provider of this PC. Every name, ID and number in it is fictional — the repo is public.
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -39,7 +39,24 @@ public sealed class FakeLegacyFile
         ["ชื่อลูกค้า"] = [("CODE", "TEXT(50)"), ("NAME", "TEXT(255)")],
         ["SUNDAY"] = [("DATE", "DATETIME"), ("ITEM", "TEXT(10)")],
         ["HOLIDAY"] = [("DATE", "DATETIME"), ("ITEM", "TEXT(46)")],
+        ["E_WORK"] = WorkTimeColumns("DATETIME"),
+        ["ADD_EW"] = WorkTimeColumns("TEXT(2)"), // DQ-7: LATE is Text(2) in the history
+        ["LEAVE"] = LeaveColumns,
+        ["LEAVE_ADD"] = LeaveColumns,
     };
+
+    private static (string, string)[] WorkTimeColumns(string lateType) =>
+    [
+        ("DATE", "DATETIME"), ("ID", "TEXT(4)"), ("W_IN", "DATETIME"), ("W_OUT", "DATETIME"), ("WORK_T", "DOUBLE"), ("TYPE", "TEXT(2)"),
+        ("LATE", lateType), ("REST_T", "LONG"), ("MARK", "TEXT(2)"), ("CODE", "TEXT(50)"),
+    ];
+
+    private static (string, string)[] LeaveColumns =>
+    [
+        ("DATE", "DATETIME"), ("ID", "TEXT(4)"), ("FROM_D", "DATETIME"), ("TO_D", "DATETIME"), ("FROM_T", "DATETIME"), ("TO_T", "DATETIME"),
+        ("SUM_D", "SINGLE"), ("SR", "TEXT(50)"), ("SAL", "TEXT(2)"), ("REMARK", "TEXT(28)"), ("MARK", "TEXT(50)"), ("SALA_DAY", "SINGLE"),
+        ("PAY", "SINGLE"), ("CODE_A", "TEXT(50)"),
+    ];
 
     public Dictionary<string, List<Dictionary<string, object?>>> Tables { get; } =
         Schema.Keys.ToDictionary(t => t, _ => new List<Dictionary<string, object?>>());
@@ -128,6 +145,7 @@ public sealed class FakeLegacyFile
         null => new OleDbParameter { OleDbType = OleDbType.VarWChar, Value = DBNull.Value },
         DateTime d => new OleDbParameter { OleDbType = OleDbType.Date, Value = d },
         double n => new OleDbParameter { OleDbType = OleDbType.Double, Value = n },
+        float n => new OleDbParameter { OleDbType = OleDbType.Single, Value = n },
         int n => new OleDbParameter { OleDbType = OleDbType.Integer, Value = n },
         string s => new OleDbParameter { OleDbType = OleDbType.VarWChar, Value = s },
         _ => throw new ArgumentException($"Unsupported legacy value {value.GetType()}"),
