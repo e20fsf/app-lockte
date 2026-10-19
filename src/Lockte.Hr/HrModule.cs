@@ -25,6 +25,29 @@ public static class HrModule
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<HrDbContext>().Database.MigrateAsync();
     }
+
+    /// <summary>For tools that fill the database but leave migrating to the host.</summary>
+    public static async Task<bool> IsUpToDateAsync(IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return !(await scope.ServiceProvider.GetRequiredService<HrDbContext>().Database.GetPendingMigrationsAsync()).Any();
+    }
+}
+
+/// <summary>
+/// ลบข้อมูลทั้งหมดของ module ก่อนการย้ายข้อมูลรอบใหม่ (#47: ลบแล้วโหลดใหม่ทั้งชุด). For the data-migration tool only:
+/// a bulk delete, so it writes no history. Tables added later that point to an employee are deleted here first.
+/// </summary>
+public sealed class HrDataReset(HrDbContext db)
+{
+    public async Task DeleteAllAsync()
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.WeeklyHolidays.ExecuteDeleteAsync();
+        await db.PublicHolidays.ExecuteDeleteAsync();
+        await db.Employees.ExecuteDeleteAsync();
+        await transaction.CommitAsync();
+    }
 }
 
 /// <summary>For <c>dotnet ef migrations add … -p src/Lockte.Hr</c> only (no database connection is made).</summary>

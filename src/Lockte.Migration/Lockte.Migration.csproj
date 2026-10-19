@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Reads .accdb through the 64-bit ACE OLE DB provider: a Windows PC with Microsoft 365 / Access Runtime (ADR 0001). -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lockte.SharedKernel\Lockte.SharedKernel.csproj" />
+    <!-- Writes through each module's public services only (ADR 0002). -->
+    <ProjectReference Include="..\Lockte.Org\Lockte.Org.csproj" />
+    <ProjectReference Include="..\Lockte.Hr\Lockte.Hr.csproj" />
+    <ProjectReference Include="..\Lockte.Sales\Lockte.Sales.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Data.OleDb" Version="10.0.13" />
+  </ItemGroup>
+
+</Project>

@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Lockte.Web\Lockte.Web.csproj" />
+    <ProjectReference Include="..\..\src\Lockte.Migration\Lockte.Migration.csproj" />
   </ItemGroup>
 
 </Project>

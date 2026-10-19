@@ -1,5 +1,7 @@
 using Lockte.Hr;
+using Lockte.Migration;
 using Lockte.Org;
+using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
 using Microsoft.EntityFrameworkCore;
@@ -12,11 +14,13 @@ namespace Lockte.Web.Tests;
 /// A fresh database on SQL Server LocalDB for the test run, built by the real migrations and dropped afterwards.
 /// Override the server with env <c>LOCKTE_TEST_SQL</c> (a connection string without Database).
 /// </summary>
-public sealed class LocalDbFixture : IAsyncLifetime
+public class LocalDbFixture : IAsyncLifetime
 {
     private const string DefaultServer = @"Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=true";
 
     private ServiceProvider services = null!;
+
+    public IServiceProvider Services => services;
 
     public async Task InitializeAsync()
     {
@@ -33,6 +37,8 @@ public sealed class LocalDbFixture : IAsyncLifetime
         collection.AddLockteAccounts(config);
         collection.AddOrgModule(AccountsRegistration.ConnectionString(config));
         collection.AddHrModule(AccountsRegistration.ConnectionString(config));
+        collection.AddSalesModule(AccountsRegistration.ConnectionString(config));
+        collection.AddMasterDataMigration();
         collection.AddModuleDbContext<WidgetDbContext>(AccountsRegistration.ConnectionString(config), WidgetDbContext.Schema);
         services = collection.BuildServiceProvider(validateScopes: true);
 
@@ -72,4 +78,16 @@ public sealed class TestScope(AsyncServiceScope scope) : IAsyncDisposable
 public sealed class LocalDbCollection : ICollectionFixture<LocalDbFixture>
 {
     public const string Name = "LocalDB";
+}
+
+/// <summary>
+/// The data-migration tool deletes everything it loads, so its tests get a database of their own (run one after
+/// another, apart from the tests of <see cref="LocalDbCollection"/>).
+/// </summary>
+public sealed class MigrationDbFixture : LocalDbFixture;
+
+[CollectionDefinition(Name)]
+public sealed class MigrationDbCollection : ICollectionFixture<MigrationDbFixture>
+{
+    public const string Name = "Migration DB";
 }
