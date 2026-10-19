@@ -1,6 +1,8 @@
 @using Lockte.Hr
 @* RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13, print-samples.md): ระดับ B — data, columns, order and totals as the
-   legacy; the look is แบบกลาง (ReportHtml). Rows come ready from PayPeriodDirectory.GetTimeReportAsync (BR-002, BR-005). *@
+   legacy; the look is แบบกลาง (ReportHtml). Rows come ready from PayPeriodDirectory.GetTimeReportAsync (BR-002, BR-005).
+   The printed labels (วันอาทิตย์, วันหยุด, OTวันอาทิตย์ …) are the legacy's own, kept as printed although CONTEXT.md says
+   วันหยุดประจำสัปดาห์ / วันหยุดประเพณี. *@
 <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.Period.From) ถึงวันที่ @ReportText.Date(Report.Period.To)</p>
 <p class="sub"><span>วันอาทิตย์ @Report.WeeklyHolidays วัน</span>&emsp;&emsp;<span>วันหยุด @Report.PublicHolidays วัน</span>&emsp;&emsp;<span>วันทำงาน @Report.WorkDays วัน</span>&emsp;&emsp;<span>รวมทั้งหมด @Report.TotalDays วัน</span></p>
 @if (Report.Lines.Count == 0)

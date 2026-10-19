@@ -1,6 +1,4 @@
-using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Lockte.Web.Reports;
 
@@ -56,65 +54,4 @@ public static class DocumentKeys
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
         InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2,
     ];
-}
-
-public sealed record DocumentNumberDto(int Id, string Key, string Name, string Code, string Edition, byte[] RowVersion)
-{
-    public string PrintedText => Code + Edition;
-}
-
-/// <summary>An edit of SCR "เลขเอกสารควบคุม": the row and its rowversion as loaded.</summary>
-public sealed record DocumentNumberInput(int Id, string? Code, string? Edition, byte[] RowVersion);
-
-/// <summary>Report infrastructure of the host (ADR 0002 table: schema <c>report</c>), like <c>auth</c> and <c>audit</c>.</summary>
-public sealed class ReportsDbContext(DbContextOptions<ReportsDbContext> options) : ModuleDbContext(options, Schema)
-{
-    public const string Schema = "report";
-
-    internal DbSet<DocumentNumber> DocumentNumbers => Set<DocumentNumber>();
-
-    protected override void ConfigureModel(ModelBuilder modelBuilder)
-        => modelBuilder.Entity<DocumentNumber>(d =>
-        {
-            d.HasAuditName(DocumentNumberService.Table);
-            d.Property(x => x.Key).HasMaxLength(20).HasAuditName("เอกสาร");
-            d.Property(x => x.Name).HasMaxLength(200).HasAuditName("ชื่อเอกสาร");
-            d.Property(x => x.Code).HasMaxLength(DocumentNumberService.TextLength).HasAuditName("รหัสเอกสาร");
-            d.Property(x => x.Edition).HasMaxLength(DocumentNumberService.TextLength).HasAuditName("ฉบับที่");
-            d.HasIndex(x => x.Key).IsUnique();
-        });
-}
-
-/// <summary>Reads and edits เลขเอกสารควบคุม; the rows themselves come with the migration (the program knows its documents).</summary>
-public sealed class DocumentNumberService(ReportsDbContext db)
-{
-    public const string Table = "เลขเอกสารควบคุม";
-    public const int TextLength = 50;
-
-    public async Task<IReadOnlyList<DocumentNumberDto>> ListAsync()
-        => await db.DocumentNumbers.AsNoTracking().OrderBy(d => d.Key)
-            .Select(d => new DocumentNumberDto(d.Id, d.Key, d.Name, d.Code, d.Edition, d.RowVersion)).ToListAsync();
-
-    /// <summary>What prints top right, or null for a document without a number.</summary>
-    public async Task<string?> PrintedTextAsync(string key)
-        => await db.DocumentNumbers.AsNoTracking().Where(d => d.Key == key).Select(d => d.Code + d.Edition).FirstOrDefaultAsync();
-
-    /// <summary>
-    /// The code is trimmed (blank is refused); the edition is kept as typed, its leading spaces being part of the print.
-    /// A newer save by someone else throws <see cref="ConcurrencyConflictException"/>.
-    /// </summary>
-    public async Task<ServiceResult> SaveAsync(DocumentNumberInput input)
-    {
-        var code = input.Code?.Trim();
-        var edition = (input.Edition ?? "").TrimEnd();
-        if (string.IsNullOrEmpty(code)) return ServiceResult.Fail("กรุณากรอกรหัสเอกสาร");
-        if (code.Length > TextLength || edition.Length > TextLength) return ServiceResult.Fail($"ยาวได้ไม่เกิน {TextLength} ตัวอักษร");
-        var row = await db.DocumentNumbers.FirstOrDefaultAsync(d => d.Id == input.Id);
-        if (row is null) return ServiceResult.Fail("ไม่พบเอกสารนี้");
-        row.ExpectRowVersion(input.RowVersion);
-        row.Code = code;
-        row.Edition = edition;
-        await db.SaveChangesAsync();
-        return ServiceResult.Ok(row.Id);
-    }
 }

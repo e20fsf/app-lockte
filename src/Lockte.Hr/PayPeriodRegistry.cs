@@ -128,7 +128,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
 
     /// <summary>#22 ล็อกไม่ให้ข้ามขั้น: the step before <paramref name="step"/> must be done.</summary>
     internal static ServiceResult? CheckStep(PayPeriod period, PayPeriodStep step)
-        => step == PayPeriodStep.Set || period.CompletedStep >= step - 1
+        => PayPeriodSteps.Allowed(period.CompletedStep, step)
             ? null
             : ServiceResult.Fail($"ต้องทำขั้น \"{PayPeriodSteps.Names[step - 1]}\" ก่อน");
 

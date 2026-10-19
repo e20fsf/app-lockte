@@ -35,6 +35,9 @@ public static class PayPeriodSteps
 
     /// <summary>Steps that calculate: doing one again sends the period back to it.</summary>
     public static bool Calculates(PayPeriodStep step) => step is PayPeriodStep.TimeCalculated or PayPeriodStep.PayCalculated;
+
+    /// <summary>#22 ล็อกไม่ให้ข้ามขั้น: a step may be done (again) once every step before it is done.</summary>
+    public static bool Allowed(PayPeriodStep completed, PayPeriodStep step) => step == PayPeriodStep.Set || completed >= step - 1;
 }
 
 /// <summary>
@@ -86,7 +89,7 @@ public sealed record PayPeriodDto(int Id, DateOnly From, DateOnly To, DateOnly P
     public PayPeriodDates Dates => new(From, To, PayDate);
 
     /// <summary>The step may be done (again): every step before it is done.</summary>
-    public bool CanDo(PayPeriodStep step) => step == PayPeriodStep.Set || CompletedStep >= step - 1;
+    public bool CanDo(PayPeriodStep step) => PayPeriodSteps.Allowed(CompletedStep, step);
 }
 
 /// <summary>ตั้งงวด (SCR-40) to save. <see cref="Id"/> null = new; editing needs <see cref="RowVersion"/> as loaded.</summary>

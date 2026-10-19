@@ -42,7 +42,7 @@ internal static class PeriodTime
                 ? weekly.Count(d => d <= resign) : 0;
             var total = new EmployeeTimeTotal(p.Id, p.Code, p.Name,
                 Sum(WorkTypes.Normal), paid.GetValueOrDefault(p.Id), unpaid.GetValueOrDefault(p.Id), Sum(WorkTypes.Overtime),
-                Sum("S"), Sum("O2"), Sum("H"), Sum("O3"), holi, sun, sunDay);
+                Sum(WorkTypes.Sunday), Sum(WorkTypes.SundayOvertime), Sum(WorkTypes.Holiday), Sum(WorkTypes.HolidayOvertime), holi, sun, sunDay);
             if (total.Normal + total.PaidLeave + total.Sunday + total.Holiday + holi + sun > 0) totals.Add(total);
         }
         return totals;
