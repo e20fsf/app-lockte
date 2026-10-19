@@ -1,0 +1,329 @@
+@page "/hr/time/edit"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-13 แก้ไขและลบเวลาทำงาน (ฟอร์ม EMPLO3 + subform E_WORK1) as หน้ารายคน (#41, prototype #22 แบบ A): พนักงานทางซ้าย,
+   ข้อมูลพนักงานด้านบน, the person's เวลาทำงาน of the period below, edited in the table one row at a time (BR-013).
+   No pay period exists yet: the period is a date range (ตั้งแต่–ถึง) until the pay-period ticket gives the open one.
+   "ลบข้อมูลเฉพาะคน" / "ลบข้อมูลทั้งวัน" are BR-015 (ฟอร์ม วันทำงาน2 / วันทำงาน3): W or O1 only, as the legacy.
+   Unlike the legacy, deleting every employee's rows asks first. *@
+<PageTitle>แก้ไขและลบเวลาทำงาน — LOCKTE</PageTitle>
+<h1 class="mb-4">แก้ไขและลบเวลาทำงาน</h1>
+
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="3">
+        <MudPaper Outlined="true" Class="pa-2">
+            <MudTextField T="string" Value="search" ValueChanged="@(v => search = v)" Immediate="true" Label="ค้นหารหัสหรือชื่อ"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-2" />
+            <MudSwitch T="bool" @bind-Value="showResigned" Label="รวมคนที่ลาออก" Color="Color.Primary" />
+            <div style="max-height:60vh;overflow-y:auto">
+                <MudList T="int" Dense="true" SelectedValue="employee?.Id ?? 0" SelectedValueChanged="SelectAsync">
+                    @foreach (var e in ShownEmployees)
+                    {
+                        <MudListItem T="int" Value="e.Id">
+                            <MudText Typo="Typo.body2"><b>@e.Code</b> @e.Name</MudText>
+                            <MudText Typo="Typo.caption">@e.DepartmentName@(e.IsWorking ? "" : " · ลาออกแล้ว")</MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="9">
+        @if (employee is null)
+        {
+            <MudAlert Severity="Severity.Info">เลือกพนักงานทางซ้าย</MudAlert>
+        }
+        else
+        {
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudStack Row="true" Spacing="6" Wrap="Wrap.Wrap">
+                    @Info("รหัส", employee.Code)
+                    @Info("ชื่อ-นามสกุล", employee.Name)
+                    @Info("แผนก", employee.DepartmentName)
+                    @Info("กะ", employee.ShiftCode)
+                    @Info("ประเภท", employee.EmployeeType is { } t ? EmployeeTypes.Names.GetValueOrDefault(t) : null)
+                    @Info("วันเริ่มงาน", employee.StartDate is { } s ? ThaiDate.Format(s) : null)
+                    @if (employee.ResignDate is { } r)
+                    {
+                        @Info("ลาออก", ThaiDate.Format(r))
+                    }
+                </MudStack>
+
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-4">
+                    <MudText Typo="Typo.h6">เวลาทำงาน</MudText>
+                    <MudDatePicker Editable="true" Date="from" DateChanged="@(async v => { from = v; await ReloadAsync(); })" Label="ตั้งแต่"
+                                   Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+                    <MudDatePicker Editable="true" Date="to" DateChanged="@(async v => { to = v; await ReloadAsync(); })" Label="ถึง"
+                                   Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+                </MudStack>
+
+                <MudSimpleTable Dense="true" Hover="true" Class="mt-2">
+                    <thead>
+                        <tr>
+                            <th>วันที่</th><th>ประเภท</th><th>เข้า</th><th>ออก</th><th>นาทีพัก</th><th>เข้าจริง (สาย)</th>
+                            <th>ลูกค้า</th><th style="text-align:right">ชั่วโมง</th><th style="text-align:right">WORK_T</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in rows)
+                        {
+                            if (editing?.Id == row.Id)
+                            {
+                                @EditRow(editing)
+                            }
+                            else
+                            {
+                                <tr @key="row.Id" style="cursor:pointer" @onclick="() => Edit(row)">
+                                    <td>@row.Date.ToString("ddd", ThaiDate.Culture) @ThaiDate.Format(row.Date)</td>
+                                    <td>@row.Type</td>
+                                    <td>@TimeText.Format(row.WorkIn)</td>
+                                    <td>@TimeText.Format(row.WorkOut)@(row.CrossesMidnight ? " (+1)" : "")</td>
+                                    <td>@row.RestMinutes</td>
+                                    <td>@TimeText.Format(row.Late)</td>
+                                    <td>@row.Mark</td>
+                                    <td style="text-align:right">@TimeText.Number(row.Hours)</td>
+                                    <td style="text-align:right">@TimeText.Number(row.WorkT)</td>
+                                    <td></td>
+                                </tr>
+                            }
+                        }
+                        @if (editing is { Id: null })
+                        {
+                            @EditRow(editing)
+                        }
+                        @if (rows.Count == 0 && editing is null)
+                        {
+                            <tr><td colspan="10"><MudText Typo="Typo.body2">ไม่มีเวลาทำงานในช่วงนี้</MudText></td></tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow"
+                               Disabled="busy || editing is not null">เพิ่มแถว</MudButton>
+                    <MudText Typo="Typo.caption">คลิกแถวเพื่อแก้ · WORK_T: ประเภท W นับเป็นวัน (ตั้งแต่ 7.75 ชม. = 1 วัน) ประเภทอื่นนับเป็นชั่วโมง (BR-001)</MudText>
+                </MudStack>
+            </MudPaper>
+
+            <MudPaper Outlined="true" Class="pa-4 mt-4">
+                <MudText Typo="Typo.h6" Class="mb-2">ลบข้อมูลเฉพาะคน (@employee.Code)</MudText>
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                    <MudDatePicker Editable="true" @bind-Date="personDay" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                                   Style="max-width:11rem" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || personDay is null"
+                               OnClick="() => DeleteOfEmployeeAsync(WorkTypes.Normal)">ลบเวลาปกติทันที</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || personDay is null"
+                               OnClick="() => DeleteOfEmployeeAsync(WorkTypes.Overtime)">ลบ OT ทันที</MudButton>
+                </MudStack>
+            </MudPaper>
+        }
+
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6" Class="mb-2">ลบข้อมูลทั้งวัน (พนักงานทุกคน)</MudText>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                <MudDatePicker Editable="true" @bind-Date="rangeFrom" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                               Style="max-width:11rem" />
+                <MudDatePicker Editable="true" @bind-Date="rangeTo" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                               Style="max-width:11rem" />
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || rangeFrom is null || rangeTo is null"
+                           OnClick="() => DeleteRangeAsync(WorkTypes.Normal)">ลบเวลาปกติทันที</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || rangeFrom is null || rangeTo is null"
+                           OnClick="() => DeleteRangeAsync(WorkTypes.Overtime)">ลบ OT ทันที</MudButton>
+            </MudStack>
+            <MudText Typo="Typo.caption">ลบได้เฉพาะประเภท W และ O1 เหมือนระบบเดิม ประเภทอื่น (S, O2, H, O3) ลบทีละแถวในตาราง</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudButton Href="@EmployeeMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    /// <summary>The period shown until pay periods exist: about one งวดค่าแรง (ครึ่งเดือน) each side of today.</summary>
+    private const int PeriodDays = 16;
+
+    private List<EmployeeListItem> employees = [];
+    private string? search;
+    private bool showResigned;
+    private EmployeeDto? employee;
+    private DateTime? from = DateTime.Today.AddDays(-PeriodDays);
+    private DateTime? to = DateTime.Today.AddDays(PeriodDays);
+    private IReadOnlyList<WorkTimeDto> rows = [];
+    private RowForm? editing;
+    private IReadOnlyList<ShiftDto> shifts = [];
+    private IReadOnlyList<TimeOnly> startChoices = [];
+    private IReadOnlyList<TimeOnly> endChoices = [];
+    private DateTime? personDay = DateTime.Today;
+    private DateTime? rangeFrom = DateTime.Today;
+    private DateTime? rangeTo = DateTime.Today;
+    private bool busy;
+
+    private IEnumerable<EmployeeListItem> ShownEmployees
+    {
+        get
+        {
+            var term = search?.Trim();
+            return employees.Where(e => (showResigned || e.IsWorking || e.Id == employee?.Id)
+                && (string.IsNullOrEmpty(term) || e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        shifts = await Services.RunAsync<OrgDirectory, IReadOnlyList<ShiftDto>>(o => o.GetShiftsAsync());
+        startChoices = shifts.SelectMany(s => new[] { s.WorkIn, s.OvertimeIn }).OfType<TimeOnly>().Distinct().Order().ToList();
+        endChoices = shifts.SelectMany(s => new[] { s.WorkOut, s.OvertimeOut }).OfType<TimeOnly>().Distinct().Order().ToList();
+        employees = (await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync())).ToList();
+    }
+
+    private async Task SelectAsync(int id)
+    {
+        if (id == 0 || id == employee?.Id) return;
+        employee = await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(id));
+        editing = null;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (employee is null) return;
+        var (id, start, end) = (employee.Id, DateOnly.FromDateTime(from ?? DateTime.Today), DateOnly.FromDateTime(to ?? DateTime.Today));
+        rows = await Services.RunAsync<WorkTimeDirectory, IReadOnlyList<WorkTimeDto>>(d => d.ListOfEmployeeAsync(id, start, end));
+    }
+
+    private void Edit(WorkTimeDto row)
+    {
+        if (busy) return;
+        editing = new RowForm
+        {
+            Id = row.Id, Date = row.Date.ToDateTime(TimeOnly.MinValue), Type = row.Type, WorkIn = TimeText.Format(row.WorkIn),
+            WorkOut = TimeText.Format(row.WorkOut), RestMinutes = row.RestMinutes, Late = TimeText.Format(row.Late), Mark = row.Mark,
+            RowVersion = row.RowVersion,
+        };
+    }
+
+    /// <summary>A new row on the last day shown, as เวลาปกติ of the person's shift.</summary>
+    private void AddRow()
+    {
+        var shift = shifts.FirstOrDefault(s => s.Id == employee?.ShiftId);
+        editing = new RowForm
+        {
+            Date = to ?? DateTime.Today, Type = WorkTypes.Normal, WorkIn = TimeText.Format(shift?.WorkIn),
+            WorkOut = TimeText.Format(shift?.WorkOut), RestMinutes = shift?.RestMinutes ?? 0,
+        };
+    }
+
+    private static RenderFragment Info(string label, string? value) => @<div>
+        <MudText Typo="Typo.caption" Style="color:var(--mud-palette-text-secondary)">@label</MudText>
+        <MudText Typo="Typo.body1">@value</MudText>
+    </div>;
+
+    private RenderFragment EditRow(RowForm f) => @<tr>
+        <td><MudDatePicker Editable="true" @bind-Date="f.Date" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="min-width:8rem" /></td>
+        <td>
+            <MudSelect T="string" @bind-Value="f.Type" Style="min-width:4.5rem">
+                @foreach (var t in WorkTypes.Codes)
+                {
+                    <MudSelectItem T="string" Value="t">@t</MudSelectItem>
+                }
+            </MudSelect>
+        </td>
+        <td><TimeBox @bind-Text="f.WorkIn" Choices="startChoices" Style="min-width:5.5rem" /></td>
+        <td><TimeBox @bind-Text="f.WorkOut" Choices="endChoices" Style="min-width:5.5rem" /></td>
+        <td>
+            <MudSelect T="int" @bind-Value="f.RestMinutes" Style="min-width:4rem">
+                @foreach (var m in ShiftDto.RestMinuteChoices.Append(f.RestMinutes).Distinct().Order())
+                {
+                    <MudSelectItem T="int" Value="m">@m</MudSelectItem>
+                }
+            </MudSelect>
+        </td>
+        <td><MudTextField @bind-Value="f.Late" Placeholder="ชม:นาที" Style="min-width:5rem" /></td>
+        <td><MudTextField @bind-Value="f.Mark" MaxLength="WorkTimeRegistry.MarkLength" Style="min-width:3rem" /></td>
+        <td colspan="2"></td>
+        <td style="white-space:nowrap">
+            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Primary" Size="Size.Small" Disabled="busy" OnClick="SaveAsync" title="บันทึก" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Disabled="busy" OnClick="@(() => editing = null)" title="ยกเลิก" />
+            @if (f.Id is not null)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="busy" OnClick="DeleteRowAsync" title="ลบแถวนี้" />
+            }
+        </td>
+    </tr>;
+
+    private Task SaveAsync()
+    {
+        var f = editing!;
+        if (!TimeText.TryParse(f.WorkIn, out var workIn) || !TimeText.TryParse(f.WorkOut, out var workOut) || !TimeText.TryParse(f.Late, out var late))
+        {
+            Snackbar.Add("เวลาต้องเป็น ชั่วโมง:นาที เช่น 17:20", Severity.Error);
+            return Task.CompletedTask;
+        }
+        var input = new WorkTimeInput(f.Id, f.Date is { } d ? DateOnly.FromDateTime(d) : null, employee!.Id, f.Type, workIn, workOut,
+            f.RestMinutes, late, f.Mark, f.RowVersion);
+        return RunAsync(r => r.SaveAsync(input), _ => "บันทึกแล้ว");
+    }
+
+    private Task DeleteRowAsync() => RunAsync(r => r.DeleteAsync(editing!.Id!.Value, editing.RowVersion!), _ => "ลบแถวแล้ว");
+
+    private Task DeleteOfEmployeeAsync(string type)
+    {
+        var (date, id) = (DateOnly.FromDateTime(personDay!.Value), employee!.Id);
+        return RunAsync(r => r.DeleteOfEmployeeAsync(date, id, type),
+            n => $"การลบเวลา{TypeName(type)}ของ {employee.Code} วันที่ {ThaiDate.Format(date)} เสร็จเรียบร้อยแล้ว ({n} แถว)");
+    }
+
+    private async Task DeleteRangeAsync(string type)
+    {
+        var (start, end) = (DateOnly.FromDateTime(rangeFrom!.Value), DateOnly.FromDateTime(rangeTo!.Value));
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบข้อมูลทั้งวัน",
+            $"ลบเวลา{TypeName(type)} ({type}) ของพนักงานทุกคน วันที่ {ThaiDate.Format(start)} ถึง {ThaiDate.Format(end)}?",
+            yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        await RunAsync(r => r.DeleteRangeAsync(start, end, type), n => $"การลบเวลา{TypeName(type)}ทั้งวันเสร็จเรียบร้อยแล้ว ({n} แถว)");
+    }
+
+    private static string TypeName(string type) => type == WorkTypes.Normal ? "ปกติ" : "OT";
+
+    private async Task RunAsync(Func<WorkTimeRegistry, Task<ServiceResult>> action, Func<int?, string> done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync(action);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(done(result.Id), Severity.Success);
+            editing = null;
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            editing = null;
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class RowForm
+    {
+        public int? Id { get; set; }
+        public DateTime? Date { get; set; }
+        public string? Type { get; set; }
+        public string? WorkIn { get; set; }
+        public string? WorkOut { get; set; }
+        public int RestMinutes { get; set; }
+        public string? Late { get; set; }
+        public string? Mark { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

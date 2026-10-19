@@ -60,8 +60,8 @@ public static class EmployeeMenu
         [
             new("บันทึก, แก้ไขและพิมพ์รายงานพนักงานไม่มาทำงาน", Code: "SCR-10", Page: "hr/time/absences"),
             new("บันทึกเวลาทำงานให้ทุกคน", Code: "SCR-11", Page: "hr/time/normal"),
-            new("บันทึกเวลาทำงาน, OT, วันอาทิตย์และวันหยุด", Code: "SCR-12"),
-            new("แก้ไขและลบเวลาทำงาน", Code: "SCR-13"),
+            new("บันทึกเวลาทำงาน, OT, วันอาทิตย์และวันหยุด", Code: "SCR-12", Page: "hr/time/entry"),
+            new("แก้ไขและลบเวลาทำงาน", Code: "SCR-13", Page: "hr/time/edit"),
             new("รายงานพนักงานที่มาทำงานสาย", Code: "RPT-12"),
             new("รายงานสรุปชั่วโมงทำงาน", Code: "RPT-13"),
         ]),
