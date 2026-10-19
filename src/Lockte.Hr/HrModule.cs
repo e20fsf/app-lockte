@@ -20,6 +20,7 @@ public static class HrModule
         services.AddScoped<AbsenceRegistry>();
         services.AddScoped<WorkTimeDirectory>();
         services.AddScoped<WorkTimeRegistry>();
+        services.AddScoped<OvertimeSheetRegistry>();
         services.AddScoped<LeaveDirectory>();
         services.AddScoped<LeaveRegistry>();
         services.AddScoped<PayPeriodDirectory>();

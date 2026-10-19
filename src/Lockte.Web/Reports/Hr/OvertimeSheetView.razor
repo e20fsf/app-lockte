@@ -1,0 +1,77 @@
+@using Lockte.Hr
+@* RPT-16 ใบขออนุมัติทำงานล่วงเวลา (รายงาน OT, print-samples.md): ระดับ B, A5 ตั้ง. The legacy's own lines are kept —
+   "เรื่อง … แผนก … วัน<ชื่อวัน>ที่ <วันที่>", the full grid (a box to sign per row), and "ห้ามใส่รองเท้าแตะ… ผู้จัดการ ____" —
+   while the company, title, print stamp and page numbers are แบบกลาง (ReportHtml). The legacy prints the date as Long
+   Date; แบบกลาง prints d/M/yyyy พ.ศ. The manager line is the legacy's page footer: here it ends the sheet. *@
+<style>
+    .ot-head { display: flex; justify-content: space-between; margin: 0 0 4pt; font-weight: bold; }
+    .ot-grid th, .ot-grid td { border: 0.75pt solid #000; padding: 1pt 3pt; }
+    .ot-grid th { text-align: center; }
+    .ot-grid td { height: 18pt; vertical-align: middle; }
+    .ot-grid .c { text-align: center; white-space: nowrap; }
+    .ot-foot { display: flex; justify-content: space-between; margin-top: 18pt; font-weight: bold; }
+    .ot-sign { display: inline-block; width: 30mm; border-bottom: 0.75pt solid #000; }
+</style>
+<div class="ot-head">
+    <span>เรื่อง ขออนุมัติทำงานล่วงเวลา&emsp;แผนก @Sheet.DepartmentName</span>
+    <span>@DayTitle(Sheet.Date) @ReportText.Date(Sheet.Date)</span>
+</div>
+@if (Sheet.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table class="ot-grid">
+        <colgroup>
+            <col style="width:6%" /><col style="width:10%" /><col style="width:32%" />
+            <col style="width:11%" /><col style="width:11%" /><col style="width:13%" /><col style="width:17%" />
+        </colgroup>
+        <thead>
+            <tr><th>ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เริ่มงาน</th><th>เลิกงาน</th><th>ลายเซ็นต์</th><th>หมายเหตุ</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Sheet.Lines.Count; i++)
+            {
+                var line = Sheet.Lines[i];
+                <tr>
+                    <td class="c">@(i + 1)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td class="c">@Time(Sheet.WorkIn)</td>
+                    <td class="c">@Time(Sheet.WorkOut)</td>
+                    <td></td>
+                    <td>@line.Memo</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+<div class="ot-foot">
+    <span>ห้ามใส่รองเท้าแตะมาทำงาน ผู้ใดใส่มาไม่ให้ทำงานล่วงเวลา</span>
+    <span>ผู้จัดการ <span class="ot-sign"></span></span>
+</div>
+
+@code {
+    /// <summary>The title of the sheet under the company name (the legacy's "เรื่อง ขออนุมัติทำงานล่วงเวลา").</summary>
+    public const string Title = "ใบขออนุมัติทำงานล่วงเวลา";
+
+    public const Paper Paper = Lockte.Web.Reports.Paper.A5Portrait;
+
+    [Parameter, EditorRequired] public OvertimeSheet Sheet { get; set; } = default!;
+
+    /// <summary>Text73 of รายงาน OT: the day name from DATE, "วันอาทิตย์ที่" … "วันเสาร์ที่".</summary>
+    private static string DayTitle(DateOnly date) => date.DayOfWeek switch
+    {
+        DayOfWeek.Monday => "วันจันทร์ที่",
+        DayOfWeek.Tuesday => "วันอังคารที่",
+        DayOfWeek.Wednesday => "วันพุธที่",
+        DayOfWeek.Thursday => "วันพฤหัสบดีที่",
+        DayOfWeek.Friday => "วันศุกร์ที่",
+        DayOfWeek.Saturday => "วันเสาร์ที่",
+        _ => "วันอาทิตย์ที่",
+    };
+
+    /// <summary>Short Time, as the legacy: 17:20.</summary>
+    private static string Time(TimeOnly time) => time.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+}
