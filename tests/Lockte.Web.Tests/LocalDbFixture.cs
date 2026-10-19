@@ -4,6 +4,7 @@ using Lockte.Org;
 using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
+using Lockte.Web.Reports;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,7 @@ public class LocalDbFixture : IAsyncLifetime
         collection.AddOrgModule(AccountsRegistration.ConnectionString(config));
         collection.AddHrModule(AccountsRegistration.ConnectionString(config));
         collection.AddSalesModule(AccountsRegistration.ConnectionString(config));
+        collection.AddReportData(AccountsRegistration.ConnectionString(config));
         collection.AddMasterDataMigration();
         collection.AddModuleDbContext<WidgetDbContext>(AccountsRegistration.ConnectionString(config), WidgetDbContext.Schema);
         services = collection.BuildServiceProvider(validateScopes: true);

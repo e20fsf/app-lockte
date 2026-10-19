@@ -5,6 +5,7 @@ using Lockte.SharedKernel.Persistence;
 using Lockte.Web;
 using Lockte.Web.Accounts;
 using Lockte.Web.Components;
+using Lockte.Web.Reports;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Identity;
@@ -31,6 +32,8 @@ builder.Services.AddAuthorization(AuthPolicies.Configure);
 builder.Services.AddOrgModule(connectionString);
 builder.Services.AddHrModule(connectionString);
 builder.Services.AddSalesModule(connectionString);
+builder.Services.AddReportData(connectionString);
+builder.Services.AddReportPrinting(builder.Configuration);
 
 var app = builder.Build();
 
@@ -51,6 +54,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+app.MapReports();
 
 app.MapPost("/Account/Logout", async (SignInManager<AppUser> signIn) =>
 {

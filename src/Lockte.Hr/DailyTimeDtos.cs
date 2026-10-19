@@ -9,9 +9,12 @@ public static class WorkTypes
     /// <summary>OT วันทำงาน — with <see cref="Normal"/> the only types the ลบ buttons of SCR-13 take (BR-015).</summary>
     public const string Overtime = "O1";
 
+    /// <summary>วันอาทิตย์ / OT วันอาทิตย์ / วันหยุด / OT วันหยุด (ชั่วโมง, BR-002).</summary>
+    public const string Sunday = "S", SundayOvertime = "O2", Holiday = "H", HolidayOvertime = "O3";
+
     public const int Length = 2;
 
-    public static IReadOnlyList<string> Codes { get; } = [Normal, Overtime, "S", "O2", "H", "O3"];
+    public static IReadOnlyList<string> Codes { get; } = [Normal, Overtime, Sunday, SundayOvertime, Holiday, HolidayOvertime];
 }
 
 /// <summary>A ไม่มาทำงาน row of SCR-10, with the employee's code and name.</summary>
