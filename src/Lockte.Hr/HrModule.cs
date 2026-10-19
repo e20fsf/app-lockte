@@ -16,6 +16,10 @@ public static class HrModule
         services.AddScoped<EmployeeRegistry>();
         services.AddScoped<CalendarDirectory>();
         services.AddScoped<CalendarRegistry>();
+        services.AddScoped<AbsenceDirectory>();
+        services.AddScoped<AbsenceRegistry>();
+        services.AddScoped<WorkTimeDirectory>();
+        services.AddScoped<WorkTimeRegistry>();
         return services;
     }
 

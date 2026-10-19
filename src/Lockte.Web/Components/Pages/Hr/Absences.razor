@@ -1,0 +1,182 @@
+@page "/hr/time/absences"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-10 บันทึก, แก้ไขและพิมพ์รายงานพนักงานไม่มาทำงาน (ฟอร์ม NO_WORK + NO_WORK2): วันที่ and เวลาเข้า on top, the day's
+   rows below (รหัส + หมายเหตุ); click a row to edit or delete it (the legacy "แก้ไข" form NO_WORK2 is the same list).
+   A blank row is never saved (instead of BR-011's delete on close). The constant WORK_T / TYPE / W_OUT are not kept.
+   "พิมพ์รายงาน" shows RPT-17 (BR-061) on screen; its PDF comes with the report ticket. Record absences before
+   สร้างเวลาปกติ (SCR-11). *@
+<PageTitle>บันทึกพนักงานไม่มาทำงาน — LOCKTE</PageTitle>
+<h1 class="mb-4">บันทึก, แก้ไขและพิมพ์รายงานพนักงานไม่มาทำงาน</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" Date="day" DateChanged="DayChangedAsync" Label="วันที่" Culture="ThaiDate.Culture"
+                       DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+        <MudSelect T="TimeOnly" @bind-Value="form.WorkIn" Label="เวลาเข้า" Style="max-width:10rem"
+                   HelperText="หลัง 17:00 = กะดึก (รายงานวันถัดไป)">
+            @foreach (var time in workInChoices)
+            {
+                <MudSelectItem T="TimeOnly" Value="time">@time.ToString("HH:mm")</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+
+    <MudText Typo="Typo.h6" Class="mt-4 mb-2">@(form.Id is null ? "เพิ่มคนไม่มาทำงาน" : "แก้รายการที่เลือก")</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudAutocomplete T="EmployeeListItem" @bind-Value="form.Employee" Label="รหัสพนักงาน (รหัส หรือ ชื่อ)"
+                         SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                         Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="min-width:22rem" />
+        <MudTextField @bind-Value="form.Remark" Label="หมายเหตุ" MaxLength="AbsenceRegistry.RemarkLength" Style="min-width:18rem" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy">ลบรายการนี้</MudButton>
+            <MudButton OnClick="New">รายการใหม่</MudButton>
+        }
+    </MudStack>
+
+    <MudTable Items="rows" Dense="true" Hover="true" Class="mt-4" T="AbsenceDto"
+              OnRowClick="@((TableRowClickEventArgs<AbsenceDto> e) => Edit(e.Item!))">
+        <HeaderContent><MudTh>รหัส</MudTh><MudTh>ชื่อ-นามสกุล</MudTh><MudTh>เวลาเข้า</MudTh><MudTh>หมายเหตุ</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.EmployeeCode</MudTd>
+            <MudTd>@context.EmployeeName</MudTd>
+            <MudTd>@context.WorkIn.ToString("HH:mm")</MudTd>
+            <MudTd>@context.Remark</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ยังไม่มีคนไม่มาทำงานในวันนี้</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudText Typo="Typo.h6">รายงานพนักงานที่ไม่มาทำงาน</MudText>
+        <MudDatePicker Editable="true" @bind-Date="reportDay" Label="วันที่" Culture="ThaiDate.Culture"
+                       DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+        <MudButton Variant="Variant.Outlined" OnClick="ReportAsync" StartIcon="@Icons.Material.Filled.Assessment">พิมพ์รายงาน</MudButton>
+    </MudStack>
+    @if (report is not null)
+    {
+        <MudTable Items="report.Lines.Select((line, i) => (No: i + 1, Line: line))" Dense="true" Class="mt-2" T="(int No, AbsenceReportLine Line)">
+            <HeaderContent><MudTh></MudTh><MudTh>วันที่</MudTh><MudTh>รหัส</MudTh><MudTh>ชื่อ-นามสกุล</MudTh><MudTh>แผนก</MudTh><MudTh>เหตุผล</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.No</MudTd>
+                <MudTd>@ThaiDate.Format(context.Line.Date)</MudTd>
+                <MudTd>@context.Line.EmployeeCode</MudTd>
+                <MudTd>@context.Line.EmployeeName</MudTd>
+                <MudTd>@context.Line.DepartmentName</MudTd>
+                <MudTd>@context.Line.Remark</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>ไม่มีพนักงานที่ไม่มาทำงาน</MudText></NoRecordsContent>
+        </MudTable>
+        <MudText Class="mt-2">
+            รวม @report.Absent คน · พนักงานทั้งหมด @report.WorkingEmployees คน · คิดเป็น @report.AbsentPercent.ToString("N2")% ·
+            มาทำงาน @report.Present คน
+        </MudText>
+    }
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? day = DateTime.Today;
+    private DateTime? reportDay = DateTime.Today;
+    private IReadOnlyList<TimeOnly> workInChoices = [AbsenceRegistry.DefaultWorkIn];
+    private IReadOnlyList<AbsenceDto> rows = [];
+    private List<EmployeeListItem> employees = [];
+    private RowForm form = new();
+    private AbsenceReport? report;
+    private bool busy;
+
+    private DateOnly Day => DateOnly.FromDateTime(day ?? DateTime.Today);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // เวลาเข้า choices = SELECT DISTINCT SHIFT.W_IN (combo of the legacy form).
+        var shifts = await Services.RunAsync<OrgDirectory, IReadOnlyList<ShiftDto>>(o => o.GetShiftsAsync());
+        workInChoices = shifts.Select(s => s.WorkIn).Append(AbsenceRegistry.DefaultWorkIn).Distinct().Order().ToList();
+        employees = (await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync()))
+            .Where(e => e.IsWorking).ToList();
+        await ReloadAsync();
+    }
+
+    private async Task DayChangedAsync(DateTime? value)
+    {
+        day = value;
+        reportDay = value;
+        New();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+        => rows = await Services.RunAsync<AbsenceDirectory, IReadOnlyList<AbsenceDto>>(d => d.ListAsync(Day));
+
+    private Task<IEnumerable<EmployeeListItem>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? employees
+            : employees.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+
+    private void New() => form = new RowForm { WorkIn = form.WorkIn };
+
+    private void Edit(AbsenceDto row) => form = new RowForm
+    {
+        Id = row.Id, WorkIn = row.WorkIn, Remark = row.Remark, RowVersion = row.RowVersion,
+        Employee = employees.FirstOrDefault(e => e.Id == row.EmployeeId) ?? new EmployeeListItem(row.EmployeeId, row.EmployeeCode, row.EmployeeName, null, false),
+    };
+
+    private Task SaveAsync()
+    {
+        var input = new AbsenceInput(form.Id, Day, form.Employee?.Id, form.WorkIn, form.Remark, form.RowVersion);
+        return RunAsync(r => r.SaveAsync(input), "บันทึกแล้ว");
+    }
+
+    private Task DeleteAsync() => RunAsync(r => r.DeleteAsync(form.Id!.Value, form.RowVersion!), "ลบแล้ว");
+
+    private async Task ReportAsync()
+    {
+        var date = DateOnly.FromDateTime(reportDay ?? DateTime.Today);
+        report = await Services.RunAsync<AbsenceDirectory, AbsenceReport>(d => d.GetDailyReportAsync(date));
+    }
+
+    private async Task RunAsync(Func<AbsenceRegistry, Task<ServiceResult>> action, string done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync(action);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(done, Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class RowForm
+    {
+        public int? Id { get; set; }
+        public EmployeeListItem? Employee { get; set; }
+        public TimeOnly WorkIn { get; set; } = AbsenceRegistry.DefaultWorkIn;
+        public string? Remark { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

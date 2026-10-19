@@ -14,6 +14,8 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<Employee> Employees => Set<Employee>();
     internal DbSet<WeeklyHoliday> WeeklyHolidays => Set<WeeklyHoliday>();
     internal DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
+    internal DbSet<Absence> Absences => Set<Absence>();
+    internal DbSet<WorkTime> WorkTimes => Set<WorkTime>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -80,6 +82,35 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             h.Property(x => x.Date).HasAuditName("วันที่");
             h.Property(x => x.Name).HasMaxLength(CalendarRegistry.PublicHolidayNameLength).HasAuditName("ชื่อวันหยุด");
             h.HasIndex(x => x.Date).IsUnique();
+        });
+
+        // Not unique on (Date, Employee): the legacy data may repeat a pair; AbsenceRegistry stops new repeats.
+        modelBuilder.Entity<Absence>(a =>
+        {
+            a.HasAuditName("ไม่มาทำงาน");
+            a.Property(x => x.Date).HasAuditName("วันที่");
+            a.Property(x => x.EmployeeId).HasAuditName("พนักงาน");
+            a.Property(x => x.WorkIn).HasAuditName("เวลาเข้า");
+            a.Property(x => x.Remark).HasMaxLength(AbsenceRegistry.RemarkLength).HasAuditName("หมายเหตุ");
+            a.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            a.HasIndex(x => new { x.Date, x.EmployeeId });
+        });
+
+        // One table for every year (#41); rows may repeat until BR-007 removes them.
+        modelBuilder.Entity<WorkTime>(w =>
+        {
+            w.HasAuditName(WorkTimeRegistry.WorkTimeTable);
+            w.Property(x => x.Date).HasAuditName("วันที่");
+            w.Property(x => x.EmployeeId).HasAuditName("พนักงาน");
+            w.Property(x => x.Type).HasMaxLength(WorkTypes.Length).HasAuditName("ประเภท");
+            w.Property(x => x.WorkIn).HasAuditName("เวลาเข้า");
+            w.Property(x => x.WorkOut).HasAuditName("เวลาออก");
+            w.Property(x => x.Late).HasAuditName("เวลาเข้าจริง (สาย)");
+            w.Property(x => x.RestMinutes).HasAuditName("นาทีพัก");
+            w.Property(x => x.Mark).HasMaxLength(2).HasAuditName("ลูกค้างานรับจ้าง");
+            w.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            w.HasIndex(x => new { x.Date, x.EmployeeId });
+            w.HasIndex(x => new { x.EmployeeId, x.Date });
         });
     }
 }
