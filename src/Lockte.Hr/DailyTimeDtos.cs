@@ -6,9 +6,12 @@ public static class WorkTypes
     /// <summary>เวลาปกติ — the type BR-010 creates.</summary>
     public const string Normal = "W";
 
+    /// <summary>OT วันทำงาน — with <see cref="Normal"/> the only types the ลบ buttons of SCR-13 take (BR-015).</summary>
+    public const string Overtime = "O1";
+
     public const int Length = 2;
 
-    public static IReadOnlyList<string> Codes { get; } = [Normal, "O1", "S", "O2", "H", "O3"];
+    public static IReadOnlyList<string> Codes { get; } = [Normal, Overtime, "S", "O2", "H", "O3"];
 }
 
 /// <summary>A ไม่มาทำงาน row of SCR-10, with the employee's code and name.</summary>
@@ -44,4 +47,17 @@ public sealed record WorkTimeDto(int Id, DateOnly Date, int EmployeeId, string E
 {
     /// <summary>The work ends the next day (e.g. กะ B 20:10–05:10).</summary>
     public bool CrossesMidnight => WorkIn is { } i && WorkOut is { } o && o < i;
+
+    /// <summary>ชั่วโมงทำงาน (BR-001); blank without both times.</summary>
+    public double? Hours => WorkIn is { } i && WorkOut is { } o ? WorkDuration.Hours(i, o, RestMinutes) : null;
+
+    /// <summary>WORK_T (BR-001): W = วัน, other types = ชั่วโมง; blank without both times.</summary>
+    public double? WorkT => WorkIn is { } i && WorkOut is { } o ? WorkDuration.WorkT(Type, i, o, RestMinutes) : null;
 }
+
+/// <summary>
+/// A เวลาทำงาน row to save by hand (SCR-12/13, BR-013). <see cref="Id"/> null = new; editing needs
+/// <see cref="RowVersion"/> as loaded. <see cref="WorkOut"/> earlier than <see cref="WorkIn"/> = the next day.
+/// </summary>
+public sealed record WorkTimeInput(int? Id, DateOnly? Date, int? EmployeeId, string? Type, TimeOnly? WorkIn, TimeOnly? WorkOut,
+    int RestMinutes, TimeOnly? Late, string? Mark, byte[]? RowVersion);

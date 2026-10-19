@@ -8,13 +8,104 @@ using Microsoft.EntityFrameworkCore;
 namespace Lockte.Hr;
 
 /// <summary>
-/// สร้างเวลาปกติให้ทุกคน (SCR-11, BR-010). A batch job: one history event, no row-by-row history (#41).
-/// Row-by-row entry and edits of เวลาทำงาน (SCR-12/13) come with their own tickets.
+/// The writes of เวลาทำงาน. สร้างเวลาปกติให้ทุกคน (SCR-11, BR-010) and ลบเวลาทั้งวัน (BR-015) are batch jobs: one
+/// history event, no row-by-row history (#41). บันทึก/แก้/ลบรายคน (SCR-12/13, BR-013, BR-015) is hand entry with
+/// row-by-row history; edits and deletes of one row carry the rowversion the screen loaded, and a newer save by
+/// someone else throws <see cref="ConcurrencyConflictException"/>.
 /// </summary>
 public sealed class WorkTimeRegistry(HrDbContext db, OrgDirectory org, AuditScope audit)
 {
     public const string WorkTimeTable = "เวลาทำงาน";
     public const string GenerateAction = "สร้างเวลาปกติ";
+    public const string DeleteRangeAction = "ลบเวลาทำงานทั้งวัน";
+    /// <summary>T-E_WORK.MARK size (รหัสลูกค้างานรับจ้าง).</summary>
+    public const int MarkLength = 2;
+
+    /// <summary>
+    /// บันทึก/แก้ทีละแถว (BR-013). As the legacy (⚠ kept) there is no check for repeats nor against the holiday calendar.
+    /// Unlike the legacy, a row needs a date, an employee (a blank row is never saved, instead of BR-051's delete on
+    /// close), a type of T-ประเภทการทำงาน and both times, which BR-001 needs. MARK is kept upper-case.
+    /// </summary>
+    public async Task<ServiceResult> SaveAsync(WorkTimeInput input)
+    {
+        var type = string.IsNullOrWhiteSpace(input.Type) ? null : input.Type.Trim().ToUpperInvariant();
+        var mark = string.IsNullOrWhiteSpace(input.Mark) ? null : input.Mark.Trim().ToUpperInvariant();
+        if (input.Date is not { } date) return ServiceResult.Fail("กรุณากรอกวันที่");
+        if (input.EmployeeId is not { } employeeId) return ServiceResult.Fail("กรุณาเลือกพนักงาน");
+        if (type is null) return ServiceResult.Fail("กรุณาเลือกประเภท");
+        if (!WorkTypes.Codes.Contains(type)) return ServiceResult.Fail($"ประเภทต้องเป็น {string.Join(", ", WorkTypes.Codes)}");
+        if (input.WorkIn is not { } workIn || input.WorkOut is not { } workOut) return ServiceResult.Fail("กรุณากรอกเวลาเข้าและเวลาออก");
+        if (input.RestMinutes < 0) return ServiceResult.Fail("นาทีพักต้องไม่ติดลบ");
+        if (mark?.Length > MarkLength) return ServiceResult.Fail($"รหัสลูกค้ายาวได้ไม่เกิน {MarkLength} ตัว");
+        var employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (employee is null) return ServiceResult.Fail("ไม่พบพนักงานที่เลือก");
+
+        WorkTime? row;
+        if (input.Id is { } id)
+        {
+            row = await LoadAsync(id, input.RowVersion);
+            if (row is null) return ServiceResult.Fail("ไม่พบรายการนี้ อาจถูกลบไปแล้ว");
+        }
+        else
+        {
+            row = db.WorkTimes.Add(new WorkTime()).Entity;
+        }
+        row.Date = date;
+        row.Employee = employee;
+        row.Type = type;
+        row.WorkIn = workIn;
+        row.WorkOut = workOut;
+        row.RestMinutes = input.RestMinutes;
+        row.Late = input.Late;
+        row.Mark = mark;
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(row.Id);
+    }
+
+    /// <summary>ลบทีละแถว (subform E_WORK1 of SCR-13). Deleting a row that is already gone succeeds.</summary>
+    public async Task<ServiceResult> DeleteAsync(int id, byte[] loadedRowVersion)
+    {
+        if (await LoadAsync(id, loadedRowVersion) is not { } row) return ServiceResult.Ok();
+        db.WorkTimes.Remove(row);
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok();
+    }
+
+    /// <summary>
+    /// ลบข้อมูลเฉพาะคน (BR-015, ฟอร์ม วันทำงาน2): every row of the employee on <paramref name="date"/> with
+    /// <paramref name="type"/> W (ลบเวลาปกติทันที) or O1 (ลบ OT ทันที), repeats included. Hand work on one person, so
+    /// the history keeps each deleted row. <see cref="ServiceResult.Id"/> = rows deleted. The legacy MARK = "Y" flag
+    /// step is not kept: it also deleted rows of any date whose MARK was the customer code Y (BR-015 ⚠).
+    /// </summary>
+    public async Task<ServiceResult> DeleteOfEmployeeAsync(DateOnly date, int employeeId, string type)
+    {
+        if (CheckDeletableType(type) is { } error) return error;
+        var rows = await db.WorkTimes.Include(w => w.Employee)
+            .Where(w => w.Date == date && w.EmployeeId == employeeId && w.Type == type)
+            .ToListAsync();
+        db.WorkTimes.RemoveRange(rows);
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(rows.Count);
+    }
+
+    /// <summary>
+    /// ลบข้อมูลทั้งวัน (BR-015, ฟอร์ม วันทำงาน3): every employee's rows from <paramref name="from"/> to
+    /// <paramref name="to"/> (both included) with <paramref name="type"/> W or O1. A batch job: one history event.
+    /// <see cref="ServiceResult.Id"/> = rows deleted.
+    /// </summary>
+    public async Task<ServiceResult> DeleteRangeAsync(DateOnly from, DateOnly to, string type)
+    {
+        if (CheckDeletableType(type) is { } error) return error;
+        if (from > to) return ServiceResult.Fail("วันที่เริ่มต้องไม่หลังวันที่สิ้นสุด");
+        using (audit.SuppressRowChanges())
+        {
+            var rows = await db.WorkTimes.Where(w => w.Date >= from && w.Date <= to && w.Type == type).ToListAsync();
+            db.WorkTimes.RemoveRange(rows);
+            db.AddHistoryEvent(DeleteRangeAction, new { ตั้งแต่ = Iso(from), ถึง = Iso(to), ประเภท = type }, rows.Count, WorkTimeTable);
+            await db.SaveChangesAsync();
+            return ServiceResult.Ok(rows.Count);
+        }
+    }
 
     /// <summary>
     /// มาโคร แมโคร2 for one day, as the legacy (#41, ⚠ kept): every employee with RESIGN blank and a shift gets a row
@@ -52,10 +143,25 @@ public sealed class WorkTimeRegistry(HrDbContext db, OrgDirectory org, AuditScop
             db.WorkTimes.RemoveRange(removed);
             db.WorkTimes.AddRange(added);
             db.AddHistoryEvent(GenerateAction,
-                new { วันที่ = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ไม่มาทำงาน = absent.Count, ลบเวลาคนไม่มา = removed.Count },
+                new { วันที่ = Iso(date), ไม่มาทำงาน = absent.Count, ลบเวลาคนไม่มา = removed.Count },
                 added.Count, WorkTimeTable);
             await db.SaveChangesAsync();
         }
         return ServiceResult.Ok(added.Count);
     }
+
+    /// <summary>BR-015 ⚠ kept: the buttons only delete W and O1; S, O2, H, O3 are deleted row by row.</summary>
+    private static ServiceResult? CheckDeletableType(string type)
+        => type is WorkTypes.Normal or WorkTypes.Overtime ? null : ServiceResult.Fail("ปุ่มลบรับเฉพาะประเภท W หรือ O1 (ประเภทอื่นลบทีละแถว)");
+
+    /// <summary>With the employee, whose code is part of the row's รหัสรายการ in the history.</summary>
+    private async Task<WorkTime?> LoadAsync(int id, byte[]? loadedRowVersion)
+    {
+        var row = await db.WorkTimes.Include(w => w.Employee).FirstOrDefaultAsync(w => w.Id == id);
+        row?.ExpectRowVersion(loadedRowVersion
+            ?? throw new ArgumentException("Editing needs the rowversion the screen loaded.", nameof(loadedRowVersion)));
+        return row;
+    }
+
+    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 }

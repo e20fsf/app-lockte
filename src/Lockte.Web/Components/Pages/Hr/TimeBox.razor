@@ -1,0 +1,20 @@
+@* A เวลา box of SCR-12/13: the legacy dropdown of shift times (T-SHIFT), and any other time can be typed (ชั่วโมง:นาที). *@
+<MudAutocomplete T="string" Value="Text" ValueChanged="TextChanged" Label="@Label" SearchFunc="SearchAsync"
+                 CoerceValue="true" CoerceText="false" Clearable="false" MaxItems="null" Dense="true"
+                 Placeholder="ชม:นาที" Style="@Style" />
+
+@code {
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public EventCallback<string?> TextChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public IReadOnlyList<TimeOnly> Choices { get; set; } = [];
+    [Parameter] public string? Style { get; set; }
+
+    private Task<IEnumerable<string>> SearchAsync(string? text, CancellationToken _)
+    {
+        var all = Choices.Select(t => TimeText.Format(t));
+        // On open the box holds a chosen time: show every choice, not only that one.
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term) || all.Contains(term) ? all : all.Where(t => t.StartsWith(term)));
+    }
+}
