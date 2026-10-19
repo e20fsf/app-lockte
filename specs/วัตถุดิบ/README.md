@@ -82,6 +82,7 @@ flowchart LR
 | [business-rules.md](business-rules.md) | กฎธุรกิจ BR-001…081 + RND-A…F + state machine | ถอดครบ — รอยืนยัน (ส่วนใหญ่ ✅ จากโค้ด) | 17 |
 | [screens.md](screens.md) | แผนผังเมนู + หน้าจอ SCR-01…20 | ถอดครบ — รอยืนยัน | 4 |
 | [reports.md](reports.md) | รายงาน RPT-01…33 | ถอดครบ — รอยืนยัน | 5 |
+| [print-samples.md](print-samples.md) | หน้าตาเอกสารพิมพ์จริงจากตัวอย่าง PDF 27 ไฟล์ | ถอดจากตัวอย่าง — รอยืนยัน | – |
 | [integrations.md](integrations.md) | import/export | ถอดครบ — ไม่พบการเชื่อมต่ออัตโนมัติ (มีจุดเชื่อมแบบ manual INT-01…04) | 3 |
 | [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล การพิมพ์ | ถอดครบ — รอยืนยัน | 17 |
 | [acceptance.md](acceptance.md) | เกณฑ์ตรวจรับ AC-01…30 | ร่าง (ใช้ตอนสร้างระบบใหม่) | 3 |
