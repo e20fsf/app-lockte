@@ -67,9 +67,9 @@ public static class EmployeeMenu
         ]),
         new(4, "การลางานและใบเตือน", 1,
         [
-            new("บันทึกและแก้ไขการลางาน", Code: "SCR-30"),
+            new("บันทึกและแก้ไขการลางาน", Code: "SCR-30", Page: "hr/leave"),
             new("พิมพ์รายงานการลางาน", SubMenu: 17),
-            new("ลบข้อมูลการลางาน", Code: "SCR-31"),
+            new("ลบข้อมูลการลางาน", Code: "SCR-31", Page: "hr/leave/delete"),
             new("บันทึกและแก้ไขใบเตือน", Code: "SCR-32"),
             new("พิมพ์รายงานใบเตือน", Code: "RPT-30"),
         ]),

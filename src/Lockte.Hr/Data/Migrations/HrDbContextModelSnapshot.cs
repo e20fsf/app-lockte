@@ -307,6 +307,98 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "พนักงาน");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.Leave", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<double>("DailyWage")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ค่าแรง/วัน");
+
+                    b.Property<double>("Days")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนวัน");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "พนักงาน");
+
+                    b.Property<DateOnly>("FromDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "ตั้งแต่วันที่");
+
+                    b.Property<TimeOnly>("FromTime")
+                        .HasColumnType("time")
+                        .HasAnnotation("Lockte:AuditName", "ตั้งแต่เวลา");
+
+                    b.Property<bool?>("Paid")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ได้ค่าแรง");
+
+                    b.Property<double>("Pay")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "จ่ายค่าแรง");
+
+                    b.Property<DateOnly>("RecordedOn")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่บันทึก");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(28)
+                        .HasColumnType("nvarchar(28)")
+                        .HasAnnotation("Lockte:AuditName", "เหตุผล");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateOnly>("ToDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "ถึงวันที่");
+
+                    b.Property<TimeOnly>("ToTime")
+                        .HasColumnType("time")
+                        .HasAnnotation("Lockte:AuditName", "ถึงเวลา");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)")
+                        .HasAnnotation("Lockte:AuditName", "ประเภท");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromDate");
+
+                    b.HasIndex("EmployeeId", "FromDate");
+
+                    b.ToTable("Leaves", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "การลา");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.PublicHoliday", b =>
                 {
                     b.Property<int>("Id")
@@ -547,6 +639,17 @@ namespace Lockte.Hr.Data.Migrations
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.Absence", b =>
+                {
+                    b.HasOne("Lockte.Hr.Data.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.Leave", b =>
                 {
                     b.HasOne("Lockte.Hr.Data.Employee", "Employee")
                         .WithMany()
