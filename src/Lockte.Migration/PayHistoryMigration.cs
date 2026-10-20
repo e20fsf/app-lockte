@@ -5,8 +5,8 @@ namespace Lockte.Migration;
 
 /// <summary>
 /// ย้ายข้อมูลผลค่าแรง (#51, ข้อตัดสิน #17), after <see cref="HistoryMigration"/> has loaded the open period: ค่าแรง (the
-/// last period calculated) and สำเนาของ ค่าแรง (every period, BR-006) from <see cref="LegacyDatabase.PayFrom"/> on into
-/// one table, one row per employee per period. ค่าแรง wins over its own copy in the history, because only it keeps SA
+/// last period calculated) and สำเนาของ ค่าแรง (every period, BR-006) from <see cref="LegacyDatabase.PayFrom"/> on (also the
+/// periods of ธ.ค. 2567 paid in 2568) into one table, one row per employee per period. ค่าแรง wins over its own copy in the history, because only it keeps SA
 /// and L; a history row gets 0 for both (one DQ line per period). The first period of a งวด 2 ช่วง (BR-008) was kept
 /// with the whole period's TO_DATE, so it overlaps the second: it is loaded ending the day before the next period. Adds
 /// the row counts and, per period, the rows and ΣPAY_W / ΣPAY_OT / ΣHOT read and in the new table. Nothing is written to
@@ -41,7 +41,7 @@ public sealed class PayHistoryMigration(HrPayHistoryImport import, EmployeeDirec
         {
             var rows = legacy[table];
             source += legacy.SourceRows(table);
-            excluded += legacy.SourceRows(table) - rows.Count; // FROM_DATE before 1 ม.ค. 2568: stays in Access (#17)
+            excluded += legacy.SourceRows(table) - rows.Count; // started and paid before 2568: stays in Access (#17)
             foreach (var row in rows)
             {
                 if (Day(row.Date("FROM_DATE")) is not { } from)

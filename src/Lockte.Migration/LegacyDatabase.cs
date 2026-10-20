@@ -46,7 +46,11 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     /// <summary>ประวัติที่ย้าย (#51, ข้อตัดสิน #17): เวลาทำงานตั้งแต่ <see cref="WorkTimeFrom"/>, การลาปี 2569, ผลค่าแรงตั้งแต่ <see cref="PayFrom"/>.</summary>
     public static readonly DateOnly WorkTimeFrom = new(2025, 1, 1);
     public static readonly DateOnly LeaveFrom = new(2026, 1, 1);
-    /// <summary>ผลค่าแรงของงวดที่เริ่มตั้งแต่ 1 ม.ค. 2568, as เวลาทำงาน (#51).</summary>
+    /// <summary>
+    /// ผลค่าแรงของงวดที่เริ่มหรือจ่ายตั้งแต่ 1 ม.ค. 2568 (#51): from the day เวลาทำงาน starts, plus the periods of ธ.ค. 2567
+    /// paid in 2568 — 12–26 ธ.ค. paid 1 ม.ค. and the งวด 2 ช่วง part 27–31 ธ.ค. paid 16 ม.ค. — so RPT-09 (by PAY_D, BR-062)
+    /// and RPT-10 of 2568 match the legacy for any range from 1 ม.ค. 2568 (decided 2026-10-20).
+    /// </summary>
     public static readonly DateOnly PayFrom = new(2025, 1, 1);
 
     /// <summary>
@@ -59,11 +63,15 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         ["ADD_EW"] = WhereFrom("DATE", WorkTimeFrom),
         ["LEAVE"] = WhereFrom("FROM_D", LeaveFrom),
         ["LEAVE_ADD"] = WhereFrom("FROM_D", LeaveFrom),
-        [PayHistoryMigration.HistoryTable] = WhereFrom("FROM_DATE", PayFrom),
+        [PayHistoryMigration.CurrentTable] = WherePaidFrom(PayFrom),
+        [PayHistoryMigration.HistoryTable] = WherePaidFrom(PayFrom),
     };
 
-    private static string WhereFrom(string column, DateOnly from)
-        => $"[{column}] >= #{from.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}# OR [{column}] IS NULL";
+    private static string WhereFrom(string column, DateOnly from) => $"[{column}] >= {Literal(from)} OR [{column}] IS NULL";
+
+    private static string WherePaidFrom(DateOnly from) => $"{WhereFrom("FROM_DATE", from)} OR [PAY_D] >= {Literal(from)}";
+
+    private static string Literal(DateOnly date) => $"#{date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}#";
 
     public IReadOnlyList<LegacyRow> this[string table]
         => tables.TryGetValue(table, out var rows) ? rows : throw new KeyNotFoundException($"ไม่พบตาราง {table} ในไฟล์ต้นทาง");
@@ -101,7 +109,6 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
                 }
                 foreach (var table in WarningMigration.Tables) // ใบเตือน, every year (#59)
                     tables[table] = Read(connection, table, null);
-                tables[PayHistoryMigration.CurrentTable] = Read(connection, PayHistoryMigration.CurrentTable, null); // one period
             }
             OleDbConnection.ReleaseObjectPool();
             return new LegacyDatabase(tables, counts);
