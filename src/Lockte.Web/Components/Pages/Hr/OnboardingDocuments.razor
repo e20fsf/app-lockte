@@ -1,0 +1,79 @@
+@page "/hr/employees/onboarding-documents"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.Web.Reports.Hr
+@inject ScopedServices Services
+
+@* SCR-02's print buttons for RPT-56 (BR-072), on one page instead of the legacy's three small forms
+   (แบบฟอร์มการรับพนักงาน / 1 / 2): pick an employee still working, then
+   - แบบฟอร์มการรับพนักงานเข้าทดลองงาน with วันที่สมัคร and วันที่สัมภาษณ์ as typed (not stored);
+   - สัญญาจ้างแรงงาน: รายเดือน for ประเภท รายเดือน, รายวัน for everyone else (the legacy pickers: CLAS = "1" / ≠ "1").
+   ?employee= preselects the employee (SCR-02 / SCR-03 link here). *@
+<PageTitle>พิมพ์เอกสารรับพนักงาน — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์เอกสารรับพนักงาน</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudStack Spacing="3">
+        <MudAutocomplete T="EmployeeListItem" Value="employee" ValueChanged="SelectAsync" Label="รหัสพนักงาน (รหัส หรือ ชื่อ)"
+                         SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                         Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+        @if (selected is not null)
+        {
+            <MudText>
+                @selected.Name · แผนก @selected.DepartmentName · @(selected.EmployeeType is { } t ? EmployeeTypes.Names.GetValueOrDefault(t) : "ไม่ระบุประเภท")
+                · เริ่มงาน @(selected.StartDate is { } s ? ThaiDate.Format(s) : "-")
+            </MudText>
+        }
+        <MudText Typo="Typo.h6">แบบฟอร์มการรับพนักงานเข้าทดลองงาน</MudText>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudDatePicker Editable="true" @bind-Date="appliedOn" Label="วันที่สมัคร" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+            <MudDatePicker Editable="true" @bind-Date="interviewedOn" Label="วันที่สัมภาษณ์" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+        </MudStack>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudButton Href="@(selected is null ? null : OnboardingReports.HiringFormHref(selected.Id, Day(appliedOn), Day(interviewedOn)))" Target="_blank"
+                       Disabled="selected is null" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">
+                พิมพ์ฟอร์มการรับพนักงาน
+            </MudButton>
+            <MudButton Href="@(selected is null ? null : OnboardingReports.ContractHref(selected.Id))" Target="_blank" Disabled="selected is null"
+                       Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">
+                @(selected?.EmployeeType == EmployeeTypes.Monthly ? "พิมพ์สัญญาจ้างรายเดือน" : "พิมพ์สัญญาจ้างรายวัน")
+            </MudButton>
+        </MudStack>
+        <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Style="align-self:flex-start">กลับเมนูเดิม</MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [SupplyParameterFromQuery(Name = "employee")]
+    public int? EmployeeId { get; set; }
+
+    private IReadOnlyList<EmployeeListItem> employees = [];
+    private EmployeeListItem? employee;
+    private EmployeeDto? selected;
+    private DateTime? appliedOn;
+    private DateTime? interviewedOn;
+
+    private static DateOnly? Day(DateTime? d) => d is { } v ? DateOnly.FromDateTime(v) : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        employees = (await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync()))
+            .Where(e => e.IsWorking).ToList();
+        if (employees.FirstOrDefault(e => e.Id == EmployeeId) is { } preset) await SelectAsync(preset);
+    }
+
+    private async Task SelectAsync(EmployeeListItem? value)
+    {
+        employee = value;
+        selected = value is null ? null : await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(value.Id));
+    }
+
+    private Task<IEnumerable<EmployeeListItem>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? employees
+            : employees.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+}

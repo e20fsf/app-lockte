@@ -1,0 +1,54 @@
+@using Lockte.Hr
+@* RPT-21 รายชื่อพนักงานแผนก… (report รายชื่อเฉพาะแผนก, BR-073): ระดับ B — columns and footer as the legacy, the look is
+   แบบกลาง. ลำดับ gets its own column (the legacy printed it stuck to the รหัส, "1B001"). เงินเดือน / รายวัน in Standard
+   format (thousands, 2 decimals); อายุงาน, (เดือน), อายุ and อายุเฉลี่ย whole numbers. *@
+<p class="sub">@Roster.Title</p>
+@if (Roster.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:6%" /><col style="width:8%" /><col style="width:24%" /><col style="width:11%" /><col style="width:13%" />
+            <col style="width:9%" /><col style="width:7%" /><col style="width:6%" /><col style="width:9%" /><col style="width:7%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เริ่มทำงาน</th><th>ตำแหน่ง</th><th class="num">อายุงาน(ปี)</th>
+                <th class="num">(เดือน)</th><th class="num">อายุ</th><th class="num">เงินเดือน</th><th class="num">รายวัน</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Roster.Lines.Count; i++)
+            {
+                var l = Roster.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@l.Code</td>
+                    <td>@l.Name</td>
+                    <td>@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
+                    <td>@l.Position</td>
+                    <td class="num">@l.ServiceYears</td>
+                    <td class="num">@l.ServiceMonths</td>
+                    <td class="num">@l.Age</td>
+                    <td class="num">@ReportText.Decimal2(l.Salary)</td>
+                    <td class="num">@ReportText.Decimal2(l.DailyWage)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="7">รวม @Roster.Lines.Count คน&emsp;ชาย @Roster.Male คน&emsp;หญิง @Roster.Female คน</td>
+                <td colspan="3" class="num">อายุเฉลี่ย @(Roster.AverageAge is { } a ? EmployeeListText.Whole(a) : null)</td>
+            </tr>
+            <tr><td colspan="10" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    /// <summary>The document's name; the printed heading is <see cref="DepartmentRoster.Title"/> (แผนก / กะ chosen).</summary>
+    public const string Title = "รายชื่อพนักงาน";
+
+    [Parameter, EditorRequired] public DepartmentRoster Roster { get; set; } = default!;
+}
