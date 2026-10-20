@@ -11,8 +11,8 @@
 @* SCR-11 บันทึกเวลาทำงานให้ทุกคน (ฟอร์ม วันทำงาน + SHIFT subform): วันที่ → "สร้างเวลาปกติทันที" (BR-010, มาโคร แมโคร2).
    As the legacy (⚠ kept, #41) the job does not stop a second press or a วันหยุด: the page only shows what the day
    already has, so HR can see it before pressing. Shift times can be edited here as in the subform.
-   Not built: "สร้าง OT เปิดฟอร์ม" (NO_OT, data stopped 2015, Q-38) and "แผนกตกแต่ง2ทำงานยามาดะ" (BR-009, unused since
-   2025, Q-11). *@
+   "แผนกตกแต่ง2ทำงานยามาดะ" (BR-009, Q-11: no row marked since 2025) marks the rows of the day's usual งวดค่าแรง for
+   SCR-44. Not built: "สร้าง OT เปิดฟอร์ม" (NO_OT, data stopped 2015, Q-38). *@
 <PageTitle>บันทึกเวลาทำงานให้ทุกคน — LOCKTE</PageTitle>
 <h1 class="mb-4">บันทึกเวลาทำงานให้ทุกคน</h1>
 
@@ -23,6 +23,7 @@
         <MudText>@Day.ToString("dddd", ThaiDate.Culture)</MudText>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GenerateAsync" Disabled="busy"
                    StartIcon="@Icons.Material.Filled.PlaylistAdd">สร้างเวลาปกติทันที</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="MarkYamadaAsync" Disabled="busy">แผนกตกแต่ง2ทำงานยามาดะ</MudButton>
     </MudStack>
 
     @if (dayOff is not null)
@@ -126,6 +127,26 @@
         var calendar = await Services.RunAsync<CalendarDirectory, HolidayCalendar>(c => c.GetAsync(date, date));
         dayOff = calendar.IsPublicHoliday(date) ? $"วันหยุดประเพณี{(calendar.PublicHolidays[0].Name is { } n ? $" ({n})" : "")}"
             : calendar.IsWeeklyHoliday(date) ? "วันหยุดประจำสัปดาห์" : null;
+    }
+
+    /// <summary>คิวรี ตกแต่ง2ทำงานยามาดะ: MARK = Y on the blank-MARK rows of รหัส U* in the day's usual งวดค่าแรง (BR-009).</summary>
+    private async Task MarkYamadaAsync()
+    {
+        busy = true;
+        try
+        {
+            var date = Day;
+            var period = PayPeriodDates.Containing(date);
+            var result = await Services.RunAsync<WorkTimeRegistry, ServiceResult>(r => r.MarkYamadaAsync(date));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded)
+                Snackbar.Add($"ติดรหัสลูกค้า {WorkTimeRegistry.YamadaMark} ให้เวลาทำงานรหัสขึ้นต้น U {result.Id} แถว "
+                    + $"(งวด {ThaiDate.Format(period.From)} – {ThaiDate.Format(period.To)})", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+        }
     }
 
     private async Task GenerateAsync()

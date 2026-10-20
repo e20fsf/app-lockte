@@ -1,0 +1,81 @@
+@page "/hr/pay/contract-labor"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* SCR-44 ค่าแรงงานรับจ้าง (ฟอร์ม ตั้งวันที่ตัดWEEK1): ตั้งแต่วันที่, ถึงวันที่, ลูกค้า (ชื่อลูกค้าขึ้นตามรหัส) → "พิมพ์" opens
+   RPT-58 in a new tab (มาโคร คำนวณเวลาทำงาน1, BR-009). The dates start as the newest งวดค่าแรง's, as the legacy form
+   showed the period's own record; changing them here does not change the period. The legacy วันที่จ่ายค่าแรง (PAY_D) is
+   not asked: no figure reads it, the legacy only copied it into ค่าแรง, which nothing is written to here. *@
+<PageTitle>ค่าแรงงานรับจ้าง — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์สรุปค่าแรงงานรับจ้าง</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+        </MudStack>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudSelect T="string" @bind-Value="customerCode" Label="ลูกค้า" Style="max-width:10rem" Disabled="customers.Count == 0">
+                @foreach (var c in customers)
+                {
+                    <MudSelectItem T="string" Value="c.Code">@c.Code</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField T="string" Value="@CustomerName" Label="ชื่อลูกค้า" ReadOnly="true" Style="max-width:26rem" />
+        </MudStack>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            คิดจากเวลาทำงานที่ติดรหัสลูกค้านี้ในช่วงวันที่ ด้วยสูตรเดียวกับค่าแรงปกติ (ไม่นับวันลา) · คำนวณเพื่อพิมพ์เท่านั้น ไม่เปลี่ยนค่าแรงของงวด
+        </MudText>
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(9)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from;
+    private DateTime? to;
+    private string? customerCode;
+    private IReadOnlyList<CustomerDto> customers = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        customers = await Services.RunAsync<ContractLaborDirectory, IReadOnlyList<CustomerDto>>(c => c.ListCustomersAsync());
+        var newest = (await Services.RunAsync<PayPeriodDirectory, IReadOnlyList<PayPeriodDto>>(p => p.ListAsync())).FirstOrDefault();
+        var dates = newest?.Dates ?? PayPeriodDates.LastEndedBy(DateOnly.FromDateTime(DateTime.Today));
+        (from, to) = (dates.From.ToDateTime(TimeOnly.MinValue), dates.To.ToDateTime(TimeOnly.MinValue));
+    }
+
+    private string? CustomerName => customers.FirstOrDefault(c => c.Code == customerCode)?.Name;
+
+    private string? Problem
+        => customers.Count == 0 ? "ยังไม่มีลูกค้าในทะเบียนลูกค้า"
+            : from is null || to is null ? "กรุณากรอกวันที่"
+            : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : customerCode is null ? "กรุณาเลือกลูกค้า"
+            : null;
+
+    private string PdfUrl
+    {
+        get
+        {
+            if (Problem is not null) return "";
+            static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return $"reports/hr/pay/contract-labor?from={Iso(from)}&to={Iso(to)}&customer={Uri.EscapeDataString(customerCode!)}";
+        }
+    }
+}

@@ -8,7 +8,10 @@ namespace Lockte.Hr;
 
 public static class HrModule
 {
-    /// <summary>Needs module องค์กร registered too (แผนก and กะ come from its <c>OrgDirectory</c>).</summary>
+    /// <summary>
+    /// Needs module องค์กร registered too (แผนก and กะ come from its <c>OrgDirectory</c>), and module ขายและส่งของ
+    /// (ลูกค้างานรับจ้าง from its <c>CustomerDirectory</c>).
+    /// </summary>
     public static IServiceCollection AddHrModule(this IServiceCollection services, string connectionString)
     {
         services.AddModuleDbContext<HrDbContext>(connectionString, HrDbContext.Schema);
@@ -27,6 +30,7 @@ public static class HrModule
         services.AddScoped<PayPeriodDirectory>();
         services.AddScoped<PayPeriodRegistry>();
         services.AddScoped<PayHistoryReportDirectory>();
+        services.AddScoped<ContractLaborDirectory>();
         services.AddScoped<SlipSignerRegistry>();
         services.AddScoped<HrDocumentDirectory>();
         services.AddScoped<ResignationRegistry>();

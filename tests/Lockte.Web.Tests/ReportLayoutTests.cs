@@ -134,6 +134,25 @@ public sealed class ReportLayoutTests
         foreach (var sign in new[] { "บุคคล", "ผู้จัดการโรงงาน", "สมุห์บัญชี", "กรรมการผู้จัดการ" }) Assert.Contains(sign, html);
     }
 
+    [Fact] // RPT-58: ชื่อ "ค่าแรงพนักงานทำงานลูกค้า" & ชื่อลูกค้า · หัววันหยุด · รวม = ค่าแรง + OT + HOT · ไม่มี %OT · ลงนาม 5 ช่อง
+    public async Task The_contract_labor_summary_shows_each_department_the_totals_and_the_five_signatures()
+    {
+        var report = new ContractLaborReport(D("2026-08-27"), D("2026-09-11"), "Y", "ลูกค้าสมมุติ", 2, 1,
+            [new DepartmentPayTotal("ตกแต่ง", 3, 4800, 450, 30), new DepartmentPayTotal("ไดคาสท์", 1, 1200, 0, 0)], []);
+
+        var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<ContractLaborView>(new() { [nameof(ContractLaborView.Report)] = report }));
+
+        Assert.Equal("ค่าแรงพนักงานทำงานลูกค้าลูกค้าสมมุติ", ContractLaborView.TitleOf(report));
+        Assert.Contains("ตั้งแต่วันที่ 27/8/2569", html);
+        Assert.DoesNotContain("วันที่จ่าย", html);
+        Assert.Contains("วันทำงาน 13 วัน", html);
+        Assert.Contains("คิดค่าแรง 14 วัน", html);
+        Assert.Contains(">5,280<", html); // ตกแต่ง 4,800 + 450 + 30
+        Assert.Contains(">6,480<", html); // รวมทั้งหมด
+        Assert.Equal(6, html.Split("</th>").Length - 1); // ลำดับ แผนก จำนวนพนักงาน ค่าแรง ค่าล่วงเวลา รวม
+        foreach (var sign in new[] { "บุคคล", "ผู้จัดการโรงงาน", "สมุห์บัญชี", "ผู้ช่วยกรรมการผู้จัดการ", "กรรมการผู้จัดการ" }) Assert.Contains(sign, html);
+    }
+
     [Fact] // D-6: ไม่มีข้อมูล → "ไม่มีข้อมูล" แทนแถวว่าง
     public async Task An_empty_report_says_there_is_no_data()
     {

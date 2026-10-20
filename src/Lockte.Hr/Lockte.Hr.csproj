@@ -10,6 +10,8 @@
     <ProjectReference Include="..\Lockte.SharedKernel\Lockte.SharedKernel.csproj" />
     <!-- Public services only (OrgDirectory): แผนก and กะ (ADR 0002). -->
     <ProjectReference Include="..\Lockte.Org\Lockte.Org.csproj" />
+    <!-- Public services only (CustomerDirectory): ลูกค้างานรับจ้างผลิต of ค่าแรงงานรับจ้าง (BR-009, ADR 0002). -->
+    <ProjectReference Include="..\Lockte.Sales\Lockte.Sales.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -103,7 +103,7 @@ public static class EmployeeMenu
         new(9, "พิมพ์สรุปค่าแรง", 6,
         [
             new("ค่าแรงทั่วไป", Code: "RPT-03"),
-            new("ค่าแรงงานรับจ้าง", Code: "SCR-44"),
+            new("ค่าแรงงานรับจ้าง", Code: "SCR-44", Page: "hr/pay/contract-labor"),
             new("สรุปค่าแรงแต่ละเดือน", Code: "RPT-09", Page: "hr/reports/pay/monthly"),
             new("รวมค่าแรง", Code: "RPT-10", Page: "hr/reports/pay/totals"),
         ]),
