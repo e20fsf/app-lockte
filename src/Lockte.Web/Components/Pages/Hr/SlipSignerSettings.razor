@@ -1,0 +1,115 @@
+@page "/hr/slip-signers"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* ผู้ลงนามบนสลิป (RPT-04, #55): the name and signature picture of แผนกบุคคล and ผู้จัดการโรงงาน printed on every slip.
+   The legacy typed the names into the report and kept one picture in ตาราง3.SIGN; a picture here prints instead of the name. *@
+<PageTitle>ผู้ลงนามบนสลิป — LOCKTE</PageTitle>
+<h1 class="mb-4">ผู้ลงนามบนสลิป</h1>
+
+@foreach (var form in forms)
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-3">
+        <MudText Typo="Typo.h6">@Lockte.Hr.SlipSigners.Titles[form.Role]</MudText>
+        <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudTextField @bind-Value="form.Name" Label="ชื่อที่พิมพ์บนสลิป" MaxLength="SlipSignerRegistry.NameLength" Style="max-width:20rem" />
+            <div style="width:12rem;height:4rem;border:1px dashed var(--mud-palette-lines-default);display:flex;align-items:center;justify-content:center">
+                @if (form.Picture is { } picture)
+                {
+                    <img src="@($"data:{form.PictureType};base64,{Convert.ToBase64String(picture)}")" alt="รูปลายเซ็น" style="max-width:100%;max-height:100%" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption">ไม่มีรูปลายเซ็น — พิมพ์ชื่อแทน</MudText>
+                }
+            </div>
+            <MudFileUpload T="IBrowserFile" Accept=".png,.jpg,.jpeg" FilesChanged="@(file => PickAsync(form, file))">
+                <CustomContent>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Upload" OnClick="@context.OpenFilePickerAsync">เลือกรูปลายเซ็น</MudButton>
+                </CustomContent>
+                <SelectedTemplate></SelectedTemplate>
+            </MudFileUpload>
+            <MudButton OnClick="@(() => Remove(form))" Disabled="form.Picture is null" StartIcon="@Icons.Material.Filled.Delete">ลบรูป</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(form))" Disabled="busy">บันทึก</MudButton>
+        </MudStack>
+        <MudText Typo="Typo.caption">รูป PNG หรือ JPEG ไม่เกิน @(SlipSignerRegistry.MaxSignatureBytes / 1024) KB พื้นขาวหรือโปร่งใส — พิมพ์เหนือเส้นลงนามขนาดประมาณ 27 × 7.6 มม.</MudText>
+    </MudPaper>
+}
+
+<MudButton Href="hr/pay-periods" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับปิดงวดค่าแรง</MudButton>
+
+@code {
+    private List<SignerForm> forms = [];
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var signers = await Services.RunAsync<PayPeriodDirectory, IReadOnlyList<SlipSignerDto>>(d => d.ListSlipSignersAsync());
+        forms = signers.Select(s => new SignerForm
+        {
+            Role = s.Role, Name = s.Name, Picture = s.Signature, PictureType = s.SignatureContentType, RowVersion = s.RowVersion,
+        }).ToList();
+    }
+
+    private async Task PickAsync(SignerForm form, IBrowserFile? file)
+    {
+        if (file is null) return;
+        if (file.Size > SlipSignerRegistry.MaxSignatureBytes)
+        {
+            Snackbar.Add($"รูปลายเซ็นใหญ่ได้ไม่เกิน {SlipSignerRegistry.MaxSignatureBytes / 1024} KB", Severity.Error);
+            return;
+        }
+        using var copy = new MemoryStream();
+        await file.OpenReadStream(SlipSignerRegistry.MaxSignatureBytes).CopyToAsync(copy);
+        form.Picture = copy.ToArray();
+        form.PictureType = file.ContentType;
+        form.PictureChanged = true;
+    }
+
+    private static void Remove(SignerForm form)
+    {
+        form.Picture = null;
+        form.PictureType = null;
+        form.PictureChanged = true;
+    }
+
+    private async Task SaveAsync(SignerForm form)
+    {
+        busy = true;
+        try
+        {
+            var input = new SlipSignerInput(form.Role, form.Name, form.PictureChanged ? form.Picture : null,
+                form.PictureChanged ? form.PictureType : null, form.PictureChanged && form.Picture is null, form.RowVersion);
+            var result = await Services.RunAsync<SlipSignerRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"บันทึกผู้ลงนาม{Lockte.Hr.SlipSigners.Titles[form.Role]}แล้ว", Severity.Success);
+            else return;
+            await LoadAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class SignerForm
+    {
+        public SlipSignerRole Role { get; init; }
+        public string? Name { get; set; }
+        public byte[]? Picture { get; set; }
+        public string? PictureType { get; set; }
+        public bool PictureChanged { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

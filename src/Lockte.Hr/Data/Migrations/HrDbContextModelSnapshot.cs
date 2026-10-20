@@ -582,6 +582,14 @@ namespace Lockte.Hr.Data.Migrations
                     b.Property<int>("HolidayHours")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("HolidayOvertimePay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("HolidayPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("Hot")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -591,6 +599,10 @@ namespace Lockte.Hr.Data.Migrations
 
                     b.Property<double>("Overtime")
                         .HasColumnType("float");
+
+                    b.Property<decimal>("OvertimePay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<double>("PaidLeave")
                         .HasColumnType("float");
@@ -617,6 +629,14 @@ namespace Lockte.Hr.Data.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<decimal>("SundayOvertimePay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SundayPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
@@ -688,6 +708,64 @@ namespace Lockte.Hr.Data.Migrations
                     b.ToTable("PublicHolidays", "hr");
 
                     b.HasAnnotation("Lockte:AuditName", "วันหยุดประเพณี");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.SlipSigner", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อผู้ลงนาม");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ตำแหน่งผู้ลงนาม");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<byte[]>("Signature")
+                        .HasColumnType("varbinary(max)")
+                        .HasAnnotation("Lockte:AuditName", "รูปลายเซ็น");
+
+                    b.Property<string>("SignatureContentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "ชนิดรูปลายเซ็น");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Role")
+                        .IsUnique();
+
+                    b.ToTable("SlipSigners", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "ผู้ลงนามบนสลิป");
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.Warning", b =>

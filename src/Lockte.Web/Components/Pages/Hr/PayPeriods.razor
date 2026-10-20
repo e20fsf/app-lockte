@@ -9,7 +9,7 @@
 
 @* ปิดงวดค่าแรงตามปกติ (เมนู 6) as one page (#22 แบบ B): the steps in the menu's order — ตั้งงวด (SCR-40 dates, filled in by
    the 12–26 / 27–11 pattern, Q-04) → พิมพ์เวลาทำงาน (BR-007/001/002 → RPT-01) → พิมพ์ค่าแรง → พิมพ์สรุปค่าแรง → ส่งแบงค์
-   → SLIP. A step opens once the one before it is done; doing a calculation again reopens the steps after it (Q-22).
+   → SLIP (RPT-04, #55). A step opens once the one before it is done; doing a calculation again reopens the steps after it (Q-22).
    คำเตือนก่อนคำนวณ (วันที่ยังไม่บันทึกเวลา / มาสาย) are shown and asked about, never blocking. Steps after
    พิมพ์เวลาทำงาน come with their own tickets (#53 on). *@
 <PageTitle>ปิดงวดค่าแรงตามปกติ — LOCKTE</PageTitle>
@@ -115,7 +115,7 @@
         </MudStack>
     </MudPaper>
 
-    @* 5–6: their tickets add the work; the order and the lock are here already *@
+    @* 5: its ticket adds the work; the order and the lock are here already *@
     @foreach (var step in LaterSteps)
     {
         <MudPaper Outlined="true" Class="pa-4 mb-3">
@@ -123,13 +123,28 @@
             <MudText Typo="Typo.body2" Class="mt-1">ยังไม่เปิดใช้ในระบบใหม่</MudText>
         </MudPaper>
     }
+
+    @* 6 พิมพ์ SLIP (RPT-04): the slips print once ค่าแรง is calculated here; printing marks the step done when step 5 is *@
+    <MudPaper Outlined="true" Class="pa-4 mb-3">
+        @StepTitle(PayPeriodStep.SlipPrinted)
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/slips")" Target="_blank" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="SlipsOpenedAsync"
+                       Disabled="period.CompletedStep < PayPeriodStep.PayCalculated || period.PayCalculatedAt is null">พิมพ์ SLIP (PDF)</MudButton>
+            <MudButton Href="hr/slip-signers" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Draw">ผู้ลงนามบนสลิป</MudButton>
+        </MudStack>
+        @if (period.CompletedStep >= PayPeriodStep.PayCalculated && period.PayCalculatedAt is null)
+        {
+            <MudText Typo="Typo.caption">งวดนี้ย้ายมาจากระบบเดิม ไม่มีรายละเอียดค่าแรงสำหรับพิมพ์สลิป</MudText>
+        }
+    </MudPaper>
 }
 
 <MudButton Href="@EmployeeMenu.HrefOf(12)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>
 
 @code {
     private static readonly PayPeriodStep[] LaterSteps =
-        [PayPeriodStep.BankPrinted, PayPeriodStep.SlipPrinted];
+        [PayPeriodStep.BankPrinted];
 
     private IReadOnlyList<PayPeriodDto> periods = [];
     private PayPeriodDto? period;
@@ -260,6 +275,15 @@
 
     /// <summary>The PDF opens in a new tab and marks the step done there; show it here a moment later.</summary>
     private async Task SummaryOpenedAsync()
+    {
+        if (period is null) return;
+        var id = period.Id;
+        await Task.Delay(TimeSpan.FromSeconds(8));
+        await LoadPeriodsAsync();
+        await SelectAsync(id);
+    }
+
+    private async Task SlipsOpenedAsync()
     {
         if (period is null) return;
         var id = period.Id;

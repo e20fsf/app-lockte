@@ -103,13 +103,49 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
             await db.PublicHolidays.CountAsync(h => h.Date >= period.From && h.Date <= period.To), lines);
     }
 
+    /// <summary>
+    /// RPT-04 สลิปเงินเดือน (BR-034): one slip per employee paid, by รหัส ↑; null until ค่าแรง is calculated here — a
+    /// period moved from the legacy history has no pay parts or เวลาทำงานรวม to print.
+    /// </summary>
+    public async Task<PaySlipBatch?> GetSlipsAsync(int periodId)
+    {
+        var period = await GetAsync(periodId);
+        if (period is null || period.CompletedStep < PayPeriodStep.PayCalculated || period.PayCalculatedAt is null) return null;
+        var times = (await GetTimeTotalsAsync(periodId)).ToDictionary(t => t.EmployeeId);
+        var rows = await db.PayResults.AsNoTracking().Where(r => r.PayPeriodId == periodId)
+            .Select(r => new
+            {
+                Pay = new EmployeePay(r.EmployeeId, r.Employee.Code, r.Employee.Name, r.Rate, r.Normal, r.PaidLeave, r.Overtime, r.HolidayHours,
+                    r.PayNormal, r.PayOvertime, r.Hot, r.PublicHolidays, r.WeeklyHolidays,
+                    new OvertimeParts(r.OvertimePay, r.SundayPay, r.SundayOvertimePay, r.HolidayPay, r.HolidayOvertimePay)),
+                r.EmployeeType,
+                HasTtbAccount = r.Employee.BankAccountTtb != null,
+            })
+            .ToListAsync();
+        var dates = new PayPeriodDates(period.From, period.To, period.PayDate);
+        var slips = rows.Where(r => times.ContainsKey(r.Pay.EmployeeId))
+            .Select(r => PaySlips.Build(dates, times[r.Pay.EmployeeId], r.Pay, r.EmployeeType, r.HasTtbAccount))
+            .OrderBy(s => s.Code, StringComparer.Ordinal).ToList();
+        return new PaySlipBatch(period, slips, await ListSlipSignersAsync());
+    }
+
+    /// <summary>ผู้ลงนามบนสลิป, one per <see cref="SlipSignerRole"/> (a role never saved comes back blank).</summary>
+    public async Task<IReadOnlyList<SlipSignerDto>> ListSlipSignersAsync()
+    {
+        var saved = await db.SlipSigners.AsNoTracking()
+            .Select(s => new SlipSignerDto(s.Role, s.Name, s.Signature, s.SignatureContentType, s.RowVersion)).ToListAsync();
+        return Enum.GetValues<SlipSignerRole>()
+            .Select(role => saved.FirstOrDefault(s => s.Role == role) ?? new SlipSignerDto(role, null, null, null, null)).ToList();
+    }
+
     private async Task<List<PayLine>> PayLinesAsync(int periodId)
     {
         var rows = await db.PayResults.AsNoTracking().Where(r => r.PayPeriodId == periodId)
             .Select(r => new
             {
                 Pay = new EmployeePay(r.EmployeeId, r.Employee.Code, r.Employee.Name, r.Rate, r.Normal, r.PaidLeave, r.Overtime, r.HolidayHours,
-                    r.PayNormal, r.PayOvertime, r.Hot, r.PublicHolidays, r.WeeklyHolidays),
+                    r.PayNormal, r.PayOvertime, r.Hot, r.PublicHolidays, r.WeeklyHolidays,
+                    new OvertimeParts(r.OvertimePay, r.SundayPay, r.SundayOvertimePay, r.HolidayPay, r.HolidayOvertimePay)),
                 r.DepartmentId,
             })
             .ToListAsync();

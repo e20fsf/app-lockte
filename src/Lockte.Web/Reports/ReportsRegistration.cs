@@ -70,6 +70,19 @@ public static class ReportsRegistration
             return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
         });
 
+        // RPT-04 สลิปเงินเดือน (รายงาน พิมพ์SLIP, BR-034): ระดับ A, A4 ตั้ง 3 ใบต่อหน้า. Printing it is step พิมพ์ SLIP of
+        // เมนู 6 once the step before is done (#22); the slips print as soon as ค่าแรง is calculated.
+        reports.MapGet("/hr/pay-periods/{id:int}/slips", async (int id, HttpContext http, PayPeriodDirectory periods,
+            PayPeriodRegistry registry, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (await periods.GetSlipsAsync(id) is not { } batch)
+                return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้ในระบบใหม่ (งวดที่ย้ายมาจากระบบเดิมพิมพ์สลิปไม่ได้)");
+            if (batch.Slips.Count == 0) return Results.NotFound("งวดนี้ไม่มีพนักงานที่คำนวณค่าแรง");
+            var pdf = await printer.PrintFormAsync(PaySlipForm.Title, PaySlipForm.Layout(batch), cancellationToken);
+            await registry.CompleteStepAsync(id, PayPeriodStep.SlipPrinted);
+            return Pdf(http, pdf, "สลิป " + Iso(batch.Period.From));
+        });
+
         // RPT-16 ใบขออนุมัติทำงานล่วงเวลา (รายงาน OT): A5 ตั้ง, no document number. The sheet SCR-14 just saved (OvertimeSheetPrints).
         reports.MapGet("/hr/overtime-sheets/{key:guid}", async (Guid key, HttpContext http, OvertimeSheetPrints sheets, ReportPrinter printer,
             CancellationToken cancellationToken) =>

@@ -21,6 +21,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<PayPeriodTimeTotal> PayPeriodTimeTotals => Set<PayPeriodTimeTotal>();
     internal DbSet<PayResult> PayResults => Set<PayResult>();
     internal DbSet<Warning> Warnings => Set<Warning>();
+    internal DbSet<SlipSigner> SlipSigners => Set<SlipSigner>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -159,11 +160,26 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             r.HasAuditName("ค่าแรงของงวด");
             r.Property(x => x.PayNormal).HasPrecision(18, 2);
             r.Property(x => x.PayOvertime).HasPrecision(18, 2);
+            r.Property(x => x.OvertimePay).HasPrecision(18, 2);
+            r.Property(x => x.SundayPay).HasPrecision(18, 2);
+            r.Property(x => x.SundayOvertimePay).HasPrecision(18, 2);
+            r.Property(x => x.HolidayPay).HasPrecision(18, 2);
+            r.Property(x => x.HolidayOvertimePay).HasPrecision(18, 2);
             r.Property(x => x.Hot).HasPrecision(18, 2);
             r.HasOne(x => x.PayPeriod).WithMany().HasForeignKey(x => x.PayPeriodId).OnDelete(DeleteBehavior.Cascade);
             r.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             r.HasIndex(x => new { x.PayPeriodId, x.EmployeeId }).IsUnique();
             r.HasIndex(x => x.EmployeeId);
+        });
+
+        modelBuilder.Entity<SlipSigner>(s =>
+        {
+            s.HasAuditName("ผู้ลงนามบนสลิป");
+            s.Property(x => x.Role).HasAuditName("ตำแหน่งผู้ลงนาม");
+            s.Property(x => x.Name).HasMaxLength(SlipSignerRegistry.NameLength).HasAuditName("ชื่อผู้ลงนาม");
+            s.Property(x => x.Signature).HasAuditName("รูปลายเซ็น");
+            s.Property(x => x.SignatureContentType).HasMaxLength(50).HasAuditName("ชนิดรูปลายเซ็น");
+            s.HasIndex(x => x.Role).IsUnique();
         });
 
         // Written only by the calculation (one history event); one row per employee per period.

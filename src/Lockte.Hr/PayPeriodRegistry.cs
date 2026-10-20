@@ -152,6 +152,8 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
                     Rate = r.Pay.Rate, Normal = r.Pay.Normal, PaidLeave = r.Pay.PaidLeave, Overtime = r.Pay.Overtime,
                     HolidayHours = r.Pay.HolidayHours, PayNormal = r.Pay.PayNormal, PayOvertime = r.Pay.PayOvertime, Hot = r.Pay.Hot,
                     PublicHolidays = r.Pay.PublicHolidays, WeeklyHolidays = r.Pay.WeeklyHolidays,
+                    OvertimePay = r.Pay.Parts.Overtime, SundayPay = r.Pay.Parts.Sunday, SundayOvertimePay = r.Pay.Parts.SundayOvertime,
+                    HolidayPay = r.Pay.Parts.Holiday, HolidayOvertimePay = r.Pay.Parts.HolidayOvertime,
                 })
                 .ToList();
 
