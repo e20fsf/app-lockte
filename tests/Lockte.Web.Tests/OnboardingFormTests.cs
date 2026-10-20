@@ -85,15 +85,13 @@ public sealed class OnboardingFormTests
         Assert.Equal(-7, Stats(personal: 2, late: 3).TotalDeduction);
         Assert.Equal(-15, Stats(sickWithout: 1, absent: 1, written: 1).TotalDeduction);
         Assert.Equal(0, Stats(accident: 5).TotalDeduction);
-        Assert.Null((Stats() with { VerbalWarnings = null }).TotalDeduction);
     }
 
-    [Fact] // RPT-22 ใบประเมินทดลองงาน: จำนวน × ตัวคูณ per row, คะแนนหักรวม; unknown ใบเตือน (#59) and the total left blank
+    [Fact] // RPT-22 ใบประเมินทดลองงาน: จำนวน × ตัวคูณ per row, คะแนนหักรวม
     public void Evaluation_prints_counts_deductions_and_the_total()
     {
         var input = new ProbationApprovalInput("ผลิต", new(2026, 9, 21), new(2026, 9, 14));
         var known = OnboardingForms.Evaluation(Monthly, input, new ProbationStatistics(1.5, 0, 0, 0, 0, 0, 10, 1, 0), Today, "PC-PE001-6/2547  ฉบับที่2");
-        var unknown = OnboardingForms.Evaluation(Monthly, input, new ProbationStatistics(1.5, 0, 0, 0, 0, 0, 10, null, null), Today, null);
 
         Assert.Equal(Paper.A5Portrait, known.Paper);
         Assert.Equal(("1.5", "-3"), (TextAt(known, 68.75, 114.0), TextAt(known, 128.0, 114.0))); // ลากิจ × 2
@@ -103,10 +101,7 @@ public sealed class OnboardingFormTests
         Assert.Equal("-38", TextAt(known, 133.3, 168.0));
         Assert.Equal("PC-PE001-6/2547  ฉบับที่2", TextAt(known, 109.0, 16.8));
         Assert.Equal(("15 ตุลาคม 2569", "ผลิต"), (TextAt(known, 16.1, 26.0), TextAt(known, 111.9, 26.0)));
-
-        Assert.DoesNotContain(Texts(unknown), t => t.Y is 156.0 or 162.0 && t.X is 68.75 or 128.0);
-        Assert.DoesNotContain(Texts(unknown), t => t.X == 133.3);
-        Assert.Equal("-3", TextAt(unknown, 128.0, 114.0));
+        Assert.Equal(("0", "0"), (TextAt(known, 68.75, 162.0), TextAt(known, 128.0, 162.0))); // ใบเตือนหนังสือ × 10
     }
 
     [Fact] // RPT-22 ใบนำส่ง / ใบขอบรรจุ: the dates HR typed, the document numbers
@@ -205,7 +200,7 @@ public sealed class OnboardingFormPdfTests(ChromiumFixture chromium)
         FormPage[] probation =
         [
             OnboardingForms.Transmittal(e, input, today, "PC-PE001-8/2547ฉบับที่3"),
-            OnboardingForms.Evaluation(e, input, new ProbationStatistics(0, 0, 0, 0, 0, 0, 0, null, null), today, null),
+            OnboardingForms.Evaluation(e, input, new ProbationStatistics(0, 0, 0, 0, 0, 0, 0, 0, 0), today, null),
             OnboardingForms.Request(e, null),
         ];
 
