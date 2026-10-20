@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Lockte.Hr;
 
 /// <summary>
-/// The writes of เวลาทำงาน. สร้างเวลาปกติให้ทุกคน (SCR-11, BR-010) and ลบเวลาทั้งวัน (BR-015) are batch jobs: one
+/// The writes of เวลาทำงาน. สร้างเวลาปกติให้ทุกคน (SCR-11, BR-010), แผนกตกแต่ง2ทำงานยามาดะ (BR-009) and ลบเวลาทั้งวัน (BR-015) are batch jobs: one
 /// history event, no row-by-row history (#41). บันทึก/แก้/ลบรายคน (SCR-12/13, BR-013, BR-015) is hand entry with
 /// row-by-row history; edits and deletes of one row carry the rowversion the screen loaded, and a newer save by
 /// someone else throws <see cref="ConcurrencyConflictException"/>.
@@ -18,6 +18,9 @@ public sealed class WorkTimeRegistry(HrDbContext db, OrgDirectory org, AuditScop
     public const string WorkTimeTable = "เวลาทำงาน";
     public const string GenerateAction = "สร้างเวลาปกติ";
     public const string DeleteRangeAction = "ลบเวลาทำงานทั้งวัน";
+    public const string MarkYamadaAction = "แผนกตกแต่ง2ทำงานยามาดะ";
+    /// <summary>The รหัสลูกค้า the button "แผนกตกแต่ง2ทำงานยามาดะ" writes (คิวรี ตกแต่ง2ทำงานยามาดะ).</summary>
+    public const string YamadaMark = "Y";
     /// <summary>T-E_WORK.MARK size (รหัสลูกค้างานรับจ้าง).</summary>
     public const int MarkLength = 2;
 
@@ -148,6 +151,29 @@ public sealed class WorkTimeRegistry(HrDbContext db, OrgDirectory org, AuditScop
             await db.SaveChangesAsync();
         }
         return ServiceResult.Ok(added.Count);
+    }
+
+    /// <summary>
+    /// ปุ่ม "แผนกตกแต่ง2ทำงานยามาดะ" (SCR-11, BR-009, คิวรี ตกแต่ง2ทำงานยามาดะ): MARK = Y on every row with MARK blank
+    /// of an employee whose รหัส starts with U, so ค่าแรงงานรับจ้าง (SCR-44) counts them for customer Y. The legacy
+    /// changed the whole E_WORK — the rows since the last ปิดงวดค่าแรง; with one table for every year (#41) this is the
+    /// usual งวดค่าแรง that has <paramref name="date"/>. A batch job: one history event. <see cref="ServiceResult.Id"/> =
+    /// rows marked.
+    /// </summary>
+    public async Task<ServiceResult> MarkYamadaAsync(DateOnly date)
+    {
+        var period = PayPeriodDates.Containing(date);
+        using (audit.SuppressRowChanges())
+        {
+            var rows = await db.WorkTimes
+                .Where(w => w.Date >= period.From && w.Date <= period.To && w.Mark == null && w.Employee.Code.StartsWith("U"))
+                .ToListAsync();
+            foreach (var row in rows) row.Mark = YamadaMark;
+            db.AddHistoryEvent(MarkYamadaAction, new { ตั้งแต่ = Iso(period.From), ถึง = Iso(period.To), ลูกค้า = YamadaMark },
+                rows.Count, WorkTimeTable);
+            await db.SaveChangesAsync();
+            return ServiceResult.Ok(rows.Count);
+        }
     }
 
     /// <summary>BR-015 ⚠ kept: the buttons only delete W and O1; S, O2, H, O3 are deleted row by row.</summary>

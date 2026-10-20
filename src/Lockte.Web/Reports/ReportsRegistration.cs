@@ -71,6 +71,20 @@ public static class ReportsRegistration
             return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
         });
 
+        // RPT-58 สรุปค่าแรงงานรับจ้างตามลูกค้า (SCR-44 "พิมพ์", รายงาน สรุปค่าแรง1): A4 ตั้ง, ?from=&to= ISO and ?customer= รหัสลูกค้า.
+        // Calculated for the print only: no งวดค่าแรง step, nothing stored (ContractLaborDirectory).
+        reports.MapGet("/hr/pay/contract-labor", async (DateOnly? from, DateOnly? to, string? customer, HttpContext http,
+            ContractLaborDirectory contractLabor, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (from is null || to is null || from > to || string.IsNullOrWhiteSpace(customer))
+                return Results.BadRequest("กรุณากรอกตั้งแต่วันที่ ถึงวันที่ (ไม่ย้อนกัน) และเลือกลูกค้า");
+            if (await contractLabor.GetReportAsync(from.Value, to.Value, customer) is not { } report) return Results.NotFound("ไม่พบลูกค้ารายนี้");
+            var title = ContractLaborView.TitleOf(report);
+            var pdf = await printer.PrintAsync<ContractLaborView>(title, Paper.A4Portrait,
+                new() { [nameof(ContractLaborView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            return Pdf(http, pdf, "ค่าแรงงานรับจ้าง " + report.CustomerCode + " " + Iso(report.From));
+        });
+
         // RPT-04 สลิปเงินเดือน (รายงาน พิมพ์SLIP, BR-034): ระดับ A, A4 ตั้ง 3 ใบต่อหน้า. Printing it is step พิมพ์ SLIP of
         // เมนู 6 once the step before is done (#22); the slips print as soon as ค่าแรง is calculated.
         reports.MapGet("/hr/pay-periods/{id:int}/slips", async (int id, HttpContext http, PayPeriodDirectory periods,
