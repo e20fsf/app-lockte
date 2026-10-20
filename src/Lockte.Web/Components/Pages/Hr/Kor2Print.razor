@@ -1,0 +1,59 @@
+@page "/hr/employees/{Id:int}/kor2"
+@attribute [Authorize]
+@using Lockte.Hr
+@inject ScopedServices Services
+
+@* ฟอร์มเดิม แบบ คร2 (SCR-02 ปุ่ม "พิมพ์แบบ คร2", BR-072): the employee's name (filled in, editable), ลักษณะงานที่ทำ,
+   ชื่อบิดา, ชื่อมารดา → พิมพ์ = RPT-57 as PDF in a new tab. A plain form POST (with the antiforgery token), so the
+   parents' names do not go into the URL; nothing typed here is stored. *@
+<PageTitle>พิมพ์แบบ คร.2 — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์แบบแจ้งลูกจ้างเด็ก (แบบ คร.2)</h1>
+
+@if (employee is null)
+{
+    @if (loaded)
+    {
+        <MudAlert Severity="Severity.Warning">ไม่พบพนักงาน</MudAlert>
+    }
+}
+else
+{
+    <MudPaper Outlined="true" Class="pa-4" Style="max-width:40rem">
+        <MudText Class="mb-2">รหัส @employee.Code · @employee.Name @(employee.DepartmentName is { } d ? $"· {d}" : "")</MudText>
+        @if (employee.ResignDate is not null)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">พนักงานคนนี้ลาออกแล้ว</MudAlert>
+        }
+        <MudTextField @bind-Value="name" Label="ชื่อ-นามสกุล" Immediate="true" />
+        <MudTextField @bind-Value="job" Label="ลักษณะงานที่ทำ" Immediate="true" />
+        <MudTextField @bind-Value="father" Label="ชื่อบิดา" Immediate="true" />
+        <MudTextField @bind-Value="mother" Label="ชื่อมารดา" Immediate="true" />
+        <form method="post" action="@($"reports/hr/employees/{Id}/kor2")" target="_blank" class="mt-4">
+            <AntiforgeryToken />
+            <input type="hidden" name="name" value="@name" />
+            <input type="hidden" name="job" value="@job" />
+            <input type="hidden" name="father" value="@father" />
+            <input type="hidden" name="mother" value="@mother" />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        </form>
+    </MudPaper>
+}
+
+<MudButton Href="hr/employees" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับข้อมูลพนักงาน</MudButton>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private EmployeeDto? employee;
+    private bool loaded;
+    private string? name, job, father, mother;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        employee = await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(Id));
+        name = employee?.Name;
+        loaded = true;
+    }
+}

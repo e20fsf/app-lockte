@@ -146,7 +146,7 @@ public static class EmployeeMenu
         [
             new("พิมพ์ใบลา", Code: "RPT-50", Page: "hr/leave-form"),
             new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33", Page: "hr/resignation"),
-            new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51"),
+            new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51", Page: "reports/hr/insured-persons", NewTab: true),
             new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52"),
         ]),
         new(19, "พิมพ์หนังสือรับรอง", 2,
