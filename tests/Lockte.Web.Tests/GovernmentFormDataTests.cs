@@ -9,7 +9,7 @@ public sealed class GovernmentFormDataTests(LocalDbFixture db)
     private static int lastCode;
 
     /// <summary>Own codes and names: the test database is shared by every test of the run.</summary>
-    private static string NewCode() => $"G{Interlocked.Increment(ref lastCode):D3}";
+    private static string NewCode() => $"J{Interlocked.Increment(ref lastCode):D3}";
 
     private async Task<int> AddAsync(EmployeeInput input)
     {
