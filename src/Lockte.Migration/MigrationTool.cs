@@ -55,11 +55,12 @@ public static class MigrationTool
         => services.AddScoped<MasterDataMigration>().AddScoped<HistoryMigration>()
             // The delete-everything and bulk-load services of the modules: registered for this tool only, never in the web app.
             .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
-            .AddScoped<WarningMigration>().AddScoped<HrWarningImport>();
+            .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
+            .AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
     /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data
-    /// (#47), the history and the open pay period with its ไม่มาทำงาน (#51), writes the DQ report, the row counts, the monthly totals of 2026, the WORK_T check and
+    /// (#47), the history, the open pay period with its ไม่มาทำงาน and the ผลค่าแรง of every period (#51), writes the DQ report, the row counts, the monthly totals of 2026, the WORK_T check and
     /// the code map used into <paramref name="outputFolder"/>.
     /// </summary>
     [SupportedOSPlatform("windows")]
@@ -71,6 +72,7 @@ public static class MigrationTool
         var report = await scope.ServiceProvider.GetRequiredService<MasterDataMigration>().RunAsync(legacy, map);
         await scope.ServiceProvider.GetRequiredService<HistoryMigration>().RunAsync(legacy, report);
         await scope.ServiceProvider.GetRequiredService<WarningMigration>().RunAsync(legacy, report); // ใบเตือน (#59)
+        await scope.ServiceProvider.GetRequiredService<PayHistoryMigration>().RunAsync(legacy, report); // ผลค่าแรง, after the open period
         report.WriteTo(outputFolder);
         return report;
     }
