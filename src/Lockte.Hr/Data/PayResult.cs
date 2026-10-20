@@ -34,8 +34,17 @@ internal sealed class PayResult : IAudited
     public int HolidayHours { get; set; }
     /// <summary>PAY_W: ค่าแรง.</summary>
     public decimal PayNormal { get; set; }
-    /// <summary>PAY_OT: ค่าล่วงเวลาและค่าทำงานวันหยุด.</summary>
+    /// <summary>PAY_OT: ค่าล่วงเวลาและค่าทำงานวันหยุด — the sum of the five parts below.</summary>
     public decimal PayOvertime { get; set; }
+    /// <summary>
+    /// The parts of PAY_OT, for the slip (RPT-04: OT, S_W, OT2, H_W, OT3). The legacy history kept only the sum, so they
+    /// are 0 on a migrated period.
+    /// </summary>
+    public decimal OvertimePay { get; set; }
+    public decimal SundayPay { get; set; }
+    public decimal SundayOvertimePay { get; set; }
+    public decimal HolidayPay { get; set; }
+    public decimal HolidayOvertimePay { get; set; }
     /// <summary>HOT.</summary>
     public decimal Hot { get; set; }
     /// <summary>HOLIDAY: the employee's HOLI.</summary>

@@ -73,15 +73,17 @@ public static class PayCalculation
 
         // [hours]*[sa_day]/8*factor, a factor of 1 not written; each part RND-A, then the sum RND-A again (Expr3–Expr9).
         double Part(double hours, double factor) => Rounding.RndA(factor == 1 ? hours * saDay / 8 : hours * saDay / 8 * factor);
-        var payOvertime = Rounding.RndA(Part(time.Overtime, 1.5) + Part(time.Sunday, sundayFactor) + Part(time.SundayOvertime, 3)
-            + Part(time.Holiday, holidayFactor) + Part(time.HolidayOvertime, 3));
+        double overtime = Part(time.Overtime, 1.5), sunday = Part(time.Sunday, sundayFactor), sundayOvertime = Part(time.SundayOvertime, 3),
+            holiday = Part(time.Holiday, holidayFactor), holidayOvertime = Part(time.HolidayOvertime, 3);
+        var payOvertime = Rounding.RndA(overtime + sunday + sundayOvertime + holiday + holidayOvertime);
         var holidayHours = Rounding.RndA(time.Sunday + time.SundayOvertime + time.Holiday + time.HolidayOvertime); // Expr8
 
         return new EmployeePay(time.EmployeeId, time.Code, time.Name,
             employee.EmployeeType == EmployeeTypes.Monthly ? employee.Salary : saDay,
             w, l, time.Overtime, (int)holidayHours,
             (decimal)Rounding.RndA(payNormal), (decimal)payOvertime, (decimal)hot,
-            time.PublicHolidays, period.WeeklyHolidays);
+            time.PublicHolidays, period.WeeklyHolidays,
+            new OvertimeParts((decimal)overtime, (decimal)sunday, (decimal)sundayOvertime, (decimal)holiday, (decimal)holidayOvertime));
     }
 }
 
@@ -100,11 +102,24 @@ public sealed record PayEmployee(int? EmployeeType, double Salary, double DailyW
 /// <summary>
 /// ค่าแรงของพนักงานหนึ่งคนในงวด — a row of the legacy ค่าแรง / สำเนาของ ค่าแรง: <see cref="Rate"/> = SA (รายเดือน
 /// SALARY, อื่น SA_DAY), W, L, OT (ชั่วโมง O1), TT_OT (ชั่วโมง S+O2+H+O3, RND-A), PAY_W, PAY_OT, HOT, HOLIDAY (the
-/// employee's HOLI) and SUNDAY (the period's วันหยุดประจำสัปดาห์).
+/// employee's HOLI) and SUNDAY (the period's วันหยุดประจำสัปดาห์); <see cref="Parts"/> = PAY_OT part by part, for the
+/// slip (RPT-04).
 /// </summary>
 public sealed record EmployeePay(int EmployeeId, string Code, string Name, double Rate, double Normal, double PaidLeave, double Overtime,
-    int HolidayHours, decimal PayNormal, decimal PayOvertime, decimal Hot, int PublicHolidays, int WeeklyHolidays)
+    int HolidayHours, decimal PayNormal, decimal PayOvertime, decimal Hot, int PublicHolidays, int WeeklyHolidays, OvertimeParts Parts)
 {
     /// <summary>ยอดรวม: PAY_W + PAY_OT + HOT.</summary>
     public decimal Total => PayNormal + PayOvertime + Hot;
+}
+
+/// <summary>
+/// PAY_OT part by part, each RND-A (Expr3–Expr7 of คำนวณค่าแรง2/3/31/4/41, the slip's OT, S_W, OT2, H_W, OT3):
+/// ชั่วโมง O1 × SA_DAY/8 × 1.5, S × 1 or 2, O2 × 3, H × 1 or 2, O3 × 3. Zero for a period moved from the legacy history,
+/// which kept only their sum.
+/// </summary>
+public sealed record OvertimeParts(decimal Overtime, decimal Sunday, decimal SundayOvertime, decimal Holiday, decimal HolidayOvertime)
+{
+    public static OvertimeParts None { get; } = new(0, 0, 0, 0, 0);
+
+    public decimal Total => Overtime + Sunday + SundayOvertime + Holiday + HolidayOvertime;
 }

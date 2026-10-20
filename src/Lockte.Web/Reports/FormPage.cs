@@ -79,6 +79,18 @@ public sealed class FormPage(Paper paper)
         return this;
     }
 
+    /// <summary>
+    /// A picture (logo, signature) scaled to fit the box at (<paramref name="x"/>, <paramref name="y"/>) of
+    /// <paramref name="width"/> × <paramref name="height"/> mm, centred in it and keeping its proportions. Embedded in the
+    /// page, so the PDF needs nothing from outside.
+    /// </summary>
+    public FormPage Image(double x, double y, double width, double height, string contentType, byte[] data)
+    {
+        svg.Append($"<image x=\"{N(x)}\" y=\"{N(y)}\" width=\"{N(width)}\" height=\"{N(height)}\" preserveAspectRatio=\"xMidYMid meet\" href=\"data:")
+            .Append(WebUtility.HtmlEncode(contentType)).Append(";base64,").Append(Convert.ToBase64String(data)).Append("\"/>");
+        return this;
+    }
+
     public string ToSvg()
     {
         var (width, height) = ReportHtml.PageMillimetres(Paper);

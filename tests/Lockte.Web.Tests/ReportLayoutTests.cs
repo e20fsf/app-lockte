@@ -92,7 +92,7 @@ public sealed class ReportLayoutTests
     private static readonly PayPeriodDto Paid = new(1, D("2026-08-27"), D("2026-09-11"), D("2026-09-16"), PayPeriodStep.PayCalculated, null, null, []);
 
     private static PayLine PayLine(string code, decimal payNormal, decimal payOvertime)
-        => new(new EmployeePay(1, code, "นาย ทดสอบ " + code, 400, 13.9375, 1, 17.0 / 3, 10, payNormal, payOvertime, 0, 0, 2), 1, "ไดคาสท์");
+        => new(new EmployeePay(1, code, "นาย ทดสอบ " + code, 400, 13.9375, 1, 17.0 / 3, 10, payNormal, payOvertime, 0, 0, 2, OvertimeParts.None), 1, "ไดคาสท์");
 
     [Fact] // RPT-02: หัว "ค่าแรงงวดวันที่ TO แผนก …" · อัตรา/วัน ทศนิยม 2 · เงินเต็มบาทมีคั่นหลักพัน · ท้าย รวม n คน + ผลรวม
     public async Task The_pay_report_shows_the_lines_and_their_totals()

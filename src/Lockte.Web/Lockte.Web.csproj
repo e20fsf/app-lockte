@@ -21,6 +21,8 @@
   <ItemGroup>
     <!-- TH Sarabun New (SIPA, freely redistributable): served to Chromium by the report pipeline, embedded in every PDF. -->
     <None Update="Reports\Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- The company logo on the forms that had one (docs/brand/README.md): the same file the web serves. -->
+    <EmbeddedResource Include="wwwroot\brand\logo.svg" LogicalName="Lockte.Web.brand.logo.svg" />
   </ItemGroup>
 
   <ItemGroup>

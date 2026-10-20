@@ -17,7 +17,7 @@ public sealed class PayBaselineTests
         => new(code, From, new DateOnly(2026, 9, 11), new DateOnly(2026, 9, 16), w, 0, payW, payOt, 0, ot);
 
     private static EmployeePay Pay(string code, decimal payW = 5600, decimal payOt = 263, double w = 14, double ot = 3.5)
-        => new(1, code, "นาย ทดสอบ", 400, w, 0, ot, 0, payW, payOt, 0, 0, 2);
+        => new(1, code, "นาย ทดสอบ", 400, w, 0, ot, 0, payW, payOt, 0, 0, 2, OvertimeParts.None);
 
     [Fact]
     public void Equal_results_have_no_mismatch_and_long_fields_allow_their_rounding()
