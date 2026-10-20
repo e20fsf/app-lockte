@@ -22,6 +22,8 @@ public static class ReportsRegistration
         services.AddSingleton<ReportPdfRenderer>();
         services.AddHostedService<ReportWarmUp>();
         services.AddScoped<ReportPrinter>();
+        services.AddMemoryCache();
+        services.AddSingleton<OvertimeSheetPrints>();
         return services;
     }
 
@@ -62,6 +64,16 @@ public static class ReportsRegistration
                 new() { [nameof(PaySummaryView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
             await registry.CompleteStepAsync(id, PayPeriodStep.SummaryPrinted);
             return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
+        });
+
+        // RPT-16 ใบขออนุมัติทำงานล่วงเวลา (รายงาน OT): A5 ตั้ง, no document number. The sheet SCR-14 just saved (OvertimeSheetPrints).
+        reports.MapGet("/hr/overtime-sheets/{key:guid}", async (Guid key, HttpContext http, OvertimeSheetPrints sheets, ReportPrinter printer,
+            CancellationToken cancellationToken) =>
+        {
+            if (sheets.Find(key, http.User.Identity?.Name) is not { } sheet) return Results.NotFound("ไม่พบใบขออนุมัติทำ OT นี้ กรุณาพิมพ์ใหม่จากหน้าจอ");
+            var pdf = await printer.PrintAsync<OvertimeSheetView>(OvertimeSheetView.Title, OvertimeSheetView.Paper,
+                new() { [nameof(OvertimeSheetView.Sheet)] = sheet }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            return Pdf(http, pdf, "ใบขออนุมัติทำ OT " + sheet.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         });
 
         return app;

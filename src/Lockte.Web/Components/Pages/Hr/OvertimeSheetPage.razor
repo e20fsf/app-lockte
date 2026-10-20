@@ -1,0 +1,204 @@
+@page "/hr/time/overtime-sheet"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@using Lockte.Web.Reports.Hr
+@inject ScopedServices Services
+@inject OvertimeSheetPrints Prints
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+@* SCR-14 ใบขออนุมัติทำ OT (ฟอร์ม OT + subform OT1): วันที่ แผนก เวลาเริ่ม/เลิก เวลาพัก ประเภท for the whole sheet, then
+   one line per employee — picking a รหัส fills ชื่อ and หมายเหตุ with the employee's หน้าที่, as the legacy. พิมพ์ saves a
+   เวลาทำงาน row per line (BR-012) and opens RPT-16 in a new tab; the lines are then cleared so the same sheet is not
+   saved twice by mistake (the legacy would add the rows again). หลายกะ starts a new sheet with the defaults. People
+   recorded ไม่มาทำงาน that day are marked, which is what the legacy's GRED_2 = "NO" flag was for (never cleared here). *@
+<PageTitle>พิมพ์ใบขออนุมัติทำล่วงเวลา — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์ใบขออนุมัติทำงานล่วงเวลา</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" Date="day" DateChanged="DayChangedAsync" Label="วันที่ทำ" Culture="ThaiDate.Culture"
+                       DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+        <MudText>@Day.ToString("dddd", ThaiDate.Culture)</MudText>
+        <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก" Clearable="true" Style="min-width:14rem">
+            @foreach (var d in departments)
+            {
+                <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <TimeBox @bind-Text="workIn" Label="เวลาเข้า" Choices="choices.StartTimes" Style="max-width:8rem" />
+        <TimeBox @bind-Text="workOut" Label="เวลาออก" Choices="choices.EndTimes" Style="max-width:8rem" />
+        <MudSelect T="int" @bind-Value="restMinutes" Label="เวลาพัก (นาที)" Style="max-width:8rem">
+            @foreach (var m in ShiftDto.RestMinuteChoices)
+            {
+                <MudSelectItem T="int" Value="m">@m</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="string" @bind-Value="type" Label="ประเภท" Style="max-width:7rem">
+            @foreach (var t in WorkTypes.Codes)
+            {
+                <MudSelectItem T="string" Value="t">@t</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-4">
+        <MudAutocomplete T="OvertimeSheetEmployee" Value="picked" ValueChanged="Pick" Label="รหัส (รหัส หรือ ชื่อ)"
+                         SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}{(e.IsAbsent ? "  (ไม่มาทำงาน)" : "")}")"
+                         Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="min-width:22rem" />
+        <MudTextField @bind-Value="memo" Label="หมายเหตุ / งานที่ทำ" MaxLength="OvertimeSheetRegistry.MemoLength" Style="min-width:18rem" />
+        <MudButton Variant="Variant.Outlined" OnClick="AddLine" Disabled="picked is null">เพิ่มในใบ</MudButton>
+    </MudStack>
+
+    <MudTable Items="lines" Dense="true" Class="mt-4" T="LineForm" Height="22rem" FixedHeader="true">
+        <HeaderContent>
+            <MudTh>ที่</MudTh><MudTh>รหัส</MudTh><MudTh>ชื่อ-นามสกุล</MudTh><MudTh>หมายเหตุ</MudTh><MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@(lines.IndexOf(context) + 1)</MudTd>
+            <MudTd>@context.Employee.Code</MudTd>
+            <MudTd>
+                @context.Employee.Name
+                @if (context.Employee.IsAbsent)
+                {
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">ไม่มาทำงาน</MudChip>
+                }
+            </MudTd>
+            <MudTd><MudTextField @bind-Value="context.Memo" Margin="Margin.Dense" MaxLength="OvertimeSheetRegistry.MemoLength" /></MudTd>
+            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => lines.Remove(context))" /></MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ยังไม่มีพนักงานในใบนี้</MudText></NoRecordsContent>
+    </MudTable>
+
+    <MudStack Row="true" Spacing="2" Class="mt-4" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrintAsync" Disabled="busy">พิมพ์</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="NewSheet" Disabled="busy">หลายกะ (เริ่มใบใหม่)</MudButton>
+        @if (lastPrinted is { } key)
+        {
+            <MudButton Href="@OvertimeSheetPrints.Href(key)" Target="_blank" StartIcon="@Icons.Material.Filled.PictureAsPdf">เปิดใบที่พิมพ์ล่าสุด</MudButton>
+        }
+    </MudStack>
+    <MudText Typo="Typo.caption">กดพิมพ์แล้วเวลา OT ของทุกคนในใบจะถูกบันทึกเข้าเวลาทำงานทันที (เหมือนโปรแกรมเดิม)</MudText>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    /// <summary>The defaults of the legacy form OT: W_IN 17:20, W_OUT 20:20, REST_T 0, TYPE O1.</summary>
+    private static readonly TimeOnly DefaultIn = new(17, 20), DefaultOut = new(20, 20);
+
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private DateTime? day = DateTime.Today;
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private OvertimeSheetChoices choices = new([], [], []);
+    private int? departmentId;
+    private string? workIn, workOut;
+    private int restMinutes;
+    private string? type;
+    private OvertimeSheetEmployee? picked;
+    private string? memo;
+    private List<LineForm> lines = [];
+    private Guid? lastPrinted;
+    private bool busy;
+
+    private DateOnly Day => DateOnly.FromDateTime(day ?? DateTime.Today);
+
+    protected override async Task OnInitializedAsync()
+    {
+        departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+        NewSheet();
+        await LoadChoicesAsync();
+    }
+
+    private async Task DayChangedAsync(DateTime? value)
+    {
+        day = value;
+        await LoadChoicesAsync();
+    }
+
+    /// <summary>ไม่มาทำงาน depends on the date: the lines already keyed take the new marks.</summary>
+    private async Task LoadChoicesAsync()
+    {
+        var date = Day;
+        choices = await Services.RunAsync<OvertimeSheetRegistry, OvertimeSheetChoices>(r => r.GetChoicesAsync(date));
+        var byId = choices.Employees.ToDictionary(e => e.Id);
+        foreach (var line in lines)
+            if (byId.TryGetValue(line.Employee.Id, out var e)) line.Employee = e;
+    }
+
+    /// <summary>หลายกะ (มาโคร ขออนุมัติทำ OT2): a new sheet with the form's defaults; the date and choices stay.</summary>
+    private void NewSheet()
+    {
+        departmentId = null;
+        workIn = TimeText.Format(DefaultIn);
+        workOut = TimeText.Format(DefaultOut);
+        restMinutes = 0;
+        type = WorkTypes.Overtime;
+        picked = null;
+        memo = null;
+        lines = [];
+    }
+
+    private Task<IEnumerable<OvertimeSheetEmployee>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? choices.Employees
+            : choices.Employees.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+
+    /// <summary>ID_AfterUpdate of OT1: ชื่อ and MEMO = หน้าที่ (WORK) of the employee.</summary>
+    private void Pick(OvertimeSheetEmployee? employee)
+    {
+        picked = employee;
+        memo = employee?.Duty;
+        if (employee is { IsAbsent: true })
+            Snackbar.Add($"{employee.Code} {employee.Name} บันทึกไม่มาทำงานวันนี้", Severity.Warning);
+    }
+
+    private void AddLine()
+    {
+        if (picked is null) return;
+        lines.Add(new LineForm { Employee = picked, Memo = memo });
+        picked = null;
+        memo = null;
+    }
+
+    private async Task PrintAsync()
+    {
+        if (!TimeText.TryParse(workIn, out var start) || !TimeText.TryParse(workOut, out var end))
+        {
+            Snackbar.Add("เวลาต้องเป็น ชั่วโมง:นาที เช่น 17:20", Severity.Error);
+            return;
+        }
+        // A picked employee not yet added is on the sheet too: the legacy subform saved the row being keyed.
+        if (picked is not null) AddLine();
+        var input = new OvertimeSheetInput(Day, departmentId, start, end, restMinutes, type,
+            lines.Select(l => new OvertimeSheetLineInput(l.Employee.Id, l.Memo)).ToList());
+        busy = true;
+        try
+        {
+            var outcome = await Services.RunAsync<OvertimeSheetRegistry, OvertimeSheetOutcome>(r => r.PrintAsync(input));
+            foreach (var e in outcome.Result.Errors) Snackbar.Add(e, Severity.Error);
+            if (outcome.Sheet is not { } sheet) return;
+            var user = (await AuthState).User.Identity?.Name ?? "";
+            lastPrinted = Prints.Keep(sheet, user);
+            Snackbar.Add($"บันทึกเวลา OT {outcome.Result.Id} รายการแล้ว", Severity.Success);
+            lines = [];
+            await JS.InvokeVoidAsync("open", OvertimeSheetPrints.Href(lastPrinted.Value), "_blank");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class LineForm
+    {
+        public OvertimeSheetEmployee Employee { get; set; } = default!;
+        public string? Memo { get; set; }
+    }
+}

@@ -52,7 +52,7 @@ public static class EmployeeMenu
         new(7, "วันอาทิตย์และวันหยุด", 1,
         [
             new("บันทึกการทำงาน", SubMenu: 3),
-            new("พิมพ์ใบขออนุมัติทำล่วงเวลา", Code: "SCR-14"),
+            new("พิมพ์ใบขออนุมัติทำล่วงเวลา", Code: "SCR-14", Page: "hr/time/overtime-sheet"),
             new("เพิ่มและแก้ไขวันอาทิตย์", Code: "SCR-15", Page: "hr/calendar/weekly"),
             new("เพิ่มและแก้ไขวันหยุด", Code: "SCR-16", Page: "hr/calendar/holidays"),
             new("รายงานทำล่วงเวลาจริง", Code: "RPT-14"),
