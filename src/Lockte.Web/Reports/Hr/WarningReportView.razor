@@ -1,0 +1,44 @@
+@using Lockte.Hr
+@* RPT-30 รายงานพนักงานที่ได้รับใบเตือน (รายงาน ใบเตือน, print-samples.md): ระดับ B on A5 นอน — columns, order and the
+   "รวมทั้งหมด n รายการ" as the legacy; the dates chosen are printed on top (D-10). เรื่อง gets the widest column and wraps
+   instead of running off the page (D-1). Rows come ready from WarningDirectory.GetReportAsync (BR-064). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:5%" /><col style="width:11%" /><col style="width:7%" /><col style="width:19%" />
+            <col style="width:12%" /><col style="width:14%" /><col style="width:32%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>วันที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ใบเตือน</th><th>เรื่อง</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@ReportText.Date(line.Date)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td>@line.DepartmentName</td>
+                    <td>@line.LevelName</td>
+                    <td>@line.Remark</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="7">รวมทั้งหมด @Report.Lines.Count รายการ</td></tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายงานพนักงานที่ได้รับใบเตือน";
+
+    [Parameter, EditorRequired] public WarningReport Report { get; set; } = default!;
+}

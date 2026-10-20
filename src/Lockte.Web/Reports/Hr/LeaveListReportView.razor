@@ -1,0 +1,41 @@
+@using Lockte.Hr
+@* RPT-31 ปุ่ม "พิมพ์ลางานตามวันที่" (รายงาน พิมพ์ลางานทั้งแผนก100): ระดับ B on A4 ตั้ง — (ลำดับ) รหัส ชื่อ-นามสกุล จำนวนวัน
+   ประเภท (รหัส SR as printed) แผนก, by รหัส; the legacy had no total row. Rows from LeaveReportDirectory.GetListReportAsync. *@
+<p class="sub">แผนก @(Report.DepartmentName ?? "ทั้งหมด")&emsp;ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:10%" /><col style="width:35%" /><col style="width:12%" />
+            <col style="width:10%" /><col style="width:26%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th class="num">จำนวนวัน</th><th>ประเภท</th><th>แผนก</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td class="num">@ReportText.Decimal2(line.Days)</td>
+                    <td>@line.Type</td>
+                    <td>@line.DepartmentName</td>
+                </tr>
+            }
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายงานการลางาน";
+
+    [Parameter, EditorRequired] public LeaveListReport Report { get; set; } = default!;
+}

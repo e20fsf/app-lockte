@@ -1,0 +1,43 @@
+@using Lockte.Hr
+@* RPT-34 รายงานพนักงานที่ขาดงาน (รายงาน ขาดงาน2, print-samples.md): ระดับ B on A5 นอน — (ลำดับ) ตั้งแต่วันที่ ถึงวันที่
+   จำนวนวัน รหัส ชื่อ-นามสกุล; ท้าย "รวมทั้งหมด n รายการ". The legacy sample without rows printed an empty row "1" and a blank
+   second page (D-6): here "ไม่มีข้อมูล". Rows from LeaveReportDirectory.GetAbsentReportAsync (BR-064). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)@(Report.EmployeeCode is { } code ? $"  รหัส {code}" : "")</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:16%" /><col style="width:16%" /><col style="width:13%" /><col style="width:10%" />
+            <col style="width:38%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>ตั้งแต่วันที่</th><th>ถึงวันที่</th><th class="num">จำนวนวัน</th><th>รหัส</th><th>ชื่อ-นามสกุล</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@ReportText.Date(line.FromDate)</td>
+                    <td>@ReportText.Date(line.ToDate)</td>
+                    <td class="num">@ReportText.Decimal2(line.Days)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="6">รวมทั้งหมด @Report.Lines.Count รายการ</td></tr>
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายงานพนักงานที่ขาดงาน";
+
+    [Parameter, EditorRequired] public AbsentLeaveReport Report { get; set; } = default!;
+}

@@ -1,0 +1,173 @@
+@page "/hr/reports/{Kind}"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* The small forms that open the attendance and leave reports (#59), one per menu item as the legacy forms: วันทำงาน4/5/6
+   (ตั้งแต่ ถึง รหัส), ลางานทั้งแผนก (ตั้งแต่ ถึง แผนก จำนวนคน จำนวนวัน), รหัสพนักงาน, ตั้งวันที่พิมพ์สรุปการลางาน,
+   สรุปชั่วโมงการทำงาน1, ทำล่วงเวลาจริง. The legacy printed its current tables (this year's การลา / ใบเตือน, the open
+   period's เวลาทำงาน); one table for every year (#41) needs the dates instead, so every form has them. "พิมพ์" opens the PDF
+   in a new tab. ชื่อเดือนในหัว comes from the dates (D-5): the legacy MO / MON fields are not asked. *@
+<PageTitle>@Info.Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Info.Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Spacing="2">
+        @if (Info.OneDay)
+        {
+            <MudDatePicker Editable="true" @bind-Date="from" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+        }
+        else
+        {
+            <MudStack Row="true" Spacing="2">
+                <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+                <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+            </MudStack>
+        }
+        @if (Info.Employee != EmployeeChoice.None)
+        {
+            <MudAutocomplete T="EmployeeListItem" @bind-Value="employee"
+                             Label="@(Info.Employee == EmployeeChoice.Required ? "รหัสพนักงาน" : "รหัสพนักงาน (ว่าง = ทุกคน)")"
+                             SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="max-width:26rem" />
+        }
+        @if (Info.Department != DepartmentChoice.None)
+        {
+            <MudSelect T="int?" Value="departmentId" ValueChanged="DepartmentChanged" Style="max-width:26rem"
+                       Label="@(Info.Department == DepartmentChoice.Required ? "แผนก" : "แผนก (ว่าง = ทุกแผนก)")" Clearable="@(Info.Department == DepartmentChoice.Optional)">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        @if (Info.Headcount)
+        {
+            <MudNumericField T="int?" @bind-Value="employees" Label="จำนวนคน" Min="0" Style="max-width:12rem"
+                             HelperText="เติมจากพนักงานที่ทำงานอยู่ของแผนก แก้ได้" />
+        }
+        @if (Info.WorkDays)
+        {
+            <MudNumericField T="int?" @bind-Value="workDays" Label="จำนวนวันทำงาน" Min="0" Style="max-width:12rem"
+                             HelperText="ใช้คิดเปอร์เซ็นต์ ว่างได้" />
+        }
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl()" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        @if (Kind == "leave-department")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/leave/list")" Target="_blank" Disabled="@(Problem is not null)">พิมพ์ลางานตามวันที่</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(Info.Menu)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private enum EmployeeChoice { None, Optional, Required }
+
+    private enum DepartmentChoice { None, Optional, Required }
+
+    /// <summary>One report form: its title, PDF path, the fields it asks and its menu.</summary>
+    private sealed record Form(string Title, string Path, int Menu, bool OneDay = false, EmployeeChoice Employee = EmployeeChoice.None,
+        DepartmentChoice Department = DepartmentChoice.None, bool Headcount = false, bool WorkDays = false);
+
+    private static readonly Dictionary<string, Form> Forms = new()
+    {
+        ["warnings"] = new("พิมพ์รายงานใบเตือน", "reports/hr/warnings", 4),
+        ["leave-department"] = new("พิมพ์ลางานทั้งแผนก", "reports/hr/leave/department", 17,
+            Department: DepartmentChoice.Optional, Headcount: true, WorkDays: true),
+        ["leave-employee"] = new("พิมพ์ลางานรายบุคคล", "reports/hr/leave/employee", 17, Employee: EmployeeChoice.Required),
+        ["leave-summary"] = new("พิมพ์สรุปการลางาน", "reports/hr/leave/summary", 17, WorkDays: true),
+        ["leave-absent"] = new("พิมพ์พนักงานขาดงาน", "reports/hr/leave/absent", 17, Employee: EmployeeChoice.Optional),
+        ["late"] = new("รายงานพนักงานที่มาทำงานสาย", "reports/hr/time/late", 3, Employee: EmployeeChoice.Optional),
+        ["work-hours"] = new("รายงานสรุปชั่วโมงทำงาน", "reports/hr/time/hours", 3,
+            Department: DepartmentChoice.Required, Headcount: true, WorkDays: true),
+        ["overtime"] = new("รายงานทำล่วงเวลาจริง", "reports/hr/time/overtime", 7, OneDay: true),
+        ["attendance"] = new("รายงานการมาทำงาน", "reports/hr/time/attendance", 7, Employee: EmployeeChoice.Optional),
+    };
+
+    [Parameter] public string Kind { get; set; } = "";
+
+    private Form Info => Forms.GetValueOrDefault(Kind) ?? Forms["warnings"];
+
+    private DateTime? from;
+    private DateTime? to;
+    private EmployeeListItem? employee;
+    private int? departmentId;
+    private int? employees;
+    private int? workDays;
+    private List<EmployeeListItem> people = [];
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private Dictionary<int, int> working = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        people = [.. await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync())];
+        departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+        var names = departments.ToDictionary(d => d.Name, d => d.Id);
+        working = people.Where(p => p.IsWorking && p.DepartmentName is not null && names.ContainsKey(p.DepartmentName))
+            .GroupBy(p => names[p.DepartmentName!]).ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    protected override void OnParametersSet()
+    {
+        var today = DateTime.Today;
+        // The leave and warning reports read the legacy table of the current year; the others a month.
+        (from, to) = Kind is "warnings" or "leave-employee"
+            ? (new DateTime(today.Year, 1, 1), new DateTime(today.Year, 12, 31))
+            : (new DateTime(today.Year, today.Month, 1), new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1));
+        if (Info.OneDay) from = today;
+        employee = null;
+        departmentId = null;
+        employees = null;
+        workDays = null;
+    }
+
+    private void DepartmentChanged(int? id)
+    {
+        departmentId = id;
+        // DEP_AfterUpdate: จำนวนคน = the แผนก's working employees (แบบสอบถาม21).
+        employees = id is { } d ? working.GetValueOrDefault(d) : working.Values.Sum();
+    }
+
+    private Task<IEnumerable<EmployeeListItem>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        var list = people.OrderByDescending(e => e.IsWorking).AsEnumerable();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? list
+            : list.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+
+    private string? Problem
+        => from is null || (!Info.OneDay && to is null) ? "กรุณากรอกวันที่"
+            : !Info.OneDay && from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : Info.Employee == EmployeeChoice.Required && employee is null ? "กรุณาเลือกพนักงาน"
+            : Info.Department == DepartmentChoice.Required && departmentId is null ? "กรุณาเลือกแผนก"
+            : null;
+
+    private string PdfUrl(string? path = null)
+    {
+        if (Problem is not null) return "";
+        static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var query = new List<string>();
+        if (Info.OneDay) query.Add($"date={Iso(from)}");
+        else query.AddRange([$"from={Iso(from)}", $"to={Iso(to)}"]);
+        if (Info.Employee == EmployeeChoice.Optional && employee is { } e) query.Add($"employee={e.Id}");
+        if (departmentId is { } d) query.Add($"department={d}");
+        if (Info.Headcount && employees is { } n) query.Add($"employees={n}");
+        if (Info.WorkDays && workDays is { } w) query.Add($"workDays={w}");
+        var basePath = path ?? Info.Path;
+        if (Info.Employee == EmployeeChoice.Required) basePath += $"/{employee!.Id}";
+        return $"{basePath}?{string.Join("&", query)}";
+    }
+}

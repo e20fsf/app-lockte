@@ -1,0 +1,82 @@
+@using Lockte.Hr
+@* RPT-31 รายงานการลางานแผนก… (รายงาน พิมพ์ลางานทั้งแผนก1, print-samples.md): ระดับ B on A4 นอน, ตารางเส้นเต็ม as the
+   legacy form — ที่ รหัส ชื่อ-นามสกุล เริ่มทำงาน + 16 ประเภทการลา (1 ทศนิยม, 0 when none) + รวม (SR 1–15); แถว "รวมทั้งหมด
+   n คน" (n = จำนวนคน of the form, as the legacy EMP_QTY) and "คิดเป็นเปอร์เซ็นต์" (Σ / คน / จำนวนวันทำงาน × 100, blank
+   without วันทำงาน, as the legacy sample); กล่องลงนาม ผู้จัดทำ/ผู้ตรวจสอบ/ผู้อนุมัติ. Rows from LeaveReportDirectory (BR-064). *@
+<style>
+    table.grid th, table.grid td { border: 0.5pt solid #000; padding: 1pt 2pt; }
+    table.grid th { text-align: center; font-size: 10pt; line-height: 1.05; }
+    table.grid td { font-size: 12pt; }
+</style>
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)&emsp;จำนวนวันทำงาน @(Report.WorkDays?.ToString() ?? "") วัน</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table class="grid">
+        <colgroup>
+            <col style="width:3%" /><col style="width:5%" /><col style="width:16%" /><col style="width:7%" />
+            @foreach (var _ in DepartmentLeaveReport.Types)
+            {
+                <col style="width:4%" />
+            }
+            <col style="width:5%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th></th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เริ่มทำงาน</th>
+                @foreach (var type in DepartmentLeaveReport.Types)
+                {
+                    <th>@Label(type)</th>
+                }
+                <th>รวม</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td class="num">@(line.StartDate is { } start ? ReportText.Date(start) : "")</td>
+                    @foreach (var type in DepartmentLeaveReport.Types)
+                    {
+                        <td class="num">@ReportText.Decimal1(line.DaysOf(type))</td>
+                    }
+                    <td class="num">@ReportText.Decimal1(line.Total)</td>
+                </tr>
+            }
+            <tr>
+                <td colspan="4"><b>รวมทั้งหมด</b>&emsp;@Report.Employees&ensp;<b>คน</b></td>
+                @foreach (var type in DepartmentLeaveReport.Types)
+                {
+                    <td class="num">@ReportText.Decimal1(Report.TotalOf(type))</td>
+                }
+                <td class="num">@ReportText.Decimal1(Report.Total)</td>
+            </tr>
+            <tr>
+                <td colspan="4"><b>คิดเป็นเปอร์เซ็นต์</b></td>
+                @foreach (var type in DepartmentLeaveReport.Types)
+                {
+                    <td class="num">@ReportText.Percent(Report.Percent(Report.TotalOf(type)))</td>
+                }
+                <td class="num">@ReportText.Percent(Report.Percent(Report.Total))</td>
+            </tr>
+        </tbody>
+    </table>
+    <SignatureBoxes Labels="@(new[] { "ผู้จัดทำ", "ผู้ตรวจสอบ", "ผู้อนุมัติ" })" />
+}
+
+@code {
+    /// <summary>"รายงานการลางานแผนก" + the แผนก, or "ทั้งหมด" for every แผนก (Expr2).</summary>
+    public static string TitleOf(DepartmentLeaveReport report) => "รายงานการลางานแผนก" + (report.DepartmentName ?? "ทั้งหมด");
+
+    /// <summary>The column labels as the legacy report printed them (SR 16 shorter than its T-ประเภทการลางาน name).</summary>
+    public static string Label(string type) => type == "16" ? "ลาเป็นโรคระบาด" : LeaveTypes.Names[type];
+
+    [Parameter, EditorRequired] public DepartmentLeaveReport Report { get; set; } = default!;
+}

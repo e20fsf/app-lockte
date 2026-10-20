@@ -1,0 +1,147 @@
+@page "/hr/warnings"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-32 บันทึกและแก้ไขใบเตือน (ฟอร์ม ใบเตือน + ใบเตือน2): วันที่, รหัส (ชื่อและแผนกมาจากพนักงาน), ระดับ (ชื่อมาจาก
+   T-ชื่อใบเตือน), รายละเอียด. The chosen employee's warnings are listed below (the legacy "แก้ไขใบเตือน" form ใบเตือน2 is the
+   same list): click one to edit or delete it. BR-023: no rule on the order of the levels (Q-28). *@
+<PageTitle>บันทึกและแก้ไขใบเตือน — LOCKTE</PageTitle>
+<h1 class="mb-4">บันทึกและแก้ไขใบเตือน</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "ออกใบเตือนใหม่" : "แก้ใบเตือนที่เลือก")</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="form.Date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                       Style="max-width:12rem" />
+        <MudAutocomplete T="EmployeeListItem" Value="form.Employee" ValueChanged="EmployeeChangedAsync" Label="รหัส (รหัส หรือ ชื่อ)"
+                         SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                         Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="min-width:22rem" />
+        <MudText>แผนก: @(form.Id is not null && form.Employee?.Id == loadedEmployeeId ? loadedDepartment : form.Employee?.DepartmentName)</MudText>
+    </MudStack>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+        <MudSelect T="string" @bind-Value="form.Level" Label="ระดับ" Clearable="true" Style="min-width:20rem">
+            @foreach (var level in WarningLevels.Codes)
+            {
+                <MudSelectItem T="string" Value="level">@level @WarningLevels.Names[level]</MudSelectItem>
+            }
+        </MudSelect>
+        <MudTextField @bind-Value="form.Remark" Label="รายละเอียด" MaxLength="WarningRegistry.RemarkLength" Style="min-width:28rem" />
+    </MudStack>
+    <MudStack Row="true" Spacing="2" Class="mt-3">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy">ลบใบเตือนนี้</MudButton>
+        }
+        <MudButton OnClick="New">รายต่อไป</MudButton>
+    </MudStack>
+
+    <MudText Typo="Typo.h6" Class="mt-6 mb-2">ใบเตือนของ @(form.Employee is { } e ? $"{e.Code} {e.Name}" : "พนักงานที่เลือก")</MudText>
+    <MudTable Items="rows" Dense="true" Hover="true" T="WarningDto" OnRowClick="@((TableRowClickEventArgs<WarningDto> e) => Edit(e.Item!))">
+        <HeaderContent><MudTh>วันที่</MudTh><MudTh>แผนก</MudTh><MudTh>ระดับ</MudTh><MudTh>รายละเอียด</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@ThaiDate.Format(context.Date)</MudTd>
+            <MudTd>@context.DepartmentName</MudTd>
+            <MudTd>@context.LevelName</MudTd>
+            <MudTd>@context.Remark</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>@(form.Employee is null ? "เลือกพนักงานเพื่อดูใบเตือน" : "ยังไม่มีใบเตือน")</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudStack Row="true" Class="mt-4">
+    <MudButton Href="@EmployeeMenu.HrefOf(4)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+    <MudButton Href="hr/reports/warnings" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายงานใบเตือน</MudButton>
+</MudStack>
+
+@code {
+    private List<EmployeeListItem> employees = [];
+    private IReadOnlyList<WarningDto> rows = [];
+    private WarningForm form = new();
+    private int? loadedEmployeeId;
+    private string? loadedDepartment;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+        // The legacy combo listed every employee (resigned too).
+        => employees = [.. await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync())];
+
+    private Task<IEnumerable<EmployeeListItem>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        var list = employees.OrderByDescending(e => e.IsWorking).AsEnumerable();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? list
+            : list.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+
+    private async Task EmployeeChangedAsync(EmployeeListItem? employee)
+    {
+        form.Employee = employee;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+        => rows = form.Employee is { } e
+            ? await Services.RunAsync<WarningDirectory, IReadOnlyList<WarningDto>>(d => d.ListOfEmployeeAsync(e.Id))
+            : [];
+
+    private void New() => form = new WarningForm { Employee = form.Employee };
+
+    private void Edit(WarningDto row)
+    {
+        loadedEmployeeId = row.EmployeeId;
+        loadedDepartment = row.DepartmentName;
+        form = new WarningForm
+        {
+            Id = row.Id, Date = row.Date.ToDateTime(TimeOnly.MinValue), Level = row.Level, Remark = row.Remark, RowVersion = row.RowVersion,
+            Employee = employees.FirstOrDefault(e => e.Id == row.EmployeeId) ?? new EmployeeListItem(row.EmployeeId, row.EmployeeCode, row.EmployeeName, null, false),
+        };
+    }
+
+    private Task SaveAsync()
+    {
+        var input = new WarningInput(form.Id, form.Date is { } d ? DateOnly.FromDateTime(d) : null, form.Employee?.Id, form.Level, form.Remark,
+            form.RowVersion);
+        return RunAsync(r => r.SaveAsync(input), "บันทึกแล้ว");
+    }
+
+    private Task DeleteAsync() => RunAsync(r => r.DeleteAsync(form.Id!.Value, form.RowVersion!), "ลบแล้ว");
+
+    private async Task RunAsync(Func<WarningRegistry, Task<ServiceResult>> action, string done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync(action);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(done, Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class WarningForm
+    {
+        public int? Id { get; set; }
+        public DateTime? Date { get; set; } = DateTime.Today;
+        public EmployeeListItem? Employee { get; set; }
+        public string? Level { get; set; }
+        public string? Remark { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

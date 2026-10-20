@@ -1,0 +1,47 @@
+@using Lockte.Hr
+@* RPT-17 รายงานพนักงานที่ไม่มาทำงาน (รายงาน NO_WORK1; no legacy sample): ระดับ B on A4 ตั้ง — (ลำดับ) วันที่ รหัส ชื่อ-นามสกุล
+   แผนก เหตุผล, by วันที่ then รหัส; ท้าย "รวม n คน  พนักงานทั้งหมด q คน  คิดเป็น% x.xx  มาทำงาน q − n คน". The legacy
+   printed today's date beside "วันที่"; here it is the day chosen. Rows from AbsenceDirectory.GetDailyReportAsync (BR-061). *@
+<p class="sub">วันที่ @ReportText.Date(Report.Date)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:6%" /><col style="width:12%" /><col style="width:8%" /><col style="width:30%" /><col style="width:18%" />
+            <col style="width:26%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>วันที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>เหตุผล</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@ReportText.Date(line.Date)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td>@line.DepartmentName</td>
+                    <td>@line.Remark</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="6">
+                    รวม @Report.Absent คน&emsp;พนักงานทั้งหมด @Report.WorkingEmployees คน&emsp;คิดเป็น% @ReportText.Decimal2(Report.AbsentPercent)&emsp;มาทำงาน @Report.Present คน
+                </td>
+            </tr>
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายงานพนักงานที่ไม่มาทำงาน";
+
+    [Parameter, EditorRequired] public AbsenceReport Report { get; set; } = default!;
+}

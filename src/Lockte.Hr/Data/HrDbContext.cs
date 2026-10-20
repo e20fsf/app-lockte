@@ -20,6 +20,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<PayPeriod> PayPeriods => Set<PayPeriod>();
     internal DbSet<PayPeriodTimeTotal> PayPeriodTimeTotals => Set<PayPeriodTimeTotal>();
     internal DbSet<PayResult> PayResults => Set<PayResult>();
+    internal DbSet<Warning> Warnings => Set<Warning>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -173,6 +174,21 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             t.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             t.HasIndex(x => new { x.PayPeriodId, x.EmployeeId }).IsUnique();
             t.HasIndex(x => x.EmployeeId);
+        });
+
+        // One table for every year (#41).
+        modelBuilder.Entity<Warning>(w =>
+        {
+            w.HasAuditName(WarningRegistry.WarningTable);
+            w.Property(x => x.Date).HasAuditName("วันที่");
+            w.Property(x => x.EmployeeId).HasAuditName("พนักงาน");
+            w.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            w.Property(x => x.Level).HasMaxLength(WarningLevels.Length).HasAuditName("ระดับ");
+            w.Property(x => x.Remark).HasMaxLength(WarningRegistry.RemarkLength).HasAuditName("รายละเอียด");
+            w.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            w.HasIndex(x => new { x.EmployeeId, x.Date });
+            w.HasIndex(x => x.Date);
+            w.HasIndex(x => x.DepartmentId);
         });
     }
 }

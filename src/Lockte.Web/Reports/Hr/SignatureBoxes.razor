@@ -1,0 +1,25 @@
+@* กล่องลงนามตาราง 3 ช่อง ขวาล่าง (print-forms.md "ช่องลงนาม"): หัว + ช่องเซ็น + ช่องวันที่ — once, under the table. *@
+<table style="width:auto;margin:10mm 0 0 auto;border-collapse:collapse;break-inside:avoid">
+    <tr>
+        @foreach (var label in Labels)
+        {
+            <td style="border:0.75pt solid #000;width:38mm;text-align:center;padding:1pt 4pt">@label</td>
+        }
+    </tr>
+    <tr>
+        @foreach (var _ in Labels)
+        {
+            <td style="border:0.75pt solid #000;height:14mm"></td>
+        }
+    </tr>
+    <tr>
+        @foreach (var _ in Labels)
+        {
+            <td style="border:0.75pt solid #000;height:6mm"></td>
+        }
+    </tr>
+</table>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Labels { get; set; } = [];
+}

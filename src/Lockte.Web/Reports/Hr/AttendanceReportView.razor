@@ -1,0 +1,52 @@
+@using Lockte.Hr
+@* RPT-15 รายงานการมาทำงานของพนักงาน (รายงาน รายงานการมาทำงาน, print-samples.md): ระดับ B on A4 ตั้ง — ที่ วันที่ รหัส
+   ชื่อ-นามสกุล เวลาเข้า เวลาออก (8:00) จำนวนวัน (1.00) แผนก, by รหัส then วันที่; ท้าย "รวมทั้งหมด x.xx วัน". Rows from
+   AttendanceReportDirectory.GetAttendanceReportAsync (BR-066). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)@(Report.EmployeeCode is { } code ? $"  รหัส {code}" : "")</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:6%" /><col style="width:12%" /><col style="width:8%" /><col style="width:30%" /><col style="width:9%" />
+            <col style="width:9%" /><col style="width:10%" /><col style="width:16%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ที่</th><th>วันที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เวลาเข้า</th><th>เวลาออก</th>
+                <th class="num">จำนวนวัน</th><th>แผนก</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@ReportText.Date(line.Date)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td>@ReportText.Time(line.WorkIn)</td>
+                    <td>@ReportText.Time(line.WorkOut)</td>
+                    <td class="num">@(line.Days is { } days ? ReportText.Decimal2(days) : "")</td>
+                    <td>@line.DepartmentName</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="6">รวมทั้งหมด</td>
+                <td class="num">@ReportText.Decimal2(Report.TotalDays)</td>
+                <td>วัน</td>
+            </tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายงานการมาทำงานของพนักงาน";
+
+    [Parameter, EditorRequired] public AttendanceReport Report { get; set; } = default!;
+}

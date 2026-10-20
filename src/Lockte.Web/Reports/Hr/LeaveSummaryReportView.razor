@@ -1,0 +1,94 @@
+@using Lockte.Hr
+@* RPT-33 สรุปการลางานของพนักงานเดือน… (รายงาน พิมพ์สรุปการลางาน21, print-samples.md): ระดับ B on A4 นอน, ตารางเส้นเต็ม —
+   ที่ แผนก จำนวนพนักงาน + 15 ประเภทการลา (SR 16 is not on it) + รวม, % การลา, รวมจ่ายค่าแรง (ทศนิยม 2), by รวม มาก→น้อย;
+   ท้าย แถว รวม / % การลา / รวมจ่ายค่าแรง (by SR, Σ of every แผนก at the end); กล่องลงนาม จัดทำโดย/ตรวจสอบโดย/อนุมัติโดย.
+   The month comes from the dates (D-5, the legacy MO typed apart); the legacy bar chart under the table is left out.
+   Rows from LeaveReportDirectory.GetSummaryReportAsync (BR-064). *@
+<style>
+    table.grid th, table.grid td { border: 0.5pt solid #000; padding: 1pt 2pt; }
+    table.grid th { text-align: center; font-size: 10pt; line-height: 1.05; }
+    table.grid td { font-size: 12pt; }
+</style>
+<p class="sub">สรุปการลางานของพนักงานเดือน @ReportText.MonthTitle(Report.From, Report.To)&emsp;จำนวนวันทำงาน @(Report.WorkDays?.ToString() ?? "") วัน</p>
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table class="grid">
+        <colgroup>
+            <col style="width:3%" /><col style="width:11%" /><col style="width:5%" />
+            @foreach (var _ in LeaveSummaryReport.Types)
+            {
+                <col style="width:4.4%" />
+            }
+            <col style="width:5%" /><col style="width:4%" /><col style="width:7%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th>ที่</th><th>แผนก</th><th>จำนวนพนักงาน</th>
+                @foreach (var type in LeaveSummaryReport.Types)
+                {
+                    <th>@LeaveTypes.Names[type]</th>
+                }
+                <th>รวม</th><th>% การลา</th><th>รวมจ่ายค่าแรง</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.DepartmentName</td>
+                    <td class="num">@line.Employees</td>
+                    @foreach (var type in LeaveSummaryReport.Types)
+                    {
+                        <td class="num">@ReportText.Decimal2(line.DaysOf(type))</td>
+                    }
+                    <td class="num">@ReportText.Decimal2(line.Total)</td>
+                    <td class="num">@ReportText.Percent(Report.Percent(line.Total, line.Employees))</td>
+                    <td class="num">@ReportText.Decimal2(line.Pay)</td>
+                </tr>
+            }
+            <tr>
+                <td colspan="2"><b>รวม</b></td>
+                <td class="num">@Report.Employees</td>
+                @foreach (var type in LeaveSummaryReport.Types)
+                {
+                    <td class="num">@ReportText.Decimal2(Report.TotalOf(type))</td>
+                }
+                <td class="num">@ReportText.Decimal2(Report.Total)</td>
+                <td class="num">@ReportText.Percent(Report.Percent(Report.Total, Report.Employees))</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td colspan="3"><b>% การลา</b></td>
+                @foreach (var type in LeaveSummaryReport.Types)
+                {
+                    <td class="num">@ReportText.Percent(Report.Percent(Report.TotalOf(type), Report.Employees))</td>
+                }
+                <td class="num">@ReportText.Percent(Report.Percent(Report.Total, Report.Employees))</td>
+                <td colspan="2"></td>
+            </tr>
+            <tr>
+                <td colspan="3"><b>รวมจ่ายค่าแรง</b></td>
+                @foreach (var type in LeaveSummaryReport.Types)
+                {
+                    <td class="num">@ReportText.Decimal2(Report.PayOf(type))</td>
+                }
+                <td colspan="2"></td>
+                <td class="num">@ReportText.Decimal2(Report.Pay)</td>
+            </tr>
+        </tbody>
+    </table>
+    <SignatureBoxes Labels="@(new[] { "จัดทำโดย", "ตรวจสอบโดย", "อนุมัติโดย" })" />
+}
+
+@code {
+    public const string Title = "สรุปการลางานของพนักงาน";
+
+    [Parameter, EditorRequired] public LeaveSummaryReport Report { get; set; } = default!;
+}
