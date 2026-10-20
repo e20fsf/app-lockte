@@ -58,7 +58,7 @@ public static class MigrationTool
 
     /// <summary>
     /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data
-    /// (#47) and the history (#51), writes the DQ report, the row counts, the monthly totals of 2026, the WORK_T check and
+    /// (#47), the history and the open pay period with its ไม่มาทำงาน (#51), writes the DQ report, the row counts, the monthly totals of 2026, the WORK_T check and
     /// the code map used into <paramref name="outputFolder"/>.
     /// </summary>
     [SupportedOSPlatform("windows")]
