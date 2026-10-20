@@ -16,8 +16,8 @@ public sealed class AttendanceReportTests(LocalDbFixture db)
     private static int lastYear = 2100;
     private static int lastPeriodYear = 1700;
 
-    /// <summary>"V" keeps clear of the other test classes' codes (T-EMPLO.ID is Text(4)).</summary>
-    private static string NewCode() => $"V{Interlocked.Increment(ref lastCode):D3}";
+    /// <summary>"J" keeps clear of the other test classes' codes (T-EMPLO.ID is Text(4)).</summary>
+    private static string NewCode() => $"J{Interlocked.Increment(ref lastCode):D3}";
 
     /// <summary>A year no other test uses: the reports read every row of their dates.</summary>
     private static int NewYear() => Interlocked.Increment(ref lastYear);
