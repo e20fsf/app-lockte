@@ -18,7 +18,7 @@ namespace Lockte.Web.Tests;
 public sealed class PayrollTests(LocalDbFixture db)
 {
     private static int lastCode;
-    private static int lastYear = 1600;
+    private static int lastYear = 600; // below PayPeriodTests' years: its default-dates test needs the latest period
 
     /// <summary>"Q" keeps clear of the other test classes' codes.</summary>
     private static string NewCode() => $"Q{Interlocked.Increment(ref lastCode):D3}";
@@ -48,12 +48,12 @@ public sealed class PayrollTests(LocalDbFixture db)
     }
 
     private async Task<EmployeeDto> NewEmployeeAsync(int year, int type = EmployeeTypes.Daily, double salary = 0, double dailyWage = 400,
-        int? departmentId = null)
+        int? departmentId = null, string? code = null)
     {
         var shift = await AsHrAsync(async s => (await s.Get<OrgDirectory>().FindShiftByCodeAsync("A"))!);
         var result = await AsHrAsync(s => s.Get<EmployeeRegistry>().SaveAsync(new EmployeeInput
         {
-            Code = NewCode(), Name = "นาย ทดสอบ " + Guid.NewGuid().ToString("N")[..4], ShiftId = shift.Id, StartDate = D(year - 1, 1, 1),
+            Code = code ?? NewCode(), Name = "นาย ทดสอบ " + Guid.NewGuid().ToString("N")[..4], ShiftId = shift.Id, StartDate = D(year - 1, 1, 1),
             EmployeeType = type, Salary = salary, DailyWage = dailyWage, DepartmentId = departmentId,
         }));
         Ok(result);
@@ -204,8 +204,9 @@ public sealed class PayrollTests(LocalDbFixture db)
         var period = await ExamplePeriodAsync(year);
         var department = await NewDepartmentAsync();
         var other = await NewDepartmentAsync();
-        var b = await NewEmployeeAsync(year, departmentId: department.Id);
-        var a = await NewEmployeeAsync(year, departmentId: department.Id);
+        var (first, second) = (NewCode(), NewCode());
+        var b = await NewEmployeeAsync(year, departmentId: department.Id, code: second); // added first, sorts second
+        var a = await NewEmployeeAsync(year, departmentId: department.Id, code: first);
         var unpaid = await NewEmployeeAsync(year, departmentId: department.Id, dailyWage: 0);
         var elsewhere = await NewEmployeeAsync(year, departmentId: other.Id);
         foreach (var e in new[] { a, b, unpaid, elsewhere }) await WorkAsync(e, D(year, 9, 1));
