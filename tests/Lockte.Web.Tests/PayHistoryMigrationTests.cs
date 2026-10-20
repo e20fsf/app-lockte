@@ -6,7 +6,7 @@ using Lockte.Web.Audit;
 namespace Lockte.Web.Tests;
 
 /// <summary>
-/// เครื่องมือย้ายข้อมูล: ผลค่าแรง (#51) — ค่าแรง + สำเนาของ ค่าแรง from 1 ม.ค. 2568 into one table, from a fake
+/// เครื่องมือย้ายข้อมูล: ผลค่าแรง (#51) — ค่าแรง + สำเนาของ ค่าแรง from 1 ม.ค. 2568 (or paid from then) into one table, from a fake
 /// <c>พนักงาน.accdb</c>, read back through <see cref="PayPeriodDirectory"/>; plus the row counts and the totals per period.
 /// </summary>
 [Collection(MigrationDbCollection.Name)]
@@ -30,8 +30,9 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
     /// <summary>
     /// ค่าแรง of the open period 12–26 ต.ค. 2569 (D001, O001) and the history: D001's copy of it (W and OT rounded to Long),
     /// O001's copy with another PAY_W, the closed period 27 ก.ย.–11 ต.ค. (D001 twice, F001, an orphan, a blank ID), the
-    /// งวด 2 ช่วง at new year 2569 whose first part ends on the second's TO_DATE, a period of 2567 (stays) and a row without
-    /// FROM_DATE.
+    /// งวด 2 ช่วง at new year 2569 whose first part ends on the second's TO_DATE, the one at new year 2568 kept right (its
+    /// first part starts in 2567 but is paid 16 ม.ค. 2568, so it moves too), the period before it paid 1 ม.ค. 2568 (moves),
+    /// one of 2567 paid in 2567 (stays) and a row without FROM_DATE.
     /// </summary>
     private static FakeLegacyFile WithPay()
     {
@@ -53,7 +54,10 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
             .Row(history, Copy(null, Sep27, oct11, oct16, w: 1, payW: 1))
             .Row(history, Copy("D001", dec27, jan11, jan16, w: 3, payW: 1200))
             .Row(history, Copy("D001", jan1, jan11, jan16, w: 8, payW: 3200))
+            .Row(history, Copy("D001", new DateTime(2024, 11, 27), new DateTime(2024, 12, 11), new DateTime(2024, 12, 16), w: 13, payW: 5135))
+            .Row(history, Copy("D001", new DateTime(2024, 12, 12), new DateTime(2024, 12, 26), new DateTime(2025, 1, 1), w: 13, payW: 5130))
             .Row(history, Copy("D001", new DateTime(2024, 12, 27), new DateTime(2024, 12, 31), new DateTime(2025, 1, 16), w: 3, payW: 1185))
+            .Row(history, Copy("D001", new DateTime(2025, 1, 1), new DateTime(2025, 1, 11), new DateTime(2025, 1, 16), w: 8, payW: 3160))
             .Row(history, ("ID", "D001"), ("W", 1), ("PAY_W", 400));
     }
 
@@ -78,7 +82,7 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
     private Task<IReadOnlyList<EmployeePay>> PayOfAsync(PayPeriodDto period) => ReadAsync(s => s.Get<PayPeriodDirectory>().GetPayAsync(period.Id));
 
     [Fact]
-    public async Task Pay_of_every_period_from_2568_is_loaded_into_its_period_and_counted()
+    public async Task Pay_of_every_period_started_or_paid_from_2568_is_loaded_into_its_period_and_counted()
     {
         var historyBefore = await HistoryCountAsync();
         var report = await RunAsync();
@@ -90,6 +94,9 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
             (new DateOnly(2026, 9, 27), new DateOnly(2026, 10, 11), PayPeriodStep.SlipPrinted),
             (new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 11), PayPeriodStep.SlipPrinted),
             (new DateOnly(2025, 12, 27), new DateOnly(2025, 12, 31), PayPeriodStep.SlipPrinted), // ช่วงที่ 1 of BR-008, TO_DATE fixed
+            (new DateOnly(2025, 1, 1), new DateOnly(2025, 1, 11), PayPeriodStep.SlipPrinted),
+            (new DateOnly(2024, 12, 27), new DateOnly(2024, 12, 31), PayPeriodStep.SlipPrinted), // starts in 2567, paid 16 ม.ค. 2568
+            (new DateOnly(2024, 12, 12), new DateOnly(2024, 12, 26), PayPeriodStep.SlipPrinted), // paid 1 ม.ค. 2568
         ], periods.Select(p => (p.From, p.To, p.CompletedStep)));
 
         var open = await PayOfAsync(periods[0]);
@@ -107,11 +114,14 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
         Assert.Equal("ไดคาสท์", report2!.Lines.Single(l => l.Pay.Code == "D001").DepartmentName); // แผนก of today
 
         var count = Assert.Single(report.Tables, t => t.NewTable == "hr.PayResults");
-        Assert.Equal((13, 2, 5, 6, 6), (count.SourceRows, count.Excluded, count.Rejected, count.Loaded, count.InDatabase));
+        Assert.Equal((16, 2, 5, 9, 9), (count.SourceRows, count.Excluded, count.Rejected, count.Loaded, count.InDatabase));
         Assert.True(report.Balanced, string.Join("\n", report.Tables.Where(t => !t.Balanced).Select(t => t.ToString())
             .Concat(report.MonthlyTotals.Where(m => !m.Balanced).Select(m => m.ToString()))));
         var sep27 = report.MonthlyTotals.Single(m => m.Table == "hr.PayResults" && m.Month == "งวด 2026-09-27" && m.Measure == "ค่าแรง (PAY_W)");
         Assert.Equal((4400.0 + 10500 + 400 + 5200 + 1, 4400.0 + 10500, 4400.0 + 10500), (sep27.Source, sep27.Expected, sep27.InDatabase));
+        var dec27 = report.MonthlyTotals.Single(m => m.Table == "hr.PayResults" && m.Month == "งวด 2024-12-27" && m.Measure == "ค่าแรง (PAY_W)");
+        Assert.Equal((1185.0, 1185.0, 1185.0), (dec27.Source, dec27.Expected, dec27.InDatabase));
+        Assert.DoesNotContain(report.MonthlyTotals, m => m.Month == "งวด 2024-11-27"); // paid 16 ธ.ค. 2567: stays
         Assert.Equal(historyBefore, await HistoryCountAsync());
 
         Assert.Contains(report.Exceptions, e => e.Rule == "DQ-2" && e.Key == "2026-10-12 O001" && e.Problem.Contains("ค่าแรง"));
@@ -119,8 +129,9 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
         Assert.Contains(report.Exceptions, e => e.Rule == "DQ-6" && e.Key == "2026-09-27 X998");
         Assert.Contains(report.Exceptions, e => e.Rule == "DQ-1" && e.Table == "สำเนาของ ค่าแรง");
         Assert.Contains(report.Exceptions, e => e.Key == "งวด 2025-12-27" && e.Action.Contains("2025-12-31"));
+        Assert.DoesNotContain(report.Exceptions, e => e.Key == "งวด 2024-12-27" && e.Action != "โหลดเป็น 0"); // ends 31 ธ.ค.: no overlap
         // SA/L: one line per period loaded from the history, not one per employee
-        Assert.Equal(["งวด 2025-12-27", "งวด 2026-01-01", "งวด 2026-09-27"],
+        Assert.Equal(["งวด 2024-12-12", "งวด 2024-12-27", "งวด 2025-01-01", "งวด 2025-12-27", "งวด 2026-01-01", "งวด 2026-09-27"],
             report.Exceptions.Where(e => e.Action == "โหลดเป็น 0").Select(e => e.Key).Order());
     }
 
@@ -130,7 +141,7 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
         await RunAsync();
         var report = await RunAsync();
 
-        Assert.Equal(4, (await PeriodsAsync()).Count);
-        Assert.Equal(6, Assert.Single(report.Tables, t => t.NewTable == "hr.PayResults").InDatabase);
+        Assert.Equal(7, (await PeriodsAsync()).Count);
+        Assert.Equal(9, Assert.Single(report.Tables, t => t.NewTable == "hr.PayResults").InDatabase);
     }
 }
