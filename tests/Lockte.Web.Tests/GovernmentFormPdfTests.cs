@@ -22,7 +22,7 @@ public sealed class GovernmentFormPdfTests(ChromiumFixture chromium)
     }
 
     private Task<byte[]> PrintAsync(IReadOnlyList<FormPage> pages)
-        => chromium.Renderer.RenderAsync(SvgFormHtml.Compose("test", pages), pages[0].Paper);
+        => chromium.Renderer.RenderAsync(FormPageHtml.Compose("test", pages), pages[0].Paper);
 
     private static readonly Kor2Employee Child = new(1, "A001", "นายเด็ก ทดสอบ", new(2009, 3, 31), "0000000000001", "10 หมู่ที่ 1",
         new(2026, 1, 16), "พนักงาน", "ประกอบ", 363, 187);

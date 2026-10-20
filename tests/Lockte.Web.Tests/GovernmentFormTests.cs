@@ -88,7 +88,7 @@ public sealed class GovernmentFormTests
         var svg = Svg(Kor2Form.Layout(Child(), new(null, "<b>ประกอบ & บรรจุ</b>", null, null), Employer));
 
         Assert.Contains("<text x=\"59.7\" y=\"139\" font-size=\"4.94\" data-fit=\"118.1\">&lt;b&gt;ประกอบ &amp; บรรจุ&lt;/b&gt;</text>", svg);
-        Assert.Contains("getComputedTextLength()>w", SvgFormHtml.FitScript);
+        Assert.Contains("getComputedTextLength()>w", FormPageHtml.FitScript);
     }
 
     [Fact] // ช่องติ๊กเอกสารแนบ 4 ช่อง และเส้นจุดแบบเดิม
@@ -159,7 +159,7 @@ public sealed class GovernmentFormTests
     [Fact] // ไม่มีหัว/ท้ายแบบกลาง ไม่มีขอบกระดาษ — หน้าละ SVG เท่ากระดาษ
     public void A_form_document_has_no_margins_and_one_svg_per_page()
     {
-        var html = SvgFormHtml.Compose("ทะเบียนผู้ประกันตน", InsuredPersonsForm.Layout(Enumerable.Range(1, 20).Select(Line).ToList(), Employer));
+        var html = FormPageHtml.Compose("ทะเบียนผู้ประกันตน", InsuredPersonsForm.Layout(Enumerable.Range(1, 20).Select(Line).ToList(), Employer));
 
         Assert.Contains("@page{size:A4 landscape;margin:0}", html);
         Assert.Equal(2, Regex.Matches(html, "<svg class=\"page\"").Count);
