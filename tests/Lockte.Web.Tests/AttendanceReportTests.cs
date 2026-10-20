@@ -79,8 +79,8 @@ public sealed class AttendanceReportTests(LocalDbFixture db)
         var year = NewYear();
         var department = await NewDepartmentAsync();
         var other = await NewDepartmentAsync();
-        var second = await NewEmployeeAsync(department, code: $"V{year % 100:D2}2");
-        var first = await NewEmployeeAsync(department, code: $"V{year % 100:D2}1");
+        var second = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}2");
+        var first = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}1");
         var resigned = await NewEmployeeAsync(department, resign: D(year, 1, 1));
         var elsewhere = await NewEmployeeAsync(other);
         await LeaveAsync(first, D(year, 3, 2), 1.25, "1");
@@ -137,8 +137,8 @@ public sealed class AttendanceReportTests(LocalDbFixture db)
     {
         var year = NewYear();
         var department = await NewDepartmentAsync();
-        var second = await NewEmployeeAsync(department, code: $"V{year % 100:D2}4");
-        var first = await NewEmployeeAsync(department, code: $"V{year % 100:D2}3");
+        var second = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}4");
+        var first = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}3");
         await LeaveAsync(second, D(year, 5, 1), 1, "2");
         await LeaveAsync(first, D(year, 5, 9), 0.5, "1");
         await LeaveAsync(first, D(year, 5, 2), 1, "8");
@@ -229,8 +229,8 @@ public sealed class AttendanceReportTests(LocalDbFixture db)
     {
         var year = NewYear();
         var department = await NewDepartmentAsync();
-        var b = await NewEmployeeAsync(department, code: $"V{year % 100:D2}6");
-        var a = await NewEmployeeAsync(department, resign: D(year, 12, 1), code: $"V{year % 100:D2}5");
+        var b = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}6");
+        var a = await NewEmployeeAsync(department, resign: D(year, 12, 1), code: $"Y{year % 100:D2}5");
         await LeaveAsync(b, D(year, 4, 2), 1, "8");
         await LeaveAsync(a, D(year, 4, 2), 0.5, "8");
         await LeaveAsync(a, D(year, 4, 1), 2, "8", to: D(year, 4, 2));
@@ -257,8 +257,8 @@ public sealed class AttendanceReportTests(LocalDbFixture db)
     {
         var year = NewYear();
         var department = await NewDepartmentAsync();
-        var b = await NewEmployeeAsync(department, code: $"V{year % 100:D2}8");
-        var a = await NewEmployeeAsync(department, code: $"V{year % 100:D2}7");
+        var b = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}8");
+        var a = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}7");
         await WorkAsync(b, D(year, 7, 1), late: "08:15");
         await WorkAsync(a, D(year, 7, 1), late: "09:05");
         await WorkAsync(a, D(year, 6, 30), late: "08:40");
@@ -277,8 +277,8 @@ public sealed class AttendanceReportTests(LocalDbFixture db)
     {
         var year = NewYear();
         var department = await NewDepartmentAsync();
-        var b = await NewEmployeeAsync(department, code: $"V{year % 100:D2}0");
-        var a = await NewEmployeeAsync(department, code: $"V{year % 100:D2}9");
+        var b = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}D");
+        var a = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}C");
         var day = D(year, 8, 2);
         await WorkAsync(b, day, "S", "08:00", "17:00");
         await WorkAsync(a, day, "O1", "17:30", "20:30", 0);
@@ -300,8 +300,8 @@ public sealed class AttendanceReportTests(LocalDbFixture db)
     {
         var year = NewYear();
         var department = await NewDepartmentAsync();
-        var b = await NewEmployeeAsync(department, code: $"V{year % 100:D2}B");
-        var a = await NewEmployeeAsync(department, code: $"V{year % 100:D2}A");
+        var b = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}B");
+        var a = await NewEmployeeAsync(department, code: $"Y{year % 100:D2}A");
         await WorkAsync(b, D(year, 9, 1));
         await WorkAsync(a, D(year, 9, 2), workIn: "08:00", workOut: "12:00", rest: 0);
         await WorkAsync(a, D(year, 9, 1), workIn: "08:00", workOut: "16:45");

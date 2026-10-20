@@ -96,6 +96,8 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
                     using var count = new OleDbCommand($"SELECT COUNT(*) FROM [{table}]", connection);
                     counts[table] = Convert.ToInt32(count.ExecuteScalar());
                 }
+                foreach (var table in WarningMigration.Tables) // ใบเตือน, every year (#59)
+                    tables[table] = Read(connection, table, null);
             }
             OleDbConnection.ReleaseObjectPool();
             return new LegacyDatabase(tables, counts);

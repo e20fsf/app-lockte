@@ -50,7 +50,15 @@ public sealed class FakeLegacyFile
             ("DATE1", "DATETIME"), ("ID1", "TEXT(4)"), ("W_IN", "DATETIME"), ("W_OUT", "DATETIME"), ("WORK_T", "DOUBLE"), ("TYPE", "TEXT(2)"),
             ("LATE", "TEXT(2)"), ("REMARK", "TEXT(255)"),
         ],
+        ["ใบเตือน"] = WarningColumns,
+        ["ใบเตือนADD"] = WarningColumns,
     };
+
+    private static (string, string)[] WarningColumns =>
+    [
+        ("DATE", "DATETIME"), ("ID", "TEXT(50)"), ("NAME", "TEXT(255)"), ("DEPART", "TEXT(255)"), ("CODE", "TEXT(50)"),
+        ("CODE_NAME", "TEXT(255)"), ("REMARK", "TEXT(255)"),
+    ];
 
     private static (string, string)[] WorkTimeColumns(string lateType) =>
     [

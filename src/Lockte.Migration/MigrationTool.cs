@@ -54,7 +54,8 @@ public static class MigrationTool
     public static IServiceCollection AddMasterDataMigration(this IServiceCollection services)
         => services.AddScoped<MasterDataMigration>().AddScoped<HistoryMigration>()
             // The delete-everything and bulk-load services of the modules: registered for this tool only, never in the web app.
-            .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>();
+            .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
+            .AddScoped<WarningMigration>().AddScoped<HrWarningImport>();
 
     /// <summary>
     /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data
@@ -69,6 +70,7 @@ public static class MigrationTool
         await using var scope = services.CreateAsyncScope();
         var report = await scope.ServiceProvider.GetRequiredService<MasterDataMigration>().RunAsync(legacy, map);
         await scope.ServiceProvider.GetRequiredService<HistoryMigration>().RunAsync(legacy, report);
+        await scope.ServiceProvider.GetRequiredService<WarningMigration>().RunAsync(legacy, report); // ใบเตือน (#59)
         report.WriteTo(outputFolder);
         return report;
     }
