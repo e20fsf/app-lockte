@@ -1,0 +1,163 @@
+@using Lockte.Hr
+@using Lockte.Web.Reports.Forms
+@* RPT-50 ใบลางาน (รายงาน พิมพ์ใบลางาน, BR-065): ระดับ A on A5 landscape. Top: who and when, ประเภท บรรจุ/รอบรรจุ
+   (X by วันนี้ − START < 90) and the two entitlement texts; the frame: วันลาสะสมของปีนี้ by ประเภทการลา and ใบเตือน;
+   below, the part filled in by hand. The leave types are the legacy 16 (Q-47 — the user's marked changes to SR 7/9 —
+   is not decided; #41 keeps the legacy types for now). *@
+<FormPage>
+    <FormText X="98.85" Base="11.3" Size="14" Bold="true" Anchor="FormAnchor.Center" Text="@ReportHtml.Company" />
+    <FormText X="98.8" Base="16.2" Size="14" Bold="true" Anchor="FormAnchor.Center" Text="ใบลางาน" />
+    <FormText X="189.7" Base="15.5" Size="12" Bold="true" Anchor="FormAnchor.Right" Text="@DocumentNumber" />
+
+    @* แถว 1: วันที่ เดือน พ.ศ. เวลา (ที่พิมพ์) ข้าพเจ้า รหัส แผนก *@
+    <FormText X="6.6" Base="23.2" Size="14" Text="วันที่" />
+    <FormText X="16.65" Base="23.2" Size="14" Anchor="FormAnchor.Center" Text="@PrintedAt.Day.ToString()" />
+    <FormDots X1="13.8" X2="19.5" Y="23.3" />
+    <FormText X="19.6" Base="23.2" Size="14" Text="เดือน" />
+    <FormText X="27.9" Base="23.2" Size="14" Text="@FormFormat.Month(Today)" />
+    <FormDots X1="27.5" X2="45.0" Y="23.3" />
+    <FormText X="46.6" Base="23.2" Size="14" Text="พ.ศ." />
+    <FormText X="54.0" Base="23.2" Size="14" Text="@FormFormat.Year(Today)" />
+    <FormDots X1="53.1" X2="61.5" Y="23.3" />
+    <FormText X="62.6" Base="23.2" Size="14" Text="เวลา" />
+    <FormText X="70.2" Base="23.2" Size="14" Text="@PrintedAt.ToString("HH:mm")" />
+    <FormDots X1="69.8" X2="78.3" Y="23.3" />
+    <FormText X="79.6" Base="23.2" Size="14" Text="ข้าพเจ้า" />
+    <FormText X="90.0" Base="23.2" Size="14" Text="@Form.Name" />
+    <FormDots X1="89.3" X2="140.2" Y="23.3" />
+    <FormText X="139.6" Base="23.2" Size="14" Text="รหัส" />
+    <FormText X="146.0" Base="23.2" Size="14" Text="@Form.Code" />
+    <FormDots X1="145.4" X2="155.0" Y="23.3" />
+    <FormText X="155.6" Base="23.2" Size="14" Text="แผนก" />
+    <FormText X="164.6" Base="23.2" Size="14" Text="@Form.DepartmentName" />
+    <FormDots X1="164.3" X2="193.1" Y="23.3" />
+
+    @* แถว 2: กะ เริ่มงานวันที่ ประเภท สิทธิพักร้อน *@
+    <FormText X="6.6" Base="29.9" Size="14" Text="กะ" />
+    <FormText X="11.0" Base="29.9" Size="14" Text="@Form.ShiftCode" />
+    <FormDots X1="10.6" X2="17.4" Y="30.4" />
+    <FormText X="18.6" Base="29.9" Size="14" Text="เริ่มงานวันที่" />
+    @if (Form.StartDate is { } start)
+    {
+        <FormText X="39.05" Base="29.9" Size="14" Anchor="FormAnchor.Center" Text="@start.Day.ToString()" />
+        <FormText X="51.2" Base="29.9" Size="14" Text="@FormFormat.Month(start)" />
+        <FormText X="76.8" Base="29.9" Size="14" Text="@FormFormat.Year(start)" />
+    }
+    <FormDots X1="36.3" X2="41.8" Y="30.4" />
+    <FormText X="42.6" Base="29.9" Size="14" Text="เดือน" />
+    <FormDots X1="50.8" X2="69.3" Y="30.4" />
+    <FormText X="69.6" Base="29.9" Size="14" Text="พ.ศ." />
+    <FormDots X1="76.3" X2="85.2" Y="30.4" />
+    <FormText X="87.6" Base="30.0" Size="14" Bold="true" Text="ประเภท" />
+    <FormBox X1="100.2" Y1="26.8" X2="103.5" Y2="30.6" />
+    @if (!Form.OnProbation)
+    {
+        <FormText X="100.0" Base="30.5" Size="20" Text="X" />
+    }
+    <FormText X="104.4" Base="30.5" Size="14" Text="บรรจุเป็นพนักงาน" />
+    <FormBox X1="131.2" Y1="26.8" X2="134.5" Y2="30.6" />
+    @if (Form.OnProbation)
+    {
+        <FormText X="131.0" Base="30.5" Size="20" Text="X" />
+    }
+    <FormText X="135.6" Base="29.9" Size="14" Text="รอบรรจุเป็นพนักงาน" />
+    <FormText X="165.6" Base="29.9" Size="12" Bold="true" Text="@Form.VacationText" />
+
+    @* แถว 3: ประวัติการลางานปี *@
+    <FormText X="6.6" Base="36.0" Size="14" Bold="true" Text="ประวัติการลางานปี" />
+    <FormText X="33.6" Base="36.0" Size="14" Bold="true" Text="@FormFormat.Year(Today)" />
+    <FormText X="48.6" Base="36.0" Size="14" Bold="true" Text="(ไม่ต้องใส่ตัวเลขหรือข้อความใดๆลงในกรอบสี่เหลี่ยมข้างล่างนี้)" />
+    <FormText X="165.6" Base="36.3" Size="12" Bold="true" Text="@Form.PersonalLeaveText" />
+
+    @* กรอบประวัติการลา *@
+    <FormBox X1="6.2" Y1="38.7" X2="191.5" Y2="65.7" />
+    <FormText X="7.7" Base="43.9" Size="14" Bold="true" Text="จำนวนวันลาทั้งหมด" />
+    <FormText X="51.5" Base="43.9" Size="14" Bold="true" Anchor="FormAnchor.Right" Text="@Days(Form.TotalDays)" />
+    <FormDots X1="44.4" X2="51.3" Y="44.3" />
+    <FormText X="52.5" Base="43.9" Size="14" Bold="true" Text="วัน" />
+    <FormText X="72.6" Base="43.9" Size="14" Bold="true" Text="ใบเตือนด้วยวาจา" />
+    <FormText X="107.3" Base="43.9" Size="14" Bold="true" Anchor="FormAnchor.Right" Text="@Form.VerbalWarnings.ToString()" />
+    <FormDots X1="100.5" X2="107.3" Y="44.3" />
+    <FormText X="107.5" Base="43.9" Size="14" Bold="true" Text="ใบ" />
+    <FormText X="120.5" Base="43.9" Size="14" Bold="true" Text="ใบเตือนเป็นหนังสือ" />
+    <FormText X="159.3" Base="43.9" Size="14" Bold="true" Anchor="FormAnchor.Right" Text="@Form.WrittenWarnings.ToString()" />
+    <FormDots X1="152.4" X2="159.3" Y="44.3" />
+    <FormText X="159.5" Base="43.9" Size="14" Bold="true" Text="ใบ" />
+    @for (var column = 0; column < 4; column++)
+    {
+        for (var row = 0; row < 4; row++)
+        {
+            var type = (column * 4 + row + 1).ToString();
+            var line = RowBases[row];
+            <FormText X="TotalLabelX[column]" Base="line" Size="12" Text="@TotalLabels[column * 4 + row]" />
+            <FormText X="TotalValueX[column]" Base="line" Size="12" Anchor="FormAnchor.Right"
+                      Text="@Days(Form.DaysByType.TryGetValue(type, out var d) ? d : null)" />
+            <FormDots X1="TotalValueX[column] - 6.6" X2="TotalValueX[column]" Y="line + 0.5" />
+            <FormText X="TotalValueX[column] + 0.6" Base="line" Size="12" Text="วัน" />
+        }
+    }
+
+    @* ส่วนกรอกมือ *@
+    <FormText X="6.6" Base="70.4" Size="14" Text="ขอลางานตามรายละเอียดข้างล่าง(ขีดเครื่องหมายถูกในช่องสี่เหลี่ยมหน้าประเภทการลา)" />
+    @for (var column = 0; column < 4; column++)
+    {
+        for (var row = 0; row < 4; row++)
+        {
+            var line = TickBases[row];
+            <FormBox X1="TickBoxX[column]" Y1="line - 3.0" X2="TickBoxX[column] + 3.3" Y2="line + 0.8" />
+            <FormText X="TickBoxX[column] + 5.4" Base="line" Size="14" Text="@TickLabels[column * 4 + row]" />
+        }
+    }
+    <FormText X="6.6" Base="96.1" Size="14" Text="ตั้งแต่วันที่.......เดือน...................พ.ศ............ถึงวันที่.......เดือน...................พ.ศ............" />
+    <FormText X="115.6" Base="96.1" Size="14" Text="รวมเป็นเวลา......วัน   ตั้งแต่เวลา............ถึงเวลา............" />
+    <FormText X="6.6" Base="101.0" Size="14" Text="@("เหตุผลในการลาเนื่องจาก" + new string('.', 157))" />
+    <FormText X="134.6" Base="107.9" Size="14" Text="ลงชื่อ.............................................พนักงาน" />
+    <FormLine X1="6.3" X2="191.3" Y="109.8" />
+    <FormBox X1="6.2" Y1="111.7" X2="9.5" Y2="115.6" />
+    <FormText X="11.6" Base="114.8" Size="14" Text="ได้รับค่าจ้าง" />
+    <FormBox X1="33.2" Y1="111.7" X2="36.5" Y2="115.6" />
+    <FormText X="38.6" Base="114.8" Size="14" Text="ไม่ได้รับค่าจ้าง" />
+    <FormDots X1="12.7" X2="36.3" Y="126.6" />
+    <FormText X="15.6" Base="131.6" Size="14" Text="หัวหน้าแผนก" />
+    <FormDots X1="61.4" X2="85.2" Y="127.5" />
+    <FormText X="64.6" Base="132.6" Size="14" Text="แผนกบุคคล" />
+    <FormDots X1="111.3" X2="134.9" Y="127.5" />
+    <FormText X="115.6" Base="132.6" Size="14" Text="ผู้จัดการฝ่าย" />
+    <FormDots X1="162.3" X2="186.3" Y="127.5" />
+    <FormText X="161.6" Base="132.6" Size="14" Text="    ผู้จัดการโรงงาน" />
+</FormPage>
+
+@code {
+    public const string Title = "ใบลางาน";
+
+    private static readonly double[] RowBases = [49.0, 53.9, 58.9, 63.8];
+    private static readonly double[] TotalLabelX = [7.6, 50.6, 87.6, 140.6];
+    private static readonly double[] TotalValueX = [45.0, 82.0, 134.9, 184.3];
+    /// <summary>The frame's labels by SR 1–16, as the legacy report wrote them (ลาอื่นฯ, ลาป่วยมีใบรับรองแพทย์ …).</summary>
+    private static readonly string[] TotalLabels =
+    [
+        "ลากิจ", "ลาป่วยมีใบรับรองแพทย์", "ลาป่วยไม่มีใบรับรองแพทย์", "ลาคลอด",
+        "ลาอุบัติเหตุในงาน", "ลาพักร้อน", "ลาอื่นฯ", "ขาดงาน",
+        "ลากิจฉุกเฉิน", "ลาเพื่อระดมพล", "ลาเพื่อการศึกษาฝึกอบรมของบริษัท", "ลาทำหมัน",
+        "ลากิจโดยไม่ได้แจ้งก่อนล่วงหน้า", "ลากิจเกินกำหนด", "ลาเพื่อการศึกษาฝึกอบรมส่วนตัว", "ลาป่วยเป็นโรคระบาด",
+    ];
+    private static readonly double[] TickBases = [75.3, 80.3, 85.2, 90.2];
+    private static readonly double[] TickBoxX = [6.2, 52.2, 86.2, 141.2];
+    private static readonly string[] TickLabels =
+    [
+        "ลากิจ", "ลาป่วยมีใบรับรองแพทย์", "ลาป่วยไม่มีใบรับรองแพทย์", "ลาคลอด",
+        "ลาอุบัติเหตุในงาน", "ลาพักร้อน", "ลาอื่นๆ", "ขาดงาน",
+        "ลากิจฉุกเฉิน", "ลาเพื่อระดมพล", "ลาเพื่อการศึกษาฝึกอบรมของบริษัท", "ลาทำหมัน",
+        "ลากิจโดยไม่ได้แจ้งก่อนล่วงหน้า", "ลากิจเกินกำหนด", "ลาเพื่อการศึกษาฝึกอบรมส่วนตัว", "ลาป่วยเป็นโรคระบาด",
+    ];
+
+    [Parameter, EditorRequired] public LeaveFormData Form { get; set; } = default!;
+    [Parameter] public string? DocumentNumber { get; set; }
+    /// <summary>Now(): the date and time it is printed.</summary>
+    [Parameter, EditorRequired] public DateTime PrintedAt { get; set; }
+
+    private DateOnly Today => DateOnly.FromDateTime(PrintedAt);
+
+    /// <summary>Format Standard, 1 decimal; a type without leave prints blank, as the crosstab's empty cell.</summary>
+    private static string Days(double? days) => days is { } d ? FormFormat.Standard(d, 1) : "";
+}

@@ -1,0 +1,59 @@
+@using Lockte.Hr
+@using Lockte.Web.Reports.Forms
+@* RPT-55 รายงานพนักงานที่ลาออก (รายงาน พนักงานที่ลาออก): ระดับ A on A4 (D-7) — 34 rows a page as the legacy Letter
+   pages, the page header repeated with วันที่พิมพ์ and "หน้า x จาก y", and "รวม n คน" under the last row. No rows →
+   "ไม่มีข้อมูล" (D-6). *@
+@for (var p = 0; p < PageCount; p++)
+{
+    var page = p;
+    <FormPage>
+        <FormText X="101.6" Base="18.9" Size="26" Anchor="FormAnchor.Center" Text="รายงานพนักงานที่ลาออก" />
+        <FormText X="16.2" Base="19.9" Size="14" Text="@FormFormat.LongDate(Today)" />
+        <FormText X="186.6" Base="19.9" Size="14" Anchor="FormAnchor.Right" Text="@($"หน้า {page + 1} จาก {PageCount}")" />
+        <FormText X="38.1" Base="28.0" Size="14" Bold="true" Text="รหัส" />
+        <FormText X="46.3" Base="28.0" Size="14" Bold="true" Text="ชื่อ-นามสกุล" />
+        <FormText X="92.7" Base="28.0" Size="14" Bold="true" Text="วันที่เริ่มงาน" />
+        <FormText X="113.9" Base="28.0" Size="14" Bold="true" Text="วันที่ลาออก" />
+        <FormText X="130.4" Base="28.0" Size="14" Bold="true" Text="อายุงาน(ปี)" />
+        <FormText X="146.3" Base="28.0" Size="14" Bold="true" Text="เหตุผล" />
+        <FormLine X1="15.9" X2="188.1" Y="30.3" Thickness="0.7" />
+        @if (Rows.Count == 0)
+        {
+            <FormText X="101.6" Base="45.0" Size="16" Anchor="FormAnchor.Center" Text="ไม่มีข้อมูล" />
+        }
+        @{ var last = 0.0; }
+        @for (var i = page * RowsPerPage; i < Math.Min(Rows.Count, (page + 1) * RowsPerPage); i++)
+        {
+            var row = Rows[i];
+            var line = FirstRow + RowPitch * (i - page * RowsPerPage);
+            last = line;
+            <FormText X="36.6" Base="line" Size="14" Anchor="FormAnchor.Right" Text="@((i + 1).ToString())" />
+            <FormText X="37.9" Base="line" Size="14" Text="@row.Code" />
+            <FormText X="46.3" Base="line" Size="14" Text="@row.Name" />
+            <FormText X="110.0" Base="line" Size="14" Anchor="FormAnchor.Right" Text="@(row.StartDate is { } s ? ReportText.Date(s) : "")" />
+            <FormText X="128.7" Base="line" Size="14" Anchor="FormAnchor.Right" Text="@ReportText.Date(row.ResignDate)" />
+            <FormText X="139.5" Base="line" Size="14" Anchor="FormAnchor.Right" Text="@(row.Years is { } y ? FormFormat.Standard(y, 2) : "")" />
+            <FormText X="146.6" Base="line" Size="14" Text="@row.Reason" />
+        }
+        @if (Rows.Count > 0 && page == PageCount - 1)
+        {
+            <FormLine X1="16.0" X2="188.1" Y="last + 1.7" Thickness="0.7" />
+            <FormText X="25.1" Base="last + 8.1" Size="14" Bold="true" Text="รวม" />
+            <FormText X="41.15" Base="last + 8.1" Size="14" Anchor="FormAnchor.Center" Text="@Rows.Count.ToString()" />
+            <FormText X="50.0" Base="last + 8.1" Size="14" Bold="true" Text="คน" />
+            <FormLine X1="16.0" X2="188.1" Y="last + 10.6" Thickness="0.7" />
+            <FormLine X1="16.0" X2="188.1" Y="last + 11.6" Thickness="0.7" />
+        }
+    </FormPage>
+}
+
+@code {
+    public const string Title = "รายงานพนักงานที่ลาออก";
+    public const int RowsPerPage = 34;
+    private const double FirstRow = 35.9, RowPitch = 6.97;
+
+    [Parameter, EditorRequired] public IReadOnlyList<ResignedEmployee> Rows { get; set; } = [];
+    [Parameter, EditorRequired] public DateOnly Today { get; set; }
+
+    private int PageCount => Math.Max(1, (Rows.Count + RowsPerPage - 1) / RowsPerPage);
+}

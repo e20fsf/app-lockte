@@ -1,0 +1,9 @@
+@* A solid horizontal line from X1 to X2, its top at Y (mm). *@
+<div class="line" style="left:@(FormHtml.Mm(X1))mm;width:@(FormHtml.Mm(X2 - X1))mm;top:@(FormHtml.Mm(Y))mm;height:@(FormHtml.Mm(Thickness))mm"></div>
+
+@code {
+    [Parameter, EditorRequired] public double X1 { get; set; }
+    [Parameter, EditorRequired] public double X2 { get; set; }
+    [Parameter, EditorRequired] public double Y { get; set; }
+    [Parameter] public double Thickness { get; set; } = 0.3;
+}

@@ -1,0 +1,6 @@
+@* One sheet of a ระดับ A form (FormHtml): its children are placed absolutely from the page's top-left corner. *@
+<div class="page">@ChildContent</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

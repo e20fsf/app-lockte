@@ -1,0 +1,30 @@
+@* Text whose baseline is at Base mm from the top of the page; X is its left edge, centre or right edge (Anchor), as
+   measured on the legacy PDF. Long values run on past their legacy box instead of being cut (D-1). *@
+<div class="t" style="@Style">@Text@ChildContent</div>
+
+@code {
+    [Parameter, EditorRequired] public double X { get; set; }
+    [Parameter, EditorRequired] public double Base { get; set; }
+    /// <summary>Point size: the legacy Angsana New size (16, 14, 12 …).</summary>
+    [Parameter] public double Size { get; set; } = 16;
+    [Parameter] public bool Bold { get; set; }
+    [Parameter] public FormAnchor Anchor { get; set; }
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string Style
+    {
+        get
+        {
+            var top = Base - FormHtml.BaselineEm * Size * FormHtml.MillimetresPerPoint;
+            var style = $"left:{FormHtml.Mm(X)}mm;top:{FormHtml.Mm(top)}mm;font-size:{FormHtml.Mm(Size)}pt";
+            if (Bold) style += ";font-weight:bold";
+            return Anchor switch
+            {
+                FormAnchor.Center => style + ";transform:translateX(-50%)",
+                FormAnchor.Right => style + ";transform:translateX(-100%)",
+                _ => style,
+            };
+        }
+    }
+}
