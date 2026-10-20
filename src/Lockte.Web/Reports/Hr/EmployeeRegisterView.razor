@@ -1,0 +1,54 @@
+@using Lockte.Hr
+@* RPT-21 ทะเบียนประวัติพนักงาน (report of the same name, BR-073): ระดับ B, A4 นอน, ตารางเส้นเต็ม — every employee by รหัส,
+   those who resigned too. The legacy table was wider than the page and Access split its right columns onto extra pages
+   (38 pages printed "หน้า x จาก 19", D-4); here the columns are sized to fit the page and long addresses wrap. *@
+@if (Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <style>table.grid th,table.grid td{border:0.75pt solid #000;padding:1pt 3pt}</style>
+    <table class="grid">
+        <colgroup>
+            <col style="width:3%" /><col style="width:4.5%" /><col style="width:11%" /><col style="width:6%" /><col style="width:3.5%" />
+            <col style="width:4.5%" /><col style="width:15%" /><col style="width:15%" /><col style="width:6%" /><col style="width:6%" />
+            <col style="width:6.5%" /><col style="width:7%" /><col style="width:6.5%" /><col style="width:5.5%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>วันเกิด</th><th>เพศ</th><th>สัญชาติ</th><th>ภูมิลำเนา</th>
+                <th>ที่อยู่ปัจจุบัน</th><th>วุฒิการศึกษา</th><th>วันเริ่มทำงาน</th><th>ตำแหน่ง</th><th>แผนก</th>
+                <th class="num">เงินเดือนหรือค่าแรง/วัน</th><th>วันสิ้นสุดของการจ้าง</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Lines.Count; i++)
+            {
+                var l = Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@l.Code</td>
+                    <td>@l.Name</td>
+                    <td>@(l.BirthDate is { } b ? ReportText.Date(b) : null)</td>
+                    <td>@l.Sex</td>
+                    <td>@l.Nationality</td>
+                    <td>@l.RegisteredAddress</td>
+                    <td>@l.CurrentAddress</td>
+                    <td>@l.Education</td>
+                    <td>@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
+                    <td>@l.Position</td>
+                    <td>@l.DepartmentName</td>
+                    <td class="num">@ReportText.Decimal2(l.Wage)</td>
+                    <td>@(l.ResignDate is { } r ? ReportText.Date(r) : null)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "ทะเบียนประวัติพนักงาน";
+
+    [Parameter, EditorRequired] public IReadOnlyList<EmployeeRegisterLine> Lines { get; set; } = [];
+}

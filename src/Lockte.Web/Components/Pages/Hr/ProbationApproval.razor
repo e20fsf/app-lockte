@@ -1,0 +1,83 @@
+@page "/hr/employees/probation-approval"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@using Lockte.Web.Reports.Hr
+@inject ScopedServices Services
+
+@* SCR-06 ใบอนุมัติบรรจุพนักงาน (BR-071): พนักงานที่ยังไม่ลาออก (เลือกแล้วเติม ชื่อ แผนก วันเริ่มงาน), ฝ่าย, วันที่ครบกำหนด,
+   วันที่ส่งกลับ → "พิมพ์" opens RPT-22 (ใบนำส่งเอกสาร, ใบประเมินทดลองงาน, ใบขอบรรจุ) as one PDF. The legacy dates were typed
+   with no default; here ครบกำหนด starts at START + 89 (BR-053) and ส่งกลับ 7 days before it, as on the sample, both editable.
+   ผู้อนุมัติ (MANAGER) is left out: none of the three reports prints it. Nothing typed here is stored. *@
+<PageTitle>พิมพ์ใบอนุมัติผ่านทดลองงาน — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์ใบอนุมัติผ่านทดลองงาน</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudStack Spacing="3">
+        <MudAutocomplete T="EmployeeListItem" Value="employee" ValueChanged="SelectAsync" Label="รหัสพนักงาน (รหัส หรือ ชื่อ)"
+                         SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                         Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+        @if (selected is not null)
+        {
+            <MudText>@selected.Name · แผนก @selected.DepartmentName · เริ่มงาน @(selected.StartDate is { } s ? ThaiDate.Format(s) : "-")</MudText>
+        }
+        <MudSelect T="string" @bind-Value="section" Label="ฝ่าย" Clearable="true">
+            @foreach (var s in sections)
+            {
+                <MudSelectItem T="string" Value="s.Name">@s.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudDatePicker Editable="true" @bind-Date="dueOn" Label="วันที่ครบกำหนด" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" />
+        <MudDatePicker Editable="true" @bind-Date="returnBy" Label="วันที่ส่งกลับ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" />
+        <MudStack Row="true" Spacing="2">
+            <MudButton Href="@PrintHref" Target="_blank" Disabled="selected is null" Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+            <MudSpacer />
+            <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@code {
+    /// <summary>ส่งกลับ before ครบกำหนด on the legacy sample.</summary>
+    private const int ReturnDaysBeforeDue = 7;
+
+    private IReadOnlyList<EmployeeListItem> employees = [];
+    private IReadOnlyList<SectionDto> sections = [];
+    private EmployeeListItem? employee;
+    private EmployeeDto? selected;
+    private string? section;
+    private DateTime? dueOn;
+    private DateTime? returnBy;
+
+    private static DateOnly? Day(DateTime? d) => d is { } v ? DateOnly.FromDateTime(v) : null;
+
+    private string? PrintHref => selected is null ? null
+        : OnboardingReports.ProbationApprovalHref(selected.Id, new ProbationApprovalInput(section, Day(dueOn), Day(returnBy)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        employees = (await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync()))
+            .Where(e => e.IsWorking).ToList();
+        sections = await Services.RunAsync<OrgDirectory, IReadOnlyList<SectionDto>>(o => o.GetSectionsAsync());
+    }
+
+    private async Task SelectAsync(EmployeeListItem? value)
+    {
+        employee = value;
+        selected = value is null ? null : await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(value.Id));
+        section = selected?.SectionName;
+        var due = selected?.NinetyDayDate;
+        dueOn = due?.ToDateTime(TimeOnly.MinValue);
+        returnBy = due?.AddDays(-ReturnDaysBeforeDue).ToDateTime(TimeOnly.MinValue);
+    }
+
+    private Task<IEnumerable<EmployeeListItem>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? employees
+            : employees.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+}

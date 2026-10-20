@@ -23,6 +23,13 @@ public sealed class ReportPrinter(ReportPdfRenderer pdf, DocumentNumberService d
         var html = ReportHtml.Compose(new ReportDocument(title, paper, number), new PrintStamp(clock.GetLocalNow(), printedBy), body);
         return await pdf.RenderAsync(html, paper, cancellationToken);
     }
+
+    /// <summary>
+    /// Prints a ระดับ A form (#40 ตรงแบบเดิม): its own pages as the legacy printed them, without the แบบกลาง header,
+    /// footer or print stamp.
+    /// </summary>
+    public Task<byte[]> PrintFormAsync(string title, IReadOnlyList<FormPage> pages, CancellationToken cancellationToken = default)
+        => pdf.RenderAsync(FormPageHtml.Compose(title, pages), pages[0].Paper, cancellationToken);
 }
 
 /// <summary>A report component to HTML, outside any circuit or request. Report components take parameters only, no services.</summary>

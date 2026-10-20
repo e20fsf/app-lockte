@@ -2,9 +2,10 @@ namespace Lockte.Web.Menus;
 
 /// <summary>
 /// An item on a menu page: opens another menu page, or a screen/report by its SCR/RPT code — its own
-/// <see cref="Page"/> once built, the placeholder until then.
+/// <see cref="Page"/> once built, the placeholder until then. <see cref="NewTab"/>: a report printed straight from the
+/// menu (a PDF in a new tab, as Access opened its preview).
 /// </summary>
-public sealed record MenuItem(string Text, int? SubMenu = null, string? Code = null, string? Page = null)
+public sealed record MenuItem(string Text, int? SubMenu = null, string? Code = null, string? Page = null, bool NewTab = false)
 {
     public string Href => SubMenu is { } n ? EmployeeMenu.HrefOf(n) : Page ?? $"hr/{Code}";
 }
@@ -43,11 +44,11 @@ public static class EmployeeMenu
         [
             new("เพิ่มข้อมูลพนักงาน", Code: "SCR-02", Page: "hr/employees/new"),
             new("แก้ไขข้อมูลพนักงาน", Code: "SCR-03", Page: "hr/employees"),
-            new("พนักงานยังไม่ผ่านทดลองงาน", Code: "RPT-20"),
-            new("พิมพ์รายชื่อพนักงาน", Code: "SCR-04"),
+            new("พนักงานยังไม่ผ่านทดลองงาน", Code: "RPT-20", Page: "reports/hr/employees/on-probation", NewTab: true),
+            new("พิมพ์รายชื่อพนักงาน", Code: "SCR-04", Page: "hr/employees/lists"),
             new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05", Page: "org/departments"),
             new("พิมพ์หนังสือรับรอง, เกษียณและปลดออก", SubMenu: 19),
-            new("พิมพ์ใบอนุมัติผ่านทดลองงาน", Code: "SCR-06"),
+            new("พิมพ์ใบอนุมัติผ่านทดลองงาน", Code: "SCR-06", Page: "hr/employees/probation-approval"),
         ]),
         new(7, "วันอาทิตย์และวันหยุด", 1,
         [
@@ -145,7 +146,7 @@ public static class EmployeeMenu
         [
             new("พิมพ์ใบลา", Code: "RPT-50", Page: "hr/leave-form"),
             new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33", Page: "hr/resignation"),
-            new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51"),
+            new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51", Page: "reports/hr/insured-persons", NewTab: true),
             new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52"),
         ]),
         new(19, "พิมพ์หนังสือรับรอง", 2,

@@ -18,6 +18,12 @@
     <MudStack Row="true" Class="mt-4" Spacing="2">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
         <MudButton OnClick="SaveAndNextAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Add">รายการต่อไป</MudButton>
+        @if (form.Id is { } savedId)
+        {
+            @* RPT-56 แบบฟอร์มรับพนักงาน / สัญญาจ้าง (#66) *@
+            <MudButton Href="@($"hr/employees/onboarding-documents?employee={savedId}")" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์ฟอร์มรับพนักงาน / สัญญาจ้าง</MudButton>
+        }
         <MudSpacer />
         <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
     </MudStack>

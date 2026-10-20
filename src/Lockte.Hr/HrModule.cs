@@ -14,6 +14,7 @@ public static class HrModule
         services.AddModuleDbContext<HrDbContext>(connectionString, HrDbContext.Schema);
         services.AddScoped<EmployeeDirectory>();
         services.AddScoped<EmployeeRegistry>();
+        services.AddScoped<GovernmentFormDirectory>();
         services.AddScoped<CalendarDirectory>();
         services.AddScoped<CalendarRegistry>();
         services.AddScoped<AbsenceDirectory>();
@@ -27,6 +28,7 @@ public static class HrModule
         services.AddScoped<PayPeriodRegistry>();
         services.AddScoped<HrDocumentDirectory>();
         services.AddScoped<ResignationRegistry>();
+        services.AddScoped<OnboardingDirectory>();
         services.AddScoped<WarningDirectory>();
         services.AddScoped<WarningRegistry>();
         services.AddScoped<LeaveReportDirectory>();

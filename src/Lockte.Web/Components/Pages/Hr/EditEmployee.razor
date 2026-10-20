@@ -34,6 +34,8 @@
         }
         <EmployeeFields Form="form" Departments="departments" Sections="sections" Shifts="shifts" Choices="choices" IsEdit="true" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" Class="mt-4">บันทึก</MudButton>
+        @* SCR-02 ปุ่ม "พิมพ์แบบ คร2" (RPT-57) *@
+        <MudButton Href="@($"hr/employees/{loaded!.Id}/kor2")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print" Class="mt-4 ml-2">พิมพ์แบบ คร.2</MudButton>
     </MudPaper>
 }
 
