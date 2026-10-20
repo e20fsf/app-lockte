@@ -43,8 +43,31 @@ public static class ReportsRegistration
             return Pdf(http, pdf, "เวลาทำงาน " + report.Period.From.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         });
 
+        // RPT-02 ค่าแรงรายคน (รายงาน ค่าแรง1, SCR-41): A4 ตั้ง, one department or all (no ?department).
+        reports.MapGet("/hr/pay-periods/{id:int}/pay", async (int id, int? department, HttpContext http, PayPeriodDirectory periods,
+            ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (await periods.GetPayReportAsync(id, department) is not { } report) return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้");
+            var pdf = await printer.PrintAsync<PayReportView>(PayReportView.Title, Paper.A4Portrait,
+                new() { [nameof(PayReportView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            return Pdf(http, pdf, "ค่าแรง " + Iso(report.Period.From) + (report.DepartmentName is { } name ? " " + name : ""));
+        });
+
+        // RPT-03 สรุปค่าแรงรายแผนก (รายงาน สรุปค่าแรง): A4 ตั้ง. Printing it is step พิมพ์สรุปค่าแรง of เมนู 6.
+        reports.MapGet("/hr/pay-periods/{id:int}/pay-summary", async (int id, HttpContext http, PayPeriodDirectory periods,
+            PayPeriodRegistry registry, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (await periods.GetPaySummaryAsync(id) is not { } report) return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้");
+            var pdf = await printer.PrintAsync<PaySummaryView>(PaySummaryView.Title, Paper.A4Portrait,
+                new() { [nameof(PaySummaryView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            await registry.CompleteStepAsync(id, PayPeriodStep.SummaryPrinted);
+            return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
+        });
+
         return app;
     }
+
+    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Shown in the browser's PDF viewer (inline) under a readable file name.</summary>
     private static IResult Pdf(HttpContext http, byte[] pdf, string name)

@@ -1,0 +1,68 @@
+@using Lockte.Hr
+@* RPT-02 ค่าแรงรายคน (รายงาน ค่าแรง1 ← คิวรี คำนวณค่าแรง73, print-samples.md): ระดับ B — columns, order and totals as the
+   legacy; the look is แบบกลาง (ReportHtml). Rows come ready from PayPeriodDirectory.GetPayReportAsync (PAY_W + PAY_OT > 0,
+   รหัส ↑). ผู้รับเงิน is a line to sign. รายเดือน show the salary as อัตรา, as the legacy did. *@
+<p class="sub">ค่าแรงงวดวันที่ @ReportText.Date(Report.Period.To)&emsp;&emsp;แผนก @(Report.DepartmentName ?? AllDepartments)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:5%" /><col style="width:6%" /><col style="width:21%" /><col style="width:8.5%" /><col style="width:7%" />
+            <col style="width:6%" /><col style="width:6%" /><col style="width:6%" /><col style="width:8%" /><col style="width:8%" />
+            <col style="width:8.5%" /><col style="width:10%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th class="num">ค่าแรง</th><th class="num">วันทำงาน</th>
+                <th class="num">วันลา</th><th class="num">OTปกติ</th><th class="num">วันหยุด</th><th class="num">ค่าแรง</th>
+                <th class="num">ค่าล่วงเวลา</th><th class="num">ยอดรวม</th><th>ผู้รับเงิน</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var pay = Report.Lines[i].Pay;
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@pay.Code</td>
+                    <td>@pay.Name</td>
+                    <td class="num">@ReportText.Decimal2(pay.Rate)</td>
+                    <td class="num">@ReportText.Decimal2(pay.Normal)</td>
+                    <td class="num">@ReportText.Decimal2(pay.PaidLeave)</td>
+                    <td class="num">@ReportText.Decimal2(pay.Overtime)</td>
+                    <td class="num">@ReportText.Decimal2((double)pay.HolidayHours)</td>
+                    <td class="num">@ReportText.Baht(pay.PayNormal)</td>
+                    <td class="num">@ReportText.Baht(pay.PayOvertime)</td>
+                    <td class="num">@ReportText.Baht(pay.Total)</td>
+                    <td style="border-bottom:0.5pt dotted #000"></td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="4">รวม @Report.Lines.Count คน</td>
+                <td class="num">@ReportText.Decimal2(Report.Lines.Sum(l => l.Pay.Normal))</td>
+                <td class="num">@ReportText.Decimal2(Report.Lines.Sum(l => l.Pay.PaidLeave))</td>
+                <td class="num">@ReportText.Decimal2(Report.Lines.Sum(l => l.Pay.Overtime))</td>
+                <td class="num">@ReportText.Decimal2((double)Report.Lines.Sum(l => l.Pay.HolidayHours))</td>
+                <td class="num">@ReportText.Baht(Report.Lines.Sum(l => l.Pay.PayNormal))</td>
+                <td class="num">@ReportText.Baht(Report.Lines.Sum(l => l.Pay.PayOvertime))</td>
+                <td class="num">@ReportText.Baht(Report.Lines.Sum(l => l.Pay.Total))</td>
+                <td></td>
+            </tr>
+            <tr><td colspan="12" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    /// <summary>The legacy printed no title line besides "ค่าแรงงวดวันที่ …"; แบบกลาง needs one.</summary>
+    public const string Title = "ค่าแรง";
+
+    /// <summary>What the header says for SCR-41's <c>*</c>.</summary>
+    public const string AllDepartments = "ทุกแผนก";
+
+    [Parameter, EditorRequired] public PayReport Report { get; set; } = default!;
+}
