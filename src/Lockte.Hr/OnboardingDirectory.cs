@@ -41,9 +41,13 @@ public sealed class OnboardingDirectory(HrDbContext db, EmployeeDirectory employ
             .GroupBy(l => l.Type).Select(g => new { Type = g.Key, Days = g.Sum(l => l.Days) })
             .ToDictionaryAsync(g => g.Type, g => g.Days);
         var late = await db.WorkTimes.AsNoTracking().CountAsync(w => w.EmployeeId == employeeId && w.Late != null);
+        var warnings = await db.Warnings.AsNoTracking()
+            .Where(w => w.EmployeeId == employeeId && (w.Level == WarningLevels.Verbal || w.Level == WarningLevels.Written))
+            .GroupBy(w => w.Level).Select(g => new { Level = g.Key!, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Level, g => g.Count);
         double Days(string type) => leave.GetValueOrDefault(type);
         return new ProbationStatistics(Days("1"), Days("2"), Days("3"), Days("4"), Days("5"), late, Days("8"),
-            VerbalWarnings: null, WrittenWarnings: null);
+            warnings.GetValueOrDefault(WarningLevels.Verbal), warnings.GetValueOrDefault(WarningLevels.Written));
     }
 
     /// <summary>

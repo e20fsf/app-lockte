@@ -78,7 +78,7 @@ public sealed class OnboardingTests(LocalDbFixture db)
         Assert.False(e.IsMonthly);
     }
 
-    [Fact] // BR-071: Sum(LEAVE.SUM_D) by SR 1, 2, 3, 4, 5, 8 and the E_WORK rows with LATE
+    [Fact] // BR-071: Sum(LEAVE.SUM_D) by SR 1, 2, 3, 4, 5, 8, the E_WORK rows with LATE and the ใบเตือน rows by CODE 1 / 2
     public async Task Probation_statistics_sum_leave_days_by_type_and_count_late_days()
     {
         var employee = await AddAsync(new EmployeeInput { Code = NewCode(), Name = "นายสถิติ ลา", ShiftId = (await ShiftAsync("A")).Id, DailyWage = 400 });
@@ -100,11 +100,17 @@ public sealed class OnboardingTests(LocalDbFixture db)
                 new TimeOnly(8, 0), new TimeOnly(17, 0), 60, late is null ? null : TimeOnly.Parse(late), null, null)));
             Assert.True(result.Succeeded, string.Join(", ", result.Errors));
         }
+        foreach (var (offset, level) in new[] { (20, "1"), (21, "1"), (22, "2"), (23, "3") }) // CODE 3 เลิกจ้าง: not on the form
+        {
+            var result = await AsHrAsync(s => s.Get<WarningRegistry>().SaveAsync(new WarningInput(null, day.AddDays(offset), employee.Id, level,
+                null, null)));
+            Assert.True(result.Succeeded, string.Join(", ", result.Errors));
+        }
 
         var stats = await AsHrAsync(s => s.Get<OnboardingDirectory>().GetProbationStatisticsAsync(employee.Id));
 
-        Assert.Equal(new ProbationStatistics(1.5, 0, 1, 0, 0, 2, 2, null, null), stats);
-        Assert.Null(stats.TotalDeduction); // ใบเตือน not kept yet (#59): the total is written by hand
+        Assert.Equal(new ProbationStatistics(1.5, 0, 1, 0, 0, 2, 2, 2, 1), stats);
+        Assert.Equal(-(1.5 * 2 + 1 * 2 + 2 * 1 + 2 * 3 + 2 * 5 + 1 * 10), stats.TotalDeduction); // −33
     }
 
     [Fact] // BR-073 รายชื่อเฉพาะแผนก: ยังไม่ลาออก, แผนก and กะ LIKE (blank = "*"), by รหัส; DateDiff("m") years / months / age

@@ -45,8 +45,8 @@ public sealed record OnboardingEmployee
 
 /// <summary>
 /// สถิติการลางานและใบเตือน of one employee for ใบประเมินทดลองงาน (BR-071, macro <c>ใบอนุมัติบรรจุพนักงาน</c>): days of การลา
-/// SR 1, 2, 3, 4, 5, 8 and the times late, over all the employee's rows as the legacy summed them. The two warning
-/// counts are null until ใบเตือน is kept by the system (#59) — the form then leaves them, and the total, to be written in.
+/// SR 1, 2, 3, 4, 5, 8, the times late and the ใบเตือน of CODE 1 (วาจา) and 2 (หนังสือ), over all the employee's rows as
+/// the legacy summed and counted them (queries ใบอนุมัติบรรจุพนักงาน10–14).
 /// </summary>
 public sealed record ProbationStatistics(
     double PersonalLeave,
@@ -56,8 +56,8 @@ public sealed record ProbationStatistics(
     double WorkAccidentLeave,
     int LateCount,
     double Absent,
-    int? VerbalWarnings,
-    int? WrittenWarnings)
+    int VerbalWarnings,
+    int WrittenWarnings)
 {
     /// <summary>คะแนนหักต่อหน่วย as printed in ตัวคูณ/หน่วย (the report's ControlSource, BR-071).</summary>
     public static class Points
@@ -75,15 +75,13 @@ public sealed record ProbationStatistics(
 
     /// <summary>
     /// คะแนนหักรวม (2) = ลากิจ×(−2) + ลาป่วยมีใบแพทย์×(−1) + ลาป่วยไม่มีใบแพทย์×(−2) + ลาคลอด×(−2) + อุบัติเหตุในงาน×0 +
-    /// มาสาย×(−1) + ขาดงาน×(−3) + ใบเตือนวาจา×(−5) + ใบเตือนหนังสือ×(−10) — negative, as printed. Null while the warnings
-    /// are unknown.
+    /// มาสาย×(−1) + ขาดงาน×(−3) + ใบเตือนวาจา×(−5) + ใบเตือนหนังสือ×(−10) — negative, as printed.
     /// </summary>
-    public double? TotalDeduction => VerbalWarnings is { } verbal && WrittenWarnings is { } written
-        ? -(PersonalLeave * Points.PersonalLeave + SickLeaveWithCertificate * Points.SickLeaveWithCertificate
+    public double TotalDeduction
+        => -(PersonalLeave * Points.PersonalLeave + SickLeaveWithCertificate * Points.SickLeaveWithCertificate
             + SickLeaveWithoutCertificate * Points.SickLeaveWithoutCertificate + MaternityLeave * Points.MaternityLeave
             + WorkAccidentLeave * Points.WorkAccidentLeave + LateCount * Points.Late + Absent * Points.Absent
-            + verbal * Points.VerbalWarning + written * Points.WrittenWarning)
-        : null;
+            + VerbalWarnings * Points.VerbalWarning + WrittenWarnings * Points.WrittenWarning);
 }
 
 /// <summary>A line of รายชื่อพนักงานแผนก… (RPT-21, query <c>รายชื่อเฉพาะแผนก7</c>).</summary>

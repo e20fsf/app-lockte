@@ -214,7 +214,7 @@ public static class OnboardingForms
     /// <summary>
     /// RPT-22 ใบรายงานการประเมินผลงานพนักงานทดลองงาน (report <c>ใบอนุมัติบรรจุพนักงาน1</c>), A5 ตั้ง, ตารางเส้นเต็ม: the
     /// employee's การลา / มาสาย / ใบเตือน × ตัวคูณ and คะแนนหักรวม (2) (BR-071); ผลคะแนน, คะแนนที่ได้ and the result are
-    /// written by hand, as before. A count that is not known (ใบเตือน before #59) is left blank, and so is the total.
+    /// written by hand, as before.
     /// </summary>
     public static FormPage Evaluation(OnboardingEmployee e, ProbationApprovalInput input, ProbationStatistics stats, DateOnly today,
         string? documentNumber)
@@ -257,7 +257,7 @@ public static class OnboardingForms
 
         T(7.2, 101.9, "สถิติการลางานและใบเตือน : จะนำไปหักจากคะแนนรวม (1)");
         T(22.8, 107.9, "ประเภทการลา"); T(64.1, 107.9, "จำนวน"); T(82.0, 107.9, "หน่วย"); T(95.2, 107.9, "ตัวคูณ/หน่วย"); T(119.7, 107.9, "คะแนนที่หัก");
-        (string Label, double? Count, string Unit, int Points)[] rows =
+        (string Label, double Count, string Unit, int Points)[] rows =
         [
             ("ลากิจ", stats.PersonalLeave, "วัน", ProbationStatistics.Points.PersonalLeave),
             ("ลาป่วยมีใบรับรองแพทย์", stats.SickLeaveWithCertificate, "วัน", ProbationStatistics.Points.SickLeaveWithCertificate),
@@ -274,17 +274,17 @@ public static class OnboardingForms
             var (label, count, unit, points) = rows[i];
             var y = 113.9 + 6 * i;
             T(7.2, y, label);
-            if (count is { } c) T(68.75, y + 0.1, Number(c), TextAnchor.Middle);
+            T(68.75, y + 0.1, Number(count), TextAnchor.Middle);
             T(unit == "ใบ" ? 86.55 : 85.95, y, unit, TextAnchor.Middle);
             T(103.7, y, points.ToString(CultureInfo.InvariantCulture), TextAnchor.Middle);
-            if (count is { } d) T(128.0, y + 0.1, Number(-d * points), TextAnchor.Middle);
+            T(128.0, y + 0.1, Number(-count * points), TextAnchor.Middle);
         }
 
         T(13.95, 168.1, "คะแนน", TextAnchor.Middle, bold: true);
         foreach (var (x, band) in new[] { (29.7, "0-39.99"), (47.45, "40-49.99"), (63.75, "50-59.99"), (78.05, "60-69.99"), (91.4, "70-80") })
             T(x, 168.1, band, TextAnchor.Middle, bold: true);
         T(102.4, 167.9, "คะแนนหักรวม (2)");
-        if (stats.TotalDeduction is { } total) T(133.3, 168.0, Number(total), TextAnchor.Middle);
+        T(133.3, 168.0, Number(stats.TotalDeduction), TextAnchor.Middle);
         T(13.95, 175.1, "เกรด", TextAnchor.Middle, bold: true);
         foreach (var (x, grade) in new[] { (29.7, "F=ตกเกณฑ์"), (47.45, "D=ปรับปรุง"), (63.75, "C=พอใช้"), (78.05, "B=ดี"), (91.4, "A=ดีมาก") })
             T(x, 175.1, grade, TextAnchor.Middle, bold: true, fit: 13.5);
