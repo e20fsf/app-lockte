@@ -1,0 +1,100 @@
+@using Lockte.Hr
+@using Lockte.Web.Reports.Forms
+@* RPT-55 ใบลาออก (รายงาน พิมพ์ใบลาออก, BR-044): ระดับ A — every piece where the legacy Letter page printed it,
+   measured from the top-left corner, now on A4 (D-7). The name and reason run on instead of being cut (D-1); a
+   department without names for the employee's กะ prints empty brackets instead of an empty page. *@
+<FormPage>
+    <FormText X="111.4" Base="15.8" Size="22" Bold="true" Anchor="FormAnchor.Center" Text="@ReportHtml.Company" />
+    <FormText X="111.5" Base="27.4" Size="18" Bold="true" Anchor="FormAnchor.Center" Text="ใบลาออก" />
+    <FormText X="156.9" Base="13.6" Text="@DocumentNumber" />
+
+    <FormText X="136.7" Base="36.5" Text="วันที่" />
+    <FormText X="147.4" Base="36.5" Anchor="FormAnchor.Center" Text="@Today.Day.ToString()" />
+    <FormDots X1="144.2" X2="150.6" Y="36.7" />
+    <FormText X="151.6" Base="36.5" Text="เดือน" />
+    <FormText X="161.1" Base="36.5" Text="@FormFormat.Month(Today)" />
+    <FormDots X1="160.6" X2="180.0" Y="36.7" />
+    <FormText X="180.4" Base="36.5" Text="พ.ศ." />
+    <FormText X="192.4" Base="36.5" Anchor="FormAnchor.Center" Text="@FormFormat.Year(Today)" />
+    <FormDots X1="188.1" X2="196.8" Y="36.7" />
+
+    <FormText X="25.2" Base="45.6" Text="เรื่อง  การขอลาออกจากการเป็นพนักงานของบริษัท" />
+    <FormText X="25.2" Base="54.5" Text="เรียน  ท่านผู้จัดการโรงงาน" />
+
+    <FormText X="45.0" Base="73.5" Text="ข้าพเจ้า" />
+    <FormText X="57.4" Base="73.5" Text="@Letter.Name" />
+    <FormDots X1="56.7" X2="114.9" Y="73.7" />
+    <FormText X="114.6" Base="73.5" Text="รหัส" />
+    <FormText X="123.1" Base="73.5" Text="@Letter.Code" />
+    <FormDots X1="122.8" X2="133.8" Y="73.7" />
+    <FormText X="138.5" Base="73.6" Text="แผนก" />
+    <FormText X="147.0" Base="73.6" Text="@Letter.DepartmentName" />
+    <FormDots X1="144.2" X2="183.0" Y="73.7" />
+    <FormText X="183.3" Base="73.5" Text="กะ" />
+    <FormText X="188.4" Base="73.5" Text="@Letter.ShiftCode" />
+    <FormDots X1="188.0" X2="193.8" Y="73.7" />
+
+    <FormText X="25.2" Base="83.5" Text="เริ่มทำงานตั้งแต่วันที่" />
+    @if (Letter.StartDate is { } start)
+    {
+        <FormText X="61.7" Base="83.5" Anchor="FormAnchor.Center" Text="@start.Day.ToString()" />
+        <FormText X="75.0" Base="83.5" Text="@FormFormat.Month(start)" />
+        <FormText X="112.2" Base="83.5" Anchor="FormAnchor.Center" Text="@FormFormat.Year(start)" />
+    }
+    <FormDots X1="56.9" X2="66.5" Y="83.7" />
+    <FormText X="65.9" Base="83.5" Text="เดือน" />
+    <FormDots X1="74.6" X2="98.6" Y="83.7" />
+    <FormText X="99.7" Base="83.5" Text="พ.ศ." />
+    <FormDots X1="106.4" X2="118.0" Y="83.7" />
+    <FormText X="118.6" Base="83.6" Text="มีความประสงค์ที่จะขอลาออกจากการเป็นพนักงาน" />
+
+    <FormText X="25.2" Base="93.5" Text="ของบริษัท ล็อคเต้ จำกัด เนื่องจาก" />
+    <FormText X="78.8" Base="93.5" Text="@Letter.Reason" />
+    <FormDots X1="75.7" X2="193.8" Y="93.6" />
+
+    <FormText X="45.0" Base="103.4" Text="ตั้งแต่วันที่" />
+    @if (Letter.ResignDate is { } resign)
+    {
+        <FormText X="66.6" Base="103.5" Anchor="FormAnchor.Center" Text="@resign.Day.ToString()" />
+        <FormText X="84.8" Base="103.5" Text="@FormFormat.Month(resign)" />
+        <FormText X="117.7" Base="103.5" Text="@FormFormat.Year(resign)" />
+    }
+    <FormDots X1="60.7" X2="72.5" Y="103.6" />
+    <FormText X="72.9" Base="103.4" Text="เดือน" />
+    <FormDots X1="80.7" X2="108.5" Y="103.6" />
+    <FormText X="108.7" Base="103.4" Text="พ.ศ." />
+    <FormDots X1="115.4" X2="133.4" Y="103.6" />
+    <FormText X="134.5" Base="103.4" Text="เป็นต้นไป" />
+
+    <FormText X="45.0" Base="113.4" Text="พร้อมกันนี้ข้าพเจ้ายินยอมชดใช้ค่าเสียหายให้กับบริษัทฯ เป็นมูลค่าตามราคาของนั้นๆโดยให้เรียกเก็บ" />
+    <FormText X="25.2" Base="122.4" Text="ตามการจ่ายค่าแรงครั้งสุดท้ายของข้าพเจ้า หรือถ้าหากไม่พอข้าพเจ้าจะนำมาจ่ายในภายหลัง" />
+    <FormText X="45.0" Base="133.4" Text="ใบลาออกฉบับนี้ ข้าพเจ้ามีความประสงค์ที่จะขอลาออกเอง" />
+
+    <FormText X="141.8" Base="165.3" Text="ขอแสดงความนับถือ" />
+    <FormDots X1="137.5" X2="177.7" Y="182.5" />
+    <FormText X="157.3" Base="190.3" Anchor="FormAnchor.Center" Text="@($"({Letter.Name})")" />
+    <FormText X="146.4" Base="199.3" Text="ผู้ยื่นใบลาออก" />
+
+    <FormDots X1="26.0" X2="60.7" Y="224.4" />
+    <FormText X="60.9" Base="224.2" Text="เจ้าหน้าที่แผนกบุคคลและธุรการ" />
+    <FormDots X1="133.3" X2="162.2" Y="224.4" />
+    <FormText X="163.3" Base="224.2" Text="หัวหน้าแผนก" />
+    <FormText X="150.3" Base="231.2" Anchor="FormAnchor.Center" Text="@($"({Letter.SupervisorName})")" />
+
+    <FormDots X1="24.9" X2="60.8" Y="247.4" />
+    <FormText X="61.0" Base="247.2" Text="ผู้จัดการฝ่าย" />
+    <FormText X="25.1" Base="254.3" Text="@($"({Letter.ManagerName})")" />
+    <FormDots X1="133.3" X2="162.2" Y="247.4" />
+    <FormText X="163.4" Base="247.2" Text="ผู้จัดการโรงงาน" />
+    <FormText X="129.5" Base="254.3" Text="@($"({Letter.FactoryManagerName})")" />
+</FormPage>
+
+@code {
+    public const string Title = "ใบลาออก";
+
+    [Parameter, EditorRequired] public ResignationLetterData Letter { get; set; } = default!;
+    /// <summary>The printed เลขเอกสารควบคุม (DocumentKeys.ResignationLetter).</summary>
+    [Parameter] public string? DocumentNumber { get; set; }
+    /// <summary>Date() at the top: the day it is printed.</summary>
+    [Parameter, EditorRequired] public DateOnly Today { get; set; }
+}

@@ -34,6 +34,7 @@ builder.Services.AddHrModule(connectionString);
 builder.Services.AddSalesModule(connectionString);
 builder.Services.AddReportData(connectionString);
 builder.Services.AddReportPrinting(builder.Configuration);
+builder.Services.AddScoped<Lockte.Web.Reports.Hr.FormPrinter>();
 
 var app = builder.Build();
 
@@ -55,6 +56,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapReports();
+Lockte.Web.Reports.Hr.HrDocumentEndpoints.MapHrDocuments(app);
 
 app.MapPost("/Account/Logout", async (SignInManager<AppUser> signIn) =>
 {

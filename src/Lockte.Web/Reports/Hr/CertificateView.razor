@@ -1,0 +1,54 @@
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.Web.Reports.Forms
+@* RPT-53 หนังสือรับรองการทำงาน / หนังสือรับรองเงินเดือน (รายงาน พิมพ์หนังสือรับรองการทำงาน, …เงินเดือน1, BR-070):
+   ระดับ A on A4. The two letters differ in the title, the document number and line 8 only. The amount in words is
+   ThaiNumber (AC-12). A missing birth date prints blank instead of #Error (D-3). *@
+<FormPage>
+    <FormText X="97.85" Base="55.5" Size="20" Bold="true" Anchor="FormAnchor.Center" Text="@ReportHtml.Company" />
+    <FormText X="97.85" Base="66.9" Size="18" Bold="true" Anchor="FormAnchor.Center" Text="@TitleOf(Salary)" />
+    <FormText X="182.0" Base="72.3" Size="14" Anchor="FormAnchor.Right" Text="@DocumentNumber" />
+
+    <FormText X="35.2" Base="87.0" Text="หนังสือรับรองฉบับนี้ออกให้" />
+    <FormText X="79.9" Base="87.0" Text="@Person.Name" />
+    <FormText X="35.2" Base="96.0" Text="เกิดวันที่" />
+    <FormText X="50.4" Base="96.0" Text="@Person.BirthText" />
+    <FormText X="35.2" Base="105.0" Text="อายุ" />
+    <FormText X="47.1" Base="105.0" Anchor="FormAnchor.Right" Text="@Person.Age?.ToString()" />
+    <FormText X="49.1" Base="105.0" Text="ปี" />
+    <FormText X="35.2" Base="114.0" Text="ตำแหน่ง" />
+    <FormText X="50.4" Base="114.0" Text="@Person.Position" />
+    <FormText X="35.2" Base="123.0" Text="แผนก" />
+    <FormText X="45.4" Base="123.0" Text="@Person.DepartmentName" />
+    <FormText X="35.2" Base="131.9" Text="เริ่มทำงานตั้งแต่วันที่" />
+    <FormText X="67.9" Base="132.0" Text="@Person.StartText" />
+    <FormText X="35.2" Base="140.9" Text="รวมเป็นระยะเวลา" />
+    <FormText X="64.0" Base="141.0" Text="@Person.ServiceText" />
+    @if (Salary)
+    {
+        <FormText X="35.2" Base="149.9" Text="เงินค่าจ้างเดือนละ" />
+        <FormText X="85.1" Base="150.0" Anchor="FormAnchor.Right" Text="@FormFormat.Standard(Person.MonthlyPay, 2)" />
+        <FormText X="85.6" Base="150.0" Text="บาท" />
+        <FormText X="93.6" Base="150.0" Text="@($"({ThaiNumber.Baht(Person.MonthlyPay)})")" />
+    }
+    else
+    {
+        <FormText X="35.2" Base="149.9" Text="ตลอดเวลาที่ทำงานกับบริษัทฯ ปฏิบัติหน้าที่ได้อย่างสม่ำเสมอ และใส่ใจในกฏระเบียบเป็นอย่างดี" />
+    }
+
+    <FormText X="51.0" Base="167.0" Text="ขอรับรองว่าหนังสือสำคัญฉบับนี้เป็นความจริงทุกประการ" />
+    <FormText X="51.0" Base="177.1" Text="ให้ไว้  ณ  วันที่" />
+    <FormText X="75.3" Base="177.1" Text="@Person.IssuedText" />
+    <FormText X="146.4" Base="192.0" Text="ขอแสดงความนับถือ" />
+    <FormText X="161.7" Base="217.0" Anchor="FormAnchor.Center" Text="@($"({Person.FactoryManagerName})")" />
+    <FormText X="149.9" Base="224.0" Text="ผู้จัดการโรงงาน" />
+</FormPage>
+
+@code {
+    public static string TitleOf(bool salary) => salary ? "หนังสือรับรองเงินเดือน" : "หนังสือรับรองการทำงาน";
+
+    [Parameter, EditorRequired] public CertificateData Person { get; set; } = default!;
+    /// <summary>หนังสือรับรองเงินเดือน (with the monthly pay) instead of หนังสือรับรองการทำงาน.</summary>
+    [Parameter] public bool Salary { get; set; }
+    [Parameter] public string? DocumentNumber { get; set; }
+}

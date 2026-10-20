@@ -1,0 +1,9 @@
+@* A rectangle (frame or tick box) from (X1, Y1) to (X2, Y2) in mm, 0.3 mm line. *@
+<div class="box" style="left:@(FormHtml.Mm(X1))mm;top:@(FormHtml.Mm(Y1))mm;width:@(FormHtml.Mm(X2 - X1))mm;height:@(FormHtml.Mm(Y2 - Y1))mm"></div>
+
+@code {
+    [Parameter, EditorRequired] public double X1 { get; set; }
+    [Parameter, EditorRequired] public double Y1 { get; set; }
+    [Parameter, EditorRequired] public double X2 { get; set; }
+    [Parameter, EditorRequired] public double Y2 { get; set; }
+}

@@ -1,0 +1,33 @@
+@using Lockte.Hr
+@inject ScopedServices Services
+
+@* เลือกพนักงาน (รหัส หรือ ชื่อ) for the print forms of #65: everyone, those who resigned marked "(ลาออก)" — the legacy
+   combos listed all of EMPLO. *@
+<MudAutocomplete T="EmployeeListItem" Value="Value" ValueChanged="ValueChanged" Label="รหัสพนักงาน (รหัส หรือ ชื่อ)"
+                 SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                 Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="min-width:24rem">
+    <ItemTemplate>
+        <MudText Color="@(context.IsWorking ? Color.Default : Color.Secondary)">
+            @context.Code  @context.Name @(context.DepartmentName is { } d ? $"· {d}" : "") @(context.IsWorking ? "" : "(ลาออก)")
+        </MudText>
+    </ItemTemplate>
+</MudAutocomplete>
+
+@code {
+    private IReadOnlyList<EmployeeListItem> employees = [];
+
+    [Parameter] public EmployeeListItem? Value { get; set; }
+    [Parameter] public EventCallback<EmployeeListItem?> ValueChanged { get; set; }
+
+    protected override async Task OnInitializedAsync()
+        => employees = await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync());
+
+
+    private Task<IEnumerable<EmployeeListItem>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? employees
+            : employees.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+}

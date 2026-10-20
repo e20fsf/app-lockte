@@ -1,0 +1,8 @@
+@* The legacy dotted underline of a text box, from X1 to X2 at Y (mm). *@
+<div class="dots" style="left:@(FormHtml.Mm(X1))mm;width:@(FormHtml.Mm(X2 - X1))mm;top:@(FormHtml.Mm(Y))mm"></div>
+
+@code {
+    [Parameter, EditorRequired] public double X1 { get; set; }
+    [Parameter, EditorRequired] public double X2 { get; set; }
+    [Parameter, EditorRequired] public double Y { get; set; }
+}
