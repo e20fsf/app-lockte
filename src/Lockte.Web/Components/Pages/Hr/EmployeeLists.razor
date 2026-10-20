@@ -1,0 +1,53 @@
+@page "/hr/employees/lists"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Web.Reports.Hr
+@inject ScopedServices Services
+
+@* SCR-04 เลือกแผนกที่พิมพ์ (BR-073): แผนก and กะ (blank = all, the legacy "*") → รายชื่อพนักงานแผนก… (RPT-21);
+   ทะเบียนประวัติพนักงาน (everyone, whatever is chosen, as the legacy button). รายชื่อพนักงานทั้งหมด (report EMPLO) had no
+   menu item in the legacy (⚠ เมนู 8); it is printed from here. Each report opens as a PDF in a new tab. *@
+<PageTitle>พิมพ์รายชื่อพนักงาน — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์รายชื่อพนักงาน</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudStack Spacing="3">
+        <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก" Clearable="true" Placeholder="ทุกแผนก">
+            @foreach (var d in departments)
+            {
+                <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="int?" @bind-Value="shiftId" Label="กะ" Clearable="true" Placeholder="ทุกกะ">
+            @foreach (var s in ShiftChoices)
+            {
+                <MudSelectItem T="int?" Value="s.Id">@s.Code</MudSelectItem>
+            }
+        </MudSelect>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudButton Href="@OnboardingReports.RosterHref(departmentId, shiftId)" Target="_blank" Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+            <MudButton Href="@($"{OnboardingReports.Base}/register")" Target="_blank" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงาน</MudButton>
+            <MudButton Href="@($"{OnboardingReports.Base}/working")" Target="_blank" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อพนักงานทั้งหมด</MudButton>
+        </MudStack>
+        <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Style="align-self:flex-start">กลับเมนูเดิม</MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private IReadOnlyList<ShiftDto> shifts = [];
+    private int? departmentId;
+    private int? shiftId;
+
+    /// <summary>The กะ the chosen แผนก works (the legacy dropdown listed แผนก + กะ pairs); every กะ when no แผนก is chosen.</summary>
+    private IEnumerable<ShiftDto> ShiftChoices => departments.FirstOrDefault(d => d.Id == departmentId) is { } d
+        ? shifts.Where(s => d.Shifts.Any(x => x.ShiftId == s.Id))
+        : shifts;
+
+    protected override async Task OnInitializedAsync()
+        => (departments, shifts) = await Services.RunAsync<OrgDirectory, (IReadOnlyList<DepartmentDto>, IReadOnlyList<ShiftDto>)>(
+            async o => (await o.GetDepartmentsAsync(), await o.GetShiftsAsync()));
+}

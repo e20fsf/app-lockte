@@ -1,0 +1,54 @@
+@using Lockte.Hr
+@* RPT-20 รายชื่อพนักงานที่ยังไม่บรรจุ (report พนักงานยังไม่บรรจุ, BR-053): ระดับ B — columns, order and total as the legacy;
+   the look is แบบกลาง (ReportHtml). Rows come from EmployeeDirectory.ListOnProbationAsync (ยังไม่ลาออก, today − START ≤ 89).
+   The report sorted by รหัส then เริ่ม (its sorting levels win over the query's ORDER BY START). ประเภท prints the code
+   (1 รายเดือน / 2 รายวัน) and ถึงกำหนด = START + 90 — this report's own formula, not BR-053's START + 89. *@
+@if (Employees.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:6%" /><col style="width:8%" /><col style="width:26%" /><col style="width:16%" /><col style="width:12%" />
+            <col style="width:10%" /><col style="width:7%" /><col style="width:5%" /><col style="width:10%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ตำแหน่ง</th><th>เริ่ม</th><th>ประเภท</th>
+                <th>กะ</th><th>ถึงกำหนด</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Ordered.Count; i++)
+            {
+                var e = Ordered[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@e.Code</td>
+                    <td>@e.Name</td>
+                    <td>@e.DepartmentName</td>
+                    <td>@e.Position</td>
+                    <td>@(e.StartDate is { } s ? ReportText.Date(s) : null)</td>
+                    <td>@e.EmployeeType</td>
+                    <td>@e.ShiftCode</td>
+                    <td>@(e.StartDate is { } d ? ReportText.Date(d.AddDays(DueDays)) : null)</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="9">รวมทั้งหมด @Employees.Count คน</td></tr>
+            <tr><td colspan="9" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายชื่อพนักงานที่ยังไม่บรรจุ";
+
+    /// <summary>ถึงกำหนด = <c>[start]+90</c> in the legacy report.</summary>
+    public const int DueDays = 90;
+
+    [Parameter, EditorRequired] public IReadOnlyList<EmployeeDto> Employees { get; set; } = [];
+
+    private IReadOnlyList<EmployeeDto> Ordered => Employees.OrderBy(e => e.Code, StringComparer.Ordinal).ThenBy(e => e.StartDate).ToList();
+}

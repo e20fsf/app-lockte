@@ -19,7 +19,7 @@ else
         <MudStack Spacing="2" Class="menu-items">
             @foreach (var item in menu.Items)
             {
-                <MudButton Href="@item.Href" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                <MudButton Href="@item.Href" Target="@(item.NewTab ? "_blank" : null)" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
                            EndIcon="@(item.SubMenu is null ? null : Icons.Material.Filled.ChevronRight)" Class="menu-item">
                     @item.Text
                 </MudButton>

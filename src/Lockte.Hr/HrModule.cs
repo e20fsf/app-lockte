@@ -27,6 +27,7 @@ public static class HrModule
         services.AddScoped<PayPeriodRegistry>();
         services.AddScoped<HrDocumentDirectory>();
         services.AddScoped<ResignationRegistry>();
+        services.AddScoped<OnboardingDirectory>();
         return services;
     }
 

@@ -76,6 +76,8 @@ public static class ReportsRegistration
             return Pdf(http, pdf, "ใบขออนุมัติทำ OT " + sheet.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         });
 
+        reports.MapOnboardingReports(); // #66: RPT-20, RPT-21, RPT-22, RPT-56
+
         return app;
     }
 

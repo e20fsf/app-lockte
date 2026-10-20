@@ -1,0 +1,52 @@
+@using Lockte.Hr
+@* RPT-21 รายชื่อพนักงานทั้งหมด (report EMPLO, query พิมพ์รายชื่อทั้งหมด, BR-073): ระดับ B — every employee still working by
+   รหัส; ประเภท prints the code; อายุ = (Now − BORN) / 365 with no decimals. The legacy macro had no menu item (⚠ เมนู 8);
+   it is printed from SCR-04 now. *@
+@if (List.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:6%" /><col style="width:7%" /><col style="width:22%" /><col style="width:12%" /><col style="width:11%" />
+            <col style="width:9%" /><col style="width:9%" /><col style="width:6%" /><col style="width:5%" /><col style="width:13%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ตำแหน่ง</th><th>เกิด</th><th>เริ่มทำงาน</th>
+                <th>ประเภท</th><th class="num">อายุ</th><th>โรงพยาบาล</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < List.Lines.Count; i++)
+            {
+                var l = List.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@l.Code</td>
+                    <td>@l.Name</td>
+                    <td>@l.DepartmentName</td>
+                    <td>@l.Position</td>
+                    <td>@(l.BirthDate is { } b ? ReportText.Date(b) : null)</td>
+                    <td>@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
+                    <td>@l.EmployeeType</td>
+                    <td class="num">@(l.Age is { } a ? EmployeeListText.Whole(a) : null)</td>
+                    <td>@l.Hospital</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="8">รวมทั้งหมด @List.Lines.Count คน&emsp;ชาย @List.Male คน&emsp;หญิง @List.Female คน</td>
+                <td colspan="2" class="num">อายุเฉลี่ย @(List.AverageAge is { } avg ? EmployeeListText.Whole(avg) : null)</td>
+            </tr>
+            <tr><td colspan="10" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายชื่อพนักงานทั้งหมด";
+
+    [Parameter, EditorRequired] public WorkingEmployeeList List { get; set; } = default!;
+}
