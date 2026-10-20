@@ -33,4 +33,21 @@ public sealed class LegacyFileTests : IDisposable
         Assert.Empty(legacy["E_WORK"]);
         Assert.Equal(4, legacy.SourceRows("EMPLO"));
     }
+
+    [Fact]
+    public void The_open_period_and_NO_WORK_are_read_in_full()
+    {
+        var source = FakeLegacyFile.Standard()
+            .Row("NO_WORK", ("DATE1", new DateTime(2019, 1, 2)), ("ID1", "D001"))
+            .Row("NO_WORK", ("ID1", "D001"))
+            .Save(Path.Combine(work.FullName, "พนักงาน.accdb"));
+
+        var legacy = LegacyDatabase.ReadAccessFile(source);
+
+        var period = Assert.Single(legacy["ตั้งวันที่ตัดWEEK"]);
+        Assert.Equal((new DateTime(2026, 10, 12), new DateTime(2026, 10, 26), new DateTime(2026, 11, 1)),
+            (period.Date("FROM_DA"), period.Date("TO_DA"), period.Date("PAY_D")));
+        Assert.Equal(2, legacy["NO_WORK"].Count); // filtered by the period's first day in the migration, not when read
+        Assert.Equal(2, legacy.SourceRows("NO_WORK"));
+    }
 }

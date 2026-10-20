@@ -21,6 +21,9 @@ internal sealed class PayPeriod : IAudited
     /// <summary>When and by whom the เวลาทำงาน totals were last calculated (#41: อธิบายได้เมื่อยอดเปลี่ยน).</summary>
     public DateTimeOffset? TimeCalculatedAt { get; set; }
     public string? TimeCalculatedBy { get; set; }
+    /// <summary>When and by whom ค่าแรง was last calculated.</summary>
+    public DateTimeOffset? PayCalculatedAt { get; set; }
+    public string? PayCalculatedBy { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

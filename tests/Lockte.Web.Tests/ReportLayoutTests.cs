@@ -89,6 +89,51 @@ public sealed class ReportLayoutTests
         Assert.True(html.IndexOf("A001", StringComparison.Ordinal) < html.IndexOf("A002", StringComparison.Ordinal));
     }
 
+    private static readonly PayPeriodDto Paid = new(1, D("2026-08-27"), D("2026-09-11"), D("2026-09-16"), PayPeriodStep.PayCalculated, null, null, []);
+
+    private static PayLine PayLine(string code, decimal payNormal, decimal payOvertime)
+        => new(new EmployeePay(1, code, "นาย ทดสอบ " + code, 400, 13.9375, 1, 17.0 / 3, 10, payNormal, payOvertime, 0, 0, 2), 1, "ไดคาสท์");
+
+    [Fact] // RPT-02: หัว "ค่าแรงงวดวันที่ TO แผนก …" · อัตรา/วัน ทศนิยม 2 · เงินเต็มบาทมีคั่นหลักพัน · ท้าย รวม n คน + ผลรวม
+    public async Task The_pay_report_shows_the_lines_and_their_totals()
+    {
+        var report = new PayReport(Paid, "ไดคาสท์", [PayLine("A001", 5600, 263), PayLine("A002", 7500, 1000)]);
+
+        var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<PayReportView>(new() { [nameof(PayReportView.Report)] = report }));
+
+        Assert.Contains("ค่าแรงงวดวันที่ 11/9/2569", html);
+        Assert.Contains("แผนก ไดคาสท์", html);
+        Assert.Contains(">400.00<", html);
+        Assert.Contains(">13.94<", html);
+        Assert.Contains(">5,863<", html);
+        Assert.Contains("รวม 2 คน", html);
+        Assert.Contains(">13,100<", html); // ΣPAY_W
+        Assert.Contains(">14,363<", html); // Σยอดรวม
+        Assert.Contains("ผู้รับเงิน", html);
+    }
+
+    [Fact] // SCR-41 "*"
+    public async Task The_pay_report_of_all_departments_says_so()
+        => Assert.Contains("แผนก " + PayReportView.AllDepartments,
+            System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<PayReportView>(new() { [nameof(PayReportView.Report)] = new PayReport(Paid, null, []) })));
+
+    [Fact] // RPT-03: หัววันอาทิตย์/วันหยุด/วันทำงาน/รวม/คิดค่าแรง · %OT ทศนิยม 2 · แถวรวม · ลงนาม 4 ช่อง
+    public async Task The_pay_summary_shows_each_department_the_totals_and_the_signatures()
+    {
+        var report = new PaySummaryReport(Paid, 2, 1, [new DepartmentPayTotal("ไดคาสท์", 12, 77463, 2480, 0), new DepartmentPayTotal("ซ่อมบำรุง", 1, 13228, 0, 0)]);
+
+        var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<PaySummaryView>(new() { [nameof(PaySummaryView.Report)] = report }));
+
+        Assert.Contains("วันที่จ่าย 16/9/2569", html);
+        Assert.Contains("วันทำงาน 13 วัน", html);
+        Assert.Contains("คิดค่าแรง 14 วัน", html);
+        Assert.Contains(">79,943<", html);
+        Assert.Contains(">3.20<", html);
+        Assert.Contains(">0.00<", html);
+        Assert.Contains(">93,171<", html); // รวมทั้งหมด
+        foreach (var sign in new[] { "บุคคล", "ผู้จัดการโรงงาน", "สมุห์บัญชี", "กรรมการผู้จัดการ" }) Assert.Contains(sign, html);
+    }
+
     [Fact] // D-6: ไม่มีข้อมูล → "ไม่มีข้อมูล" แทนแถวว่าง
     public async Task An_empty_report_says_there_is_no_data()
     {

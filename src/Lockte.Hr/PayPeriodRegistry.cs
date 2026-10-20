@@ -10,13 +10,14 @@ namespace Lockte.Hr;
 
 /// <summary>
 /// The writes of งวดค่าแรง: ตั้งงวด (SCR-40, hand entry with row history), the steps of เมนู 6 in order (#22), and
-/// คำนวณเวลาทำงาน (BR-007 → BR-001 → BR-002), a calculation recorded as one history event (#41). Calculating or
+/// คำนวณเวลาทำงาน (BR-007 → BR-001 → BR-002) and คำนวณค่าแรง (BR-003..006), each recorded as one history event (#41). Calculating or
 /// changing a period takes a lock on that period, so two users never calculate it at the same time (#41).
 /// </summary>
 public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrentUser user, TimeProvider clock)
 {
     public const string PayPeriodTable = "งวดค่าแรง";
     public const string CalculateTimeAction = "คำนวณเวลาทำงาน";
+    public const string CalculatePayAction = "คำนวณค่าแรง";
     public const string BusyMessage = "มีผู้ใช้อื่นกำลังคำนวณหรือแก้งวดค่าแรงนี้อยู่ กรุณารอสักครู่แล้วลองใหม่";
 
     /// <summary>The SQL Server application lock of one period (<c>sp_getapplock</c>); public for tests.</summary>
@@ -51,6 +52,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
         if (period.FromDate != from || period.ToDate != to)
         {
             await db.PayPeriodTimeTotals.Where(t => t.PayPeriodId == id).ExecuteDeleteAsync();
+            await ForgetPayAsync(period);
             period.CompletedStep = PayPeriodStep.Set;
             period.TimeCalculatedAt = null;
             period.TimeCalculatedBy = null;
@@ -90,6 +92,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
                 await db.PublicHolidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync());
 
             await db.PayPeriodTimeTotals.Where(t => t.PayPeriodId == periodId).ExecuteDeleteAsync();
+            await ForgetPayAsync(period); // calculated from the old totals
             db.PayPeriodTimeTotals.AddRange(totals.Select(t => new PayPeriodTimeTotal
             {
                 PayPeriod = period, EmployeeId = t.EmployeeId, Normal = t.Normal, PaidLeave = t.PaidLeave, UnpaidLeave = t.UnpaidLeave,
@@ -106,6 +109,67 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
             await db.SaveChangesAsync();
             await transaction.CommitAsync();
             return ServiceResult.Ok(totals.Count);
+        }
+    }
+
+    /// <summary>
+    /// พิมพ์ค่าแรง (SCR-41, มาโคร คำนวณค่าแรง): BR-003/004 on the period's BR-002 totals, for every employee BR-005
+    /// calculated whose type a legacy formula has; the results replace the period's previous ones (BR-006, Q-22: only this
+    /// period's — the legacy also deleted the history of later periods). <see cref="ServiceResult.Id"/> = employees paid.
+    /// </summary>
+    public async Task<ServiceResult> CalculatePayAsync(int periodId)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        if (!await TryLockAsync(periodId)) return ServiceResult.Fail(BusyMessage);
+        var period = await db.PayPeriods.FirstOrDefaultAsync(p => p.Id == periodId);
+        if (period is null) return ServiceResult.Fail("ไม่พบงวดค่าแรงนี้ อาจถูกลบไปแล้ว");
+        if (CheckStep(period, PayPeriodStep.PayCalculated) is { } blocked) return blocked;
+        var (from, to) = (period.FromDate, period.ToDate);
+
+        using (audit.SuppressRowChanges())
+        {
+            var rows = await db.PayPeriodTimeTotals.AsNoTracking().Where(t => t.PayPeriodId == periodId)
+                .Select(t => new
+                {
+                    Time = new EmployeeTimeTotal(t.EmployeeId, t.Employee.Code, t.Employee.Name, t.Normal, t.PaidLeave, t.UnpaidLeave,
+                        t.Overtime, t.Sunday, t.SundayOvertime, t.Holiday, t.HolidayOvertime, t.PublicHolidays, t.WeeklyHolidays,
+                        t.WeeklyHolidaysToResign),
+                    Employee = new PayEmployee(t.Employee.EmployeeType, t.Employee.Salary, t.Employee.DailyWage, t.Employee.Evaluation1Score,
+                        t.Employee.HotAllowance, t.Employee.ResignDate),
+                    t.Employee.DepartmentId,
+                })
+                .ToListAsync();
+            var facts = new PayPeriodFacts(new PayPeriodDates(from, to, period.PayDate),
+                await db.WeeklyHolidays.CountAsync(h => h.Date >= from && h.Date <= to),
+                await db.PublicHolidays.Where(h => h.Date >= from && h.Date <= to).OrderBy(h => h.Date).Select(h => (DateOnly?)h.Date)
+                    .FirstOrDefaultAsync());
+            var results = rows
+                .Select(r => (r.Employee, r.DepartmentId, Pay: PayCalculation.Calculate(facts, r.Time, r.Employee)))
+                .Where(r => r.Pay is not null)
+                .Select(r => new PayResult
+                {
+                    PayPeriod = period, EmployeeId = r.Pay!.EmployeeId, DepartmentId = r.DepartmentId, EmployeeType = r.Employee.EmployeeType!.Value,
+                    Rate = r.Pay.Rate, Normal = r.Pay.Normal, PaidLeave = r.Pay.PaidLeave, Overtime = r.Pay.Overtime,
+                    HolidayHours = r.Pay.HolidayHours, PayNormal = r.Pay.PayNormal, PayOvertime = r.Pay.PayOvertime, Hot = r.Pay.Hot,
+                    PublicHolidays = r.Pay.PublicHolidays, WeeklyHolidays = r.Pay.WeeklyHolidays,
+                })
+                .ToList();
+
+            await db.PayResults.Where(r => r.PayPeriodId == periodId).ExecuteDeleteAsync();
+            db.PayResults.AddRange(results);
+            period.CompletedStep = PayPeriodStep.PayCalculated;
+            period.PayCalculatedAt = clock.GetUtcNow();
+            period.PayCalculatedBy = user.UserName;
+            db.AddHistoryEvent(CalculatePayAction,
+                new
+                {
+                    ตั้งแต่ = Iso(from), ถึง = Iso(to), วันที่จ่าย = Iso(period.PayDate),
+                    ค่าแรง = results.Sum(r => r.PayNormal), ค่าล่วงเวลา = results.Sum(r => r.PayOvertime), HOT = results.Sum(r => r.Hot),
+                },
+                results.Count, PayPeriodTable);
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return ServiceResult.Ok(results.Count);
         }
     }
 
@@ -175,6 +239,14 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
         if (workRepeats.Count > 0) deleted += await db.WorkTimes.Where(w => workRepeats.Contains(w.Id)).ExecuteDeleteAsync();
         if (leaveRepeats.Count > 0) deleted += await db.Leaves.Where(l => leaveRepeats.Contains(l.Id)).ExecuteDeleteAsync();
         return deleted;
+    }
+
+    /// <summary>The period's ค่าแรง no longer holds (its time or dates changed): deleted, to be calculated again.</summary>
+    private async Task ForgetPayAsync(PayPeriod period)
+    {
+        await db.PayResults.Where(r => r.PayPeriodId == period.Id).ExecuteDeleteAsync();
+        period.PayCalculatedAt = null;
+        period.PayCalculatedBy = null;
     }
 
     private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

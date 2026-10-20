@@ -1,0 +1,23 @@
+@page "/hr/leave-form"
+@attribute [Authorize]
+@using Lockte.Hr
+
+@* RPT-50 พิมพ์ใบลา (ฟอร์ม รหัสพนักงาน1 → มาโคร พิมพ์ใบลางาน, BR-065): choose the employee, the ใบลางาน opens as PDF
+   (A5 นอน) in a new tab. *@
+<PageTitle>พิมพ์ใบลา — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์ใบลา</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <EmployeePicker @bind-Value="employee" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="employee is null" Target="_blank"
+                   Href="@(employee is null ? null : $"reports/hr/leave-form/{employee.Id}")"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์ใบลา</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(18)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private EmployeeListItem? employee;
+}

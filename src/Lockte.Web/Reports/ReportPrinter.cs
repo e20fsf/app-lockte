@@ -49,6 +49,12 @@ public static class ReportText
     /// </summary>
     public static string Decimal2(double value) => Math.Round((decimal)value, 2, MidpointRounding.AwayFromZero).ToString("#,##0.00", ThaiDate.Culture);
 
+    /// <summary>เงินบาทเต็มจำนวนมีคั่นหลักพัน (Standard, 0 ตำแหน่ง), half away from zero as Access's Format.</summary>
+    public static string Baht(decimal value) => Math.Round(value, 0, MidpointRounding.AwayFromZero).ToString("#,##0", ThaiDate.Culture);
+
+    /// <summary>ทศนิยม 2 ตำแหน่งของ <see cref="decimal"/> (เช่น %ค่าล่วงเวลา), half away from zero.</summary>
+    public static string Decimal2(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("#,##0.00", ThaiDate.Culture);
+
     /// <summary>ชื่อเดือนในหัว from the dates themselves (D-5): "ตุลาคม 2569", "ตุลาคม–พฤศจิกายน 2569", "ธันวาคม 2569–มกราคม 2570".</summary>
     public static string MonthTitle(DateOnly from, DateOnly to)
     {

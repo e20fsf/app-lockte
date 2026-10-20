@@ -423,6 +423,15 @@ namespace Lockte.Hr.Data.Migrations
                         .HasColumnType("date")
                         .HasAnnotation("Lockte:AuditName", "จากวันที่");
 
+                    b.Property<DateTimeOffset?>("PayCalculatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasAnnotation("Lockte:AuditName", "คำนวณค่าแรงเมื่อ");
+
+                    b.Property<string>("PayCalculatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasAnnotation("Lockte:AuditName", "คำนวณค่าแรงโดย");
+
                     b.Property<DateOnly>("PayDate")
                         .HasColumnType("date")
                         .HasAnnotation("Lockte:AuditName", "วันที่จ่าย");
@@ -543,6 +552,93 @@ namespace Lockte.Hr.Data.Migrations
                     b.ToTable("PayPeriodTimeTotals", "hr");
 
                     b.HasAnnotation("Lockte:AuditName", "เวลาทำงานรวมของงวด");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.PayResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HolidayHours")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Hot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<double>("Normal")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Overtime")
+                        .HasColumnType("float");
+
+                    b.Property<double>("PaidLeave")
+                        .HasColumnType("float");
+
+                    b.Property<decimal>("PayNormal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PayOvertime")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PayPeriodId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PublicHolidays")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Rate")
+                        .HasColumnType("float");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("WeeklyHolidays")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("PayPeriodId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("PayResults", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "ค่าแรงของงวด");
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.PublicHoliday", b =>
@@ -807,6 +903,25 @@ namespace Lockte.Hr.Data.Migrations
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.PayPeriodTimeTotal", b =>
+                {
+                    b.HasOne("Lockte.Hr.Data.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lockte.Hr.Data.PayPeriod", "PayPeriod")
+                        .WithMany()
+                        .HasForeignKey("PayPeriodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("PayPeriod");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.PayResult", b =>
                 {
                     b.HasOne("Lockte.Hr.Data.Employee", "Employee")
                         .WithMany()

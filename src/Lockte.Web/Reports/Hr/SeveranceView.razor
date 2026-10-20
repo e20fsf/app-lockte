@@ -1,0 +1,69 @@
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.Web.Reports.Forms
+@* RPT-54 ฟอร์มเกษียณ / ฟอร์มปลดออก (รายงาน เกษียณ, ปลดออก, BR-070): ระดับ A on A4, แบบจดหมาย without a company
+   header and without a document number (none in the legacy). ฟอร์มปลดออก adds เหตุผล and is signed as
+   รองผู้จัดการโรงงาน, as before. The legacy ปลดออก spilled onto a blank second page; this is one page. *@
+<FormPage>
+    <FormText X="142.4" Base="27.0" Text="วันที่" />
+    <FormText X="150.9" Base="27.0" Text="@FormFormat.LongDate(Today)" />
+    <FormText X="17.4" Base="40.0" Text="เรียน ท่านกรรมการผู้จัดการ" />
+    <FormText X="17.4" Base="49.0" Text="@(Dismissal ? "เรื่อง ขอปลดพนักงานโดยจ่ายค่าจ้าง" : "เรื่อง พนักงานขอเกษียณการทำงาน")" />
+    <FormText X="36.2" Base="58.0" Text="@(Dismissal ? "เนื่องจากมีการพิจารณาปลดพนักงานออกจากบริษัทดังนี้" : "เนื่องจากมีพนักงานขอเกษียณการทำงานดังนี้")" />
+
+    <FormText X="36.2" Base="67.0" Text="@Data.Person.Name" />
+    <FormText X="36.2" Base="76.0" Text="เกิดวันที่" />
+    <FormText X="51.4" Base="76.0" Text="@Data.Person.BirthText" />
+    <FormText X="36.2" Base="85.0" Text="อายุ" />
+    <FormText X="48.1" Base="85.0" Anchor="FormAnchor.Right" Text="@Data.Person.Age?.ToString()" />
+    <FormText X="50.0" Base="85.0" Text="ปี" />
+    <FormText X="36.2" Base="94.0" Text="ตำแหน่ง" />
+    <FormText X="51.4" Base="94.0" Text="@Data.Person.Position" />
+    <FormText X="36.2" Base="103.0" Text="แผนก" />
+    <FormText X="47.4" Base="103.0" Text="@Data.Person.DepartmentName" />
+    <FormText X="36.2" Base="112.0" Text="เริ่มทำงานตั้งแต่วันที่" />
+    <FormText X="68.9" Base="112.0" Text="@Data.Person.StartText" />
+    <FormText X="36.2" Base="121.0" Text="รวมเป็นระยะเวลา" />
+    <FormText X="64.9" Base="121.0" Text="@Data.Person.ServiceText" />
+    <FormText X="36.2" Base="130.0" Text="เงินค่าจ้างวันละ" />
+    <FormText X="79.2" Base="130.0" Anchor="FormAnchor.Right" Text="@FormFormat.Standard(Data.DailyWage, 2)" />
+    <FormText X="79.7" Base="130.0" Text="บาท" />
+    <FormText X="36.2" Base="139.0" Text="จากการคำนวณเงินค่าชดเชยจะต้องจ่ายจำนวน" />
+    <FormText X="114.9" Base="139.0" Anchor="FormAnchor.Right" Text="@FormFormat.Standard(Data.CompensationDays, 0)" />
+    <FormText X="117.3" Base="139.0" Text="วัน" />
+    <FormText X="126.0" Base="139.0" Text="เป็นเงิน" />
+    <FormText X="165.2" Base="139.0" Anchor="FormAnchor.Right" Text="@FormFormat.Standard((double)Data.Compensation, 2)" />
+    <FormText X="165.2" Base="139.0" Text="บาท" />
+    <FormText X="36.2" Base="148.0" Text="@($"({ThaiNumber.Baht((double)Data.Compensation)})")" />
+    @if (Dismissal)
+    {
+        <FormText X="36.2" Base="157.9" Text="เหตุผล" />
+        <FormText X="48.4" Base="157.9" Text="@Data.Reason" />
+    }
+
+    <FormText X="147.7" Base="171.0" Text="จึงเรียนมาเพื่ออนุมัติ" />
+    <FormText X="162.65" Base="196.0" Anchor="FormAnchor.Center" Text="@($"({Data.Person.FactoryManagerName})")" />
+    <FormText X="@(Dismissal ? 148.0 : 150.9)" Base="202.9" Text="@(Dismissal ? "รองผู้จัดการโรงงาน" : "ผู้จัดการโรงงาน")" />
+
+    <FormText X="36.2" Base="219.9" Text="การจ่ายเงินชดเชยตามกฏหมายแรงงาน" />
+    @for (var i = 0; i < Data.Scale.Lines.Count; i++)
+    {
+        var line = 229.0 + 8.98 * i;
+        <FormText X="36.2" Base="line" Text="@Data.Scale.Lines[i]" />
+        @if (i > 0 && i <= Data.Scale.Days.Count)
+        {
+            <FormText X="85.6" Base="line" Text="จ่าย" />
+            <FormText X="100.0" Base="line" Anchor="FormAnchor.Right" Text="@Data.Scale.Days[i - 1].ToString()" />
+            <FormText X="100.4" Base="line" Text="วัน" />
+        }
+    }
+</FormPage>
+
+@code {
+    public static string TitleOf(bool dismissal) => dismissal ? "ปลดออก" : "เกษียณ";
+
+    [Parameter, EditorRequired] public SeveranceData Data { get; set; } = default!;
+    /// <summary>ฟอร์มปลดออก instead of ฟอร์มเกษียณ.</summary>
+    [Parameter] public bool Dismissal { get; set; }
+    [Parameter, EditorRequired] public DateOnly Today { get; set; }
+}

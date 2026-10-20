@@ -37,6 +37,12 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     public static IReadOnlyList<string> MasterDataTables { get; } =
         ["EMPLO", "แผนก", "แผนก2", "ฝ่าย", "SHIFT", "ชื่อลูกค้า", "SUNDAY", "HOLIDAY"];
 
+    /// <summary>
+    /// งวดที่เปิดอยู่ (#51): the one row of ตั้งวันที่ตัดWEEK and NO_WORK (20k rows), read in full — NO_WORK is filtered by the
+    /// period's first day in <see cref="HistoryMigration"/>.
+    /// </summary>
+    public static IReadOnlyList<string> OpenPeriodTables { get; } = ["ตั้งวันที่ตัดWEEK", "NO_WORK"];
+
     /// <summary>ประวัติที่ย้าย (#51, ข้อตัดสิน #17): เวลาทำงานตั้งแต่ <see cref="WorkTimeFrom"/>, การลาปี 2569.</summary>
     public static readonly DateOnly WorkTimeFrom = new(2025, 1, 1);
     public static readonly DateOnly LeaveFrom = new(2026, 1, 1);
@@ -63,7 +69,7 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     public int SourceRows(string table) => sourceRows?.TryGetValue(table, out var count) == true ? count : this[table].Count;
 
     /// <summary>
-    /// Reads the master-data and history tables from a <b>copy</b> of <paramref name="accdbPath"/> made in a temp folder,
+    /// Reads the master-data, history and open-period tables from a <b>copy</b> of <paramref name="accdbPath"/> made in a temp folder,
     /// opened read-only, so the source file is never touched (opening it in Access once changed it, see the extractor
     /// fix of 2026-10-13). Runs on the PC, never on the server (ADR 0001: ACE is not supported server-side).
     /// </summary>
@@ -82,7 +88,7 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
             using (var connection = new OleDbConnection($"Provider=Microsoft.ACE.OLEDB.16.0;Data Source={copy};Mode=Read;"))
             {
                 connection.Open();
-                foreach (var table in MasterDataTables)
+                foreach (var table in MasterDataTables.Concat(OpenPeriodTables))
                     tables[table] = Read(connection, table, null);
                 foreach (var (table, where) in HistoryTables)
                 {

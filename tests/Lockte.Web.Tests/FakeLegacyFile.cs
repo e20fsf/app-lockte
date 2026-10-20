@@ -43,6 +43,13 @@ public sealed class FakeLegacyFile
         ["ADD_EW"] = WorkTimeColumns("TEXT(2)"), // DQ-7: LATE is Text(2) in the history
         ["LEAVE"] = LeaveColumns,
         ["LEAVE_ADD"] = LeaveColumns,
+        ["ตั้งวันที่ตัดWEEK"] =
+            [("FROM_DA", "DATETIME"), ("TO_DA", "DATETIME"), ("PAY_D", "DATETIME"), ("CUS", "TEXT(50)"), ("NAMES", "TEXT(255)"), ("DAY", "LONG")],
+        ["NO_WORK"] =
+        [
+            ("DATE1", "DATETIME"), ("ID1", "TEXT(4)"), ("W_IN", "DATETIME"), ("W_OUT", "DATETIME"), ("WORK_T", "DOUBLE"), ("TYPE", "TEXT(2)"),
+            ("LATE", "TEXT(2)"), ("REMARK", "TEXT(255)"),
+        ],
     };
 
     private static (string, string)[] WorkTimeColumns(string lateType) =>
@@ -72,7 +79,8 @@ public sealed class FakeLegacyFile
 
     /// <summary>
     /// A small company: three ฝ่าย, departments one row per shift as in T-แผนก (ไดคาสท์ in กะ A and B, a ฝ่าย that is not in
-    /// T-ฝ่าย), กะ A/B/D plus a preset-time row without a code, two งานรับจ้าง customers, four employees and a few days off.
+    /// T-ฝ่าย), กะ A/B/D plus a preset-time row without a code, two งานรับจ้าง customers, four employees, a few days off and the
+    /// open pay period 12–26 ต.ค. 2569 (ตั้งวันที่ตัดWEEK always has one row).
     /// </summary>
     public static FakeLegacyFile Standard() => new FakeLegacyFile()
         .Row("ฝ่าย", ("TYPE", "ผลิต")).Row("ฝ่าย", ("TYPE", "บุคคลและธุรการ")).Row("ฝ่าย", ("TYPE", "ทั่วไป"))
@@ -105,7 +113,9 @@ public sealed class FakeLegacyFile
             ("DEPARTMENT", "จัดซื้อและการเงิน"), ("SECTION", "จัดซื้อและการเงิน"), ("CLAS", "1"), ("SALARY", 21000.0), ("SHIFT", "D"))
         .Row("SUNDAY", ("DATE", new DateTime(2025, 1, 5)), ("ITEM", "วันอาทิตย์"))
         .Row("SUNDAY", ("DATE", new DateTime(2025, 1, 12)), ("ITEM", "วันอาทิตย์"))
-        .Row("HOLIDAY", ("DATE", new DateTime(2025, 1, 1)), ("ITEM", "วันขึ้นปีใหม่"));
+        .Row("HOLIDAY", ("DATE", new DateTime(2025, 1, 1)), ("ITEM", "วันขึ้นปีใหม่"))
+        .Row("ตั้งวันที่ตัดWEEK", ("FROM_DA", new DateTime(2026, 10, 12)), ("TO_DA", new DateTime(2026, 10, 26)),
+            ("PAY_D", new DateTime(2026, 11, 1)), ("DAY", 0));
 
     /// <summary>Writes the file as <paramref name="path"/> (a new .accdb).</summary>
     public string Save(string path)

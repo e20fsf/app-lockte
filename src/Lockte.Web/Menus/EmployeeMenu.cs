@@ -143,15 +143,15 @@ public static class EmployeeMenu
         ]),
         new(18, "พิมพ์ใบลาและใบลาออก", 1,
         [
-            new("พิมพ์ใบลา", Code: "RPT-50"),
-            new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33"),
+            new("พิมพ์ใบลา", Code: "RPT-50", Page: "hr/leave-form"),
+            new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33", Page: "hr/resignation"),
             new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51"),
             new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52"),
         ]),
         new(19, "พิมพ์หนังสือรับรอง", 2,
         [
-            new("พิมพ์หนังสือรับรอง", Code: "RPT-53"),
-            new("พิมพ์หนังสือเกษียณหรือปลดออก", Code: "RPT-54"),
+            new("พิมพ์หนังสือรับรอง", Code: "RPT-53", Page: "hr/certificates"),
+            new("พิมพ์หนังสือเกษียณหรือปลดออก", Code: "RPT-54", Page: "hr/severance"),
         ]),
     ];
 
