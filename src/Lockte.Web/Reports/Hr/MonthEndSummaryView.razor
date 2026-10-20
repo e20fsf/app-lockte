@@ -1,0 +1,54 @@
+@using Lockte.Hr
+@* The two RPT-08 summaries on A4 ตั้ง (print-samples.md "แบบสรุป"), ระดับ B: (ลำดับ) แผนก จำนวนคน จำนวนเงิน, "รวมทั้งหมด" +
+   เส้นคู่. สรุปบัญชีคำนวณค่าจ้าง (ปุ่ม "พิมพ์สรุป") prints Σ ค่าจ้าง (AMOUNT); สรุปค่าแรงประจำเดือน (ปุ่ม "พิมพ์สรุป (ต้นทุน)")
+   prints Σ (PAY_W + PAY_OT) (AMOUNT1). The legacy put the print date top right and no company name; แบบกลาง B has both
+   in its header and footer. Rows from PayHistoryReportDirectory.GetMonthEndSummaryAsync (BR-063). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    var sum = Report.Sum;
+    <table style="width:80%;margin:0 auto">
+        <colgroup>
+            <col style="width:10%" /><col style="width:45%" /><col style="width:20%" /><col style="width:25%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>แผนก</th><th class="num">จำนวนคน</th><th class="num">จำนวนเงิน</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.DepartmentName</td>
+                    <td class="num">@line.Employees</td>
+                    <td class="num">@ReportText.Decimal2(Amount(line))</td>
+                </tr>
+            }
+            <tr class="total">
+                <td></td>
+                <td><b>รวมทั้งหมด</b></td>
+                <td class="num"><b>@sum.Employees</b></td>
+                <td class="num"><b>@ReportText.Decimal2(Amount(sum))</b></td>
+            </tr>
+            <tr><td></td><td colspan="3" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MonthEndPaySummary Report { get; set; } = default!;
+
+    /// <summary>true: สรุปค่าแรงประจำเดือน (ต้นทุน), Σ (PAY_W + PAY_OT); false: สรุปบัญชีคำนวณค่าจ้าง, Σ ค่าจ้าง.</summary>
+    [Parameter] public bool Cost { get; set; }
+
+    /// <summary>The legacy heading: "สรุปบัญชีคำนวณค่าจ้างเดือน กันยายน 2569" / "สรุปค่าแรงประจำเดือน กันยายน 2569" (MOUNT = ถึงวันที่).</summary>
+    public static string TitleOf(MonthEndPaySummary report, bool cost)
+        => (cost ? "สรุปค่าแรงประจำเดือน " : "สรุปบัญชีคำนวณค่าจ้างเดือน ") + MonthEndPayReportView.MonthOf(report.To);
+
+    private decimal Amount(MonthEndDepartmentTotal line) => Cost ? line.Total : line.Wages;
+}

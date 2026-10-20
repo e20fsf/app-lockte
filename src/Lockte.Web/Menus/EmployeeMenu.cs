@@ -97,15 +97,15 @@ public static class EmployeeMenu
             new("พิมพ์สรุปค่าแรง", SubMenu: 9),
             new("พิมพ์ค่าแรงส่งแบงค์", Code: "SCR-42"),
             new("พิมพ์ SLIP", Code: "RPT-04"),
-            new("พิมพ์ค่าแรงสิ้นเดือนและสรุป", Code: "SCR-43"),
+            new("พิมพ์ค่าแรงสิ้นเดือนและสรุป", Code: "SCR-43", Page: "hr/reports/pay/month-end"),
             new("คำนวณโบนัสและปรับค่าแรง", SubMenu: 10),
         ]),
         new(9, "พิมพ์สรุปค่าแรง", 6,
         [
             new("ค่าแรงทั่วไป", Code: "RPT-03"),
             new("ค่าแรงงานรับจ้าง", Code: "SCR-44"),
-            new("สรุปค่าแรงแต่ละเดือน", Code: "RPT-09"),
-            new("รวมค่าแรง", Code: "RPT-10"),
+            new("สรุปค่าแรงแต่ละเดือน", Code: "RPT-09", Page: "hr/reports/pay/monthly"),
+            new("รวมค่าแรง", Code: "RPT-10", Page: "hr/reports/pay/totals"),
         ]),
         new(10, "คำนวณโบนัสและพักร้อน", 6,
         [

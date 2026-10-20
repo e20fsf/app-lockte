@@ -1,0 +1,49 @@
+@using Lockte.Hr
+@* RPT-10 ค่าแรงพนักงาน (รายงาน รวมค่าแรง; no legacy sample): ระดับ B on A4 ตั้ง — ตั้งแต่วันที่ ถึงวันที่; (ลำดับ) แผนก ค่าแรง
+   ค่าล่วงเวลา รวม, จำนวนเต็ม, by แผนก; ท้าย Σ of every column. Rows from PayHistoryReportDirectory.GetPayTotalsReportAsync
+   (BR-062). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    var sum = Report.Sum;
+    <table style="width:85%;margin:0 auto">
+        <colgroup>
+            <col style="width:8%" /><col style="width:38%" /><col style="width:18%" /><col style="width:18%" /><col style="width:18%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>แผนก</th><th class="num">ค่าแรง</th><th class="num">ค่าล่วงเวลา</th><th class="num">รวม</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.DepartmentName</td>
+                    <td class="num">@ReportText.Baht(line.PayNormal)</td>
+                    <td class="num">@ReportText.Baht(line.PayOvertime)</td>
+                    <td class="num">@ReportText.Baht(line.Total)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td></td>
+                <td>รวม</td>
+                <td class="num">@ReportText.Baht(sum.PayNormal)</td>
+                <td class="num">@ReportText.Baht(sum.PayOvertime)</td>
+                <td class="num">@ReportText.Baht(sum.Total)</td>
+            </tr>
+            <tr><td></td><td colspan="4" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    /// <summary>The title the legacy report printed under the company name.</summary>
+    public const string Title = "ค่าแรงพนักงาน";
+
+    [Parameter, EditorRequired] public PayTotalsReport Report { get; set; } = default!;
+}

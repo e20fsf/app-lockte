@@ -1,0 +1,117 @@
+@page "/hr/reports/pay/{Kind}"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Org
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* The forms of the reports over many งวดค่าแรง (#56): SCR-43 ตั้งวันที่พิมพ์ค่าแรงสิ้นเดือน (ตั้งแต่ ถึง แผนก; พิมพ์ / พิมพ์สรุป /
+   พิมพ์สรุป (ต้นทุน)), ตั้งวันที่พิมพ์ค่าแรงแต่ละเดือน (RPT-09) and ตั้งวันที่พิมพ์รวมค่าแรง (RPT-10). Each button opens its
+   PDF in a new tab. The legacy MO is not asked: RPT-08 prints ถึงวันที่'s month and RPT-09 ตั้งแต่วันที่'s year, as the
+   legacy copied them (T_D → MO, F_D → MO). The legacy "พิมพ์สรุป" printed the table the last "พิมพ์" left; here it sums the
+   dates on the form again. *@
+<PageTitle>@Info.Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Info.Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" Label="@(Kind == "monthly" ? "ตั้งแต่วันที่จ่าย" : "ตั้งแต่วันที่")"
+                           Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" Label="@(Kind == "monthly" ? "ถึงวันที่จ่าย" : "ถึงวันที่")"
+                           Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+        </MudStack>
+        @if (Kind == "month-end")
+        {
+            <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทั้งหมด)" Clearable="true" Style="max-width:26rem">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Info.Hint</MudText>
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    else if (printed)
+    {
+        @* The legacy macro's MsgBox after the report. *@
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">ตรวจสอบพนักงานที่ลาออกให้เรียบร้อย</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl(Info.Path)" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => printed = Kind == "month-end")">พิมพ์</MudButton>
+        @if (Kind == "month-end")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/summary")" Target="_blank"
+                       Disabled="@(Problem is not null)">พิมพ์สรุป</MudButton>
+            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/summary", cost: true)" Target="_blank"
+                       Disabled="@(Problem is not null)">พิมพ์สรุป (ต้นทุน)</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(Info.Menu)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    /// <summary>One form: its title, PDF path, what the dates choose, and its menu.</summary>
+    private sealed record Form(string Title, string Path, string Hint, int Menu);
+
+    private static readonly Dictionary<string, Form> Forms = new()
+    {
+        ["month-end"] = new("พิมพ์ค่าแรงสิ้นเดือนและสรุป", "reports/hr/pay/month-end",
+            "รวมทุกงวดที่ถึงวันที่ของงวดอยู่ในช่วงนี้ · ประจำเดือนตามถึงวันที่ · ไม่รวมพนักงานที่มีเกรดประเมินครั้งที่ 1", 6),
+        ["monthly"] = new("สรุปค่าแรงแต่ละเดือน", "reports/hr/pay/monthly",
+            "รวมทุกงวดที่วันที่จ่ายอยู่ในช่วงนี้ · จ่ายวันที่ 1 นับเป็นเดือนก่อนหน้า · ปีตามตั้งแต่วันที่จ่าย", 9),
+        ["totals"] = new("รวมค่าแรง", "reports/hr/pay/totals", "รวมทุกงวดที่อยู่ในช่วงนี้ทั้งงวด", 9),
+    };
+
+    [Parameter] public string Kind { get; set; } = "";
+
+    private Form Info => Forms.GetValueOrDefault(Kind) ?? Forms["month-end"];
+
+    private DateTime? from;
+    private DateTime? to;
+    private int? departmentId;
+    private bool printed;
+    private IReadOnlyList<DepartmentDto> departments = [];
+
+    protected override async Task OnInitializedAsync()
+        => departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+
+    protected override void OnParametersSet()
+    {
+        var today = DateTime.Today;
+        if (Kind == "monthly")
+        {
+            // A year of วันที่จ่าย: the 1 ม.ค. payment belongs to the December before (BR-062).
+            (from, to) = (new DateTime(today.Year, 1, 2), new DateTime(today.Year + 1, 1, 1));
+        }
+        else
+        {
+            // The last pay month ended: 27th of the month before to the 26th (the two usual งวด 27–11 and 12–26).
+            var end = today.Day >= 26 ? new DateTime(today.Year, today.Month, 26) : new DateTime(today.Year, today.Month, 26).AddMonths(-1);
+            (from, to) = (end.AddMonths(-1).AddDays(1), end);
+        }
+        departmentId = null;
+        printed = false;
+    }
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกวันที่"
+            : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : null;
+
+    private string PdfUrl(string path, bool cost = false)
+    {
+        if (Problem is not null) return "";
+        static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var query = new List<string> { $"from={Iso(from)}", $"to={Iso(to)}" };
+        if (Kind == "month-end" && departmentId is { } d) query.Add($"department={d}");
+        if (cost) query.Add("cost=true");
+        return $"{path}?{string.Join("&", query)}";
+    }
+}
