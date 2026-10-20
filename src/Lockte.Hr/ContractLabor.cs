@@ -13,9 +13,10 @@ namespace Lockte.Hr;
 /// <para>
 /// As the legacy macro, step by step (#41, ⚠ kept): W/O1/S/O2/H/O3 are only the rows of the customer; it appends no
 /// การลา (คำนวณเวลาทำงาน11/12 are not in it, so L = L(NO) = 0) and no SUN_DAY (no คำนวณค่าแรง01); HOLI and SUN are
-/// counted for every employee as in the usual run (คำนวณเวลาทำงาน18/19 read T-EMPLO, not the customer's rows) — so
-/// everyone BR-005 picks is in the summary, also who never worked for the customer. แผนก is the employee's current
-/// one (สรุปค่าแรง joins T-EMPLO).
+/// counted as in the usual run (คำนวณเวลาทำงาน18/19 read T-EMPLO, not the customer's rows). Only the employees with a
+/// row of the customer in the dates are in the summary: the legacy also paid who never worked for the customer (BR-005
+/// picked them by their HOLI/SUN), a defect not kept (decided 2026-10-20). แผนก is the employee's current one
+/// (สรุปค่าแรง joins T-EMPLO).
 /// </para>
 /// <para>
 /// Nothing is stored: the legacy wrote over the period's เวลาทำงาน and ค่าแรง tables (so the usual ค่าแรง had to be
@@ -50,7 +51,9 @@ public sealed class ContractLaborDirectory(HrDbContext db, OrgDirectory org, Cus
 
         // วันที่จ่าย (PAY_D) is read by none of BR-002..004; the legacy only copied it into ค่าแรง.
         var dates = new PayPeriodDates(from, to, to);
-        var totals = PeriodTime.Total(dates, employees.Select(e => e.Person), work, [], weekly, holidays)
+        var workers = work.Select(w => w.EmployeeId).ToHashSet();
+        var totals = PeriodTime.Total(dates, employees.Where(e => workers.Contains(e.Person.Id)).Select(e => e.Person), work, [], weekly,
+                holidays)
             .Select(t => t with { WeeklyHolidaysToResign = 0 });
         var facts = new PayPeriodFacts(dates, weekly.Count, holidays.Count > 0 ? holidays[0] : null);
         var byId = employees.ToDictionary(e => e.Person.Id);

@@ -89,8 +89,8 @@ public sealed class ContractLaborTests(LocalDbFixture db)
     private static DepartmentPayTotal LineOf(ContractLaborReport report, DepartmentDto department)
         => Assert.Single(report.Lines, l => l.DepartmentName == department.Name);
 
-    [Fact] // BR-009: only the customer's rows count; L is not appended; who never worked for the customer is still paid HOLI/SUN
-    public async Task Only_the_customers_rows_are_paid_and_everyone_gets_the_period_holidays_as_the_legacy()
+    [Fact] // BR-009: only the customer's rows count; L is not appended; who never worked for the customer is not in it (the legacy paid HOLI/SUN)
+    public async Task Only_the_customers_rows_are_paid_and_only_who_worked_for_the_customer_is_listed()
     {
         var year = NewYear();
         await ExampleWeeklyHolidaysAsync(year);
@@ -117,10 +117,10 @@ public sealed class ContractLaborTests(LocalDbFixture db)
         var pay = Assert.Single(report.Employees, l => l.Pay.EmployeeId == worker.Id).Pay;
         Assert.Equal((5.0, 0.0, 2.0), (pay.Normal, pay.PaidLeave, pay.Overtime));
         Assert.Equal((2000m, 150m), (pay.PayNormal, pay.PayOvertime)); // 5 × 400, RND-A(2 × 400 / 8 × 1.5)
-        // รายเดือน, nothing for the customer: Expr1 + HOLI = 0 < D − SUN → (15 − L(NO)) × SA_DAY
-        Assert.Equal(7500m, Assert.Single(report.Employees, l => l.Pay.EmployeeId == monthly.Id).Pay.PayNormal);
+        // รายเดือน, nothing for the customer: the legacy paid (15 − L(NO)) × SA_DAY = 7,500; not listed here
+        Assert.DoesNotContain(report.Employees, l => l.Pay.EmployeeId == monthly.Id);
         var line = LineOf(report, department);
-        Assert.Equal((2, 9500m, 150m, 9650m), (line.Employees, line.PayNormal, line.PayOvertime, line.Total));
+        Assert.Equal((1, 2000m, 150m, 2150m), (line.Employees, line.PayNormal, line.PayOvertime, line.Total));
     }
 
     [Fact] // BR-009 "สูตรเดียวกัน": every row marked, no การลา → the same ค่าแรง as the usual calculation (BR-003/004)
