@@ -2,6 +2,8 @@ using Lockte.Hr;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
 using Lockte.Web.Reports.Hr;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Lockte.Web.Reports;
 
@@ -19,6 +21,7 @@ public static class ReportsRegistration
     public static IServiceCollection AddReportPrinting(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<ReportOptions>(configuration.GetSection(ReportOptions.Section));
+        services.Configure<EmployerOptions>(configuration.GetSection(EmployerOptions.Section));
         services.AddSingleton<ReportPdfRenderer>();
         services.AddHostedService<ReportWarmUp>();
         services.AddScoped<ReportPrinter>();
@@ -77,6 +80,25 @@ public static class ReportsRegistration
         });
 
         reports.MapOnboardingReports(); // #66: RPT-20, RPT-21, RPT-22, RPT-56
+
+        // RPT-51 ทะเบียนผู้ประกันตน สปส.6-07 (เมนู 18): ระดับ A, A4 นอน, every employee row.
+        reports.MapGet("/hr/insured-persons", async (HttpContext http, GovernmentFormDirectory forms, IOptionsSnapshot<EmployerOptions> employer,
+            ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            var pages = InsuredPersonsForm.Layout(await forms.ListInsuredPersonsAsync(), employer.Value);
+            return Pdf(http, await printer.PrintFormAsync(InsuredPersonsForm.Title, pages, cancellationToken), InsuredPersonsForm.Title);
+        });
+
+        // RPT-57 แบบ คร.2 (ปุ่มในข้อมูลพนักงาน): ระดับ A, A4 ตั้ง. A POST from the form on SCR-02/03, so the names of
+        // the parents HR types stay out of the URL (and the server's logs); the form carries the antiforgery token.
+        reports.MapPost("/hr/employees/{id:int}/kor2", async (int id, [FromForm] string? name, [FromForm] string? job,
+            [FromForm] string? father, [FromForm] string? mother, HttpContext http, GovernmentFormDirectory forms,
+            IOptionsSnapshot<EmployerOptions> employer, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (await forms.GetKor2Async(id) is not { } employee) return Results.NotFound("ไม่พบพนักงาน");
+            var page = Kor2Form.Layout(employee, new Kor2Input(name, job, father, mother), employer.Value);
+            return Pdf(http, await printer.PrintFormAsync(Kor2Form.Title, [page], cancellationToken), $"แบบ คร.2 {employee.Code}");
+        });
 
         return app;
     }
