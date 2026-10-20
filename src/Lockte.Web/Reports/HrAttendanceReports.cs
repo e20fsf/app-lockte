@@ -130,11 +130,11 @@ public static class HrAttendanceReports
     }
 
     /// <summary>Both dates given, in order.</summary>
-    private static IResult? Range(DateOnly? from, DateOnly? to)
+    internal static IResult? Range(DateOnly? from, DateOnly? to)
         => from is null || to is null ? Results.BadRequest("กรุณากรอกตั้งแต่วันที่และถึงวันที่")
             : from > to ? Results.BadRequest("ตั้งแต่วันที่ต้องไม่หลังถึงวันที่") : null;
 
-    private static async Task<IResult> PrintAsync<TView>(HttpContext http, ReportPrinter printer, string title, Paper paper, object report,
+    internal static async Task<IResult> PrintAsync<TView>(HttpContext http, ReportPrinter printer, string title, Paper paper, object report,
         string fileName, CancellationToken cancellationToken) where TView : Microsoft.AspNetCore.Components.IComponent
     {
         var pdf = await printer.PrintAsync<TView>(title, paper, new() { ["Report"] = report }, AccountClaims.DisplayNameOf(http.User),
@@ -142,5 +142,5 @@ public static class HrAttendanceReports
         return ReportsRegistration.Pdf(http, pdf, fileName);
     }
 
-    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    internal static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 }

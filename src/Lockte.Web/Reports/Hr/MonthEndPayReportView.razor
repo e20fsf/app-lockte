@@ -1,0 +1,90 @@
+@using System.Globalization
+@using Lockte.Hr
+@* RPT-08 บัญชีคำนวณค่าจ้าง ค่าล่วงเวลา ค่าทำงานในวันหยุด (รายงาน พิมพ์ค่าแรงสิ้นเดือน5, print-samples.md): ระดับ B on A4 นอน,
+   ตารางเส้นเต็มสองชั้น as the legacy form — ที่ รหัส ชื่อ-นามสกุล เลขประกันสังคม (ID_CODE) · ค่าจ้าง (วันละหรือเดือนละ, จำนวนวัน,
+   รวมเงิน) · ค่าล่วงเวลาปกติ / ค่าทำงานในวันหยุด / ค่าล่วงเวลาในวันหยุด (ชม.ละ, จำนวนวัน, รวมเงิน) · รวมเงินทั้งสิ้น ·
+   ลายมือชื่อผู้รับเงิน; ท้าย "รวมทั้งหมด". As the legacy report (and its sample): the three overtime groups are blank
+   columns and รวมเงินทั้งสิ้น is ค่าจ้าง (Expr3), not PAY_W + PAY_OT. ประจำเดือน is ถึงวันที่'s month (the legacy MO = T_D),
+   with the dates beside it. Rows from PayHistoryReportDirectory.GetMonthEndReportAsync (BR-063). *@
+<style>
+    table.grid th, table.grid td { border: 0.5pt solid #000; padding: 1pt 2pt; }
+    table.grid th { text-align: center; font-weight: normal; font-size: 12pt; line-height: 1.05; vertical-align: middle; }
+    table.grid td { font-size: 12pt; height: 7mm; vertical-align: middle; }
+</style>
+<p class="sub">แผนก @(Report.DepartmentName ?? "ทั้งหมด")&emsp;&emsp;ประจำเดือน @MonthOf(Report.To)&emsp;(ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To))</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table class="grid">
+        <colgroup>
+            <col style="width:2.5%" /><col style="width:3.5%" /><col style="width:13%" /><col style="width:8.5%" />
+            <col style="width:5.5%" /><col style="width:4.5%" /><col style="width:5.5%" />
+            @for (var i = 0; i < 3; i++)
+            {
+                <col style="width:4%" /><col style="width:4.5%" /><col style="width:5%" />
+            }
+            <col style="width:6.5%" /><col style="width:6.5%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th rowspan="2">ที่</th><th rowspan="2">รหัส</th><th rowspan="2" style="text-align:left">ชื่อ-นามสกุล</th>
+                <th rowspan="2">เลขประกันสังคม</th>
+                <th colspan="3">ค่าจ้าง</th>
+                <th colspan="3">ค่าล่วงเวลาปกติ</th><th colspan="3">ค่าทำงานในวันหยุด</th><th colspan="3">ค่าล่วงเวลาในวันหยุด</th>
+                <th rowspan="2">รวมเงิน<br />ทั้งสิ้น</th><th rowspan="2">ลายมือชื่อ<br />ผู้รับเงิน</th>
+            </tr>
+            <tr>
+                <th>วันละหรือ<br />เดือนละ</th><th>จำนวนวัน</th><th>รวมเงิน</th>
+                @for (var i = 0; i < 3; i++)
+                {
+                    <th>ชม.ละ</th><th>จำนวนวัน</th><th>รวมเงิน</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.Code</td>
+                    <td>@line.Name</td>
+                    <td class="num">@line.NationalId</td>
+                    <td class="num">@ReportText.Decimal2(line.Rate)</td>
+                    <td class="num">@Days(line.Days)</td>
+                    <td class="num">@ReportText.Decimal2(line.Wage)</td>
+                    @for (var j = 0; j < 9; j++)
+                    {
+                        <td></td>
+                    }
+                    <td class="num">@ReportText.Decimal2(line.Wage)</td>
+                    <td></td>
+                </tr>
+            }
+            <tr>
+                <td colspan="6">รวมทั้งหมด</td>
+                <td class="num">@ReportText.Decimal2(Report.Wages)</td>
+                <td colspan="9"></td>
+                <td class="num">@ReportText.Decimal2(Report.Wages)</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "บัญชีคำนวณค่าจ้าง ค่าล่วงเวลา ค่าทำงานในวันหยุด";
+
+    [Parameter, EditorRequired] public MonthEndPayReport Report { get; set; } = default!;
+
+    /// <summary>"กันยายน 2569": the legacy MO (= ถึงวันที่) as mmmm yyyy.</summary>
+    public static string MonthOf(DateOnly to) => ReportText.MonthTitle(to, to);
+
+    /// <summary>
+    /// The legacy Expr4 was text (IIf with " "), so its Format never applied: Round(…, 1) as a plain number — 27, 26.5.
+    /// </summary>
+    private static string Days(double? days) => days?.ToString("0.#", CultureInfo.InvariantCulture) ?? "";
+}

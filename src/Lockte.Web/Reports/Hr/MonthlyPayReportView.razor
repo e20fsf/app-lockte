@@ -1,0 +1,73 @@
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@* RPT-09 สรุปค่าแรงแต่ละเดือนปี … (รายงาน สรุปค่าแรงแต่ละเดือน22222; no legacy sample): ระดับ B on A4 นอน — (ลำดับ) แผนก
+   (ตัวอักษรแรกของรหัส) มกราคม … ธันวาคม รวม, จำนวนเต็ม; ท้าย "รวม" per month. A month with nothing paid is blank, as the
+   legacy; its รวม still adds up the other months (the legacy "+" of 12 fields came out blank then). Rows from
+   PayHistoryReportDirectory.GetMonthlyReportAsync (BR-062). *@
+<style>
+    table.grid th, table.grid td { border: 0.5pt solid #000; padding: 1pt 2pt; }
+    table.grid th { text-align: center; font-size: 12pt; }
+    table.grid td { font-size: 12pt; }
+</style>
+<p class="sub">ตั้งแต่วันที่จ่าย @ReportText.Date(Report.From)&emsp;ถึงวันที่จ่าย @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table class="grid">
+        <colgroup>
+            <col style="width:3%" /><col style="width:15%" />
+            @for (var m = 0; m < 12; m++)
+            {
+                <col style="width:6.2%" />
+            }
+            <col style="width:7.6%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th></th><th>แผนก</th>
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <th>@ThaiDate.Culture.DateTimeFormat.GetMonthName(m)</th>
+                }
+                <th>รวม</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.Department</td>
+                    @foreach (var month in line.Months)
+                    {
+                        <td class="num">@Amount(month)</td>
+                    }
+                    <td class="num">@ReportText.Baht(line.Total)</td>
+                </tr>
+            }
+            <tr>
+                <td></td>
+                <td><b>รวม</b></td>
+                @foreach (var month in Report.MonthSums)
+                {
+                    <td class="num">@Amount(month)</td>
+                }
+                <td class="num">@ReportText.Baht(Report.Total)</td>
+            </tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MonthlyPayReport Report { get; set; } = default!;
+
+    /// <summary>"สรุปค่าแรงแต่ละเดือนปี 2569": the year of ตั้งแต่วันที่ (the legacy MO = F_D, Format yyyy).</summary>
+    public static string TitleOf(MonthlyPayReport report) => "สรุปค่าแรงแต่ละเดือนปี " + report.From.ToString("yyyy", ThaiDate.Culture);
+
+    private static string Amount(decimal? amount) => amount is { } a ? ReportText.Baht(a) : "";
+}
