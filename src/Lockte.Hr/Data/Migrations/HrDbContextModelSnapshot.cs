@@ -690,6 +690,71 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "วันหยุดประเพณี");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.Warning", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "พนักงาน");
+
+                    b.Property<string>("Level")
+                        .HasMaxLength(1)
+                        .HasColumnType("nvarchar(1)")
+                        .HasAnnotation("Lockte:AuditName", "ระดับ");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "รายละเอียด");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EmployeeId", "Date");
+
+                    b.ToTable("Warnings", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "ใบเตือน");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.WeeklyHoliday", b =>
                 {
                     b.Property<int>("Id")
@@ -938,6 +1003,17 @@ namespace Lockte.Hr.Data.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("PayPeriod");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.Warning", b =>
+                {
+                    b.HasOne("Lockte.Hr.Data.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.WorkTime", b =>

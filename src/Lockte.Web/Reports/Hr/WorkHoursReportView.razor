@@ -1,0 +1,56 @@
+@using Lockte.Hr
+@* RPT-13 สรุปชั่วโมงทำงานปกติและชั่วโมงทำงานล่วงเวลาประจำเดือน (รายงาน สรุปชั่วโมงการทำงาน2; no legacy sample): ระดับ B on
+   A4 ตั้ง — หัว เดือน (from the dates, D-5), แผนก, จำนวนพนักงาน, จำนวนวันทำงานทั้งหมด; (ลำดับ) รหัส ชื่อ-นามสกุล จำนวนวันทำงาน
+   จำนวนชม.ทำงาน (วัน × 8) จำนวนชม.ล่วงเวลา %OT (ทศนิยม 2); ท้าย รวม and %OT; ลงนาม ผู้จัดทำ/ผู้ตรวจสอบ/ผู้อนุมัติ.
+   Rows from AttendanceReportDirectory.GetWorkHoursReportAsync (BR-062). *@
+<p class="sub">ประจำเดือน @ReportText.MonthTitle(Report.From, Report.To)&emsp;(ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To))</p>
+<p class="sub">แผนก @Report.DepartmentName&emsp;จำนวนพนักงาน @Report.Employees คน&emsp;จำนวนวันทำงานทั้งหมด @(Report.WorkDays?.ToString() ?? "") วัน</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:9%" /><col style="width:32%" /><col style="width:13%" /><col style="width:13%" />
+            <col style="width:14%" /><col style="width:12%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num"></th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th class="num">จำนวนวันทำงาน</th><th class="num">จำนวนชม.ทำงาน</th>
+                <th class="num">จำนวนชม.ล่วงเวลา</th><th class="num">%OT</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td class="num">@ReportText.Decimal2(line.Days)</td>
+                    <td class="num">@ReportText.Decimal2(line.Hours)</td>
+                    <td class="num">@ReportText.Decimal2(line.OvertimeHours)</td>
+                    <td class="num">@ReportText.Percent(line.OvertimePercent)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="3">รวม</td>
+                <td class="num">@ReportText.Decimal2(Report.Days)</td>
+                <td class="num">@ReportText.Decimal2(Report.Hours)</td>
+                <td class="num">@ReportText.Decimal2(Report.OvertimeHours)</td>
+                <td class="num">@ReportText.Percent(Report.OvertimePercent)</td>
+            </tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+    <SignatureBoxes Labels="@(new[] { "ผู้จัดทำ", "ผู้ตรวจสอบ", "ผู้อนุมัติ" })" />
+}
+
+@code {
+    public const string Title = "สรุปชั่วโมงทำงานปกติและชั่วโมงทำงานล่วงเวลาประจำเดือน";
+
+    [Parameter, EditorRequired] public WorkHoursReport Report { get; set; } = default!;
+}

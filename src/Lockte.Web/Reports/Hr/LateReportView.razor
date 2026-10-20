@@ -1,0 +1,46 @@
+@using Lockte.Hr
+@* RPT-12 รายงานพนักงานที่มาทำงานสาย (รายงาน มาสาย1; no legacy sample): ระดับ B on A4 ตั้ง — (ลำดับ) วันที่ รหัส ชื่อ-นามสกุล
+   เวลาเข้า (the LATE time) นาที (⚠ the minute part of LATE, as =Minute([LATE])); ท้าย "รวมทั้งหมด n รายการ" and Σ นาที.
+   Rows from AttendanceReportDirectory.GetLateReportAsync (BR-066). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)@(Report.EmployeeCode is { } code ? $"  รหัส {code}" : "")</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:14%" /><col style="width:10%" /><col style="width:43%" /><col style="width:13%" />
+            <col style="width:13%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>วันที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เวลาเข้า</th><th class="num">นาที</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@ReportText.Date(line.Date)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td>@ReportText.Time(line.Late)</td>
+                    <td class="num">@line.Minutes</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="5">รวมทั้งหมด @Report.Lines.Count รายการ</td>
+                <td class="num">@Report.TotalMinutes</td>
+            </tr>
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายงานพนักงานที่มาทำงานสาย";
+
+    [Parameter, EditorRequired] public LateReport Report { get; set; } = default!;
+}

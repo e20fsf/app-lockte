@@ -1,0 +1,59 @@
+@using Lockte.Hr
+@* RPT-32 การลางานของพนักงาน (รายงาน ลางานรายคน, print-samples.md): ระดับ B on A5 นอน — แถบ รหัสพนักงาน ชื่อ-นามสกุล
+   เข้าทำงาน ค่าแรง/วัน; (ลำดับ) วัน ตั้งแต่วันที่ ถึงวันที่ เวลา ถึงเวลา วันลา ("0.50 วัน") ประเภท ค่าแรง (ได้/ไม่ได้)
+   จ่ายค่าแรง เหตุผล; ท้าย "รวม" Σ วันลา and Σ จ่ายค่าแรง. Rows from LeaveReportDirectory.GetEmployeeReportAsync (BR-064). *@
+<p class="sub">รหัสพนักงาน @Report.EmployeeCode&emsp;ชื่อ-นามสกุล @Report.EmployeeName&emsp;เข้าทำงาน @(Report.StartDate is { } start ? ReportText.Date(start) : "")&emsp;ค่าแรง/วัน @ReportText.Decimal2(Report.DailyWage)</p>
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:4%" /><col style="width:10%" /><col style="width:10%" /><col style="width:10%" /><col style="width:6%" />
+            <col style="width:7%" /><col style="width:9%" /><col style="width:15%" /><col style="width:7%" /><col style="width:9%" />
+            <col style="width:13%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num"></th><th>วัน</th><th>ตั้งแต่วันที่</th><th>ถึงวันที่</th><th>เวลา</th><th>ถึงเวลา</th><th class="num">วันลา</th>
+                <th>ประเภท</th><th>ค่าแรง</th><th class="num">จ่ายค่าแรง</th><th>เหตุผล</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.DayName</td>
+                    <td>@ReportText.Date(line.FromDate)</td>
+                    <td>@ReportText.Date(line.ToDate)</td>
+                    <td>@ReportText.Time(line.FromTime)</td>
+                    <td>@ReportText.Time(line.ToTime)</td>
+                    <td class="num">@ReportText.Decimal2(line.Days) วัน</td>
+                    <td>@line.TypeName</td>
+                    <td>@line.PaidName</td>
+                    <td class="num">@ReportText.Decimal2(line.Pay)</td>
+                    <td>@line.Remark</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="6">รวม</td>
+                <td class="num">@ReportText.Decimal2(Report.TotalDays) วัน</td>
+                <td colspan="2"></td>
+                <td class="num">@ReportText.Decimal2(Report.TotalPay)</td>
+                <td></td>
+            </tr>
+            <tr><td colspan="11" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "การลางานของพนักงาน";
+
+    [Parameter, EditorRequired] public EmployeeLeaveReport Report { get; set; } = default!;
+}

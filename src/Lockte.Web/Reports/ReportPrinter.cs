@@ -70,4 +70,13 @@ public static class ReportText
         if (from.Year == to.Year && from.Month == to.Month) return $"{Month(from)} {Year(from)}";
         return from.Year == to.Year ? $"{Month(from)}–{Month(to)} {Year(to)}" : $"{Month(from)} {Year(from)}–{Month(to)} {Year(to)}";
     }
+
+    /// <summary>One decimal with thousands separators (Standard, DecimalPlaces 1), half away from zero: 2.875 → 2.9.</summary>
+    public static string Decimal1(double value) => Math.Round((decimal)value, 1, MidpointRounding.AwayFromZero).ToString("#,##0.0", ThaiDate.Culture);
+
+    /// <summary>A percentage of Decimal2, blank when there is none (no จำนวนวันทำงาน typed).</summary>
+    public static string Percent(double? value) => value is { } v ? Decimal2(v) : "";
+
+    /// <summary>เวลา as Short Time printed it: <c>8:00</c>, <c>17:30</c>; blank when there is none.</summary>
+    public static string Time(TimeOnly? time) => time?.ToString("H:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "";
 }

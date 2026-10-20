@@ -10,7 +10,7 @@
 @* SCR-10 บันทึก, แก้ไขและพิมพ์รายงานพนักงานไม่มาทำงาน (ฟอร์ม NO_WORK + NO_WORK2): วันที่ and เวลาเข้า on top, the day's
    rows below (รหัส + หมายเหตุ); click a row to edit or delete it (the legacy "แก้ไข" form NO_WORK2 is the same list).
    A blank row is never saved (instead of BR-011's delete on close). The constant WORK_T / TYPE / W_OUT are not kept.
-   "พิมพ์รายงาน" shows RPT-17 (BR-061) on screen; its PDF comes with the report ticket. Record absences before
+   "พิมพ์รายงาน" shows RPT-17 (BR-061) on screen and "PDF" prints it (#59). Record absences before
    สร้างเวลาปกติ (SCR-11). *@
 <PageTitle>บันทึกพนักงานไม่มาทำงาน — LOCKTE</PageTitle>
 <h1 class="mb-4">บันทึก, แก้ไขและพิมพ์รายงานพนักงานไม่มาทำงาน</h1>
@@ -61,6 +61,8 @@
         <MudDatePicker Editable="true" @bind-Date="reportDay" Label="วันที่" Culture="ThaiDate.Culture"
                        DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
         <MudButton Variant="Variant.Outlined" OnClick="ReportAsync" StartIcon="@Icons.Material.Filled.Assessment">พิมพ์รายงาน</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@($"reports/hr/time/absences?date={DateOnly.FromDateTime(reportDay ?? DateTime.Today).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}")"
+                   Target="_blank" StartIcon="@Icons.Material.Filled.Print">PDF</MudButton>
     </MudStack>
     @if (report is not null)
     {

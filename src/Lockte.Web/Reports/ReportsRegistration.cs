@@ -37,6 +37,7 @@ public static class ReportsRegistration
     public static IEndpointRouteBuilder MapReports(this IEndpointRouteBuilder app)
     {
         var reports = app.MapGroup("/reports").RequireAuthorization();
+        reports.MapHrAttendanceReports(); // ใบเตือน การลา การมาทำงาน (#59)
 
         // RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13): A4 ตั้ง, no document number.
         reports.MapGet("/hr/pay-periods/{id:int}/time", async (int id, HttpContext http, PayPeriodDirectory periods, ReportPrinter printer,
@@ -106,7 +107,7 @@ public static class ReportsRegistration
     private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Shown in the browser's PDF viewer (inline) under a readable file name.</summary>
-    private static IResult Pdf(HttpContext http, byte[] pdf, string name)
+    internal static IResult Pdf(HttpContext http, byte[] pdf, string name)
     {
         http.Response.Headers.ContentDisposition = $"inline; filename*=UTF-8''{Uri.EscapeDataString(name + ".pdf")}";
         http.Response.Headers.CacheControl = "no-store";

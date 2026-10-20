@@ -1,0 +1,45 @@
+@using Lockte.Hr
+@* RPT-14 รายงานพนักงานทำงานล่วงเวลาจริง (รายงาน ทำล่วงเวลาจริง, print-samples.md): ระดับ B on A4 ตั้ง (legacy Letter) —
+   (ลำดับ) วันที่ รหัส ชื่อ-นามสกุล แผนก เข้า ออก; ท้าย "รวม n คน" (the rows, as =Count([id])). The legacy printed today's
+   date beside "วันที่"; here it is the day chosen (the print date is in the footer). Rows from
+   AttendanceReportDirectory.GetOvertimeReportAsync (BR-066). *@
+<p class="sub">วันที่ @ReportText.Date(Report.Date)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:13%" /><col style="width:9%" /><col style="width:33%" /><col style="width:18%" />
+            <col style="width:10%" /><col style="width:10%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num"></th><th>วันที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>เข้า</th><th>ออก</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@ReportText.Date(line.Date)</td>
+                    <td>@line.EmployeeCode</td>
+                    <td>@line.EmployeeName</td>
+                    <td>@line.DepartmentName</td>
+                    <td>@ReportText.Time(line.WorkIn)</td>
+                    <td>@ReportText.Time(line.WorkOut)</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="7">รวม @Report.Lines.Count คน</td></tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    public const string Title = "รายงานพนักงานทำงานล่วงเวลาจริง";
+
+    [Parameter, EditorRequired] public OvertimeReport Report { get; set; } = default!;
+}
