@@ -43,9 +43,11 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     /// </summary>
     public static IReadOnlyList<string> OpenPeriodTables { get; } = ["ตั้งวันที่ตัดWEEK", "NO_WORK"];
 
-    /// <summary>ประวัติที่ย้าย (#51, ข้อตัดสิน #17): เวลาทำงานตั้งแต่ <see cref="WorkTimeFrom"/>, การลาปี 2569.</summary>
+    /// <summary>ประวัติที่ย้าย (#51, ข้อตัดสิน #17): เวลาทำงานตั้งแต่ <see cref="WorkTimeFrom"/>, การลาปี 2569, ผลค่าแรงตั้งแต่ <see cref="PayFrom"/>.</summary>
     public static readonly DateOnly WorkTimeFrom = new(2025, 1, 1);
     public static readonly DateOnly LeaveFrom = new(2026, 1, 1);
+    /// <summary>ผลค่าแรงของงวดที่เริ่มตั้งแต่ 1 ม.ค. 2568, as เวลาทำงาน (#51).</summary>
+    public static readonly DateOnly PayFrom = new(2025, 1, 1);
 
     /// <summary>
     /// The history tables, read only from their first date on (ADD_EW has 528,745 rows back to 2016): a row with the date
@@ -57,6 +59,7 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         ["ADD_EW"] = WhereFrom("DATE", WorkTimeFrom),
         ["LEAVE"] = WhereFrom("FROM_D", LeaveFrom),
         ["LEAVE_ADD"] = WhereFrom("FROM_D", LeaveFrom),
+        [PayHistoryMigration.HistoryTable] = WhereFrom("FROM_DATE", PayFrom),
     };
 
     private static string WhereFrom(string column, DateOnly from)
@@ -98,6 +101,7 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
                 }
                 foreach (var table in WarningMigration.Tables) // ใบเตือน, every year (#59)
                     tables[table] = Read(connection, table, null);
+                tables[PayHistoryMigration.CurrentTable] = Read(connection, PayHistoryMigration.CurrentTable, null); // one period
             }
             OleDbConnection.ReleaseObjectPool();
             return new LegacyDatabase(tables, counts);

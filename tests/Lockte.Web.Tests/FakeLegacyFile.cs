@@ -52,6 +52,18 @@ public sealed class FakeLegacyFile
         ],
         ["ใบเตือน"] = WarningColumns,
         ["ใบเตือนADD"] = WarningColumns,
+        ["ค่าแรง"] =
+        [
+            ("ID", "TEXT(4)"), ("NAME", "TEXT(50)"), ("SA", "DOUBLE"), ("W", "DOUBLE"), ("TT_OT", "DOUBLE"), ("PAY_W", "LONG"),
+            ("PAY_OT", "LONG"), ("FROM_DATE", "DATETIME"), ("TO_DATE", "DATETIME"), ("SUNDAY", "DOUBLE"), ("HOLIDAY", "DOUBLE"),
+            ("PAY_D", "DATETIME"), ("HOT", "DOUBLE"), ("L", "DOUBLE"), ("OT", "DOUBLE"),
+        ],
+        ["สำเนาของ ค่าแรง"] =
+        [
+            ("ID", "TEXT(4)"), ("NAME", "TEXT(50)"), ("W", "LONG"), ("TT_OT", "LONG"), ("PAY_W", "LONG"), ("PAY_OT", "LONG"),
+            ("FROM_DATE", "DATETIME"), ("TO_DATE", "DATETIME"), ("SUNDAY", "LONG"), ("HOLIDAY", "LONG"), ("PAY_D", "DATETIME"),
+            ("MARK", "TEXT(1)"), ("HOT", "DOUBLE"), ("OT", "LONG"),
+        ],
     };
 
     private static (string, string)[] WarningColumns =>
