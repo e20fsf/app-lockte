@@ -110,7 +110,7 @@ public static class EmployeeMenu
         new(10, "คำนวณโบนัสและพักร้อน", 6,
         [
             new("คำนวณโบนัส", Code: "SCR-50"),
-            new("คำนวณพักร้อน", Code: "SCR-51"),
+            new("คำนวณพักร้อน", Code: "SCR-51", Page: "hr/vacation-pay"),
             new("ปรับค่าแรง", Code: "SCR-52"),
             new("พิมพ์ค่าแรงรวมโบนัสส่งแบงค์ (ทหารไทย)", Code: "RPT-40"),
             new("พิมพ์เงิน OT รวมโบนัสส่งแบงค์ (กสิกร)", Code: "RPT-41"),
@@ -147,7 +147,7 @@ public static class EmployeeMenu
             new("พิมพ์ใบลา", Code: "RPT-50", Page: "hr/leave-form"),
             new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33", Page: "hr/resignation"),
             new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51", Page: "reports/hr/insured-persons", NewTab: true),
-            new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52"),
+            new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52", Page: "reports/hr/vacation-notice", NewTab: true),
         ]),
         new(19, "พิมพ์หนังสือรับรอง", 2,
         [
