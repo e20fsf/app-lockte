@@ -1,0 +1,123 @@
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@* RPT-37 รายละเอียดการปรับเงินเดือนพนักงานรายเดือน (รายงาน ปรับค่าแรง1) / การปรับค่าแรงพนักงานรายวัน (ปรับค่าแรง2), ระดับ B on
+   A4 ตั้ง: ที่ รหัส ชื่อ-นามสกุล เริ่มทำงาน อายุงาน (Fixed 2) เงินเดือน|ค่าแรง รวมวันลา [ใบเตือนวาจา ใบเตือนหนังสือ] ปรับเพิ่ม %
+   เงินเดือนใหม่|ค่าแรงใหม่, then รวมทั้งหมด n คน · เฉลี่ยอายุงาน · Σ เงินเดือน|ค่าแรง · % เฉลี่ย (รายเดือน Avg(ปรับเพิ่ม/เงินเดือน×100),
+   รายวัน Avg(%)) · Σ ใหม่, and the legacy's fixed "เกณฑ์การปรับค่าแรง" (⚠ Q-48: items 2, 7 and 8 do not match the formula —
+   printed as before; items 3–6 show STEP2–5). The รายวัน report also has the หัวหน้าแผนก to sign, as its footer had.
+   Rows from PayAdjustmentDirectory (BR-032). *@
+<p class="sub">การลาและใบเตือนตั้งแต่วันที่ @ReportText.Date(Report.Input.From)&emsp;ถึงวันที่ @ReportText.Date(Report.Input.To)</p>
+@if (Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="table-layout:fixed">
+        <colgroup>
+            @foreach (var width in Daily ? new[] { 4, 6, 22, 9, 7, 7, 8, 8, 7, 7, 6, 9 } : new[] { 5, 7, 27, 10, 8, 9, 8, 9, 7, 10 })
+            {
+                <col style="width:@(width)%" />
+            }
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เริ่มทำงาน</th><th class="num">อายุงาน</th>
+                <th class="num">@(Daily ? "ค่าแรง" : "เงินเดือน")</th><th class="num">รวมวันลา</th>
+                @if (Daily)
+                {
+                    <th class="num">ใบเตือน<br />ด้วยวาจา</th><th class="num">ใบเตือน<br />หนังสือ</th>
+                }
+                <th class="num">ปรับเพิ่ม</th><th class="num">%</th><th class="num">@(Daily ? "ค่าแรงใหม่" : "เงินเดือนใหม่")</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Lines.Count; i++)
+            {
+                var line = Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.Code</td>
+                    <td>@line.Name</td>
+                    <td>@(line.StartDate is { } start ? ReportText.Date(start) : "")</td>
+                    <td class="num">@(line.ServiceYears is { } years ? Fixed2(years) : "")</td>
+                    <td class="num">@Whole(line.Wage)</td>
+                    <td class="num">@Fixed2(line.LeaveDays)</td>
+                    @if (Daily)
+                    {
+                        <td class="num">@line.VerbalWarnings</td><td class="num">@line.WrittenWarnings</td>
+                    }
+                    <td class="num">@ReportText.Decimal2(line.Increase)</td>
+                    <td class="num">@ReportText.Decimal2(line.Rate)</td>
+                    <td class="num">@Whole(line.NewWage)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="3">รวมทั้งหมด @Lines.Count คน</td>
+                <td colspan="2" class="num">เฉลี่ยอายุงาน @ReportText.Decimal2(AverageService) ปี</td>
+                <td class="num">@Whole(Lines.Sum(l => l.Wage))</td>
+                <td colspan="@(Daily ? 4 : 2)" class="num">เฉลี่ย</td>
+                <td class="num">@ReportText.Decimal2(AverageRate) %</td>
+                <td class="num">@Whole(Lines.Sum(l => l.NewWage))</td>
+            </tr>
+            <tr><td colspan="@(Daily ? 12 : 10)" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+<div style="break-inside:avoid;margin-top:6mm">
+    <p style="margin:0">เกณฑ์การปรับค่าแรง</p>
+    <p style="margin:0">1. ลางานมากกว่าหรือเท่ากับ 25 วัน ไม่ปรับค่าแรง</p>
+    <p style="margin:0">2. อายุงานน้อยกว่า 1 ปี ไม่ปรับค่าแรง</p>
+    <p style="margin:0">3. อายุงานตั้งแต่ 1 ถึงน้อยกว่า 2 ปี ปรับ @ReportText.Decimal2(Report.Input.Steps[1]) %</p>
+    <p style="margin:0">4. อายุงานตั้งแต่ 2 ถึงน้อยกว่า 4 ปี ปรับ @ReportText.Decimal2(Report.Input.Steps[2]) %</p>
+    <p style="margin:0">5. อายุงานตั้งแต่ 4 ถึงน้อยกว่า 7 ปี ปรับ @ReportText.Decimal2(Report.Input.Steps[3]) %</p>
+    <p style="margin:0">6. อายุงานตั้งแต่ 7 ปีขึ้นไป ปรับ @ReportText.Decimal2(Report.Input.Steps[4]) %</p>
+    <p style="margin:0">7. ใบเตือนด้วยวาจาหักใบละ 1%</p>
+    <p style="margin:0">8. ใบเตือนหนังสือหักใบละ 2%</p>
+    <p style="margin:0">9. ปรับกรณีพิเศษขึ้นอยู่กับผู้บังคับบัญชา</p>
+</div>
+@if (Daily)
+{
+    <table style="width:100%;margin-top:8mm;break-inside:avoid">
+        @foreach (var row in DepartmentHeads.Chunk(3))
+        {
+            <tr>
+                @foreach (var head in row)
+                {
+                    <td style="border:0;text-align:center;padding-top:10mm">..............................<br />@head</td>
+                }
+            </tr>
+        }
+    </table>
+}
+
+@code {
+    /// <summary>The legacy title, with the year of today + 30 days (=Now()+30, Format yyyy — พ.ศ.).</summary>
+    public static string TitleOf(bool daily, DateOnly today)
+        => (daily ? "รายละเอียดการปรับค่าแรงพนักงานรายวันปี " : "รายละเอียดการปรับเงินเดือนพนักงานรายเดือนปี ")
+           + today.AddDays(30).ToString("yyyy", ThaiDate.Culture);
+
+    /// <summary>The fixed labels of the รายวัน report's footer, in its order (left to right, top to bottom).</summary>
+    public static IReadOnlyList<string> DepartmentHeads { get; } =
+    [
+        "หัวหน้าแผนกไดคาสท์", "หัวหน้าแผนกตกแต่ง", "หัวหน้าแผนกอัดผ้าเบรค", "หัวหน้าแผนกฝนผ้าเบรค", "หัวหน้าแผนกประกอบ",
+        "หัวหน้าแผนกผ้าคลัทช์", "หัวหน้าแผนกสโตร์", "หัวหน้าแผนกแม่พิมพ์", "หัวหน้าแผนกซ่อมบำรุง",
+    ];
+
+    [Parameter, EditorRequired] public PayAdjustmentReport Report { get; set; } = default!;
+    [Parameter] public bool Daily { get; set; }
+
+    private IReadOnlyList<PayAdjustmentLine> Lines => Daily ? Report.Daily : Report.Monthly;
+
+    private double AverageService => Lines.Where(l => l.ServiceYears != null).Select(l => l.ServiceYears!.Value).DefaultIfEmpty().Average();
+
+    /// <summary>รายเดือน =Avg([expr3]/[salary]*100) (the stored whole SALARY; none when it is 0); รายวัน =Avg([expr6]).</summary>
+    private double AverageRate => Daily
+        ? Lines.Average(l => l.Rate)
+        : Lines.Where(l => l.Wage != 0).Select(l => l.Increase / l.Wage * 100).DefaultIfEmpty().Average();
+
+    /// <summary>Fixed, 2 decimals: no thousands separator.</summary>
+    private static string Fixed2(double value) => Math.Round((decimal)value, 2, MidpointRounding.AwayFromZero).ToString("0.00", ThaiDate.Culture);
+
+    private static string Whole(double value) => ReportText.Baht((decimal)value);
+}

@@ -1,0 +1,88 @@
+@page "/hr/evaluations"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-53 บันทึกการประเมินผล (ฟอร์ม บันทึกการประเมินผล1 + subform บันทึกการประเมินผล, เมนู 11, BR-055): choose the employee,
+   then ครั้งที่ 1 / 2 (วันที่ คะแนน เกรด), วันที่บรรจุ and หมายเหตุ, saved onto the employee. "พิมพ์รายงาน" opens RPT-43
+   รายงานการประเมินผลพนักงาน. ⚠ The fields are shared with other rules, as in the legacy — shown under the form. *@
+<PageTitle>บันทึกการประเมินผล — LOCKTE</PageTitle>
+<h1 class="mb-4">บันทึกการประเมินผล</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:56rem">
+    <EmployeePicker Value="employee" ValueChanged="SelectAsync" />
+    @if (loaded is not null)
+    {
+        <MudGrid Spacing="2" Class="mt-2">
+            <MudItem xs="12" sm="4"><MudDatePicker Editable="true" @bind-Date="date1" Label="วันที่ประเมินครั้งที่ 1" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="6" sm="4"><MudNumericField T="int?" @bind-Value="score1" Label="คะแนนครั้งที่ 1" /></MudItem>
+            <MudItem xs="6" sm="4"><MudTextField @bind-Value="grade1" Label="เกรดครั้งที่ 1" MaxLength="EvaluationRegistry.GradeLength" /></MudItem>
+            <MudItem xs="12" sm="4"><MudDatePicker Editable="true" @bind-Date="date2" Label="วันที่ประเมินครั้งที่ 2" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="6" sm="4"><MudNumericField T="int?" @bind-Value="score2" Label="คะแนนครั้งที่ 2" /></MudItem>
+            <MudItem xs="6" sm="4"><MudTextField @bind-Value="grade2" Label="เกรดครั้งที่ 2" MaxLength="EvaluationRegistry.GradeLength" /></MudItem>
+            <MudItem xs="12" sm="4"><MudDatePicker Editable="true" @bind-Date="passed" Label="วันที่บรรจุ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="12" sm="8"><MudTextField @bind-Value="memo" Label="หมายเหตุ" MaxLength="EvaluationRegistry.MemoLength" /></MudItem>
+        </MudGrid>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">
+            ⚠ เหมือนระบบเดิม: คะแนนครั้งที่ 1 ถูกใช้เป็นค่าแรงต่องวดแบบกำหนดเองด้วย · มีเกรดครั้งที่ 1 แล้วไม่อยู่ในรายงานค่าแรงสิ้นเดือน ·
+            เกรดครั้งที่ 2 ถูกล้างเมื่อเปิดใบขอ OT · หมายเหตุเป็นช่องเดียวกับเหตุผลลาออก
+        </MudText>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="@(loaded is null || busy)">บันทึก</MudButton>
+        <MudButton Variant="Variant.Outlined" Target="_blank" Href="reports/hr/evaluations" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายงาน</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(11)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private EmployeeListItem? employee;
+    private EmployeeDto? loaded;
+    private DateTime? date1, date2, passed;
+    private int? score1, score2;
+    private string? grade1, grade2, memo;
+    private bool busy;
+
+    private async Task SelectAsync(EmployeeListItem? value)
+    {
+        employee = value;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loaded = employee is null ? null : await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(employee.Id));
+        static DateTime? D(DateOnly? d) => d?.ToDateTime(TimeOnly.MinValue);
+        (date1, score1, grade1) = (D(loaded?.Evaluation1Date), loaded?.Evaluation1Score, loaded?.Evaluation1Grade);
+        (date2, score2, grade2) = (D(loaded?.Evaluation2Date), loaded?.Evaluation2Score, loaded?.Evaluation2Grade);
+        (passed, memo) = (D(loaded?.ProbationPassedDate), loaded?.Memo);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (employee is null || loaded is null) return;
+        busy = true;
+        try
+        {
+            static DateOnly? D(DateTime? d) => d is { } v ? DateOnly.FromDateTime(v) : null;
+            var input = new EvaluationInput(D(date1), score1, grade1, D(date2), score2, grade2, D(passed), memo);
+            var (id, version) = (employee.Id, loaded.RowVersion);
+            var result = await Services.RunAsync<EvaluationRegistry, ServiceResult>(r => r.SaveAsync(id, input, version));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกการประเมินผลแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+}

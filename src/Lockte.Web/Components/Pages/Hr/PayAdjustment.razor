@@ -1,0 +1,85 @@
+@page "/hr/pay-adjustment"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* SCR-52 ปรับค่าแรง (ฟอร์ม ปรับค่าแรง, เมนู 10, BR-032): ตั้งแต่ / ถึงวันที่, แผนก (ว่าง = ทุกแผนก), เพดานวันลา and ขั้น % ตาม
+   อายุงาน; "พิมพ์รายเดือน" / "พิมพ์รายวัน" open the two RPT-37 reports in a new tab (the legacy "คำนวณ" opened both). Nothing is
+   written to the employees (Q-32): HR keys the new pay on SCR-03 as before. The legacy kept the values in the one-row table
+   ลางานทั้งแผนก; here the form starts at this year and the legacy defaults. DATE_H of that form was read by nothing. *@
+<PageTitle>ปรับค่าแรง — LOCKTE</PageTitle>
+<h1 class="mb-4">ปรับค่าแรง</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:52rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+            <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทุกแผนก)" Clearable="true" Style="max-width:22rem">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudNumericField T="double?" @bind-Value="cap" Label="เพดานวันลา" Min="0" Style="max-width:9rem" />
+            @for (var i = 0; i < steps.Length; i++)
+            {
+                var n = i;
+                <MudNumericField T="double?" Value="steps[n]" ValueChanged="v => steps[n] = v" Label="@StepLabels[n]" Style="max-width:9rem" />
+            }
+        </MudStack>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            วันลา = ทุกประเภทยกเว้นลาอุบัติเหตุในงาน ที่ลาภายในช่วงนี้ทั้งใบ · ลาถึงเพดานไม่ปรับ · รายวันหักใบเตือนวาจาใบละ 1% หนังสือใบละ 2%
+            (ใบเตือนหนังสือนับเฉพาะเมื่อเลือกแผนก) · ไม่รวมพนักงานที่ลาออกและรหัส LT · เป็นรายงานเท่านั้น ไม่แก้ค่าแรงในข้อมูลพนักงาน
+        </MudText>
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl("monthly")" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์รายเดือน</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl("daily")" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์รายวัน</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(10)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private static readonly string[] StepLabels = ["อายุงาน < 1 ปี %", "1 ถึง < 2 ปี %", "2 ถึง < 4 ปี %", "4 ถึง < 7 ปี %", "7 ปีขึ้นไป %"];
+
+    private DateTime? from = new(DateTime.Today.Year, 1, 1);
+    private DateTime? to = DateTime.Today;
+    private int? departmentId;
+    private double? cap = PayAdjustmentInput.DefaultLeaveCap;
+    private readonly double?[] steps = [.. PayAdjustmentInput.DefaultSteps.Select(s => (double?)s)];
+    private IReadOnlyList<DepartmentDto> departments = [];
+
+    protected override async Task OnInitializedAsync()
+        => departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกวันที่"
+            : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : cap is null || steps.Any(s => s is null) ? "กรุณากรอกเพดานวันลาและขั้น % ให้ครบ"
+            : null;
+
+    private string PdfUrl(string kind)
+    {
+        if (Problem is not null) return "";
+        static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        static string N(double? v) => v!.Value.ToString(CultureInfo.InvariantCulture);
+        var url = $"reports/hr/pay-adjustment?kind={kind}&from={Iso(from)}&to={Iso(to)}&cap={N(cap)}"
+                  + string.Concat(steps.Select(s => $"&step={N(s)}"));
+        return departmentId is { } d ? url + $"&department={d}" : url;
+    }
+}
