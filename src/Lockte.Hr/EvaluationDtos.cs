@@ -54,7 +54,8 @@ public sealed record YearlyEvaluationReport(YearlyEvaluationKind Kind, DateOnly 
 /// <summary>
 /// สถิติการลางานและใบเตือน of one employee on the ใบประเมินประจำปี (BR-067): ลากิจ (SR 1 — the report's box is bound to
 /// SumOf1), ลาป่วยมีใบรับรองแพทย์ (SR 2), ไม่มีใบ (SR 3), มาสาย (rows of เวลาทำงาน with LATE), ขาดงาน (SR 8), ใบเตือนวาจา /
-/// หนังสือ (CODE 1 / 2 with DEPART = the แผนก chosen — none for ทั้งหมด, Q-31).
+/// หนังสือ (CODE 1 / 2 with DEPART = the แผนก chosen — none for ทั้งหมด, Q-31), every ใบ counted as RPT-22 (decided 2026-10-21;
+/// the legacy คิวรี 202/204 gave each employee 0 or 1).
 /// </summary>
 public sealed record YearlyEvaluationSheet(
     string Code,

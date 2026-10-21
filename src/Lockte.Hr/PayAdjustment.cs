@@ -14,7 +14,8 @@ namespace Lockte.Hr;
 /// chosen, so none when it is ทุกแผนก (Q-31). คิวรี M1/M4 group by (Date, ID, CODE, DEPART): repeats on one day count once.</item>
 /// </list>
 /// The legacy also listed a resigned-not, LT* or other-แผนก employee who only had a leave, a late day or a CODE 1 ใบเตือน in
-/// the range (they came into พิมพ์ลางานทั้งแผนก10 by those queries); here the list is only the employees above.
+/// the range (they came into พิมพ์ลางานทั้งแผนก10 by those queries); here the list is only the employees above (decided
+/// 2026-10-21).
 /// </summary>
 public sealed class PayAdjustmentDirectory(HrDbContext db)
 {

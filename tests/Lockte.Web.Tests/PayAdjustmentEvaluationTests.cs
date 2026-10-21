@@ -157,7 +157,7 @@ public sealed class PayAdjustmentEvaluationTests(LocalDbFixture db)
         Assert.Equal(3.12, line.LeaveDays); // Round(3.125, 2), banker's
     }
 
-    [Fact] // ไม่รวม ลาออก / รหัส LT / แผนกอื่น · ไม่มีวันเริ่มงาน → STEP5 (IIf Null) · ไม่แก้ข้อมูลพนักงาน (Q-32)
+    [Fact] // ไม่รวม ลาออก / รหัส LT / แผนกอื่นแม้มีใบเตือนวาจา (คิวรี M1 ดึงมา — ผู้ใช้ตัดสิน 2026-10-21 ไม่ดึง) · ไม่มีวันเริ่มงาน → STEP5 (IIf Null) · ไม่แก้ข้อมูลพนักงาน (Q-32)
     public async Task Leaves_out_resigned_LT_and_other_departments_and_changes_no_employee()
     {
         var year = NewYear();
@@ -170,8 +170,10 @@ public sealed class PayAdjustmentEvaluationTests(LocalDbFixture db)
         await WarnAsync(elsewhere, D(year, 3, 1), WarningLevels.Verbal);
 
         var (monthly, daily) = await AdjustAsync(year, department, noStart, resigned, lt, elsewhere);
+        var everyone = (await AdjustAsync(year, null, elsewhere)).Daily;
 
         Assert.Empty(monthly);
+        Assert.Equal([elsewhere.Code], everyone.Select(l => l.Code)); // on the report of all แผนก only (decided 2026-10-21)
         var line = Assert.Single(daily);
         Assert.Equal((noStart.Code, (double?)null, 6.0, 25.0, 412.0, 438.0), (line.Code, line.ServiceYears, line.Rate, line.Increase, line.Wage, line.NewWage));
         Assert.Equal(412.5, (await AsHrAsync(s => s.Get<EmployeeDirectory>().GetAsync(noStart.Id)))!.DailyWage);
@@ -244,7 +246,7 @@ public sealed class PayAdjustmentEvaluationTests(LocalDbFixture db)
     private Task<YearlyEvaluationReport> YearlyAsync(YearlyEvaluationKind kind, int year, DepartmentDto? department)
         => AsHrAsync(s => s.Get<EvaluationDirectory>().GetYearlyAsync(kind, D(year, 1, 1), D(year, 12, 31), department?.Id));
 
-    [Fact] // BR-067: พนักงาน* → ใบพนักงาน, ตำแหน่งอื่น → ใบหัวหน้า, ไม่มีตำแหน่งไม่อยู่ทั้งสอง · ลากิจ = SR 1 · มาสายนับแถว · ใบเตือนเฉพาะเมื่อเลือกแผนก
+    [Fact] // BR-067: พนักงาน* → ใบพนักงาน (ใบเตือนนับทุกใบ ไม่ใช่ 0/1 ของคิวรี 202/204 — ผู้ใช้ตัดสิน 2026-10-21), ตำแหน่งอื่น → ใบหัวหน้า, ไม่มีตำแหน่งไม่อยู่ทั้งสอง · ลากิจ = SR 1 · มาสายนับแถว · ใบเตือนเฉพาะเมื่อเลือกแผนก
     public async Task Yearly_sheets_split_by_position_and_count_leaves_late_days_and_warnings()
     {
         var year = NewYear();
@@ -261,6 +263,7 @@ public sealed class PayAdjustmentEvaluationTests(LocalDbFixture db)
         await LateAsync(staff, D(year, 3, 1), WorkTypes.Overtime); // the same day's other kind of work counts again
         await WarnAsync(staff, D(year, 4, 1), WarningLevels.Verbal);
         await WarnAsync(staff, D(year, 5, 1), WarningLevels.Verbal);
+        await WarnAsync(staff, D(year, 5, 1), WarningLevels.Verbal); // the same day again: every ใบ counts (decided 2026-10-21, as RPT-22)
         await WarnAsync(staff, D(year, 6, 1), WarningLevels.Written);
 
         var one = await YearlyAsync(YearlyEvaluationKind.Staff, year, department);
@@ -269,9 +272,9 @@ public sealed class PayAdjustmentEvaluationTests(LocalDbFixture db)
 
         var sheet = Assert.Single(one.Sheets);
         Assert.Equal((department.Name, department.SectionName), (one.DepartmentName, sheet.SectionName));
-        Assert.Equal((1.5, 1.0, 0.5, 2, 1.0, 2, 1), (sheet.PersonalLeave, sheet.SickLeaveWithCertificate, sheet.SickLeaveWithoutCertificate,
+        Assert.Equal((1.5, 1.0, 0.5, 2, 1.0, 3, 1), (sheet.PersonalLeave, sheet.SickLeaveWithCertificate, sheet.SickLeaveWithoutCertificate,
             sheet.LateCount, sheet.Absent, sheet.VerbalWarnings, sheet.WrittenWarnings));
-        Assert.Equal(-1.5 - 1 - 0.5 - 0.1 - 3 - 10 - 10, sheet.TotalDeduction, 9);
+        Assert.Equal(-1.5 - 1 - 0.5 - 0.1 - 3 - 15 - 10, sheet.TotalDeduction, 9);
         Assert.Equal((0, 0), (all.VerbalWarnings, all.WrittenWarnings)); // ทั้งหมด (Q-31)
         Assert.Equal([head.Code], heads.Sheets.Select(s => s.Code));
         Assert.DoesNotContain(none.Code, (await YearlyAsync(YearlyEvaluationKind.Supervisor, year, null)).Sheets.Select(s => s.Code));
