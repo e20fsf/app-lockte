@@ -2,6 +2,7 @@ using System.Globalization;
 using Lockte.Hr;
 using Lockte.Web.Reports.Forms;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Options;
 
 namespace Lockte.Web.Reports.Hr;
 
@@ -78,6 +79,14 @@ public static class HrDocumentEndpoints
                 new() { [nameof(ResignedListView.Rows)] = rows, [nameof(ResignedListView.Today)] = DateOnly.FromDateTime(clock.GetLocalNow().DateTime) },
                 cancellationToken);
             return Pdf(pdf, ResignedListView.Title);
+        });
+
+        // RPT-52 ประกาศการคำนวณพักร้อนพนักงานใหม่ (เมนู 18): A4 ตั้ง, fixed text; the signer from the settings.
+        hr.MapGet("/vacation-notice", async (IOptionsSnapshot<EmployerOptions> employer, FormPrinter printer, CancellationToken cancellationToken) =>
+        {
+            var pdf = await printer.PrintAsync<VacationNoticeView>(VacationNoticeView.Title, Paper.A4Portrait, null,
+                new() { [nameof(VacationNoticeView.FactoryManagerName)] = employer.Value.FactoryManagerName }, cancellationToken);
+            return Pdf(pdf, VacationNoticeView.Title);
         });
 
         return app;

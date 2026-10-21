@@ -1,0 +1,74 @@
+@using Lockte.Web.Reports.Forms
+@* RPT-52 ประกาศการคำนวณพักร้อนพนักงานใหม่ (รายงาน ประกาศคำนวณพักร้อน, เมนู 18): ระดับ A on A4 ตั้ง, the legacy's fixed text
+   word for word (the announcement of 25 มิ.ย. 2562, its dates included) — no data. There is no legacy PDF of it, so the
+   lines sit where the report design puts them (SaveAsText: margins 2.5 cm left / 1 cm top, label Left/Top/Width in twips,
+   TextAlign, Angsana New 24 bold / 16). The signer's name was typed into a label; the repository is public, so it comes
+   from the settings (Employer:FactoryManagerName) and a blank leaves the brackets empty for a hand-written name. *@
+<FormPage>
+    @foreach (var line in Lines)
+    {
+        <FormText X="@X(line)" Base="@Base(line)" Size="@line.Size" Bold="@(line.Size > 16)" Anchor="@line.Anchor" Text="@line.Text" />
+    }
+    <FormText X="@X(Signer)" Base="@Base(Signer)" Text="@SignerText" />
+    <FormText X="@X(SignerTitle)" Base="@Base(SignerTitle)" Text="@SignerTitle.Text" />
+</FormPage>
+
+@code {
+    public const string Title = "ประกาศคำนวณพักร้อน";
+
+    /// <summary>ผู้จัดการโรงงาน's name as printed in the brackets; null or blank = empty brackets.</summary>
+    [Parameter] public string? FactoryManagerName { get; set; }
+
+    /// <summary>A label of the legacy report: twips from the printable area's corner, as the design stores them.</summary>
+    public sealed record Label(int Left, int Top, int Width, string Text, FormAnchor Anchor = FormAnchor.Left, double Size = 16);
+
+    private const double MarginLeft = 25.0, MarginTop = 10.0, TwipsPerMm = 1440 / 25.4;
+
+    public static IReadOnlyList<Label> Lines { get; } =
+    [
+        new(0, 0, 8619, "ประกาศ", FormAnchor.Center, 24),
+        new(0, 680, 8619, "วันที่ 25 มิถุนายน พ.ศ. 2562", FormAnchor.Right),
+        new(0, 1360, 8619, "เรื่อง วิธีการคำนวณวันหยุดพักผ่อนประจำปี(พักร้อน)ของพนักงานใหม่"),
+        new(907, 1814, 7374, "เนื่องจากคู่มือข้อบังคับเกี่ยวกับการทำงาน บริษัท ล็อคเต้ จำกัด ได้กำหนดในเรื่องวันหยุด"),
+        new(0, 2267, 8619, "พักผ่อนประจำปีไว้ดังนี้"),
+        new(901, 2721, 7599, "2.3 วันหยุดพักผ่อนประจำปี พนักงานซึ่งทำงานติดต่อกันมาแล้วหนึ่งปี มีสิทธิหยุดพักผ่อน"),
+        new(1207, 3174, 7299, "ประจำปีได้ 6 วันทำงานโดยได้รับค่าจ้างเท่ากับวันทำงานและบริษัทจะเป็นผู้กำหนดวัน"),
+        new(1207, 3628, 7074, "หยุดล่วงหน้าให้แก่พนักงาน"),
+        new(907, 4081, 7599, "ทางบริษัทจะคำนวณตัดวันหยุดพักผ่อนประจำปี ทุกสิ้นปีปฏิทิน(31 ธันวาคม ของทุกปี)"),
+        new(0, 4535, 8619, "พนักงานเก่าจะได้ 6 วันทุกปี( 1 มกราคม - 31 ธันวาคม ) ส่วนพนักงานใหม่เมื่อทำงานครบปี คือวัน"),
+        new(0, 4988, 8619, "น้อยกว่าหนึ่งวันและเดือนตรงกับวันที่เริ่มทำงาน ตัวอย่าง เริ่มทำงานวันที่ 18 พฤษภาคม 2561 ครบ"),
+        new(0, 5442, 8619, "ปี วันที่ 17 พฤษภาคม 2562 เป็นต้น จะได้ 6 วัน และบวกเพิ่มอัตราส่วนวันหยุดจากเดือนที่เข้าทำงาน"),
+        new(0, 5896, 8619, "ในปีที่แล้ว ซึ่งจะมีแค่ครั้งเดียว อัตราส่วนวันหยุดจะกำหนดได้ดังต่อไปนี้"),
+        new(907, 6349, 7599, "1.   เข้าทำงานเดือนมกราคม ได้หยุดเพิ่ม 6.0 วัน"),
+        new(907, 6803, 7599, "2.   เข้าทำงานเดือนกุมภาพันธ์ ได้หยุดเพิ่ม 5.5 วัน"),
+        new(907, 7256, 7599, "3.   เข้าทำงานเดือนมีนาคม ได้หยุดเพิ่ม 5.0 วัน"),
+        new(907, 7710, 7599, "4.   เข้าทำงานเดือนเมษายน ได้หยุดเพิ่ม 4.5 วัน"),
+        new(907, 8163, 7599, "5.   เข้าทำงานเดือนพฤษภาคม ได้หยุดเพิ่ม 4.0 วัน"),
+        new(907, 8617, 7599, "6.   เข้าทำงานเดือนมิถุนายน ได้หยุดเพิ่ม 3.5 วัน"),
+        new(907, 9070, 7599, "7.   เข้าทำงานเดือนกรกฏาคม ได้หยุดเพิ่ม 3.0 วัน"),
+        new(907, 9524, 7599, "8.   เข้าทำงานเดือนสิงหาคม ได้หยุดเพิ่ม 2.5 วัน"),
+        new(907, 9977, 7599, "9.   เข้าทำงานเดือนกันยายน ได้หยุดเพิ่ม 2.0 วัน"),
+        new(802, 10431, 7704, "10.   เข้าทำงานเดือนตุลาคม ได้หยุดเพิ่ม 1.5 วัน"),
+        new(802, 10885, 7704, "11.   เข้าทำงานเดือนพฤศจิกายน ได้หยุดเพิ่ม 1.0 วัน"),
+        new(802, 11338, 7704, "12.   เข้าทำงานเดือนธันวาคม ได้หยุดเพิ่ม 0.5 วัน"),
+        new(0, 11792, 8619, "ตามตัวอย่างข้างบนเริ่มทำงาน 18 พฤษภาคม 2561 ครบปีวันที่ 17 พฤษภาคม 2562 จะได้วันหยุดพัก"),
+        new(0, 12245, 8619, "ผ่อนประจำปี 6 วันบวกอีก 4 วัน เป็น 10 วัน เนื่องจากเข้าทำงานเดือนพฤษภาคม"),
+        new(4988, 13096, 3639, "ประกาศ ณ วันที่ 25 มิถุนายน 2562"),
+    ];
+
+    private static readonly Label Signer = new(5442, 14343, 3159, "");
+    private static readonly Label SignerTitle = new(5839, 14795, 2739, "ผู้จัดการโรงงาน");
+
+    private string SignerText => string.IsNullOrWhiteSpace(FactoryManagerName) ? "(" + new string(' ', 40) + ")" : $"({FactoryManagerName.Trim()})";
+
+    /// <summary>The label's left edge, centre or right edge (its TextAlign) on the page, in mm.</summary>
+    private static double X(Label l) => MarginLeft + l.Anchor switch
+    {
+        FormAnchor.Center => (l.Left + l.Width / 2.0) / TwipsPerMm,
+        FormAnchor.Right => (l.Left + l.Width) / TwipsPerMm,
+        _ => l.Left / TwipsPerMm,
+    };
+
+    /// <summary>The baseline: the label's top plus the font's ascent (Access puts the text at the top of the label).</summary>
+    private static double Base(Label l) => MarginTop + l.Top / TwipsPerMm + 0.85 * l.Size * FormHtml.MillimetresPerPoint;
+}

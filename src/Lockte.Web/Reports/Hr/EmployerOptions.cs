@@ -18,6 +18,9 @@ public sealed class EmployerOptions
     public string ManagerFirstName { get; set; } = "";
     public string ManagerLastName { get; set; } = "";
 
+    /// <summary>ผู้จัดการโรงงาน who signs ประกาศการคำนวณพักร้อน (RPT-52), as printed in the brackets.</summary>
+    public string FactoryManagerName { get; set; } = "";
+
     /// <summary>ประกอบกิจการ.</summary>
     public string Business { get; set; } = "";
 

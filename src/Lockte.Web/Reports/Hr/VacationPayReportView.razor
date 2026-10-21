@@ -1,0 +1,57 @@
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@* RPT-36 รายชื่อพนักงานจ่ายคืนเงินพักร้อนประจำปี … (รายงาน คำนวณพักร้อน, SCR-51): ระดับ B on A4 นอน — ลำดับที่ รหัส
+   ชื่อ-นามสกุล แผนก ค่าแรง/วัน จำนวนวันลาคงเหลือ (ทศนิยม 2) จำนวนเงินที่ต้องจ่ายคืน (จำนวนเต็ม); "รวม" + เส้นคู่; กล่องลงนาม
+   จัดทำโดย / อนุมัติโดย. The year is ตั้งแต่วันที่'s (Format(FORM,'yyyy'), พ.ศ. on HR's machine). The amounts are printed to
+   the baht from the unrounded (6 − ใช้ไป) × SA_DAY, and รวม from their unrounded Σ, as Sum([expr2]). Rows from
+   VacationPayDirectory (BR-031). *@
+<p class="sub">การลาตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:7%" /><col style="width:7%" /><col style="width:22%" /><col style="width:20%" />
+            <col style="width:12%" /><col style="width:14%" /><col style="width:18%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th class="num">ค่าแรง/วัน</th>
+                <th class="num">จำนวนวันลาคงเหลือ</th><th class="num">จำนวนเงินที่ต้องจ่ายคืน</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.Code</td>
+                    <td>@line.Name</td>
+                    <td>@line.DepartmentName</td>
+                    <td class="num">@ReportText.Decimal2(line.DailyWage)</td>
+                    <td class="num">@ReportText.Decimal2(line.RemainingDays)</td>
+                    <td class="num">@Baht(line.Amount)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="5"></td>
+                <td class="num">รวม</td>
+                <td class="num">@Baht(Report.Total)</td>
+            </tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+    <SignatureBoxes Labels="@(new[] { "จัดทำโดย", "อนุมัติโดย" })" />
+}
+
+@code {
+    public static string TitleOf(VacationPayReport report) => "รายชื่อพนักงานจ่ายคืนเงินพักร้อนประจำปี " + report.From.ToString("yyyy", ThaiDate.Culture);
+
+    [Parameter, EditorRequired] public VacationPayReport Report { get; set; } = default!;
+
+    private static string Baht(double amount) => ReportText.Baht((decimal)amount);
+}

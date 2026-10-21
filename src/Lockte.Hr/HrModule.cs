@@ -39,6 +39,7 @@ public static class HrModule
         services.AddScoped<WarningRegistry>();
         services.AddScoped<LeaveReportDirectory>();
         services.AddScoped<AttendanceReportDirectory>();
+        services.AddScoped<VacationPayDirectory>();
         return services;
     }
 

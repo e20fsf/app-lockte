@@ -1,0 +1,55 @@
+@page "/hr/vacation-pay"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.SharedKernel
+
+@* SCR-51 คำนวณพักร้อน (ฟอร์ม คำนวณพักร้อน, เมนู 10): ตั้งแต่วันที่ ถึงวันที่ of the leaves counted; "พิมพ์" opens RPT-36 in a new
+   tab (BR-031). The legacy kept FORM/TO in the one-row table ลางานทั้งแผนก shared with other forms; here the form starts
+   at this calendar year (the ประกาศ cuts พักร้อน on 31 ธ.ค.). *@
+<PageTitle>คำนวณพักร้อน — LOCKTE</PageTitle>
+<h1 class="mb-4">คำนวณพักร้อน</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+        </MudStack>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            สิทธิ 6 วัน ลบวันลาทุกประเภทที่ลาภายในช่วงนี้ทั้งใบ · จ่าย (6 − วันลา) × ค่าแรง/วัน เฉพาะคนที่ลาน้อยกว่า 6 วัน
+            และเริ่มงานก่อนปีนี้เกิน 1 ปีปฏิทิน · ไม่รวมพนักงานที่ลาออกและรหัส LT
+        </MudText>
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(10)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from = new(DateTime.Today.Year, 1, 1);
+    private DateTime? to = new(DateTime.Today.Year, 12, 31);
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกวันที่"
+            : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : null;
+
+    private string PdfUrl
+    {
+        get
+        {
+            if (Problem is not null) return "";
+            static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return $"reports/hr/vacation-pay?from={Iso(from)}&to={Iso(to)}";
+        }
+    }
+}
