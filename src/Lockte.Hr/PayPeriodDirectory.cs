@@ -156,5 +156,5 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
 
     private static readonly System.Linq.Expressions.Expression<Func<PayPeriod, PayPeriodDto>> ToDto = p =>
         new PayPeriodDto(p.Id, p.FromDate, p.ToDate, p.PayDate, p.CompletedStep, p.TimeCalculatedAt, p.TimeCalculatedBy, p.RowVersion,
-            p.PayCalculatedAt, p.PayCalculatedBy);
+            p.PayCalculatedAt, p.PayCalculatedBy, p.Migrated);
 }

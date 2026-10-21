@@ -24,6 +24,11 @@ internal sealed class PayPeriod : IAudited
     /// <summary>When and by whom ค่าแรง was last calculated.</summary>
     public DateTimeOffset? PayCalculatedAt { get; set; }
     public string? PayCalculatedBy { get; set; }
+    /// <summary>
+    /// ย้ายมาจากระบบเดิม (#51): a closed period the migration created with the legacy ค่าแรง as its results. Its time and
+    /// pay are never calculated again here and its dates never change (<see cref="PayPeriodRegistry"/>); its reports print.
+    /// </summary>
+    public bool Migrated { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

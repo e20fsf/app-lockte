@@ -10,7 +10,8 @@
 @* ปิดงวดค่าแรงตามปกติ (เมนู 6) as one page (#22 แบบ B): the steps in the menu's order — ตั้งงวด (SCR-40 dates, filled in by
    the 12–26 / 27–11 pattern, Q-04) → พิมพ์เวลาทำงาน (BR-007/001/002 → RPT-01) → พิมพ์ค่าแรง → พิมพ์สรุปค่าแรง → ส่งแบงค์
    → SLIP (RPT-04, #55). A step opens once the one before it is done; doing a calculation again reopens the steps after it (Q-22).
-   คำเตือนก่อนคำนวณ (วันที่ยังไม่บันทึกเวลา / มาสาย) are shown and asked about, never blocking. Steps after
+   คำเตือนก่อนคำนวณ (วันที่ยังไม่บันทึกเวลา / มาสาย) are shown and asked about, never blocking. A period migrated from the
+   legacy (#51) shows its reports only: no calculating and no new dates. Steps after
    พิมพ์เวลาทำงาน come with their own tickets (#53 on). *@
 <PageTitle>ปิดงวดค่าแรงตามปกติ — LOCKTE</PageTitle>
 <h1 class="mb-4">ปิดงวดค่าแรงตามปกติ</h1>
@@ -28,11 +29,15 @@
 @* 1 ตั้งงวด *@
 <MudPaper Outlined="true" Class="pa-4 mb-3">
     @StepTitle(PayPeriodStep.Set)
+    @if (period is { Migrated: true } && form.Id is not null)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@PayPeriodRegistry.MigratedMessage</MudAlert>
+    }
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
-        <MudDatePicker Editable="true" @bind-Date="form.From" Label="จากวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
-        <MudDatePicker Editable="true" @bind-Date="form.To" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
-        <MudDatePicker Editable="true" @bind-Date="form.PayDate" Label="วันที่จ่าย" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">@(form.Id is null ? "บันทึกงวดใหม่" : "บันทึกวันที่")</MudButton>
+        <MudDatePicker Editable="true" @bind-Date="form.From" Label="จากวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" ReadOnly="Locked" />
+        <MudDatePicker Editable="true" @bind-Date="form.To" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" ReadOnly="Locked" />
+        <MudDatePicker Editable="true" @bind-Date="form.PayDate" Label="วันที่จ่าย" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" ReadOnly="Locked" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || Locked">@(form.Id is null ? "บันทึกงวดใหม่" : "บันทึกวันที่")</MudButton>
         @if (form.Id is null && periods.Count > 0)
         {
             <MudButton OnClick="@(() => SelectAsync(periods[0].Id))">ยกเลิก</MudButton>
@@ -42,7 +47,7 @@
     {
         <MudText Typo="Typo.caption">ระบบเติมวันที่ตามรอบ 12–26 (จ่ายวันที่ 1) / 27–11 (จ่ายวันที่ 16) — แก้ได้ก่อนบันทึก</MudText>
     }
-    else if (period is { CompletedStep: > PayPeriodStep.Set })
+    else if (period is { CompletedStep: > PayPeriodStep.Set, Migrated: false })
     {
         <MudText Typo="Typo.caption">ถ้าเปลี่ยนจากวันที่หรือถึงวันที่ ต้องคำนวณเวลาทำงานใหม่</MudText>
     }
@@ -70,7 +75,7 @@
             </MudAlert>
         }
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CalculateTimeAsync" Disabled="busy"
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CalculateTimeAsync" Disabled="busy || Locked"
                        StartIcon="@Icons.Material.Filled.Calculate">คำนวณเวลาทำงาน</MudButton>
             <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/time")" Target="_blank" Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="period.CompletedStep < PayPeriodStep.TimeCalculated">
@@ -153,6 +158,9 @@
     private IReadOnlyList<Lockte.Org.DepartmentDto> departments = [];
     private int departmentId;
     private bool busy;
+
+    /// <summary>A migrated period: its dates and calculations stay as the legacy left them.</summary>
+    private bool Locked => form.Id is not null && period is { Migrated: true };
 
     private string PayReportHref => $"reports/hr/pay-periods/{period?.Id}/pay" + (departmentId == 0 ? "" : $"?department={departmentId}");
 

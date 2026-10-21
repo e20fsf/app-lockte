@@ -83,14 +83,14 @@ public sealed record PayPeriodDates(DateOnly From, DateOnly To, DateOnly PayDate
 /// <summary>A งวดค่าแรง and how far its close got.</summary>
 public sealed record PayPeriodDto(int Id, DateOnly From, DateOnly To, DateOnly PayDate, PayPeriodStep CompletedStep,
     DateTimeOffset? TimeCalculatedAt, string? TimeCalculatedBy, byte[] RowVersion, DateTimeOffset? PayCalculatedAt = null,
-    string? PayCalculatedBy = null)
+    string? PayCalculatedBy = null, bool Migrated = false)
 {
     public int Days => Dates.Days;
 
     public PayPeriodDates Dates => new(From, To, PayDate);
 
-    /// <summary>The step may be done (again): every step before it is done.</summary>
-    public bool CanDo(PayPeriodStep step) => PayPeriodSteps.Allowed(CompletedStep, step);
+    /// <summary>The step may be done (again): every step before it is done, and a migrated period is never calculated.</summary>
+    public bool CanDo(PayPeriodStep step) => PayPeriodSteps.Allowed(CompletedStep, step) && !(Migrated && PayPeriodSteps.Calculates(step));
 }
 
 /// <summary>ตั้งงวด (SCR-40) to save. <see cref="Id"/> null = new; editing needs <see cref="RowVersion"/> as loaded.</summary>
