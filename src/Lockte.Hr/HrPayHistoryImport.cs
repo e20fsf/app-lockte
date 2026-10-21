@@ -17,7 +17,7 @@ public sealed record PayPeriodTotal(DateOnly From, int Rows, decimal PayNormal, 
 /// <summary>
 /// ย้ายข้อมูลผลค่าแรง (#51) into งวดค่าแรง and ค่าแรงของงวด. For the data-migration tool only, never registered in the web
 /// app. A period that is already there (the open one, from ตั้งวันที่ตัดWEEK) keeps its step and gets the results; any
-/// other is a closed period, created at the last step of เมนู 6. แผนก and ประเภท are the employee's today (the legacy
+/// other is a closed period, created at the last step of เมนู 6 and marked ย้ายมาจากระบบเดิม (never calculated again). แผนก and ประเภท are the employee's today (the legacy
 /// history keeps neither; its reports joined EMPLO when printing). No row-by-row history (#41).
 /// </summary>
 public sealed class HrPayHistoryImport(HrDbContext db, AuditScope audit)
@@ -32,7 +32,7 @@ public sealed class HrPayHistoryImport(HrDbContext db, AuditScope audit)
                 var period = await db.PayPeriods.FirstOrDefaultAsync(p => p.FromDate == import.From)
                     ?? db.PayPeriods.Add(new PayPeriod
                     {
-                        FromDate = import.From, ToDate = import.To, PayDate = import.PayDate, CompletedStep = PayPeriodStep.SlipPrinted,
+                        FromDate = import.From, ToDate = import.To, PayDate = import.PayDate, CompletedStep = PayPeriodStep.SlipPrinted, Migrated = true,
                     }).Entity;
                 db.PayResults.AddRange(import.Results.Select(r => new PayResult
                 {

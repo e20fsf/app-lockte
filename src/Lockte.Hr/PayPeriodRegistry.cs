@@ -19,6 +19,9 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
     public const string CalculateTimeAction = "คำนวณเวลาทำงาน";
     public const string CalculatePayAction = "คำนวณค่าแรง";
     public const string BusyMessage = "มีผู้ใช้อื่นกำลังคำนวณหรือแก้งวดค่าแรงนี้อยู่ กรุณารอสักครู่แล้วลองใหม่";
+    public const string MigratedMessage =
+        "งวดนี้ย้ายมาจากระบบเดิมและปิดแล้ว คำนวณเวลาทำงาน คำนวณค่าแรง หรือแก้วันที่ไม่ได้ เพราะข้อมูลเวลาทำงาน การลา และอัตราค่าแรงของงวดเก่าย้ายมาไม่ครบ " +
+        "ถ้าคำนวณใหม่ ค่าแรงเดิมจะถูกลบและได้ยอดผิด — พิมพ์รายงานของงวดนี้ได้ตามปกติ";
 
     /// <summary>The SQL Server application lock of one period (<c>sp_getapplock</c>); public for tests.</summary>
     public static string CalculationLockName(int periodId) => $"hr.PayPeriod.{periodId}";
@@ -26,7 +29,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
     /// <summary>
     /// ตั้งงวด: a new period, or new dates for one. A period that changes its dates goes back to
     /// <see cref="PayPeriodStep.Set"/> and loses its time totals (they were for the old dates); a new วันที่จ่าย alone
-    /// keeps them.
+    /// keeps them. A migrated period (#51) keeps its dates.
     /// </summary>
     public async Task<ServiceResult> SaveAsync(PayPeriodInput input)
     {
@@ -49,6 +52,8 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
         if (period is null) return ServiceResult.Fail("ไม่พบงวดค่าแรงนี้ อาจถูกลบไปแล้ว");
         period.ExpectRowVersion(input.RowVersion
             ?? throw new ArgumentException("Editing needs the rowversion the screen loaded.", nameof(input)));
+        if (period.Migrated && (period.FromDate != from || period.ToDate != to || period.PayDate != payDate))
+            return ServiceResult.Fail(MigratedMessage);
         if (period.FromDate != from || period.ToDate != to)
         {
             await db.PayPeriodTimeTotals.Where(t => t.PayPeriodId == id).ExecuteDeleteAsync();
@@ -192,10 +197,14 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
         return ServiceResult.Ok(periodId);
     }
 
-    /// <summary>#22 ล็อกไม่ให้ข้ามขั้น: the step before <paramref name="step"/> must be done.</summary>
+    /// <summary>
+    /// #22 ล็อกไม่ให้ข้ามขั้น: the step before <paramref name="step"/> must be done. A migrated period (#51) is never
+    /// calculated: the legacy time, leave and rates behind its ค่าแรง did not all move, so a new calculation would replace
+    /// the right amounts with wrong ones. Its printing steps stay open.
+    /// </summary>
     internal static ServiceResult? CheckStep(PayPeriod period, PayPeriodStep step)
-        => PayPeriodSteps.Allowed(period.CompletedStep, step)
-            ? null
+        => period.Migrated && PayPeriodSteps.Calculates(step) ? ServiceResult.Fail(MigratedMessage)
+            : PayPeriodSteps.Allowed(period.CompletedStep, step) ? null
             : ServiceResult.Fail($"ต้องทำขั้น \"{PayPeriodSteps.Names[step - 1]}\" ก่อน");
 
     /// <summary>

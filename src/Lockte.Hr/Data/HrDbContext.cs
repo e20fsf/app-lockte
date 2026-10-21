@@ -151,6 +151,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             p.Property(x => x.TimeCalculatedBy).HasMaxLength(ModelBuilderExtensions.UserNameLength).HasAuditName("คำนวณเวลาโดย");
             p.Property(x => x.PayCalculatedAt).HasAuditName("คำนวณค่าแรงเมื่อ");
             p.Property(x => x.PayCalculatedBy).HasMaxLength(ModelBuilderExtensions.UserNameLength).HasAuditName("คำนวณค่าแรงโดย");
+            p.Property(x => x.Migrated).HasAuditName("ย้ายมาจากระบบเดิม");
             p.HasIndex(x => x.FromDate).IsUnique();
         });
 
