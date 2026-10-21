@@ -1,0 +1,66 @@
+@page "/hr/yearly-evaluation"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Org
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* SCR-54 ประเมินผลประจำปี (ฟอร์ม ประเมินผลประจำปี, เมนู 11, BR-067): ตั้งแต่ / ถึงวันที่ and แผนก (ว่าง = ทั้งหมด); "พนักงาน"
+   prints ใบประเมินพนักงาน (ตำแหน่ง พนักงาน…), "หัวหน้าหรือรองฯ" ใบประเมินหัวหน้า (every other ตำแหน่ง) — RPT-43, one A5 page per
+   employee, in a new tab. As the legacy, ใบเตือน are counted only when one แผนก is chosen (Q-31). *@
+<PageTitle>ประเมินผลประจำปี — LOCKTE</PageTitle>
+<h1 class="mb-4">ประเมินผลประจำปี</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
+    <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                       Style="max-width:12rem" />
+        <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                       Style="max-width:12rem" />
+        <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทั้งหมด)" Clearable="true" Style="max-width:20rem">
+            @foreach (var d in departments)
+            {
+                <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">
+        หักคะแนน: ลากิจ −1/วัน · ลาป่วยมีหรือไม่มีใบแพทย์ −1/วัน · มาสาย −0.05/ครั้ง · ขาดงาน −3/วัน · ใบเตือนวาจา −5 · ใบเตือนหนังสือ −10
+        (ใบเตือนนับเฉพาะเมื่อเลือกแผนก)
+    </MudText>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl("staff")" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พนักงาน</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl("supervisor")" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">หัวหน้าหรือรองฯ</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(11)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from = new(DateTime.Today.Year, 1, 1);
+    private DateTime? to = DateTime.Today;
+    private int? departmentId;
+    private IReadOnlyList<DepartmentDto> departments = [];
+
+    protected override async Task OnInitializedAsync()
+        => departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกวันที่"
+            : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : null;
+
+    private string PdfUrl(string kind)
+    {
+        if (Problem is not null) return "";
+        static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var url = $"reports/hr/yearly-evaluation?kind={kind}&from={Iso(from)}&to={Iso(to)}";
+        return departmentId is { } d ? url + $"&department={d}" : url;
+    }
+}

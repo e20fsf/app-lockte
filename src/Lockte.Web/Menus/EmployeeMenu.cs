@@ -111,7 +111,7 @@ public static class EmployeeMenu
         [
             new("คำนวณโบนัส", Code: "SCR-50"),
             new("คำนวณพักร้อน", Code: "SCR-51", Page: "hr/vacation-pay"),
-            new("ปรับค่าแรง", Code: "SCR-52"),
+            new("ปรับค่าแรง", Code: "SCR-52", Page: "hr/pay-adjustment"),
             new("พิมพ์ค่าแรงรวมโบนัสส่งแบงค์ (ทหารไทย)", Code: "RPT-40"),
             new("พิมพ์เงิน OT รวมโบนัสส่งแบงค์ (กสิกร)", Code: "RPT-41"),
             new("พิมพ์ SLIP รวมโบนัส", Code: "RPT-42"),
@@ -139,8 +139,8 @@ public static class EmployeeMenu
         ]),
         new(11, "ประเมินผล", 1,
         [
-            new("บันทึกการประเมินผล", Code: "SCR-53"),
-            new("ประเมินผลประจำปี", Code: "SCR-54"),
+            new("บันทึกการประเมินผล", Code: "SCR-53", Page: "hr/evaluations"),
+            new("ประเมินผลประจำปี", Code: "SCR-54", Page: "hr/yearly-evaluation"),
         ]),
         new(18, "พิมพ์ใบลาและใบลาออก", 1,
         [

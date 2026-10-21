@@ -1,0 +1,46 @@
+@using Lockte.Hr
+@* RPT-43 รายงานการประเมินผลพนักงาน (รายงาน การประเมินผลพนักงาน, SCR-53 "พิมพ์รายงาน"), ระดับ B on A4 นอน: ที่ รหัส ชื่อ-นามสกุล
+   แผนก ตำแหน่ง เริ่มงาน ประเภท วุฒิ กะ · การประเมินครั้งที่ 1 / 2 (วันที่ คะแนน เกรด) · วันที่บรรจุ หมายเหตุ, then the legacy's
+   Prepared by / Reviewed by / Approved by. ประเภท is printed as its CLAS number, as before. Rows from EvaluationDirectory (BR-055). *@
+@if (Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th colspan="9"></th><th colspan="3">การประเมินครั้งที่1</th><th colspan="3">การประเมินครั้งที่2</th><th colspan="2"></th>
+            </tr>
+            <tr>
+                <th class="num">ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ตำแหน่ง</th><th>เริ่มงาน</th><th>ประเภท</th>
+                <th>วุฒิ</th><th>กะ</th><th>วันที่</th><th class="num">คะแนน</th><th>เกรด</th><th>วันที่</th><th class="num">คะแนน</th><th>เกรด</th>
+                <th>วันที่บรรจุ</th><th>หมายเหตุ</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Lines.Count; i++)
+            {
+                var e = Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@e.Code</td><td>@e.Name</td><td>@e.DepartmentName</td><td>@e.Position</td>
+                    <td>@D(e.StartDate)</td><td>@e.EmployeeType</td><td>@e.Education</td><td>@e.ShiftCode</td>
+                    <td>@D(e.Evaluation1Date)</td><td class="num">@e.Evaluation1Score</td><td>@e.Evaluation1Grade</td>
+                    <td>@D(e.Evaluation2Date)</td><td class="num">@e.Evaluation2Score</td><td>@e.Evaluation2Grade</td>
+                    <td>@D(e.ProbationPassedDate)</td><td>@e.Memo</td>
+                </tr>
+            }
+            <tr><td colspan="17" class="end"></td></tr>
+        </tbody>
+    </table>
+    <SignatureBoxes Labels="@(new[] { "Prepared by", "Reviewed by", "Approved by" })" />
+}
+
+@code {
+    public const string Title = "รายงานการประเมินผลพนักงาน";
+
+    [Parameter, EditorRequired] public IReadOnlyList<EvaluationListLine> Lines { get; set; } = [];
+
+    private static string D(DateOnly? date) => date is { } d ? ReportText.Date(d) : "";
+}
