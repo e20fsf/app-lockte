@@ -56,6 +56,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapReports();
+app.MapReportHealth();
 Lockte.Web.Reports.Hr.HrDocumentEndpoints.MapHrDocuments(app);
 
 app.MapPost("/Account/Logout", async (SignInManager<AppUser> signIn) =>
