@@ -18,7 +18,7 @@ public sealed class HrFormTests(ChromiumFixture chromium)
     private static readonly DateOnly Today = new(2026, 10, 15);
 
     private static readonly CertificateData Person = new("นางสาวหนูกานต์  สุขเทวี", "28  เดือน  กันยายน  พ.ศ.  2525", 44, "พนักงาน", "ตกแต่ง",
-        "22  เดือน  กรกฎาคม  พ.ศ.  2562", "7  ปี  3  เดือน", 9672, "นายนิวาส  โรจนเมธินทร์", "15  เดือน  ตุลาคม  พ.ศ.  2569");
+        "22  เดือน  กรกฎาคม  พ.ศ.  2562", "7  ปี  3  เดือน", 9672, "นายสมบัติ  ตัวอย่างดี", "15  เดือน  ตุลาคม  พ.ศ.  2569");
 
     private static readonly SeveranceData Severance = new(Person, 575, 400, 230000m, "ป่วยบ่อย", SeveranceScale.Legacy);
 
@@ -26,7 +26,7 @@ public sealed class HrFormTests(ChromiumFixture chromium)
         "มีสิทธิลาพักร้อน 6 วัน", "ลากิจได้ค่าแรง 6 วัน", 2026, 22.25, new Dictionary<string, double> { ["1"] = 4.5, ["6"] = 5.75 }, 1, 0);
 
     private static readonly ResignationLetterData Letter = new("A005", "นางสาวทองใส  โชยรัมย์", "ประกอบ", "D", new DateOnly(1992, 10, 26),
-        new DateOnly(2026, 10, 2), "กลับบ้าน", "นางสาวอัมพร   เจริญสุข", "นายสมชาย ใจดี", "นายนิวาส  โรจนเมธินทร์");
+        new DateOnly(2026, 10, 2), "กลับบ้าน", "นางสาวอัมพร   เจริญสุข", "นายสมชาย ใจดี", "นายสมบัติ  ตัวอย่างดี");
 
     private static Task<string> Html<T>(Dictionary<string, object?> parameters) where T : IComponent => ReportBody.RenderAsync<T>(parameters);
 
@@ -43,7 +43,7 @@ public sealed class HrFormTests(ChromiumFixture chromium)
         Assert.Contains("9,672.00", salary);
         Assert.Contains("(เก้าพันหกร้อยเจ็ดสิบสองบาทถ้วน)", salary);
         Assert.Contains("7  ปี  3  เดือน", salary);
-        Assert.Contains("(นายนิวาส  โรจนเมธินทร์)", salary);
+        Assert.Contains("(นายสมบัติ  ตัวอย่างดี)", salary);
         Assert.Contains("หนังสือรับรองการทำงาน", work);
         Assert.Contains("ตลอดเวลาที่ทำงานกับบริษัทฯ", work);
         Assert.DoesNotContain("บาทถ้วน", work);
