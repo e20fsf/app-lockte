@@ -20,7 +20,7 @@ public sealed class OnboardingFormTests
         Id = 7, Code = "A340", Name = "นายชัยณรงค์ ครองสัตย์", BirthDate = new(1983, 1, 1), NationalId = "1600400006742", IdCardPlace = "หนองบัว",
         IdCardIssued = new(2008, 3, 3), RegisteredAddress = "10 หมู่ที่ 1", StartDate = new(2010, 1, 16), EmployeeType = EmployeeTypes.Monthly,
         Salary = 12340, DailyWage = 411.33, Position = "รองหัวหน้า", DepartmentName = "ประกอบ", SectionName = "ผลิต", ShiftCode = "D",
-        SupervisorName = "นางสาวอัมพร เจริญสุข", ManagerName = "นายนิวาส โรจนเมธินทร์", FactoryManagerName = "นายโรงงาน ใหญ่",
+        SupervisorName = "นางสาวอัมพร เจริญสุข", ManagerName = "นายสมบัติ ตัวอย่างดี", FactoryManagerName = "นายโรงงาน ใหญ่",
     };
 
     private static readonly OnboardingEmployee Daily = Monthly with { EmployeeType = EmployeeTypes.Daily, Salary = 0, DailyWage = 372, StartDate = new(2026, 8, 13) };
