@@ -6,7 +6,7 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Surface" Class="app-bar">
+    <MudAppBar Elevation="0" Color="Color.Surface" Class="app-bar">
         <a href="@HomeHref" class="brand">
             <img src="brand/logo.svg" alt="" class="brand-logo" />
             <span class="brand-text">LOCKTE · โปรแกรมพนักงานและค่าแรง</span>
@@ -50,12 +50,5 @@
     protected override async Task OnParametersSetAsync()
         => HomeHref = AccountClaims.HomeHref((await AuthState).User);
 
-    private static readonly MudTheme Theme = new()
-    {
-        PaletteLight = new PaletteLight { Primary = "#C62828", AppbarBackground = "#FFFFFF" },
-        Typography = new Typography
-        {
-            Default = new DefaultTypography { FontFamily = ["Leelawadee UI", "Tahoma", "sans-serif"] },
-        },
-    };
+    private static MudTheme Theme => LockteTheme.Theme;
 }

@@ -1,32 +1,112 @@
-html, body { font-family: "Leelawadee UI", Tahoma, sans-serif; margin: 0; background: #fafafa; }
+/* ฟอนต์ Sarabun (SIL OFL, wwwroot/fonts/OFL.txt) ฝังในแอป — server โรงงานไม่ต่ออินเทอร์เน็ต; เฉพาะน้ำหนักที่ใช้ */
+@font-face { font-family: "Sarabun"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Sarabun-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Sarabun"; font-weight: 500; font-style: normal; font-display: swap; src: url("fonts/Sarabun-Medium.ttf") format("truetype"); }
+@font-face { font-family: "Sarabun"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Sarabun-Bold.ttf") format("truetype"); }
+
+:root {
+    --lk-red: #C62828;
+    --lk-red-dark: #9F1D1D;
+    --lk-red-tint: #FDF2F2;
+    --lk-ink: #1F2933;
+    --lk-muted: #52606D;
+    --lk-line: #E4E7EB;
+    --lk-input-line: #7B8794;
+    --lk-bg: #F6F7F9;
+    --lk-head: #F1F3F6;
+    --lk-radius: 12px;
+    --lk-shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+    --lk-shadow-lg: 0 4px 12px rgba(16,24,40,.10), 0 2px 4px rgba(16,24,40,.06);
+}
+
+html, body { font-family: "Sarabun", "Leelawadee UI", Tahoma, sans-serif; margin: 0; background: var(--lk-bg); color: var(--lk-ink); -webkit-font-smoothing: antialiased; }
 h1:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--lk-red); outline-offset: 2px; }
 
-/* แถบหัว */
-.app-bar .brand { display: flex; align-items: center; gap: .6rem; color: inherit; text-decoration: none; }
-.app-bar .brand-logo { height: 36px; }
-.app-bar .brand-text { font-size: 1.1rem; font-weight: 600; }
-.app-bar .user-name { margin-right: .25rem; }
+/* หัวเรื่องหน้า (h1 ที่แต่ละหน้าเขียนเอง) */
+.mud-main-content h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.35; margin: 0 0 1rem; color: var(--lk-ink); }
+.mud-main-content h1.mb-4 { margin-bottom: 1rem; }
+.mud-main-content h2 { font-size: 1.4rem; font-weight: 700; line-height: 1.4; }
+.mud-main-content h3 { font-size: 1.2rem; font-weight: 700; line-height: 1.4; }
 
-/* เมนูเดิม: ปุ่มเรียงลงทีละรายการเหมือน Switchboard */
-.menu-page { max-width: 560px; margin: 0 auto; text-align: center; }
-.menu-logo { height: 110px; margin-bottom: .5rem; }
-.menu-title { font-size: 1.6rem; margin: 0 0 1.25rem; }
-.menu-item { justify-content: flex-start; text-transform: none; font-size: 1rem; }
+/* แถบหัว: ขาว มีเส้นแดงบาง ๆ ใต้แถบ */
+.app-bar.mud-appbar { border-bottom: 1px solid var(--lk-line); box-shadow: inset 0 -3px 0 var(--lk-red); }
+.app-bar .brand { display: flex; align-items: center; gap: .75rem; color: inherit; text-decoration: none; }
+.app-bar .brand-logo { height: 38px; }
+.app-bar .brand-text { font-size: 1.15rem; font-weight: 700; letter-spacing: .01em; }
+.app-bar .user-name { margin-right: .25rem; font-weight: 500; }
+.app-bar .mud-button-root { color: var(--lk-ink); }
+.app-bar .mud-button-root:hover { background: var(--lk-red-tint); color: var(--lk-red-dark); }
+
+/* กล่อง (MudPaper) ขอบเส้นบาง พื้นขาว ไม่มีเงา */
+.mud-paper { border-radius: var(--lk-radius); }
+.mud-paper-outlined { border: 1px solid var(--lk-line); background: #fff; box-shadow: var(--lk-shadow); }
+
+/* ตาราง */
+.mud-table { border-radius: var(--lk-radius); box-shadow: var(--lk-shadow); border: 1px solid var(--lk-line); }
+.mud-table-container { border-radius: var(--lk-radius); }
+.mud-table-root .mud-table-head .mud-table-cell,
+.mud-simple-table table thead th { background: var(--lk-head); color: var(--lk-ink); font-weight: 700; border-bottom: 1px solid #D5DAE0; white-space: nowrap; }
+.mud-table-root .mud-table-body .mud-table-cell,
+.mud-simple-table table tbody td { border-bottom: 1px solid var(--lk-line); }
+.mud-table-hover .mud-table-body .mud-table-row:hover,
+.mud-simple-table.mud-table-hover table tbody tr:hover { background: var(--lk-red-tint); }
+.mud-table-root .mud-table-body .mud-table-row:last-child .mud-table-cell { border-bottom: 0; }
+.mud-table-pagination { border-top: 1px solid var(--lk-line); }
+
+/* ปุ่ม */
+.mud-button-root { border-radius: 8px; font-weight: 500; text-transform: none; }
+.mud-button-filled-primary { box-shadow: 0 1px 2px rgba(31,41,51,.2); }
+.mud-button-filled-primary:hover { background-color: var(--lk-red-dark); }
+.mud-button-outlined-primary { border-color: #D9A0A0; }
+.mud-button-outlined-primary:hover { border-color: var(--lk-red); background: var(--lk-red-tint); }
+.mud-button-outlined.mud-button-outlined-default { border-color: var(--lk-input-line); color: var(--lk-ink); }
+
+/* ช่องกรอก */
+.mud-input-label { font-weight: 500; }
+.mud-input-outlined .mud-input-outlined-border { border-color: var(--lk-input-line); }
+.mud-input-control:not(.mud-disabled) .mud-input.mud-input-outlined:hover .mud-input-outlined-border { border-color: var(--lk-ink); }
+.mud-input-control .mud-input.mud-input-outlined.mud-focused .mud-input-outlined-border { border-color: var(--lk-red); border-width: 2px; }
+.mud-input-control .mud-input-helper-text { color: var(--lk-muted); }
+
+/* แถบสถานะ (alert) และ chip */
+.mud-alert { border-radius: 6px; font-weight: 400; }
+.mud-alert-text-info { background: #E8F1FA; color: #0B3A63; }
+.mud-alert-text-success { background: #E8F4E9; color: #1B4D1E; }
+.mud-alert-text-warning { background: #FFF4E0; color: #5C3600; }
+.mud-alert-text-error { background: #FCE9E9; color: #7A1212; }
+.mud-chip { font-weight: 500; }
+
+/* ลิงก์ */
+.mud-link { color: var(--lk-red-dark); }
+
+/* เมนูหลัก/เมนูย่อย: การ์ดเรียงตามลำดับเดิม (ซ้ายไปขวา บนลงล่าง) ปุ่ม "กลับ" กินทั้งแถว */
+.menu-page { max-width: 780px; margin: 0 auto; text-align: center; }
+.menu-logo { height: 96px; margin-bottom: .75rem; }
+.menu-page .menu-title { font-size: 1.75rem; margin: 0 0 1.5rem; }
+.menu-items { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .85rem !important; }
+.menu-items > * { margin: 0 !important; }
+.menu-items > .mud-button-text { grid-column: 1 / -1; justify-self: center; width: auto; }
+.menu-item.mud-button-root { justify-content: flex-start; text-align: left; font-size: 1.1rem; font-weight: 500; padding: 1rem 1.25rem; min-height: 64px; color: var(--lk-ink); background: #fff; border: 1px solid var(--lk-line); border-radius: var(--lk-radius); box-shadow: var(--lk-shadow); transition: box-shadow .15s, border-color .15s, transform .15s; }
+.menu-item.mud-button-root .mud-button-label { width: 100%; justify-content: space-between; }
+.menu-item.mud-button-root .mud-button-icon-end { margin-left: auto; color: var(--lk-red); }
+.menu-item.mud-button-root:hover { background: #fff; border-color: #E3A9A9; box-shadow: var(--lk-shadow-lg); transform: translateY(-1px); }
 
 /* หน้า login / เปลี่ยนรหัส (static HTML) */
-.account-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
-.account-card { width: 100%; max-width: 360px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 2rem; text-align: center; }
+.account-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; background: linear-gradient(180deg, #fff 0, var(--lk-bg) 55%); border-top: 4px solid var(--lk-red); }
+.account-card { width: 100%; max-width: 400px; background: #fff; border: 1px solid var(--lk-line); border-radius: 16px; padding: 2.5rem 2rem; text-align: center; box-shadow: 0 8px 24px rgba(31,41,51,.08); }
 .account-card form { display: flex; flex-direction: column; text-align: left; }
-.account-card h1 { font-size: 1.4rem; margin: .5rem 0 1rem; }
-.account-card label { margin-top: .75rem; font-size: .95rem; }
-.account-card input { padding: .5rem; font-size: 1rem; border: 1px solid #bbb; border-radius: 4px; font-family: inherit; }
-.account-card button[type=submit]:not(.link-button) { margin-top: 1.25rem; padding: .6rem; font-size: 1rem; font-family: inherit; color: #fff; background: #C62828; border: 0; border-radius: 4px; cursor: pointer; }
-.account-logo { height: 90px; }
-.account-company { margin: .25rem 0 0; color: #555; }
-.account-error { color: #C62828; margin: .25rem 0; }
-.account-notice { color: #555; background: #fff8e1; padding: .5rem; border-radius: 4px; }
-.account-hint { margin-top: 1rem; font-size: .9rem; color: #666; text-align: center; }
-.link-button { background: none; border: 0; color: #C62828; cursor: pointer; font: inherit; text-decoration: underline; }
+.account-card h1 { font-size: 1.5rem; font-weight: 700; margin: .75rem 0 1rem; }
+.account-card label { margin-top: .85rem; margin-bottom: .25rem; font-size: 1rem; font-weight: 500; }
+.account-card input { padding: .6rem .7rem; font-size: 1.05rem; border: 1px solid var(--lk-input-line); border-radius: 6px; font-family: inherit; color: var(--lk-ink); background: #fff; }
+.account-card input:focus { outline: 2px solid var(--lk-red); outline-offset: 0; border-color: var(--lk-red); }
+.account-card button[type=submit]:not(.link-button) { margin-top: 1.5rem; padding: .7rem; font-size: 1.05rem; font-weight: 500; font-family: inherit; color: #fff; background: var(--lk-red); border: 0; border-radius: 6px; cursor: pointer; }
+.account-card button[type=submit]:not(.link-button):hover { background: var(--lk-red-dark); }
+.account-logo { height: 84px; }
+.account-company { margin: .5rem 0 0; color: var(--lk-muted); font-weight: 500; }
+.account-error { color: #B71C1C; margin: .25rem 0; }
+.account-notice { color: #5C3600; background: #FFF4E0; padding: .6rem .75rem; border-radius: 6px; border: 1px solid #F2D49B; }
+.account-hint { margin-top: 1.25rem; font-size: .95rem; color: var(--lk-muted); text-align: center; }
+.link-button { background: none; border: 0; color: var(--lk-red-dark); cursor: pointer; font: inherit; text-decoration: underline; }
 
-#blazor-error-ui { background: lightyellow; bottom: 0; box-shadow: 0 -1px 2px rgba(0,0,0,.2); display: none; left: 0; padding: .6rem 1.25rem .7rem; position: fixed; width: 100%; z-index: 2000; }
+#blazor-error-ui { background: #FFF4E0; color: #5C3600; bottom: 0; box-shadow: 0 -1px 4px rgba(0,0,0,.2); display: none; left: 0; padding: .6rem 1.25rem .7rem; position: fixed; width: 100%; z-index: 2000; }
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: .75rem; top: .5rem; }
