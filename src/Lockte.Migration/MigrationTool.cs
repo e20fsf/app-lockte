@@ -56,7 +56,7 @@ public static class MigrationTool
             // The delete-everything and bulk-load services of the modules: registered for this tool only, never in the web app.
             .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
-            .AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
+            .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
     /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data
@@ -72,6 +72,7 @@ public static class MigrationTool
         var report = await scope.ServiceProvider.GetRequiredService<MasterDataMigration>().RunAsync(legacy, map);
         await scope.ServiceProvider.GetRequiredService<HistoryMigration>().RunAsync(legacy, report);
         await scope.ServiceProvider.GetRequiredService<WarningMigration>().RunAsync(legacy, report); // ใบเตือน (#59)
+        await scope.ServiceProvider.GetRequiredService<OrphanPayEmployeeMigration>().RunAsync(legacy, report); // พนักงานตัวแทนของรหัสกำพร้าที่มีผลค่าแรง
         await scope.ServiceProvider.GetRequiredService<PayHistoryMigration>().RunAsync(legacy, report); // ผลค่าแรง, after the open period
         report.WriteTo(outputFolder);
         return report;

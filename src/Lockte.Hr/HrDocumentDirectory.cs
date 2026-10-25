@@ -17,7 +17,7 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
     /// <summary>RPT-50 ใบลางาน (BR-065); null when there is no such employee.</summary>
     public async Task<LeaveFormData?> GetLeaveFormAsync(int employeeId)
     {
-        if (await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId) is not { } e) return null;
+        if (await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsMigrationStub) is not { } e) return null;
         var now = Now;
         var today = DateOnly.FromDateTime(now);
         var leaves = await db.Leaves.AsNoTracking().Where(l => l.EmployeeId == employeeId && l.FromDate.Year == today.Year)
@@ -56,12 +56,12 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
 
     /// <summary>RPT-53 หนังสือรับรองการทำงาน / เงินเดือน (BR-070).</summary>
     public async Task<CertificateData?> GetCertificateAsync(int employeeId)
-        => await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId) is { } e ? await CertificateAsync(e, Now) : null;
+        => await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsMigrationStub) is { } e ? await CertificateAsync(e, Now) : null;
 
     /// <summary>RPT-54 ฟอร์มเกษียณ / ฟอร์มปลดออก (BR-070) with the scale and reason typed on the screen.</summary>
     public async Task<SeveranceData?> GetSeveranceAsync(int employeeId, SeveranceScale scale, string? reason)
     {
-        if (await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId) is not { } e) return null;
+        if (await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsMigrationStub) is not { } e) return null;
         var now = Now;
         var days = scale.DaysFor(ServiceDays(e.StartDate, now) ?? 0);
         // Val(Format(วันชดเชย × SA_DAY, "#")) — RND-A to whole baht.
@@ -73,7 +73,7 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
     /// <summary>RPT-55 ใบลาออก with the date and reason as typed on SCR-33 (the legacy printed the form's values).</summary>
     public async Task<ResignationLetterData?> GetResignationLetterAsync(int employeeId, DateOnly? resignDate, string? reason)
     {
-        if (await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId) is not { } e) return null;
+        if (await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsMigrationStub) is not { } e) return null;
         var place = await PlaceAsync(e);
         return new ResignationLetterData(e.Code, e.Name, place.Department?.Name, place.ShiftCode, e.StartDate, resignDate,
             string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(),
@@ -83,7 +83,7 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
     /// <summary>RPT-55 รายงานพนักงานที่ลาออก: everyone with a วันลาออก, by วันลาออก then รหัส (no date filter, as before).</summary>
     public async Task<IReadOnlyList<ResignedEmployee>> ListResignedAsync()
     {
-        var rows = await db.Employees.AsNoTracking().Where(e => e.ResignDate != null)
+        var rows = await db.Employees.AsNoTracking().Where(e => e.ResignDate != null && !e.IsMigrationStub)
             .Select(e => new { e.Code, e.Name, e.StartDate, ResignDate = e.ResignDate!.Value, e.Memo }).ToListAsync();
         return rows.OrderBy(r => r.ResignDate).ThenBy(r => r.Code, StringComparer.Ordinal)
             .Select(r => new ResignedEmployee(r.Code, r.Name, r.StartDate, r.ResignDate,

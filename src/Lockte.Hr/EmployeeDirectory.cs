@@ -13,12 +13,12 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
     private DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 
     public async Task<EmployeeDto?> GetAsync(int id)
-        => await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id) is { } e ? (await ToDtosAsync([e])).Single() : null;
+        => await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id && !e.IsMigrationStub) is { } e ? (await ToDtosAsync([e])).Single() : null;
 
     public async Task<EmployeeDto?> FindByCodeAsync(string code)
     {
         var normalized = EmployeeFormRules.NormalizeCode(code);
-        return await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Code == normalized) is { } e
+        return await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Code == normalized && !e.IsMigrationStub) is { } e
             ? (await ToDtosAsync([e])).Single()
             : null;
     }
@@ -26,7 +26,7 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
     /// <summary>ค้นหาพนักงาน (SCR-03): by code or part of the name; those still working first, then by code.</summary>
     public async Task<IReadOnlyList<EmployeeListItem>> SearchAsync(string? text = null)
     {
-        var query = db.Employees.AsNoTracking();
+        var query = db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub);
         if (!string.IsNullOrWhiteSpace(text))
         {
             var term = text.Trim();

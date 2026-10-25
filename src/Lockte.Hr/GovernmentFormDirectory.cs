@@ -38,7 +38,7 @@ public sealed class GovernmentFormDirectory(HrDbContext db, EmployeeDirectory em
     /// </summary>
     public async Task<IReadOnlyList<InsuredPersonLine>> ListInsuredPersonsAsync()
     {
-        var rows = await db.Employees.AsNoTracking()
+        var rows = await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub)
             .Select(e => new { e.NationalId, e.Name, e.Nationality, e.BirthDate, e.StartDate, e.Position, e.Salary, e.DailyWage, e.ResignDate })
             .ToListAsync();
         return rows.Distinct()

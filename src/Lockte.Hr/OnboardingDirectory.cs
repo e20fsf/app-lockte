@@ -93,7 +93,7 @@ public sealed class OnboardingDirectory(HrDbContext db, EmployeeDirectory employ
     /// <summary>ทะเบียนประวัติพนักงาน (BR-073): every employee, those who resigned too, by รหัส.</summary>
     public async Task<IReadOnlyList<EmployeeRegisterLine>> GetRegisterAsync()
     {
-        var rows = await db.Employees.AsNoTracking().OrderBy(e => e.Code).ThenBy(e => e.Id).ToListAsync();
+        var rows = await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub).OrderBy(e => e.Code).ThenBy(e => e.Id).ToListAsync();
         var departments = (await org.GetDepartmentsAsync()).ToDictionary(d => d.Id, d => d.Name);
         return rows.Select(e => new EmployeeRegisterLine(e.Code, e.Name, e.BirthDate,
             e.Sex switch { "F" => "หญิง", "M" => "ชาย", _ => null }, e.Nationality, e.RegisteredAddress, e.CurrentAddress,

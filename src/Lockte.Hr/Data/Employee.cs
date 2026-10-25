@@ -62,6 +62,12 @@ internal sealed class Employee : IAudited
     public DateOnly? ResignDate { get; set; }
     /// <summary>หมายเหตุ (MEM).</summary>
     public string? Memo { get; set; }
+    /// <summary>
+    /// พนักงานตัวแทนที่เครื่องมือย้ายข้อมูลสร้างให้รหัสกำพร้าที่มีผลค่าแรง (#51, DQ-6): the legacy had no EMPLO row for it, so it is
+    /// kept out of every list, search, form and government register and cannot be opened or changed on a screen; only the
+    /// pay results point to it.
+    /// </summary>
+    public bool IsMigrationStub { get; set; }
 
     /// <summary>วันประเมินครั้งที่ 1 (DATE_1, BR-055).</summary>
     public DateOnly? Evaluation1Date { get; set; }

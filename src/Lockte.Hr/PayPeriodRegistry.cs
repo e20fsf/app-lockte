@@ -87,7 +87,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
         {
             var repeats = await RemoveRepeatsAsync(from, to);
             var totals = PeriodTime.Total(new PayPeriodDates(from, to, period.PayDate),
-                await db.Employees.AsNoTracking()
+                await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub)
                     .Select(e => new PeriodTime.Person(e.Id, e.Code, e.Name, e.StartDate, e.ResignDate, e.EmployeeType)).ToListAsync(),
                 await db.WorkTimes.AsNoTracking().Where(w => w.Date >= from && w.Date <= to)
                     .Select(w => new PeriodTime.Work(w.EmployeeId, w.Type, w.WorkIn, w.WorkOut, w.RestMinutes)).ToListAsync(),
