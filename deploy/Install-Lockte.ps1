@@ -16,7 +16,9 @@ param(
     [switch]$SkipWindowsFeatures
 )
 $ErrorActionPreference = 'Stop'
-$identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+# IIS: drive (WebAdministration) and Get-WindowsFeature work reliably only in Windows PowerShell 5.1.
+if ($PSVersionTable.PSEdition -eq 'Core') { throw 'Run this in "Windows PowerShell" (5.1, powershell.exe), not PowerShell 7 (pwsh.exe).' }
+$identity =[Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run PowerShell as Administrator.' }
 $askedForDatabase = $PSBoundParameters.ContainsKey('SqlServer') -or $PSBoundParameters.ContainsKey('Database') -or $PSBoundParameters.ContainsKey('SqlUser')
 
@@ -36,6 +38,14 @@ function Step($text) { Write-Host "`n== $text" -ForegroundColor Cyan }
 
 try {
     Step '1. Windows features: IIS + WebSocket (Blazor Server needs it) + Application Initialization (start with IIS)'
+    # Get-WindowsFeature lives in module ServerManager (Windows PowerShell 5.1 on Windows Server); in PowerShell 7 it
+    # may not load, then only check that IIS is there.
+    Import-Module ServerManager -ErrorAction SilentlyContinue
+    if (-not $SkipWindowsFeatures -and -not (Get-Command Get-WindowsFeature -ErrorAction SilentlyContinue)) {
+        Write-Host 'Get-WindowsFeature is not available in this PowerShell (use Windows PowerShell 5.1 to install features); checking IIS only' -ForegroundColor Yellow
+        $SkipWindowsFeatures = $true
+    }
+    if ($SkipWindowsFeatures -and -not (Get-Service W3SVC -ErrorAction SilentlyContinue)) { throw 'IIS (Web-Server role) is not installed.' }
     if (-not $SkipWindowsFeatures) {
         $features = 'Web-Server', 'Web-WebSockets', 'Web-AppInit', 'Web-Mgmt-Console'
         $missing = Get-WindowsFeature $features | Where-Object { -not $_.Installed }
