@@ -18,7 +18,7 @@ public sealed class ResignationRegistry(HrDbContext db)
     {
         var text = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         if (text?.Length > ReasonLength) return ServiceResult.Fail($"เหตุผลยาวได้ไม่เกิน {ReasonLength} ตัวอักษร");
-        var employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+        var employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsMigrationStub);
         if (employee is null) return ServiceResult.Fail("ไม่พบพนักงานคนนี้");
         employee.ExpectRowVersion(rowVersion);
         employee.ResignDate = resignDate;

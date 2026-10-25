@@ -56,7 +56,7 @@ public static class MigrationTool
             // The delete-everything and bulk-load services of the modules: registered for this tool only, never in the web app.
             .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
-            .AddScoped<OrphanPayEmployeeMigration>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
+            .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
     /// One rehearsal or the final run: reads a copy of <paramref name="sourceFile"/>, deletes and loads the master data

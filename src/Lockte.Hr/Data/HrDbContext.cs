@@ -31,6 +31,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             e.HasAuditName("พนักงาน");
             e.Property(x => x.Code).HasMaxLength(EmployeeRegistry.CodeLength).HasAuditName("รหัสพนักงาน");
             e.Property(x => x.Name).HasMaxLength(255).HasAuditName("ชื่อ-สกุล");
+            e.Property(x => x.IsMigrationStub).HasAuditName("พนักงานตัวแทนจากการย้ายข้อมูล");
             e.Property(x => x.EnglishTitle).HasMaxLength(255).HasAuditName("คำนำหน้า (อังกฤษ)");
             e.Property(x => x.EnglishName).HasMaxLength(255).HasAuditName("ชื่ออังกฤษ");
             e.Property(x => x.Sex).HasMaxLength(1).IsFixedLength().HasAuditName("เพศ");

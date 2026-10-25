@@ -38,7 +38,7 @@ public sealed class ContractLaborDirectory(HrDbContext db, OrgDirectory org, Cus
         var weekly = await db.WeeklyHolidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync();
         var holidays = await db.PublicHolidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).OrderBy(h => h.Date)
             .Select(h => h.Date).ToListAsync();
-        var employees = await db.Employees.AsNoTracking()
+        var employees = await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub)
             .Select(e => new
             {
                 Person = new PeriodTime.Person(e.Id, e.Code, e.Name, e.StartDate, e.ResignDate, e.EmployeeType),

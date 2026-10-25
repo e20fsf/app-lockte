@@ -198,6 +198,10 @@ namespace Lockte.Hr.Data.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasAnnotation("Lockte:AuditName", "ที่ออกบัตร");
 
+                    b.Property<bool>("IsMigrationStub")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "พนักงานตัวแทนจากการย้ายข้อมูล");
+
                     b.Property<string>("ListNo")
                         .HasMaxLength(4)
                         .HasColumnType("nvarchar(4)")

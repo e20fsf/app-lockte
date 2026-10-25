@@ -153,27 +153,53 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
         Assert.Equal(2, Assert.Single(report.Tables, t => t.LegacyTable == OrphanPayEmployeeMigration.CountTable).InDatabase); // the stand-ins are deleted and made again
     }
 
-    [Fact] // the stand-in of an orphan code: resigned, not working, not in the change history
-    public async Task An_orphan_code_with_pay_becomes_a_resigned_stand_in_that_is_not_working()
+    [Fact] // the stand-in is only for the pay results: the legacy had no EMPLO row, so no list, form or register shows it (decided 2026-10-25)
+    public async Task A_stand_in_is_hidden_from_every_list_and_register_but_counted_in_the_pay_reports()
     {
         var historyBefore = await HistoryCountAsync();
         await RunAsync();
 
-        var (x998, d997, working) = await ReadAsync(async s =>
-        {
-            var directory = s.Get<EmployeeDirectory>();
-            return (await directory.FindByCodeAsync("X998"), await directory.FindByCodeAsync("D997"),
-                (await directory.SearchAsync()).Where(e => e.IsWorking).Select(e => e.Code).ToList());
-        });
-        Assert.Equal(("(ไม่ทราบชื่อ) X998", new DateOnly(2026, 10, 11), EmployeeTypes.Daily, null), (x998!.Name, x998.ResignDate, x998.EmployeeType, x998.DepartmentName));
-        Assert.Equal("ไดคาสท์", d997!.DepartmentName);
-        Assert.Null(d997.NationalId);
-        Assert.DoesNotContain("X998", working);
-        Assert.DoesNotContain("D997", working);
-        Assert.Equal(historyBefore, await HistoryCountAsync());
+        var closed = (await PeriodsAsync()).Single(p => p.From == new DateOnly(2026, 9, 27));
+        var pay = await PayOfAsync(closed);
+        var standIn = pay.Single(p => p.Code == "X998");
+        Assert.Equal("(ไม่ทราบชื่อ) X998", standIn.Name);
+        Assert.Contains(pay, p => p.Code == "D997"); // the pay results count it (RPT-02/09)
 
-        var insured = await ReadAsync(s => s.Get<GovernmentFormDirectory>().ListInsuredPersonsAsync()); // RPT-51 lists everyone who resigned too
-        Assert.Contains(insured, p => p.Name == "(ไม่ทราบชื่อ) X998");
+        await using var scope = db.Scope("hr1");
+        var directory = scope.Get<EmployeeDirectory>();
+        Assert.DoesNotContain(await directory.SearchAsync(), e => e.Code is "X998" or "D997");
+        Assert.Empty(await directory.SearchAsync("X998"));
+        Assert.Null(await directory.FindByCodeAsync("X998"));
+        Assert.Null(await directory.GetAsync(standIn.EmployeeId));
+
+        Assert.DoesNotContain(await scope.Get<GovernmentFormDirectory>().ListInsuredPersonsAsync(), p => p.Name.Contains("ไม่ทราบชื่อ")); // RPT-51
+        Assert.Null(await scope.Get<GovernmentFormDirectory>().GetKor2Async(standIn.EmployeeId)); // คร.2
+        Assert.DoesNotContain(await scope.Get<HrDocumentDirectory>().ListResignedAsync(), r => r.Name.Contains("ไม่ทราบชื่อ")); // RPT-55
+        Assert.DoesNotContain(await scope.Get<OnboardingDirectory>().GetRegisterAsync(), r => r.Name.Contains("ไม่ทราบชื่อ"));
+        Assert.DoesNotContain((await scope.Get<OnboardingDirectory>().GetWorkingEmployeesAsync()).Lines, l => l.Name.Contains("ไม่ทราบชื่อ"));
+        Assert.Null(await scope.Get<HrDocumentDirectory>().GetCertificateAsync(standIn.EmployeeId));
+
+        // …but the pay reports count it, so RPT-09/10 match the legacy, which did not join EMPLO
+        var monthEnd = await scope.Get<PayHistoryReportDirectory>().GetMonthEndReportAsync(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31), null);
+        Assert.Contains(monthEnd.Lines, l => l.Code == "X998");
+        Assert.Contains(monthEnd.Lines, l => l.Code == "D997" && l.DepartmentName == "ไดคาสท์");
+        Assert.Equal(historyBefore, await HistoryCountAsync());
+    }
+
+    [Fact] // a screen cannot open, change or resign the stand-in
+    public async Task A_stand_in_cannot_be_changed_on_a_screen()
+    {
+        await RunAsync();
+        var closed = (await PeriodsAsync()).Single(p => p.From == new DateOnly(2026, 9, 27));
+        var id = (await PayOfAsync(closed)).Single(p => p.Code == "X998").EmployeeId;
+
+        await using var scope = db.Scope("hr1");
+        var edit = await scope.Get<EmployeeRegistry>().SaveAsync(new EmployeeInput { Id = id, Code = "X998", Name = "แก้", RowVersion = new byte[8] });
+        Assert.False(edit.Succeeded);
+        var resign = await scope.Get<ResignationRegistry>().ResignAsync(id, null, null, new byte[8]);
+        Assert.False(resign.Succeeded);
+        var clash = await scope.Get<EmployeeRegistry>().SaveAsync(new EmployeeInput { Code = "x998", Name = "ซ้ำ" });
+        Assert.False(clash.Succeeded); // the code stays taken
     }
 
     [Fact]

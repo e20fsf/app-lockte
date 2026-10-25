@@ -1,7 +1,6 @@
 using System.Globalization;
 using Lockte.Hr;
 using Lockte.Org;
-using Lockte.SharedKernel.Persistence;
 
 namespace Lockte.Migration;
 
@@ -11,10 +10,10 @@ namespace Lockte.Migration;
 /// join EMPLO, so it is loaded as a stand-in who has resigned, and the totals match. Run after <see cref="MasterDataMigration"/>
 /// and before <see cref="PayHistoryMigration"/>. The stand-in has no name (the code is the only thing known), the resign date
 /// of its last period's TO_DATE, ประเภทรายวัน and the แผนก / ฝ่าย of its code's first letter (blank when none or several match).
-/// Rows of other tables of the same code (ADD_EW, LEAVE_ADD, ใบเตือนADD) are not loaded with it, as before. Nothing is written
+/// The stand-in is marked (<c>IsMigrationStub</c>) and hidden from every list, form and government register, as the legacy had no row for it (decided 2026-10-25); only the pay results count it. Rows of other tables of the same code (ADD_EW, LEAVE_ADD, ใบเตือนADD) are not loaded with it, as before. Nothing is written
 /// to the change history.
 /// </summary>
-public sealed class OrphanPayEmployeeMigration(EmployeeRegistry registry, EmployeeDirectory employees, OrgDirectory org, AuditScope audit)
+public sealed class OrphanPayEmployeeMigration(HrStubEmployeeImport import, OrgDirectory org)
 {
     private const string Orphan = "DQ-6";
     private const string StandInNote = "พนักงานตัวแทนจากการย้ายข้อมูล: รหัสนี้ถูกลบจากทะเบียนเดิมแต่มีผลค่าแรง (#51)";
@@ -26,7 +25,7 @@ public sealed class OrphanPayEmployeeMigration(EmployeeRegistry registry, Employ
 
     public async Task RunAsync(LegacyDatabase legacy, MigrationReport report)
     {
-        var known = (await employees.SearchAsync()).Select(e => e.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var known = (await import.GetEmployeeIdsAsync()).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var orphans = new SortedDictionary<string, OrphanPay>(StringComparer.Ordinal);
         foreach (var table in new[] { PayHistoryMigration.CurrentTable, PayHistoryMigration.HistoryTable })
         {
@@ -39,31 +38,24 @@ public sealed class OrphanPayEmployeeMigration(EmployeeRegistry registry, Employ
             }
         }
 
-        var created = 0;
-        using (audit.SuppressRowChanges())
+        var stubs = new List<StubEmployeeImport>();
+        foreach (var (code, orphan) in orphans)
         {
-            foreach (var (code, orphan) in orphans)
+            var key = $"{code} ({orphan.Rows} แถว, ลาออก {orphan.Resigned.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)})";
+            if (code.Length > EmployeeRegistry.CodeLength)
             {
-                var key = $"{code} ({orphan.Rows} แถว, ลาออก {orphan.Resigned.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)})";
-                var departments = code.Length <= EmployeeRegistry.CodeLength ? await org.FindDepartmentsByEmployeeIdPrefixAsync(code) : [];
-                var department = departments.Count == 1 ? departments[0] : null;
-                var saved = await registry.SaveAsync(new EmployeeInput
-                {
-                    Code = code, Name = NameOf(code), DepartmentId = department?.Id, SectionId = department?.SectionId,
-                    EmployeeType = EmployeeTypes.Daily, ResignDate = orphan.Resigned, Memo = StandInNote,
-                });
-                if (saved.Succeeded)
-                {
-                    created++;
-                    report.Add("EMPLO", key, Orphan, "รหัสไม่อยู่ในทะเบียนพนักงานที่ย้ายแล้ว แต่มีผลค่าแรงในงวดที่ย้าย (แถวกำพร้า)",
-                        department is null ? $"{Created} · ไม่มีแผนก" : $"{Created} · แผนก {department.Name}");
-                }
-                else report.Add("EMPLO", key, Orphan, string.Join("; ", saved.Errors), MigrationReport.NotLoaded);
+                report.Add("EMPLO", key, Orphan, $"รหัสยาวเกิน {EmployeeRegistry.CodeLength} ตัว", MigrationReport.NotLoaded);
+                continue;
             }
+            var departments = await org.FindDepartmentsByEmployeeIdPrefixAsync(code);
+            var department = departments.Count == 1 ? departments[0] : null;
+            stubs.Add(new StubEmployeeImport(code, NameOf(code), department?.Id, department?.SectionId, EmployeeTypes.Daily, orphan.Resigned, StandInNote));
+            report.Add("EMPLO", key, Orphan, "รหัสไม่อยู่ในทะเบียนพนักงานที่ย้ายแล้ว แต่มีผลค่าแรงในงวดที่ย้าย (แถวกำพร้า)",
+                department is null ? $"{Created} · ไม่มีแผนก" : $"{Created} · แผนก {department.Name}");
         }
-        var now = (await employees.SearchAsync()).Select(e => e.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var inDatabase = orphans.Keys.Count(now.Contains);
-        report.Tables.Add(new TableCount(CountTable, "hr.Employees (ตัวแทน)", orphans.Count, 0, orphans.Count - created, created, inDatabase));
+        await import.AddAsync(stubs);
+        report.Tables.Add(new TableCount(CountTable, "hr.Employees (ตัวแทน)", orphans.Count, 0, orphans.Count - stubs.Count, stubs.Count,
+            await import.CountAsync()));
     }
 
     private static DateOnly Max(DateOnly a, DateOnly b) => a > b ? a : b;

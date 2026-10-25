@@ -12,7 +12,7 @@ namespace Lockte.Migration;
 /// the row counts and, per period, the rows and ΣPAY_W / ΣPAY_OT / ΣHOT read and in the new table. Nothing is written to
 /// the change history. A code that is not in the register is expected to have its stand-in already (<see cref="OrphanPayEmployeeMigration"/>).
 /// </summary>
-public sealed class PayHistoryMigration(HrPayHistoryImport import, EmployeeDirectory employees)
+public sealed class PayHistoryMigration(HrPayHistoryImport import, HrStubEmployeeImport stubs)
 {
     private const string Other = "NF-06";
     private const string BlankDate = "DQ-1";
@@ -27,7 +27,7 @@ public sealed class PayHistoryMigration(HrPayHistoryImport import, EmployeeDirec
 
     public async Task RunAsync(LegacyDatabase legacy, MigrationReport report)
     {
-        var employeeIds = (await employees.SearchAsync()).ToDictionary(e => e.Code, e => e.Id, StringComparer.OrdinalIgnoreCase);
+        var employeeIds = await stubs.GetEmployeeIdsAsync(); // the stand-ins of the orphan codes too, which no list shows
         var (source, excluded, rejected) = (0, 0, 0);
         var read = new List<(DateOnly From, double PayNormal, double PayOvertime, double Hot)>(); // ยอดต้นทาง, every row with FROM_DATE
         var candidates = new Dictionary<(DateOnly From, string Code), Candidate>();

@@ -38,7 +38,7 @@ public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org)
         Employee? employee;
         if (input.Id is { } id)
         {
-            employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == id);
+            employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == id && !e.IsMigrationStub);
             if (employee is null) return ServiceResult.Fail("ไม่พบพนักงานคนนี้");
             employee.ExpectRowVersion(input.RowVersion
                 ?? throw new ArgumentException("Editing needs the rowversion the screen loaded.", nameof(input)));
