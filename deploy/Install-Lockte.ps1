@@ -3,19 +3,22 @@
 # results-<time>.zip (no passwords in it) to send back to the developers. See README.md.
 #   First install:  .\Install-Lockte.ps1 -SqlServer <server> -Database Lockte -SqlUser <login> -ResetAdmin
 #   Update:         .\Install-Lockte.ps1
+#   New database:   .\Install-Lockte.ps1 -Database <name> [-SqlUser <login>] -ResetSettings   (old settings kept as .bak)
 param(
-    [string]$SiteName = 'Lockte',
+    [ValidatePattern('^[A-Za-z0-9_-]+$')][string]$SiteName = 'Lockte',
     [int]$Port = 8080,
     [string]$InstallRoot = 'C:\Lockte',
     [string]$SqlServer = 'localhost',
-    [string]$Database = 'Lockte',
+    [ValidatePattern('^[A-Za-z0-9_-]+$')][string]$Database = 'Lockte',
     [string]$SqlUser,                    # blank = Windows authentication as the app pool (IIS AppPool\<SiteName>)
+    [switch]$ResetSettings,              # write the settings file again from the parameters above
     [switch]$ResetAdmin,                 # create the admin account / give it a temporary password (asks for it)
     [switch]$SkipWindowsFeatures
 )
 $ErrorActionPreference = 'Stop'
 $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run PowerShell as Administrator.' }
+$askedForDatabase = $PSBoundParameters.ContainsKey('SqlServer') -or $PSBoundParameters.ContainsKey('Database') -or $PSBoundParameters.ContainsKey('SqlUser')
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $appDir = Join-Path $InstallRoot 'app'
@@ -58,6 +61,10 @@ try {
     Import-Module WebAdministration
 
     Step '3. Settings (kept between updates, never in the package)'
+    if ($ResetSettings -and (Test-Path $settingsFile)) {
+        Move-Item $settingsFile "$settingsFile.bak-$stamp"
+        Write-Host "old settings moved to $settingsFile.bak-$stamp"
+    }
     if (-not (Test-Path $settingsFile)) {
         $cs = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
         $cs['Data Source'] = $SqlServer
@@ -73,8 +80,16 @@ try {
             Reports = [ordered]@{ BrowsersPath = (Join-Path $appDir 'ms-playwright'); InstallBrowser = $false }
         }
         $settings | ConvertTo-Json -Depth 5 | Set-Content $settingsFile -Encoding UTF8
-        Write-Host "written $settingsFile (edit it for Employer:* names and addresses, then recycle the app pool)"
+        Write-Host "written $settingsFile (edit it for Employer:* names and addresses, then run this script again)"
     } else { Write-Host "kept $settingsFile" }
+    # Which database the app will use (never the password): an old settings file wins over the parameters.
+    $db = New-Object System.Data.SqlClient.SqlConnectionStringBuilder ((Get-Content $settingsFile -Raw | ConvertFrom-Json).ConnectionStrings.Lockte)
+    $windowsAuth = [bool]$db['Integrated Security']
+    $login = if ($windowsAuth) { "Windows: $poolUser" } else { "SQL login: $($db['User ID'])" }
+    Write-Host "database: server $($db['Data Source']), database $($db['Initial Catalog']), $login"
+    if ($askedForDatabase -and ($db['Data Source'] -ne $SqlServer -or $db['Initial Catalog'] -ne $Database -or [string]$db['User ID'] -ne [string]$SqlUser)) {
+        throw "The settings file points to another database than the parameters. Run again with -ResetSettings to write it from the parameters (the old file is kept as .bak), or without -SqlServer/-Database/-SqlUser to keep it."
+    }
     # Only administrators and the app pool may read it: it holds the database password.
     icacls $configDir /inheritance:r /grant:r 'BUILTIN\Administrators:(OI)(CI)F' 'NT AUTHORITY\SYSTEM:(OI)(CI)F' | Out-Null
 
@@ -87,6 +102,31 @@ try {
     Set-ItemProperty $pool processModel.loadUserProfile $true             # a TEMP folder for Chromium
     if ((Get-WebAppPoolState $SiteName).Value -eq 'Started') { Stop-WebAppPool $SiteName; Start-Sleep 5 }
     icacls $configDir /grant "${poolUser}:(OI)(CI)R" | Out-Null
+
+    if ($windowsAuth) {
+        Step '4b. SQL Server access for the app pool (Windows authentication)'
+        # The app pool's virtual account only exists on this machine, so this works when SQL Server runs here too.
+        # Done as the administrator running this script (a sysadmin of SQL Server).
+        $admin = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
+        $admin['Data Source'] = $db['Data Source']; $admin['Initial Catalog'] = 'master'
+        $admin['Integrated Security'] = $true; $admin['TrustServerCertificate'] = $true
+        $dbName = $db['Initial Catalog']
+        $sql = @"
+IF SUSER_ID(N'$poolUser') IS NULL CREATE LOGIN [$poolUser] FROM WINDOWS;
+IF DB_ID(N'$dbName') IS NULL CREATE DATABASE [$dbName];
+EXEC (N'USE [$dbName];
+IF USER_ID(N''$poolUser'') IS NULL CREATE USER [$poolUser] FOR LOGIN [$poolUser];
+ALTER ROLE db_owner ADD MEMBER [$poolUser];');
+"@
+        $conn = New-Object System.Data.SqlClient.SqlConnection $admin.ConnectionString
+        try {
+            $conn.Open()
+            $cmd = $conn.CreateCommand(); $cmd.CommandText = $sql; [void]$cmd.ExecuteNonQuery()
+            Write-Host "$poolUser may use database $dbName (db_owner)"
+        }
+        catch { throw "Could not give $poolUser access to $dbName on $($db['Data Source']): $($_.Exception.Message) - or use -SqlUser with -ResetSettings." }
+        finally { $conn.Dispose() }
+    }
 
     Step '5. Copy the app'
     robocopy (Join-Path $PSScriptRoot 'app') $appDir /MIR /NFL /NDL /NJH /NJS /NP /XF appsettings.Production.json | Out-Null
@@ -128,12 +168,22 @@ try {
     Start-Website $SiteName -ErrorAction SilentlyContinue
     $base = "http://localhost:$Port"
     $watch = [Diagnostics.Stopwatch]::StartNew()
-    $login = $null
-    while (-not $login -and $watch.Elapsed.TotalSeconds -lt 180) {
-        try { $login = Invoke-WebRequest "$base/Account/Login" -UseBasicParsing -TimeoutSec 30 } catch { Start-Sleep 3 }
+    $page = $null
+    $lastLog = { Get-ChildItem $logDir -Filter 'stdout_*.log' | Sort-Object LastWriteTime | Select-Object -Last 1 }
+    while (-not $page -and $watch.Elapsed.TotalSeconds -lt 180) {
+        try { $page = Invoke-WebRequest "$base/Account/Login" -UseBasicParsing -TimeoutSec 30 }
+        catch {
+            # 500.30 = the app stopped while starting: no point waiting, show why.
+            if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 500) {
+                $log = & $lastLog
+                if ($log) { Write-Host "`n--- end of $($log.FullName):" -ForegroundColor Yellow; Get-Content $log.FullName -Tail 15 | Write-Host }
+                throw "the app failed to start (HTTP 500.30) - see the log above"
+            }
+            Start-Sleep 3
+        }
     }
-    if (-not $login) { throw "the site did not answer in 3 minutes - see $logDir\stdout_*.log" }
-    "login page: HTTP $($login.StatusCode) after $($watch.ElapsedMilliseconds) ms" | Tee-Object (Join-Path $results 'checks.txt')
+    if (-not $page) { throw "the site did not answer in 3 minutes - see $logDir\stdout_*.log" }
+    "login page: HTTP $($page.StatusCode) after $($watch.ElapsedMilliseconds) ms" | Tee-Object (Join-Path $results 'checks.txt')
     # Chromium warms up in the background (~30 s on the VM); the first print waits for it.
     function Health {
         try { (Invoke-WebRequest "$base/health/reports" -UseBasicParsing -TimeoutSec 300).Content }

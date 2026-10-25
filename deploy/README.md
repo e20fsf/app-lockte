@@ -35,7 +35,8 @@
    ```
    - สคริปต์ถามรหัสผ่านของ SQL login (ไม่แสดงบนจอ และไม่เก็บไว้ใน log) แล้วถามรหัสชั่วคราวของบัญชี `admin` 2 ครั้ง
    - ค่าเริ่มต้น: site และ app pool ชื่อ `Lockte` พอร์ต **8080** ติดตั้งที่ `C:\Lockte` เปลี่ยนได้ด้วย `-SiteName`, `-Port`, `-InstallRoot`
-   - ถ้าไม่ใส่ `-SqlUser` จะใช้ Windows authentication ของ app pool ซึ่งต้องสร้าง login `IIS AppPool\Lockte` ใน SQL Server ก่อน
+   - ถ้าไม่ใส่ `-SqlUser` จะใช้ Windows authentication ของ app pool: ถ้า SQL Server อยู่เครื่องเดียวกัน สคริปต์จะสร้าง login `IIS AppPool\Lockte` ให้ สร้างฐานข้อมูลถ้ายังไม่มี และให้สิทธิ์ db_owner โดยทำในชื่อของ Administrator ที่รันสคริปต์ ถ้า SQL Server อยู่คนละเครื่อง ให้ใช้ `-SqlUser`
+   - สคริปต์แสดงทุกครั้งว่าแอปใช้ฐานข้อมูลไหนและเข้าด้วยวิธีอะไร ถ้ามีไฟล์ตั้งค่าอยู่แล้ว แต่ `-SqlServer`/`-Database`/`-SqlUser` ที่ใส่มาไม่ตรงกับไฟล์นั้น สคริปต์จะหยุด ถ้าต้องการเปลี่ยนฐานข้อมูลจริง ให้รันใหม่พร้อม `-ResetSettings` (ไฟล์เดิมจะเก็บไว้เป็น `.bak-<เวลา>`)
 3. รอจนขึ้น `OK` สคริปต์จะตรวจ 2 อย่าง:
    - หน้า login ตอบกลับ
    - **พิมพ์ PDF ได้จริงภายใต้ app pool ของ IIS** (ตั๋ว #21) โดยเรียก `http://localhost:8080/health/reports` ซึ่งเรียกได้จากเครื่อง server เท่านั้น
@@ -92,7 +93,8 @@
 
 | อาการ | ดูที่ |
 |---|---|
-| เปิดเว็บไม่ขึ้น / HTTP 500.30 | `C:\Lockte\logs\stdout_*.log` (log ของแอป) |
+| เปิดเว็บไม่ขึ้น / HTTP 500.30 | `C:\Lockte\logs\stdout_*.log` (log ของแอป) สคริปต์ติดตั้งแสดงท้าย log ให้อัตโนมัติเมื่อเจอ 500.30 |
+| `Login failed for user 'IIS APPPOOL\Lockte'` | ไฟล์ตั้งค่าใช้ Windows authentication แต่ app pool ยังไม่มีสิทธิ์ใน SQL Server ให้รันสคริปต์รุ่นนี้อีกครั้ง (ขั้น 4b ให้สิทธิ์ให้) หรือเปลี่ยนไปใช้ SQL login ด้วย `-SqlUser <login> -ResetSettings` |
 | พิมพ์รายงานไม่ออก | เปิด `http://localhost:8080/health/reports` **บน server** ถ้าได้ `"ok":false` จะมีข้อความ error บอก หรือหาคำว่า `Chromium` ใน stdout log |
 | หน้าจอขึ้น reconnect บ่อย | ตรวจว่า IIS เปิด WebSocket แล้ว (สคริปต์ติดตั้งให้) และเครือข่าย/VPN ไม่หลุด |
 | ลืมรหัส admin | `.\Install-Lockte.ps1 -ResetAdmin` แล้วตั้งรหัสชั่วคราวใหม่ |
