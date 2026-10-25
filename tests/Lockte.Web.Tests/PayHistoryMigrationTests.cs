@@ -29,7 +29,7 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
 
     /// <summary>
     /// ค่าแรง of the open period 12–26 ต.ค. 2569 (D001, O001) and the history: D001's copy of it (W and OT rounded to Long),
-    /// O001's copy with another PAY_W, the closed period 27 ก.ย.–11 ต.ค. (D001 twice, F001, an orphan, a blank ID), the
+    /// O001's copy with another PAY_W, the closed period 27 ก.ย.–11 ต.ค. (D001 twice, F001, two orphans that get a stand-in, a blank ID), the
     /// งวด 2 ช่วง at new year 2569 whose first part ends on the second's TO_DATE, the one at new year 2568 kept right (its
     /// first part starts in 2567 but is paid 16 ม.ค. 2568, so it moves too), the period before it paid 1 ม.ค. 2568 (moves),
     /// one of 2567 paid in 2567 (stays) and a row without FROM_DATE.
@@ -50,7 +50,8 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
             .Row(history, Copy("D001", Sep27, oct11, oct16, w: 11, payW: 4400, payOt: 210, ot: 3))
             .Row(history, Copy("F001", Sep27, oct11, oct16, w: 13, payW: 10500))
             .Row(history, Copy("d001", Sep27, oct11, oct16, w: 1, payW: 400))
-            .Row(history, Copy("X998", Sep27, oct11, oct16, w: 13, payW: 5200))
+            .Row(history, Copy("X998", Sep27, oct11, oct16, w: 13, payW: 5200))      // orphan, no แผนก for X: a stand-in without แผนก
+            .Row(history, Copy("D997", Sep27, oct11, oct16, w: 12, payW: 3000))      // orphan, แผนก of D: a stand-in in ไดคาสท์
             .Row(history, Copy(null, Sep27, oct11, oct16, w: 1, payW: 1))
             .Row(history, Copy("D001", dec27, jan11, jan16, w: 3, payW: 1200))
             .Row(history, Copy("D001", jan1, jan11, jan16, w: 8, payW: 3200))
@@ -107,18 +108,21 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
         Assert.Equal(7800m, open[1].PayNormal); // not the history's copy with another PAY_W
 
         var closed = await PayOfAsync(periods[1]);
-        Assert.Equal(["D001", "F001"], closed.Select(p => p.Code));
+        Assert.Equal(["D001", "D997", "F001", "X998"], closed.Select(p => p.Code));
         Assert.Equal((0.0, 11.0, 0.0, 3.0, 4400m, 210m), // the history keeps no SA or L
             (closed[0].Rate, closed[0].Normal, closed[0].PaidLeave, closed[0].Overtime, closed[0].PayNormal, closed[0].PayOvertime));
         var report2 = await ReadAsync(s => s.Get<PayPeriodDirectory>().GetPayReportAsync(periods[1].Id, null));
         Assert.Equal("ไดคาสท์", report2!.Lines.Single(l => l.Pay.Code == "D001").DepartmentName); // แผนก of today
 
         var count = Assert.Single(report.Tables, t => t.NewTable == "hr.PayResults");
-        Assert.Equal((16, 2, 5, 9, 9), (count.SourceRows, count.Excluded, count.Rejected, count.Loaded, count.InDatabase));
+        Assert.Equal((17, 2, 4, 11, 11), (count.SourceRows, count.Excluded, count.Rejected, count.Loaded, count.InDatabase));
+        var stands = Assert.Single(report.Tables, t => t.LegacyTable == OrphanPayEmployeeMigration.CountTable);
+        Assert.Equal((2, 0, 0, 2, 2), (stands.SourceRows, stands.Excluded, stands.Rejected, stands.Loaded, stands.InDatabase));
         Assert.True(report.Balanced, string.Join("\n", report.Tables.Where(t => !t.Balanced).Select(t => t.ToString())
             .Concat(report.MonthlyTotals.Where(m => !m.Balanced).Select(m => m.ToString()))));
         var sep27 = report.MonthlyTotals.Single(m => m.Table == "hr.PayResults" && m.Month == "งวด 2026-09-27" && m.Measure == "ค่าแรง (PAY_W)");
-        Assert.Equal((4400.0 + 10500 + 400 + 5200 + 1, 4400.0 + 10500, 4400.0 + 10500), (sep27.Source, sep27.Expected, sep27.InDatabase));
+        Assert.Equal((4400.0 + 10500 + 400 + 5200 + 3000 + 1, 4400.0 + 10500 + 5200 + 3000, 4400.0 + 10500 + 5200 + 3000), // the orphans are loaded
+            (sep27.Source, sep27.Expected, sep27.InDatabase));
         var dec27 = report.MonthlyTotals.Single(m => m.Table == "hr.PayResults" && m.Month == "งวด 2024-12-27" && m.Measure == "ค่าแรง (PAY_W)");
         Assert.Equal((1185.0, 1185.0, 1185.0), (dec27.Source, dec27.Expected, dec27.InDatabase));
         Assert.DoesNotContain(report.MonthlyTotals, m => m.Month == "งวด 2024-11-27"); // paid 16 ธ.ค. 2567: stays
@@ -126,7 +130,10 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
 
         Assert.Contains(report.Exceptions, e => e.Rule == "DQ-2" && e.Key == "2026-10-12 O001" && e.Problem.Contains("ค่าแรง"));
         Assert.Contains(report.Exceptions, e => e.Rule == "DQ-2" && e.Key == "2026-09-27 D001");
-        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-6" && e.Key == "2026-09-27 X998");
+        Assert.DoesNotContain(report.Exceptions, e => e.Rule == "DQ-6" && e.Action == MigrationReport.NotLoaded); // created, not skipped
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-6" && e.Table == "EMPLO" && e.Key.StartsWith("X998 (1 แถว, ลาออก 2026-10-11)")
+            && e.Action.Contains(OrphanPayEmployeeMigration.Created) && e.Action.Contains("ไม่มีแผนก"));
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-6" && e.Key.StartsWith("D997 ") && e.Action.Contains("แผนก ไดคาสท์"));
         Assert.Contains(report.Exceptions, e => e.Rule == "DQ-1" && e.Table == "สำเนาของ ค่าแรง");
         Assert.Contains(report.Exceptions, e => e.Key == "งวด 2025-12-27" && e.Action.Contains("2025-12-31"));
         Assert.DoesNotContain(report.Exceptions, e => e.Key == "งวด 2024-12-27" && e.Action != "โหลดเป็น 0"); // ends 31 ธ.ค.: no overlap
@@ -142,6 +149,46 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
         var report = await RunAsync();
 
         Assert.Equal(7, (await PeriodsAsync()).Count);
-        Assert.Equal(9, Assert.Single(report.Tables, t => t.NewTable == "hr.PayResults").InDatabase);
+        Assert.Equal(11, Assert.Single(report.Tables, t => t.NewTable == "hr.PayResults").InDatabase);
+        Assert.Equal(2, Assert.Single(report.Tables, t => t.LegacyTable == OrphanPayEmployeeMigration.CountTable).InDatabase); // the stand-ins are deleted and made again
+    }
+
+    [Fact] // the stand-in of an orphan code: resigned, not working, not in the change history
+    public async Task An_orphan_code_with_pay_becomes_a_resigned_stand_in_that_is_not_working()
+    {
+        var historyBefore = await HistoryCountAsync();
+        await RunAsync();
+
+        var (x998, d997, working) = await ReadAsync(async s =>
+        {
+            var directory = s.Get<EmployeeDirectory>();
+            return (await directory.FindByCodeAsync("X998"), await directory.FindByCodeAsync("D997"),
+                (await directory.SearchAsync()).Where(e => e.IsWorking).Select(e => e.Code).ToList());
+        });
+        Assert.Equal(("(ไม่ทราบชื่อ) X998", new DateOnly(2026, 10, 11), EmployeeTypes.Daily, null), (x998!.Name, x998.ResignDate, x998.EmployeeType, x998.DepartmentName));
+        Assert.Equal("ไดคาสท์", d997!.DepartmentName);
+        Assert.Null(d997.NationalId);
+        Assert.DoesNotContain("X998", working);
+        Assert.DoesNotContain("D997", working);
+        Assert.Equal(historyBefore, await HistoryCountAsync());
+
+        var insured = await ReadAsync(s => s.Get<GovernmentFormDirectory>().ListInsuredPersonsAsync()); // RPT-51 lists everyone who resigned too
+        Assert.Contains(insured, p => p.Name == "(ไม่ทราบชื่อ) X998");
+    }
+
+    [Fact]
+    public async Task Without_an_orphan_code_no_stand_in_is_made()
+    {
+        var source = Path.Combine(work.FullName, "plain.accdb");
+        FakeLegacyFile.Standard()
+            .Row("ค่าแรง", [("ID", "D001"), ("W", 12.0), ("PAY_W", 5400), ("PAY_OT", 0), ("OT", 0), ("TT_OT", 0), ("SUNDAY", 2), ("HOLIDAY", 0), ("HOT", 0.0),
+                .. Period(Oct12, new DateTime(2026, 10, 26), new DateTime(2026, 11, 1))])
+            .Save(source);
+        var report = await MigrationTool.RunAsync(db.Services, source, null, Path.Combine(work.FullName, "plain-out"));
+
+        Assert.DoesNotContain(report.Exceptions, e => e.Table == "EMPLO" && e.Rule == "DQ-6");
+        var stands = Assert.Single(report.Tables, t => t.LegacyTable == OrphanPayEmployeeMigration.CountTable);
+        Assert.Equal((0, 0, 0, 0, 0), (stands.SourceRows, stands.Excluded, stands.Rejected, stands.Loaded, stands.InDatabase));
+        Assert.True(report.Balanced);
     }
 }
