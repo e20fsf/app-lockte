@@ -89,6 +89,8 @@ public static class OrderMenu
         new(3, "ผลผลิต", 1,
         [
             new("บันทึกผลผลิต", SubMenu: 12),
+            // The legacy Switchboard Items row points at เมนู 14 (QA), leaving เมนู 11 unreachable; the user decided
+            // (#103) to follow screens.md and #121: เมนู 11.
             new("แก้ไขผลผลิต", SubMenu: 11),
             new("รายงานผลผลิตและพิมพ์ใบโอน", Code: "RPT-10"),
             new("เบิกเพื่อผลิต, แก้ไขใบเบิกงานระหว่างผลิตและพิมพ์รายงาน", Code: "SCR-13"), // เบิกเพื่อผลิต,แก้ไขใบเบิกและพิมพ์รายงาน
