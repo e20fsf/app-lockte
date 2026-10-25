@@ -31,6 +31,7 @@
     </MudAppBar>
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+            <AuthorizeView Policy="@AuthPolicies.StaffOrAdmin"><MenuTrail /></AuthorizeView>
             @Body
         </MudContainer>
     </MudMainContent>

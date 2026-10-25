@@ -79,6 +79,14 @@ h1:focus { outline: none; }
 /* ลิงก์ */
 .mud-link { color: var(--lk-red-dark); }
 
+/* ตำแหน่งปัจจุบัน (เมนูหลัก › เมนูย่อย › หน้านี้) */
+.menu-trail { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .35rem; margin: -.5rem 0 1rem; font-size: .975rem; }
+.menu-trail a { color: var(--lk-muted); text-decoration: none; padding: .1rem .35rem; border-radius: 6px; }
+.menu-trail a:hover { color: var(--lk-red-dark); background: var(--lk-red-tint); }
+.menu-trail .menu-trail-sep { color: #9AA5B1; }
+.menu-trail .menu-trail-home { vertical-align: -.2em; margin-right: .25rem; }
+.menu-trail .menu-trail-here { font-weight: 500; color: var(--lk-ink); padding: .1rem .35rem; }
+
 /* เมนูหลัก/เมนูย่อย: การ์ดเรียงตามลำดับเดิม (ซ้ายไปขวา บนลงล่าง) ปุ่ม "กลับ" กินทั้งแถว */
 .menu-page { max-width: 780px; margin: 0 auto; text-align: center; }
 .menu-logo { height: 96px; margin-bottom: .75rem; }
