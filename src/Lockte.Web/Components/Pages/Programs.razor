@@ -1,0 +1,33 @@
+@page "/programs"
+@attribute [Authorize]
+
+@* หน้าเลือกโปรแกรม: one card per program in this app. MainLayout remembers the one opened, so the next login goes
+   straight there (Start); the program switcher in the app bar comes back here. *@
+<PageTitle>เลือกโปรแกรม — LOCKTE</PageTitle>
+<div class="menu-page program-page">
+    <img src="brand/logo.svg" alt="LOCKTE" class="menu-logo" />
+    <h1 class="menu-title">เลือกโปรแกรม</h1>
+    <div class="program-cards">
+        @foreach (var (program, icon, detail) in Cards)
+        {
+            <a href="@program.Root" class="program-card">
+                <MudIcon Icon="@icon" Class="program-card-icon" />
+                <span class="program-card-title">@program.Title</span>
+                <span class="program-card-detail">@detail</span>
+            </a>
+        }
+        <div class="program-card program-card-later" aria-disabled="true">
+            <MudIcon Icon="@Icons.Material.Filled.MoreHoriz" Class="program-card-icon" />
+            <span class="program-card-title">วัตถุดิบ · สอบเทียบ · เงินสดย่อย</span>
+            <span class="program-card-detail">ระยะถัดไป</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    private static readonly (ProgramMenu Program, string Icon, string Detail)[] Cards =
+    [
+        (EmployeeMenu.Menu, Icons.Material.Filled.Badge, "ข้อมูลพนักงาน เวลาทำงาน การลา ปิดงวดค่าแรง"),
+        (OrderMenu.Menu, Icons.Material.Filled.Factory, "ลูกค้า สินค้า ORDER การส่งของ ผลผลิต แม่พิมพ์ QA"),
+    ];
+}

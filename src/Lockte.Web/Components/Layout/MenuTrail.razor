@@ -1,4 +1,4 @@
-@* "You are here": เมนูหลัก › เมนูย่อย › หน้านี้ — each step but the last links back (EmployeeMenu.Trail). Not shown on the main menu itself. *@
+@* "You are here": เมนูหลัก › เมนูย่อย › หน้านี้ — each step but the last links back (ProgramMenu.Trail of the program the page is on). Not shown on the main menu itself. *@
 @implements IDisposable
 @inject NavigationManager Navigation
 
@@ -18,14 +18,14 @@
             }
             else
             {
-                <a href="@(crumb.Href.Length == 0 ? "./" : crumb.Href)">@if (i == 0) {<MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Small" Class="menu-trail-home" />}@crumb.Text</a>
+                <a href="@crumb.Href">@if (i == 0) {<MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Small" Class="menu-trail-home" />}@crumb.Text</a>
             }
         }
     </nav>
 }
 
 @code {
-    private IReadOnlyList<EmployeeMenu.Crumb> crumbs = [];
+    private IReadOnlyList<ProgramMenu.Crumb> crumbs = [];
 
     protected override void OnInitialized()
     {
@@ -33,7 +33,11 @@
         Navigation.LocationChanged += OnLocationChanged;
     }
 
-    private void Update() => crumbs = EmployeeMenu.Trail(Navigation.ToBaseRelativePath(Navigation.Uri));
+    private void Update()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+        crumbs = ProgramMenus.Of(path)?.Trail(path) ?? [];
+    }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {

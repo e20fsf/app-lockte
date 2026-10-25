@@ -9,9 +9,10 @@
     <MudAppBar Elevation="0" Color="Color.Surface" Class="app-bar">
         <a href="@HomeHref" class="brand">
             <img src="brand/logo.svg" alt="" class="brand-logo" />
-            <span class="brand-text">LOCKTE · โปรแกรมพนักงานและค่าแรง</span>
+            <span class="brand-text">LOCKTE</span>
         </a>
         <MudSpacer />
+        <AuthorizeView Policy="@AuthPolicies.Staff"><ProgramSwitcher /></AuthorizeView>
         <AuthorizeView Policy="@AuthPolicies.StaffOrAdmin">
             <MudButton Href="history" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" Class="mr-2">ประวัติการแก้ไข</MudButton>
         </AuthorizeView>

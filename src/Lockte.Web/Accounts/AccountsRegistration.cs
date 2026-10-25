@@ -86,6 +86,7 @@ public static class AccountsRegistration
 
         services.AddScoped<AccountService>();
         services.AddScoped<UserAdminService>();
+        services.AddScoped<LastProgramService>();
         return services;
     }
 }

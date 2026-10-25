@@ -1,20 +1,21 @@
 @page "/hr/{Code}"
 @attribute [Authorize]
 
-@* Every menu leaf lands here until its ticket builds the real screen (#41 ลำดับการสร้าง). *@
+@* Every menu leaf lands here until its ticket builds the real screen (#41/#102 ลำดับการสร้าง): routed here for
+   โปรแกรมพนักงาน, wrapped by OrderPlaceholder for ผลผลิตและORDER. *@
 <PageTitle>@Title — LOCKTE</PageTitle>
 <div class="menu-page">
     <h1 class="menu-title">@Title</h1>
     <MudAlert Severity="Severity.Info" Class="my-4">หน้านี้ยังไม่เปิดใช้งาน (@Code)</MudAlert>
     @if (found is { } f)
     {
-        <MudButton Href="@EmployeeMenu.HrefOf(f.Page.Number)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
+        <MudButton Href="@Program.HrefOf(f.Page.Number)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
             กลับเมนูเดิม
         </MudButton>
     }
     else
     {
-        <MudButton Href="" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูหลัก</MudButton>
+        <MudButton Href="@Program.HrefOf(ProgramMenu.Main)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูหลัก</MudButton>
     }
 </div>
 
@@ -22,9 +23,12 @@
     [Parameter]
     public string Code { get; set; } = "";
 
+    [Parameter]
+    public ProgramMenu Program { get; set; } = EmployeeMenu.Menu;
+
     private (MenuPage Page, MenuItem Item)? found;
 
     private string Title => found?.Item.Text ?? Code;
 
-    protected override void OnParametersSet() => found = EmployeeMenu.FindItem(Code);
+    protected override void OnParametersSet() => found = Program.FindItem(Code);
 }

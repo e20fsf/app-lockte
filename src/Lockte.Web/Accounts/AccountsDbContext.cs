@@ -13,6 +13,8 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> option
 {
     public const string Schema = "auth";
 
+    public DbSet<UserLastProgram> LastPrograms => Set<UserLastProgram>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -36,6 +38,12 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> option
             user.Property(u => u.EmailConfirmed).IsBookkeeping();
             user.Property(u => u.PhoneNumberConfirmed).IsBookkeeping();
             user.Property(u => u.TwoFactorEnabled).IsBookkeeping();
+        });
+        builder.Entity<UserLastProgram>(p =>
+        {
+            p.HasKey(x => x.UserId);
+            p.Property(x => x.Program).HasMaxLength(UserLastProgram.ProgramLength);
+            p.HasOne<AppUser>().WithOne().HasForeignKey<UserLastProgram>(x => x.UserId);
         });
         builder.ApplyLockteConventions();
     }
