@@ -1,0 +1,41 @@
+@* RPT-21 รายชื่อสินค้า (พิมพ์รายชื่อผลผลิต / ตามรหัส / ตามลูกค้า, เมนู 8): ระดับ B, A4 นอน, เรียงตามรหัส. The head tells the filter (D-10).
+   Prices and cost are not printed: the list names the products, it does not price them. *@
+@if (Report.Filter is { } filter)
+{
+    <p class="sub">@filter</p>
+}
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:4%" /><col style="width:11%" /><col style="width:30%" /><col style="width:6%" /><col style="width:16%" />
+            <col style="width:12%" /><col style="width:21%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num">ที่</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หน่วย</th><th>ประเภท</th><th>แม่พิมพ์</th><th>ลูกค้า</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var p = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@p.Code</td>
+                    <td>@p.Name</td>
+                    <td>@p.Unit</td>
+                    <td>@p.ProductTypeName</td>
+                    <td>@p.MoldCode</td>
+                    <td>@(p.CustomerCode is null ? null : $"{p.CustomerCode} {p.CustomerName}")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MasterList<ProductListLine> Report { get; set; } = null!;
+}
