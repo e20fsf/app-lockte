@@ -106,3 +106,26 @@ internal sealed class DepartmentShift : IAudited
     // Loaded with both navigations by OrgRegistry before every save.
     string IHasBusinessKey.BusinessKey => $"{Department?.Code} กะ {Shift?.Code}";
 }
+
+/// <summary>
+/// เครื่องจักร (T-MC_N, SCR-19) — one machine in one แผนก. The leading letter of the code tells the department in the
+/// legacy data (<c>B35</c>, <c>A001</c>) but it is not enforced: the legacy letters do not all match the departments'
+/// prefixes (Q-36), and the department is chosen explicitly.
+/// </summary>
+internal sealed class Machine : IAudited
+{
+    public int Id { get; set; }
+    /// <summary>รหัสเครื่อง (business key, unique, upper case).</summary>
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public int DepartmentId { get; set; }
+    public Department Department { get; set; } = null!;
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Code;
+}

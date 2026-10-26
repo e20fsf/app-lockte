@@ -41,6 +41,7 @@ public sealed class OrgDataReset(OrgDbContext db)
     public async Task DeleteAllAsync()
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Machines.ExecuteDeleteAsync();
         await db.DepartmentShifts.ExecuteDeleteAsync();
         await db.Departments.ExecuteDeleteAsync();
         await db.Shifts.ExecuteDeleteAsync();

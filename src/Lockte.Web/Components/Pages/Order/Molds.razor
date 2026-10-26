@@ -1,0 +1,216 @@
+@page "/order/molds"
+@page "/order/molds/new"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Prod
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+
+@* SCR-17 แม่พิมพ์ (ฟอร์ม รหัสพิมพ์ เพิ่ม + รหัสพิมพ์2/รหัสพิมพ์1 แก้ไข): both menu items open this page — "เพิ่มรหัสแม่พิมพ์"
+   with a blank form, "แก้ไขและพิมพ์รหัสแม่พิมพ์" with the list to pick a mold from (รหัสพิมพ์2). "รหัสต่อไป" (GoToRecord) =
+   "บันทึกแล้วเพิ่มรหัสต่อไป". Delete is a button with a confirmation (instead of clearing the name, BR-021) and a mold
+   that other tables refer to cannot be deleted. The printed lists (RPT-21) come with #137. *@
+<PageTitle>แม่พิมพ์ — LOCKTE</PageTitle>
+<h1 class="mb-4">@(adding ? "เพิ่มรหัสแม่พิมพ์" : "แก้ไขรหัสแม่พิมพ์")</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มรหัสแม่พิมพ์" : $"แก้แม่พิมพ์ {form.Code}")</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Code" Label="รหัสแม่พิมพ์" MaxLength="MoldRegistry.CodeLength" Required="true" RequiredError="กรุณากรอกรหัสแม่พิมพ์" /></MudItem>
+        <MudItem xs="12" sm="8"><MudTextField @bind-Value="form.Name" Label="ชื่อแม่พิมพ์" MaxLength="MoldRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อแม่พิมพ์" /></MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.PiecesPerShot" Label="ชิ้น/พิมพ์" HideSpinButtons="true" Min="0" /></MudItem>
+        <MudItem xs="12" sm="10">
+            <MudText Typo="Typo.subtitle2">กำหนดการบำรุงรักษาพิมพ์ ใส่เพียงหัวข้อเดียว</MudText>
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudNumericField @bind-Value="form.MaintenanceShots" Label="จำนวนครั้งการฉีด" HideSpinButtons="true" Min="0" HelperText="เช่น 50,000" Style="max-width:12rem" />
+                <MudNumericField @bind-Value="form.MaintenancePieces" Label="จำนวนชิ้น" HideSpinButtons="true" Min="0" HelperText="เช่น 100,000" Style="max-width:12rem" />
+                <MudNumericField @bind-Value="form.MaintenanceYears" Label="จำนวนปี" HideSpinButtons="true" Min="0" Style="max-width:12rem" />
+            </MudStack>
+        </MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Maker" Label="ผู้ทำแม่พิมพ์" MaxLength="MoldRegistry.PersonLength" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker Editable="true" @bind-Date="form.StartDate" Label="วันที่เริ่มใช้" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker Editable="true" @bind-Date="form.EndDate" Label="วันที่เลิกใช้" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" HelperText="ว่าง = ยังใช้อยู่" /></MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int?" @bind-Value="form.DepartmentId" Label="แผนก" Clearable="true">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.Cost" Label="ราคา (บาท)" HideSpinButtons="true" Min="0m" Format="N2" /></MudItem>
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="string" @bind-Value="form.Owner" Label="เจ้าของแม่พิมพ์" SearchFunc="SearchOwnerAsync"
+                             CoerceText="true" CoerceValue="true" Clearable="true" MaxLength="MoldRegistry.PersonLength"
+                             HelperText="เลือกจากรายชื่อลูกค้า หรือพิมพ์เอง" />
+        </MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.AluminumWeight" Label="น้ำหนักอลูมิเนียม (กก.)" HideSpinButtons="true" Min="0m" /></MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="SaveAndNextAsync" Disabled="busy">บันทึกแล้วเพิ่มรหัสต่อไป</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบแม่พิมพ์นี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+        <MudText Typo="Typo.h6">รายการแม่พิมพ์</MudText>
+        <MudTextField @bind-Value="search" Immediate="true" Label="ค้นหา (รหัสหรือชื่อ)" Clearable="true" Margin="Margin.Dense" Style="max-width:18rem" />
+        <MudCheckBox T="bool" @bind-Value="inUseOnly" Label="เฉพาะที่ยังใช้งานอยู่" />
+    </MudStack>
+    <MudTable Items="Shown" Dense="true" Hover="true" Loading="molds is null" T="MoldDto" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<MoldDto> e) => Edit(e.Item!))">
+        <HeaderContent>
+            <MudTh>รหัส</MudTh><MudTh>ชื่อ</MudTh><MudTh>แผนก</MudTh><MudTh>เริ่มใช้</MudTh><MudTh>เลิกใช้</MudTh><MudTh>เจ้าของ</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Code</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@DepartmentName(context.DepartmentId)</MudTd>
+            <MudTd>@(context.StartDate is { } s ? ThaiDate.Format(s) : "")</MudTd>
+            <MudTd>@(context.EndDate is { } e ? ThaiDate.Format(e) : "")</MudTd>
+            <MudTd>@context.Owner</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ไม่พบแม่พิมพ์</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(6)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<MoldDto>? molds;
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private IReadOnlyList<CustomerDto> customers = [];
+    private MoldForm form = new();
+    private string? search;
+    private bool inUseOnly;
+    private bool busy;
+    private bool adding;
+
+    private IEnumerable<MoldDto> Shown => (molds ?? [])
+        .Where(m => !inUseOnly || m.InUse)
+        .Where(m => string.IsNullOrWhiteSpace(search)
+            || m.Code.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || m.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        adding = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/').EndsWith("/new", StringComparison.OrdinalIgnoreCase);
+        departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+        customers = await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(c => c.GetAllAsync());
+        await ReloadAsync();
+        New();
+    }
+
+    private async Task ReloadAsync()
+        => molds = await Services.RunAsync<MoldDirectory, IReadOnlyList<MoldDto>>(d => d.GetAllAsync());
+
+    private string DepartmentName(int? id) => departments.FirstOrDefault(d => d.Id == id)?.Name ?? "";
+
+    // OWNER's list: customers of เขตการขาย 00/09 — the territory comes with the customer ticket (#106), until then every customer.
+    private Task<IEnumerable<string>> SearchOwnerAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        var names = new[] { MoldRegistry.DefaultPerson }.Concat(customers.Select(c => c.Name)).Distinct();
+        return Task.FromResult(string.IsNullOrEmpty(term) ? names : names.Where(n => n.Contains(term, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    // MARKER and OWNER default to the company, as in the legacy table.
+    private void New() => form = new MoldForm { Maker = MoldRegistry.DefaultPerson, Owner = MoldRegistry.DefaultPerson, Cost = 0 };
+
+    private void Edit(MoldDto m) => form = new MoldForm
+    {
+        Id = m.Id, Code = m.Code, Name = m.Name, PiecesPerShot = m.PiecesPerShot, MaintenanceShots = m.MaintenanceShots,
+        MaintenancePieces = m.MaintenancePieces, MaintenanceYears = m.MaintenanceYears, DepartmentId = m.DepartmentId,
+        Maker = m.Maker, StartDate = m.StartDate?.ToDateTime(TimeOnly.MinValue), EndDate = m.EndDate?.ToDateTime(TimeOnly.MinValue),
+        Cost = m.Cost, Owner = m.Owner, AluminumWeight = m.AluminumWeight, RowVersion = m.RowVersion,
+    };
+
+    private Task SaveAsync() => SaveAsync(next: false);
+
+    private Task SaveAndNextAsync() => SaveAsync(next: true);
+
+    private async Task SaveAsync(bool next)
+    {
+        busy = true;
+        try
+        {
+            var input = new MoldInput(form.Id, form.Code, form.Name, form.RowVersion, form.PiecesPerShot, form.MaintenanceShots,
+                form.MaintenancePieces, form.MaintenanceYears, form.DepartmentId, form.Maker,
+                form.StartDate is { } s ? DateOnly.FromDateTime(s) : null, form.EndDate is { } e ? DateOnly.FromDateTime(e) : null,
+                form.Cost ?? 0, form.Owner, form.AluminumWeight);
+            var result = await Services.RunAsync<MoldRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            await ReloadAsync();
+            if (next || molds!.FirstOrDefault(m => m.Id == result.Id) is not { } saved) New(); else Edit(saved);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            New();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบแม่พิมพ์", $"ลบแม่พิมพ์ {form.Code} {form.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (form.Id!.Value, form.RowVersion!);
+            var result = await Services.RunAsync<MoldRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class MoldForm
+    {
+        public int? Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int? PiecesPerShot { get; set; }
+        public int? MaintenanceShots { get; set; }
+        public int? MaintenancePieces { get; set; }
+        public int? MaintenanceYears { get; set; }
+        public int? DepartmentId { get; set; }
+        public string? Maker { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public decimal? Cost { get; set; }
+        public string? Owner { get; set; }
+        public decimal? AluminumWeight { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}
