@@ -17,18 +17,19 @@ public sealed record ProductionDepartment(
     string? DefaultMachineCode,
     string MaterialLot1Label,
     string? MaterialLot2Label,
-    bool FillsMoldFromProduct);
+    bool FillsMoldFromProduct,
+    decimal RejectTargetPercent = 0);
 
 public static class ProductionDepartments
 {
     public static IReadOnlyList<ProductionDepartment> All { get; } =
     [
-        new("D", "ไดคาสท์", null, "ล๊อตอลูมิเนียม", "ล๊อตขาเหล็ก", true),
-        new("T", "ตกแต่ง", "T01", "ล๊อตวัตถุดิบ1", null, false),
-        new("B", "อัดผ้าเบรก", null, "ล๊อตเหล็ก", "ล๊อตเคมีผ้าเบรก", true),
-        new("G", "ฝนผ้าเบรก", null, "ล๊อตวัตถุดิบ1", null, false),
-        new("K", "ผ้าคลัทช์และดิสเบรก", null, "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", true),
-        new("A", "ประกอบ", "A01", "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", false),
+        new("D", "ไดคาสท์", null, "ล๊อตอลูมิเนียม", "ล๊อตขาเหล็ก", true, 1.2m),
+        new("T", "ตกแต่ง", "T01", "ล๊อตวัตถุดิบ1", null, false, 0.16m),
+        new("B", "อัดผ้าเบรก", null, "ล๊อตเหล็ก", "ล๊อตเคมีผ้าเบรก", true, 1.2m),
+        new("G", "ฝนผ้าเบรก", null, "ล๊อตวัตถุดิบ1", null, false, 0.3m),
+        new("K", "ผ้าคลัทช์และดิสเบรก", null, "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", true, 1.2m),
+        new("A", "ประกอบ", "A01", "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", false, 0.35m),
         new("P", "บรรจุ", "P01", "ล๊อตวัตถุดิบ1", null, false),
     ];
 
@@ -252,6 +253,18 @@ public sealed class ProductionReportDirectory(ProdDbContext db, OrgDirectory org
         if (product is null) return null;
         var mold = ProductionDepartments.Find(departmentCode)?.FillsMoldFromProduct == true ? product.Mold : null;
         return new ProductionLineDefaults(product.Name, product.Unit, mold?.Id, mold?.Code);
+    }
+
+    /// <summary>
+    /// The reports to print (RPT-10): those dated in the range, of one department or all, and whose number starts with <paramref name="reportNo"/> when given — by number, with their lines.
+    /// Whether they went into the stock does not matter (as the legacy printed the department's own table).
+    /// </summary>
+    public async Task<IReadOnlyList<ProductionReportDto>> ListAsync(DateOnly from, DateOnly to, string? departmentCode = null, string? reportNo = null)
+    {
+        var query = db.ProductionReports.AsNoTracking().Include(r => r.Lines).ThenInclude(l => l.Mold).Where(r => r.ReportDate >= from && r.ReportDate <= to);
+        if (!string.IsNullOrWhiteSpace(departmentCode)) { var code = departmentCode.Trim().ToUpperInvariant(); query = query.Where(r => r.DepartmentCode == code); }
+        if (!string.IsNullOrWhiteSpace(reportNo)) { var no = reportNo.Trim().ToUpperInvariant(); query = query.Where(r => r.ReportNo.StartsWith(no)); }
+        return (await query.OrderBy(r => r.ReportNo).ToListAsync()).Select(ToDto).ToList();
     }
 
     private static ProductionReportDto ToDto(ProductionReport r) => new(
