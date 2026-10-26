@@ -50,6 +50,15 @@ public sealed class OrgDataReset(OrgDbContext db)
     }
 }
 
+/// <summary>
+/// ลบเครื่องจักรทั้งหมดก่อนการย้ายข้อมูลของโปรแกรม ORDER รอบใหม่ (#107) — the แผนก they belong to are the employee
+/// program's and stay. For the data-migration tool only: a bulk delete, so it writes no history.
+/// </summary>
+public sealed class OrgMachineReset(OrgDbContext db)
+{
+    public async Task DeleteAllAsync() => await db.Machines.ExecuteDeleteAsync();
+}
+
 /// <summary>For <c>dotnet ef migrations add … -p src/Lockte.Org</c> only (no database connection is made).</summary>
 internal sealed class OrgDbContextFactory : IDesignTimeDbContextFactory<OrgDbContext>
 {

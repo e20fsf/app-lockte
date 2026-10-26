@@ -70,6 +70,21 @@ instead). The report folder gets `dq-exceptions.csv` (rows not loaded as they ar
 departments, customers or shifts other codes or names (columns `kind,legacy,code,name,prefix`). The reports hold real
 names — keep them out of git. Tests build a fake `.accdb` (`FakeLegacyFile`) with fictional data.
 
+#### ข้อมูลหลักของ ผลผลิตและORDER (#107)
+
+`--program order --source "<copy of ผลผลิตและORDER.accdb>"` loads the master data of that file into the **same database,
+after the employee program's run** (it needs the แผนก and the employee register that run loaded). It deletes and loads again
+สินค้า with its lists (ประเภท, ชนิดเบรก, รุ่น, กลุ่มสินค้า), แม่พิมพ์ and เครื่องจักร; ลูกค้า and เขตการขาย are filled in place by
+code (a customer the employee program loaded for งานรับจ้างผลิต is updated, not created twice; one that is no longer in the
+file stays and is reported). Run the employee program's migration again and it deletes the customers — run this one again after.
+Besides the three files above the report folder gets `source-info.csv` (the file's name, size and last write, the time the
+copy was read) and `employee-match.csv` (T-EMPO and พนักงานขาย codes matched to the HR register: codes only, no names).
+Decisions go in the code map and the run is repeated: `department,<name in the file>,<รหัสแผนก>` (machines and molds),
+`customer,<รหัส>,,#<n>` (a code twice with different values, Q-08: the n-th of its rows in the file — or the right row's name),
+`production-employee,<T-EMPO.ID>,<รหัสพนักงาน HR or ->[,#<n>]` and
+`sales-representative,<T-เซล.ID>,<รหัสพนักงาน HR or ->`. The map in the repo may hold codes and decisions only — no person or
+customer names.
+
 Every table follows the convention in `SharedKernel/Persistence`:
 
 - Module DbContexts derive from `ModuleDbContext` (own schema, audit conventions, rowversion mismatch → `ConcurrencyConflictException`,
