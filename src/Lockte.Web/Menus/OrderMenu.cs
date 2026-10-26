@@ -102,11 +102,11 @@ public static class OrderMenu
         [
             new("บันทึกผลผลิตแผนกไดคาสท์", Code: "SCR-10-1", Page: "order/production/report/D"),
             new("บันทึกผลผลิตแผนกตกแต่ง", Code: "SCR-10-2", Page: "order/production/report/T"),
-            new("บันทึกผลผลิตแผนกอัดผ้าเบรก", Code: "SCR-10-3"),
-            new("บันทึกผลผลิตแผนกฝนผ้าเบรก", Code: "SCR-10-4"),
-            new("บันทึกผลผลิตแผนกประกอบ", Code: "SCR-10-5"),
-            new("บันทึกผลผลิตแผนกบรรจุ", Code: "SCR-10-6"),
-            new("บันทึกผลผลิตแผนกผ้าคลัทช์และดิสเบรก", Code: "SCR-10-7"), // บันทีกผลผลิต… (typo)
+            new("บันทึกผลผลิตแผนกอัดผ้าเบรก", Code: "SCR-10-3", Page: "order/production/report/B"),
+            new("บันทึกผลผลิตแผนกฝนผ้าเบรก", Code: "SCR-10-4", Page: "order/production/report/G"),
+            new("บันทึกผลผลิตแผนกประกอบ", Code: "SCR-10-5", Page: "order/production/report/A"),
+            new("บันทึกผลผลิตแผนกบรรจุ", Code: "SCR-10-6", Page: "order/production/report/P"),
+            new("บันทึกผลผลิตแผนกผ้าคลัทช์และดิสเบรก", Code: "SCR-10-7", Page: "order/production/report/K"), // บันทีกผลผลิต… (typo)
         ]),
         new(11, "แก้ไขผลผลิต", 3,
         [
