@@ -17,6 +17,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options) : Modul
     internal DbSet<Department> Departments => Set<Department>();
     internal DbSet<Shift> Shifts => Set<Shift>();
     internal DbSet<DepartmentShift> DepartmentShifts => Set<DepartmentShift>();
+    internal DbSet<Machine> Machines => Set<Machine>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -71,6 +72,16 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options) : Modul
             h.Property(x => x.FactoryManagerName).HasMaxLength(NameLength).HasAuditName("ผู้จัดการโรงงาน");
             h.HasIndex(x => new { x.DepartmentId, x.ShiftId }).IsUnique();
             h.HasOne(x => x.Shift).WithMany().HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Machine>(m =>
+        {
+            m.HasAuditName("เครื่องจักร");
+            m.Property(x => x.Code).HasMaxLength(OrgRegistry.MachineCodeLength).HasAuditName("รหัสเครื่องจักร");
+            m.Property(x => x.Name).HasMaxLength(NameLength).HasAuditName("ชื่อเครื่องจักร");
+            m.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            m.HasIndex(x => x.Code).IsUnique();
+            m.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

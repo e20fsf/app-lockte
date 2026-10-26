@@ -13,6 +13,8 @@ namespace Lockte.Org;
 public sealed class OrgRegistry(OrgDbContext db)
 {
     public const int DepartmentCodeLength = 10;
+    /// <summary>T-MC_N.CODE is Text(6); T-P_REP.MC_NO (which refers to it) is Text(10).</summary>
+    public const int MachineCodeLength = 10;
     /// <summary>Names of departments, sections and people printed on documents.</summary>
     public const int NameLength = 100;
 
@@ -135,6 +137,46 @@ public sealed class OrgRegistry(OrgDbContext db)
         await db.SaveChangesAsync();
         return ServiceResult.Ok(shift.Id);
     }
+
+    /// <summary>เพิ่ม/แก้ เครื่องจักร (SCR-19). The name is required: clearing it is an error, never a delete (BR-021 → ปุ่มลบ).</summary>
+    public async Task<ServiceResult> SaveMachineAsync(MachineInput input)
+    {
+        var code = Code(input.Code);
+        var name = Clean(input.Name);
+        var errors = new List<string>();
+        if (code is null) errors.Add("กรุณากรอกรหัสเครื่องจักร");
+        else if (code.Length > MachineCodeLength) errors.Add($"รหัสเครื่องจักรยาวได้ไม่เกิน {MachineCodeLength} ตัว");
+        else if (await db.Machines.AnyAsync(m => m.Code == code && m.Id != input.Id)) errors.Add($"มีรหัสเครื่องจักร '{code}' อยู่แล้ว");
+        if (name is null) errors.Add("กรุณากรอกชื่อเครื่องจักร");
+        else if (name.Length > NameLength) errors.Add($"ชื่อเครื่องจักรยาวได้ไม่เกิน {NameLength} ตัว");
+        if (input.DepartmentId is not { } departmentId || !await db.Departments.AnyAsync(d => d.Id == departmentId))
+            errors.Add("กรุณาเลือกแผนก");
+        if (errors.Count > 0) return new ServiceResult(false, errors);
+
+        var machine = input.Id is { } id ? await LoadAsync(db.Machines, id, input.RowVersion ?? throw NeedsRowVersion()) : db.Machines.Add(new Machine()).Entity;
+        if (machine is null) return ServiceResult.Fail("ไม่พบเครื่องจักรนี้ อาจถูกลบไปแล้ว");
+        machine.Code = code!;
+        machine.Name = name!;
+        machine.DepartmentId = input.DepartmentId!.Value;
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(machine.Id);
+    }
+
+    /// <summary>
+    /// ลบเครื่องจักร (ปุ่มลบพร้อมหน้ายืนยันบนหน้าจอ — instead of clearing NAME, BR-021). A machine that other tables
+    /// refer to (ใบรายงานผลผลิต) is refused (ข้อสมมติ ง). Deleting a row that is already gone succeeds.
+    /// </summary>
+    public async Task<ServiceResult> DeleteMachineAsync(int id, byte[] loadedRowVersion)
+    {
+        if (await LoadAsync(db.Machines, id, loadedRowVersion) is not { } machine) return ServiceResult.Ok();
+        db.Machines.Remove(machine);
+        return await db.TrySaveDeleteAsync()
+            ? ServiceResult.Ok()
+            : ServiceResult.Fail($"ลบเครื่องจักร '{machine.Code}' ไม่ได้ เพราะมีรายการอื่นอ้างถึงอยู่");
+    }
+
+    private static ArgumentException NeedsRowVersion()
+        => new("Editing needs the rowversion the screen loaded.");
 
     /// <summary>
     /// The row to change, or null if it is gone. Throws a conflict if it changed since the screen loaded it —

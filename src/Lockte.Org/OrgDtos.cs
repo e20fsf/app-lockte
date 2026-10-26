@@ -79,3 +79,9 @@ public sealed record ShiftInput(
     TimeOnly? OvertimeOut,
     int RestMinutes,
     byte[]? RowVersion);
+
+/// <summary>เครื่องจักร (SCR-19): the department is the แผนก register's, so <see cref="DepartmentName"/> is shown with it.</summary>
+public sealed record MachineDto(int Id, string Code, string Name, int DepartmentId, string DepartmentName, byte[] RowVersion);
+
+/// <summary><see cref="Id"/> null = new machine; editing needs <see cref="RowVersion"/> as loaded.</summary>
+public sealed record MachineInput(int? Id, string Code, string Name, int? DepartmentId, byte[]? RowVersion);

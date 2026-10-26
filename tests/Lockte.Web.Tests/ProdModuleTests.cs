@@ -36,7 +36,7 @@ public sealed class ProdModuleTests(LocalDbFixture db)
         var rows = await scope.Get<HistoryService>().SearchAsync(new(Table: "แม่พิมพ์", RowKey: code));
         string?[][] expected =
         [
-            [HistoryActions.Added, "รหัสแม่พิมพ์", null, code], [HistoryActions.Added, "ชื่อแม่พิมพ์", null, "แม่พิมพ์ก้ามเบรก"],
+            [HistoryActions.Added, "รหัสแม่พิมพ์", null, code], [HistoryActions.Added, "ชื่อแม่พิมพ์", null, "แม่พิมพ์ก้ามเบรก"], [HistoryActions.Added, "ราคา", null, "0"],
             [HistoryActions.Modified, "ชื่อแม่พิมพ์", "แม่พิมพ์ก้ามเบรก", "แม่พิมพ์ก้ามเบรกหลัง"],
         ];
         Assert.Equivalent(expected, rows.Select(r => new[] { r.Action, r.Column, r.OldValue, r.NewValue }), strict: true);

@@ -1,0 +1,146 @@
+@page "/order/machines"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-19 รหัสเครื่องจักร (ฟอร์ม MC_N): รหัส, ชื่อ, แผนก. The register belongs to module องค์กร. Delete is a button with a
+   confirmation (instead of clearing the name, BR-021); a machine that other tables refer to cannot be deleted.
+   "พิมพ์รายชื่อเครื่องจักร" (RPT-21) comes with #137. *@
+<PageTitle>รหัสเครื่องจักร — LOCKTE</PageTitle>
+<h1 class="mb-4">รหัสเครื่องจักร</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มเครื่องจักร" : $"แก้เครื่องจักร {form.Code}")</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.Code" Label="รหัสเครื่องจักร" MaxLength="OrgRegistry.MachineCodeLength" Required="true" RequiredError="กรุณากรอกรหัสเครื่องจักร" /></MudItem>
+        <MudItem xs="12" sm="5"><MudTextField @bind-Value="form.Name" Label="ชื่อเครื่องจักร" MaxLength="OrgRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อเครื่องจักร" /></MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int?" @bind-Value="form.DepartmentId" Label="แผนก" Required="true" RequiredError="กรุณาเลือกแผนก">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบเครื่องจักรนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+        <MudText Typo="Typo.h6">รายการเครื่องจักร</MudText>
+        <MudTextField @bind-Value="search" Immediate="true" Label="ค้นหา (รหัสหรือชื่อ)" Clearable="true" Margin="Margin.Dense" Style="max-width:18rem" />
+    </MudStack>
+    <MudTable Items="Shown" Dense="true" Hover="true" Loading="machines is null" T="MachineDto" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<MachineDto> e) => Edit(e.Item!))">
+        <HeaderContent><MudTh>รหัส</MudTh><MudTh>ชื่อ</MudTh><MudTh>แผนก</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Code</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.DepartmentName</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ไม่พบเครื่องจักร</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(6)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<MachineDto>? machines;
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private MachineForm form = new();
+    private string? search;
+    private bool busy;
+
+    private IEnumerable<MachineDto> Shown => (machines ?? [])
+        .Where(m => string.IsNullOrWhiteSpace(search)
+            || m.Code.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || m.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+        => machines = await Services.RunAsync<OrgDirectory, IReadOnlyList<MachineDto>>(o => o.GetMachinesAsync());
+
+    private void New() => form = new MachineForm();
+
+    private void Edit(MachineDto m) => form = new MachineForm
+    {
+        Id = m.Id, Code = m.Code, Name = m.Name, DepartmentId = m.DepartmentId, RowVersion = m.RowVersion,
+    };
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new MachineInput(form.Id, form.Code, form.Name, form.DepartmentId, form.RowVersion);
+            var result = await Services.RunAsync<OrgRegistry, ServiceResult>(r => r.SaveMachineAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบเครื่องจักร", $"ลบเครื่องจักร {form.Code} {form.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (form.Id!.Value, form.RowVersion!);
+            var result = await Services.RunAsync<OrgRegistry, ServiceResult>(r => r.DeleteMachineAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class MachineForm
+    {
+        public int? Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int? DepartmentId { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

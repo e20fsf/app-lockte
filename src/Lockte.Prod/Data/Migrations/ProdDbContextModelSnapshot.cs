@@ -31,11 +31,21 @@ namespace Lockte.Prod.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal?>("AluminumWeight")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("decimal(12,3)")
+                        .HasAnnotation("Lockte:AuditName", "น้ำหนักอลูมิเนียม");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
                         .HasAnnotation("Lockte:AuditName", "รหัสแม่พิมพ์");
+
+                    b.Property<decimal>("Cost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasAnnotation("Lockte:AuditName", "ราคา");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
@@ -45,17 +55,55 @@ namespace Lockte.Prod.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่เลิกใช้");
+
+                    b.Property<int?>("MaintenancePieces")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เกณฑ์บำรุงรักษา จำนวนชิ้น");
+
+                    b.Property<int?>("MaintenanceShots")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เกณฑ์บำรุงรักษา จำนวนครั้งการฉีด");
+
+                    b.Property<int?>("MaintenanceYears")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เกณฑ์บำรุงรักษา จำนวนปี");
+
+                    b.Property<string>("Maker")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ทำแม่พิมพ์");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
                         .HasAnnotation("Lockte:AuditName", "ชื่อแม่พิมพ์");
 
+                    b.Property<string>("Owner")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เจ้าของแม่พิมพ์");
+
+                    b.Property<int?>("PiecesPerShot")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ชิ้น/พิมพ์");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่เริ่มใช้");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
@@ -69,6 +117,8 @@ namespace Lockte.Prod.Data.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("DepartmentId");
 
                     b.ToTable("Molds", "prod");
 

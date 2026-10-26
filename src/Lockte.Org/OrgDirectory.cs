@@ -50,6 +50,18 @@ public sealed class OrgDirectory(OrgDbContext db)
             .Select(ToDto).ToList();
     }
 
+    /// <summary>เครื่องจักร by รหัส (SCR-19 order).</summary>
+    public async Task<IReadOnlyList<MachineDto>> GetMachinesAsync()
+        => await db.Machines.AsNoTracking().OrderBy(m => m.Code)
+            .Select(m => new MachineDto(m.Id, m.Code, m.Name, m.DepartmentId, m.Department.Name, m.RowVersion)).ToListAsync();
+
+    public async Task<MachineDto?> FindMachineByCodeAsync(string code)
+    {
+        var normalized = OrgRegistry.Code(code);
+        return await db.Machines.AsNoTracking().Where(m => m.Code == normalized)
+            .Select(m => new MachineDto(m.Id, m.Code, m.Name, m.DepartmentId, m.Department.Name, m.RowVersion)).FirstOrDefaultAsync();
+    }
+
     public async Task<IReadOnlyList<ShiftDto>> GetShiftsAsync()
         => await db.Shifts.AsNoTracking().OrderBy(s => s.Code).Select(s => ToDto(s)).ToListAsync();
 

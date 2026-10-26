@@ -20,7 +20,19 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             m.HasAuditName("แม่พิมพ์");
             m.Property(x => x.Code).HasMaxLength(MoldRegistry.CodeLength).HasAuditName("รหัสแม่พิมพ์");
             m.Property(x => x.Name).HasMaxLength(MoldRegistry.NameLength).HasAuditName("ชื่อแม่พิมพ์");
+            m.Property(x => x.PiecesPerShot).HasAuditName("ชิ้น/พิมพ์");
+            m.Property(x => x.MaintenanceShots).HasAuditName("เกณฑ์บำรุงรักษา จำนวนครั้งการฉีด");
+            m.Property(x => x.MaintenancePieces).HasAuditName("เกณฑ์บำรุงรักษา จำนวนชิ้น");
+            m.Property(x => x.MaintenanceYears).HasAuditName("เกณฑ์บำรุงรักษา จำนวนปี");
+            m.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            m.Property(x => x.Maker).HasMaxLength(MoldRegistry.PersonLength).HasAuditName("ผู้ทำแม่พิมพ์");
+            m.Property(x => x.StartDate).HasAuditName("วันที่เริ่มใช้");
+            m.Property(x => x.EndDate).HasAuditName("วันที่เลิกใช้");
+            m.Property(x => x.Cost).HasPrecision(18, 2).HasAuditName("ราคา");
+            m.Property(x => x.Owner).HasMaxLength(MoldRegistry.PersonLength).HasAuditName("เจ้าของแม่พิมพ์");
+            m.Property(x => x.AluminumWeight).HasPrecision(12, 3).HasAuditName("น้ำหนักอลูมิเนียม");
             m.HasIndex(x => x.Code).IsUnique();
+            m.HasIndex(x => x.DepartmentId);
         });
     }
 }
