@@ -1,0 +1,45 @@
+@* RPT-21 ทะเบียนแม่พิมพ์ (รหัสพิมพ์; เมนู 6) และรายชื่อแม่พิมพ์ที่ยังใช้งานอยู่ (รหัสพิมพ์ที่ยังใช้อยู่): ระดับ B. The register lists every
+   mold, the retired too, with วันที่เลิกใช้งาน; the list of molds in use has "การบำรุงรักษา" (ทุก N SHOT) in its place. A mold
+   without a SHOT criterion prints no maintenance — the legacy printed "ทุก  SHOT" with no number (Q-23). *@
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:4%" /><col style="width:17%" /><col style="width:24%" /><col style="width:7%" /><col style="width:15%" />
+            <col style="width:10%" /><col style="width:11%" /><col style="width:12%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ที่</th><th>รหัสพิมพ์</th><th>ชื่อพิมพ์</th><th class="num">ชิ้น/พิมพ์</th><th>ผู้ผลิต</th><th>วันที่ขึ้นทะเบียน</th>
+                <th>@(InUseOnly ? "การบำรุงรักษา" : "วันที่เลิกใช้งาน")</th><th>เจ้าของพิมพ์</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var m = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@m.Code</td>
+                    <td>@m.Name</td>
+                    <td class="num">@m.PiecesPerShot</td>
+                    <td>@m.Maker</td>
+                    <td>@(m.StartDate is { } s ? ReportText.Date(s) : null)</td>
+                    <td>@(InUseOnly ? (m.MaintenanceShots is { } shots ? $"ทุก {shots.ToString("#,0", Lockte.SharedKernel.ThaiDate.Culture)} SHOT" : null) : (m.EndDate is { } e ? ReportText.Date(e) : null))</td>
+                    <td>@m.Owner</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MasterList<MoldRegisterLine> Report { get; set; } = null!;
+
+    /// <summary>รายชื่อแม่พิมพ์ที่ยังใช้งานอยู่ — the last column is การบำรุงรักษา.</summary>
+    [Parameter] public bool InUseOnly { get; set; }
+}

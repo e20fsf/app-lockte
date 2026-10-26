@@ -48,10 +48,12 @@ public static class DocumentKeys
     public const string DailyContract = "RPT-56-2";
     public const string MonthlyContract = "RPT-56-3";
     public const string Kr2 = "RPT-57";
+    /// <summary>RPT-21 ทะเบียนแม่พิมพ์ of ผลผลิตและORDER (#137): the only list of that program with a number.</summary>
+    public const string MoldRegister = "RPT-21-M";
 
     public static IReadOnlyList<string> All { get; } =
     [
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
-        InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2,
+        InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2, MoldRegister,
     ];
 }

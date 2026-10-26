@@ -1,0 +1,23 @@
+@* RPT-21 รายชื่อเครื่องจักร (MC_N, เมนู 6): ระดับ B — รหัส, ชื่อเครื่องจักร, แผนก, เรียงตามรหัส. *@
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:8%" /><col style="width:20%" /><col style="width:44%" /><col style="width:28%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อเครื่องจักร</th><th>แผนก</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var m = Report.Lines[i];
+                <tr><td class="num">@(i + 1)</td><td>@m.Code</td><td>@m.Name</td><td>@m.DepartmentName</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MasterList<MachineDto> Report { get; set; } = null!;
+}

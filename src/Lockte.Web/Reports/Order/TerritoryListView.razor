@@ -1,0 +1,23 @@
+@* RPT-21 รายชื่อเขตการขายและพนักงานขาย (เมนู 9 "พิมพ์รายชื่อ", EMPLO1): ระดับ B — รหัสเขต, ชื่อ, พนักงานขาย (จากทะเบียนพนักงาน). *@
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:8%" /><col style="width:14%" /><col style="width:38%" /><col style="width:40%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัสเขต</th><th>ชื่อ</th><th>พนักงานขาย</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var t = Report.Lines[i];
+                <tr><td class="num">@(i + 1)</td><td>@t.Code</td><td>@t.Name</td><td>@(t.EmployeeCode is null ? null : $"{t.EmployeeCode} {t.EmployeeName}")</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MasterList<SalesTerritoryDto> Report { get; set; } = null!;
+}

@@ -113,6 +113,16 @@
     </MudTable>
 </MudPaper>
 
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">พิมพ์รายชื่อสินค้า</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Outlined" Href="reports/order/products" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อสินค้าทั้งหมด</MudButton>
+        <MudTextField @bind-Value="printCode" Immediate="true" Label="รหัสสินค้า" HelperText="เช่น G1* (ใส่ * แทนอักษรที่เหลือ)" Margin="Margin.Dense" Style="max-width:14rem" />
+        <MudButton Variant="Variant.Outlined" Href="@PrintByCodeHref" Target="_blank" Disabled="string.IsNullOrWhiteSpace(printCode)" StartIcon="@Icons.Material.Filled.Print">พิมพ์ตามรหัส</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@PrintByCustomerHref" Target="_blank" Disabled="form.Customer is null" StartIcon="@Icons.Material.Filled.Print">พิมพ์ตามลูกค้า (ที่เลือกในแบบฟอร์ม)</MudButton>
+    </MudStack>
+</MudPaper>
+
 <MudButton Href="@OrderMenu.HrefOf(8)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
 
 @code {
@@ -129,6 +139,11 @@
     private string? search;
     private bool busy;
     private bool adding;
+    private string? printCode;
+
+    private string PrintByCodeHref => "reports/order/products?code=" + Uri.EscapeDataString(printCode ?? "");
+
+    private string PrintByCustomerHref => "reports/order/products?customer=" + (form.Customer?.Id ?? 0);
 
     private string? GroupText
     {

@@ -1,0 +1,38 @@
+@* RPT-21 รายชื่อลูกค้า (พิมพ์รายชื่อลูกค้า, เมนู 7): ระดับ B, A4 นอน — ทุกลูกค้าตามรหัส. The legacy columns wider than the page were cut
+   (D-4): here they are sized to fit and the address wraps. *@
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:4%" /><col style="width:9%" /><col style="width:22%" /><col style="width:27%" /><col style="width:11%" />
+            <col style="width:7%" /><col style="width:10%" /><col style="width:10%" />
+        </colgroup>
+        <thead>
+            <tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อลูกค้า</th><th>ที่อยู่</th><th>จังหวัด</th><th>เครดิต</th><th>โทร</th><th>เขตการขาย</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var c = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@c.Code</td>
+                    <td>@c.Name</td>
+                    <td>@string.Join(" ", new[] { c.Address, c.District, c.PostalCode }.Where(x => !string.IsNullOrWhiteSpace(x)))</td>
+                    <td>@c.Province</td>
+                    <td>@c.CreditText</td>
+                    <td>@string.Join(", ", new[] { c.Phone1, c.Phone2 }.Where(x => !string.IsNullOrWhiteSpace(x)))</td>
+                    <td>@c.SalesTerritoryCode</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MasterList<CustomerDto> Report { get; set; } = null!;
+}
