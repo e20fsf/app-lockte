@@ -44,6 +44,7 @@ public static class ReportsRegistration
         reports.MapHrEvaluationReports(); // ปรับค่าแรง ประเมินผล (#67)
         reports.MapOrderMasterListReports(); // รายชื่อข้อมูลหลักของผลผลิตและORDER (#137)
         reports.MapSaleOrderReports(); // ใบ SALE ORDER (#110)
+        reports.MapLotTraceReports(); // เปรียบเทียบ Lot การผลิต (#127)
         reports.MapStockReports(); // สต็อกคงเหลือ และ STOCK CARD (#124)
         reports.MapWithdrawalReports(); // รายงานใบเบิก (#120)
         reports.MapDeliveryReports(); // เอกสาร ISO การส่งของ (#136)
