@@ -1,0 +1,181 @@
+@page "/order/orders/new/{TerritoryCode}"
+@page "/order/orders/own"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+@* SCR-05 กรอก SALE ORDER: ODD1 (ใบใหม่, the number comes from SCR-04) and ODD11 (ใบเก่า / ใบสั่งของลูกค้า, the user types the number).
+   Choosing the customer fills its name, เขตการขาย, เงื่อนไขการชำระเงิน and หมายเหตุ; the date sets กำหนดส่ง = วันที่ + 7; choosing a
+   product fills its name and unit but not the price (BR-002). มูลค่า = จำนวน × ราคา whichever field was edited last (ข้อสมมติ ก).
+   "พิมพ์" saves, puts the order in the history and writes its หมายเหตุ to the customer; "กลับเมนูเดิม" of ODD1 saves a ค้างส่ง order
+   that is not in the history (AC-22), of ODD11 saves it into the history without touching the customer. The order number must be new. *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudGrid Spacing="2">
+        <MudItem xs="6" sm="3">
+            <MudDatePicker Editable="true" Date="orderDate" DateChanged="DateChanged" Label="วันที่ในใบ ORDER" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" />
+        </MudItem>
+        <MudItem xs="6" sm="3"><MudTextField @bind-Value="orderNo" Label="เลขที่ใบ ORDER" MaxLength="SalesOrderRegistry.OrderNoLength" Required="true" HelperText="@(own ? "พิมพ์เอง เช่น 24/2564" : "เลขถัดไปของเขตนี้ แก้ได้ แต่ห้ามซ้ำ")" /></MudItem>
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="CustomerDto" Value="customer" ValueChanged="CustomerChangedAsync" Label="รหัสลูกค้า (รหัส หรือ ชื่อ)" SearchFunc="SearchCustomerAsync"
+                             ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+        </MudItem>
+        <MudItem xs="12" sm="6"><MudTextField @bind-Value="customerName" Label="ชื่อลูกค้า" MaxLength="CustomerRegistry.NameLength" /></MudItem>
+        <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="deliveryDate" Label="กำหนดวันที่ส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="3">
+            <MudSelect T="int?" @bind-Value="territoryId" Label="เขตการขาย" Clearable="true">
+                @foreach (var t in territories)
+                {
+                    <MudSelectItem T="int?" Value="t.Id">@t.Code — @t.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="paymentTerms" Label="เงื่อนไขการชำระเงิน" MaxLength="SalesOrderRegistry.TextLength" /></MudItem>
+        <MudItem xs="12" sm="8"><MudTextField @bind-Value="remark" Label="หมายเหตุ (ชื่อ + ที่อยู่สำหรับพิมพ์)" MaxLength="SalesOrderRegistry.TextLength" /></MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudTable Items="lines" Dense="true" Breakpoint="Breakpoint.None" T="LineForm">
+        <HeaderContent>
+            <MudTh>#</MudTh><MudTh>รหัสสินค้า</MudTh><MudTh>ชื่อสินค้า</MudTh><MudTh>หน่วย</MudTh><MudTh>จำนวน</MudTh><MudTh>ราคา</MudTh><MudTh>มูลค่า</MudTh><MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@(lines.IndexOf(context) + 1)</MudTd>
+            <MudTd Style="min-width:14rem">
+                <MudAutocomplete T="ProductListItem" Value="context.Product" ValueChanged="@(p => ProductChanged(context, p))" SearchFunc="SearchProductAsync"
+                                 ToStringFunc="@(p => p is null ? "" : p.Code)" Clearable="true" ResetValueOnEmptyText="true" MaxItems="30" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd Style="min-width:16rem"><MudTextField @bind-Value="context.Name" Margin="Margin.Dense" /></MudTd>
+            <MudTd Style="min-width:6rem"><MudTextField @bind-Value="context.Unit" Margin="Margin.Dense" /></MudTd>
+            <MudTd Style="min-width:8rem"><MudNumericField T="decimal?" @bind-Value="context.Quantity" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+            <MudTd Style="min-width:8rem"><MudNumericField T="decimal?" @bind-Value="context.Price" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+            <MudTd Style="text-align:right">@(SalesOrderRules.Amount(context.Quantity, context.Price)?.ToString("N2"))</MudTd>
+            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => lines.Remove(context))" aria-label="ลบบรรทัด" /></MudTd>
+        </RowTemplate>
+    </MudTable>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-2">
+        <MudButton OnClick="AddLine" StartIcon="@Icons.Material.Filled.Add">เพิ่มบรรทัด</MudButton>
+        <MudSpacer />
+        <MudText>ยอดรวม <b>@total.ToString("N2")</b> บาท</MudText>
+    </MudStack>
+</MudPaper>
+
+<MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+    @if (!own)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(OrderEntryMode.Print))" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    }
+    <MudButton Variant="Variant.Outlined" OnClick="@(() => SaveAsync(own ? OrderEntryMode.SaveToHistory : OrderEntryMode.Save))" Disabled="busy"
+               StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    [Parameter]
+    public string? TerritoryCode { get; set; }
+
+    private IReadOnlyList<SalesTerritoryDto> territories = [];
+    private readonly List<LineForm> lines = [];
+    private CustomerDto? customer;
+    private DateTime? orderDate = DateTime.Today;
+    private DateTime? deliveryDate = DateTime.Today.AddDays(7);
+    private string orderNo = "";
+    private string customerName = "";
+    private string paymentTerms = "";
+    private string remark = "";
+    private int? territoryId;
+    private bool busy;
+
+    private bool own => TerritoryCode is null;
+
+    private string Title => own ? "ORDER เก่าหรือใบ ORDER ของลูกค้า" : "ORDER ใหม่";
+
+    private decimal total => lines.Sum(l => SalesOrderRules.Amount(l.Quantity, l.Price) ?? 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        territories = await Services.RunAsync<SalesTerritoryDirectory, IReadOnlyList<SalesTerritoryDto>>(d => d.GetAllAsync());
+        for (var i = 0; i < 5; i++) AddLine();
+        if (TerritoryCode is { } code)
+        {
+            // ODD1's Load: REF_NO and SALE_ID from SCR-04 (the user may change both).
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            orderNo = await Services.RunAsync<SalesOrderDirectory, string?>(d => d.ProposeNumberAsync(code, today)) ?? "";
+            territoryId = territories.FirstOrDefault(t => t.Code == code)?.Id;
+        }
+    }
+
+    private void AddLine() => lines.Add(new LineForm());
+
+    private void DateChanged(DateTime? value)
+    {
+        orderDate = value;
+        if (value is { } d) deliveryDate = d.AddDays(7); // กำหนดส่ง = วันที่ + 7
+    }
+
+    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private async Task CustomerChangedAsync(CustomerDto? chosen)
+    {
+        customer = chosen;
+        if (chosen is null) return;
+        var defaults = await Services.RunAsync<SalesOrderDirectory, OrderDefaults?>(d => d.DefaultsForCustomerAsync(chosen.Id));
+        if (defaults is null) return;
+        customerName = defaults.CustomerName;
+        if (defaults.SalesTerritoryId is { } t) territoryId = t; // replaces the เขต of SCR-04 when the customer has one
+        paymentTerms = defaults.PaymentTerms ?? "";
+        remark = defaults.Remark ?? "";
+    }
+
+    private void ProductChanged(LineForm line, ProductListItem? product)
+    {
+        line.Product = product;
+        if (product is null) return;
+        line.Name = product.Name; // the price is not taken from the product (BR-002)
+        line.Unit = product.Unit ?? "";
+    }
+
+    private async Task SaveAsync(OrderEntryMode mode)
+    {
+        busy = true;
+        try
+        {
+            if (customer is null) { Snackbar.Add("กรุณาเลือกลูกค้า", Severity.Error); return; }
+            var input = new SalesOrderInput(orderNo, DateOnly.FromDateTime(orderDate ?? DateTime.Today), customer.Id, customerName, territoryId,
+                deliveryDate is { } d ? DateOnly.FromDateTime(d) : null, paymentTerms, remark,
+                lines.Where(l => l.Product is not null).Select(l => new SalesOrderLineInput(l.Product!.Id, l.Quantity, l.Price, l.Name, l.Unit)).ToList());
+            var result = await Services.RunAsync<SalesOrderRegistry, OrderSaveResult>(r => r.CreateAsync(input, mode));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded)
+            {
+                if (result.NextNumber is { } next) orderNo = next; // the number was taken meanwhile: offer the next one
+                return;
+            }
+            Snackbar.Add($"บันทึก ORDER เลขที่ {orderNo} แล้ว", Severity.Success);
+            Navigation.NavigateTo(OrderMenu.HrefOf(17));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class LineForm
+    {
+        public ProductListItem? Product { get; set; }
+        public string Name { get; set; } = "";
+        public string Unit { get; set; } = "";
+        public decimal? Quantity { get; set; }
+        public decimal? Price { get; set; }
+    }
+}

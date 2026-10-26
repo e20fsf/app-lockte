@@ -16,6 +16,7 @@ public static class ProdModule
         services.AddScoped<ProductDirectory>();
         services.AddScoped<ProductRegistry>();
         services.AddScoped<ProductListRegistry>();
+        services.AddScoped<Lockte.Sales.IProductLookup, SalesProductLookup>();
         return services;
     }
 
