@@ -44,6 +44,7 @@ public static class ReportsRegistration
         reports.MapHrEvaluationReports(); // ปรับค่าแรง ประเมินผล (#67)
         reports.MapOrderMasterListReports(); // รายชื่อข้อมูลหลักของผลผลิตและORDER (#137)
         reports.MapSaleOrderReports(); // ใบ SALE ORDER (#110)
+        reports.MapDeliveryReports(); // เอกสาร ISO การส่งของ (#136)
         reports.MapOrderReports(); // ORDER ค้างส่ง และสรุปการรับ ORDER (#113)
 
         // RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13): A4 ตั้ง, no document number.

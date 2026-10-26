@@ -1,0 +1,49 @@
+@* RPT-08 รายงานการส่งสินค้าเดือน … (รายงานส่งออก SALE_ORDER — ส่งผู้จัดการโรงงาน, WI-ST005-3/2551 ฉบับที่ 1), ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ …,
+   (ลำดับ) วันที่ส่งสินค้า, เลขที่ SALE ORDER, รหัสลูกค้า, ชื่อลูกค้า, กำหนดส่ง, ประเมิน (ทัน / ล่าช้า), จำนวนเงิน; at the end "รวมทั้งหมด n ใบ ทัน n ล่าช้า n
+   ส่งทัน x.xx % Σจำนวนเงิน" and the sign boxes Prepared by / Reviewed by / Approved by. The legacy spelled "ล้าช้า" and printed "ผ่าน" after the
+   percentage; the month in the head comes from the dates (D-5). An order with no due date is neither ทัน nor ล่าช้า. *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:6%" /><col style="width:14%" /><col style="width:15%" /><col style="width:13%" /><col style="width:24%" /><col style="width:13%" /><col style="width:9%" /><col style="width:16%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ที่</th><th>วันที่ส่งสินค้า</th><th>เลขที่ SALE ORDER</th><th>รหัสลูกค้า</th><th>ชื่อลูกค้า</th><th>กำหนดส่ง</th><th>ประเมิน</th><th class="num">จำนวนเงิน</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var row = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@ReportText.Date(row.DeliveryDate)</td>
+                    <td>@row.OrderNo</td>
+                    <td>@row.CustomerCode</td>
+                    <td>@row.CustomerName</td>
+                    <td>@(row.DueDate is { } due ? ReportText.Date(due) : "")</td>
+                    <td>@(row.OnTime is { } onTime ? (onTime ? "ทัน" : "ล่าช้า") : "")</td>
+                    <td class="num">@ReportText.Decimal2(row.Amount)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="5"><b>รวมทั้งหมด @Report.Rows.Count ใบ&emsp;ทัน @Report.OnTime&emsp;ล่าช้า @Report.Late@(Report.PercentOnTime is { } percent ? $"  ส่งทัน {ReportText.Decimal2(percent)} %" : "")</b></td>
+                <td colspan="2"></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.Amount)</b></td>
+            </tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public ManagerDeliveryReport Report { get; set; } = null!;
+}

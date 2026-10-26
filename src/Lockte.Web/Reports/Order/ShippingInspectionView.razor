@@ -1,0 +1,57 @@
+@* รายงานการตรวจสอบสินค้าที่จัดส่งให้ลูกค้า (สินค้าก่อนส่งให้ลูกค้า, WI-QA033-1/2547 ฉบับที่ 3), ระดับ B on A4 นอน: a strip for every customer delivered to in the range, three
+   to a page. Left: รหัสลูกค้า, ชื่อลูกค้า, วันที่ส่งใบสุ่ม, วันที่ตรวจสอบ (= วันที่ส่ง), ผลการตรวจสอบ ☐ ผ่าน ☐ ไม่ผ่าน, P-NCR เลขที่ — dotted lines to be filled in.
+   Right, Attribute Data: วันที่ส่งสินค้า, จำนวน n กล่อง (= Σกล่อง of the customer in RPT-07), จำนวนสุ่ม n กล่อง, จำนวนที่ยอมรับ 0 / ไม่ยอมรับ 1 กล่อง (fixed
+   as on the QA form), then the two defects (ไม่มีป้ายบ่งชี้ผลิตภัณฑ์, สภาพบรรจุภัณฑ์ไม่เรียบร้อย) × the result boxes 1-10 … 121-130 with "/" printed
+   in 1-10. The sample is min(boxes, 5), a guess from the samples. Ends with หมายเหตุ and the four sign boxes. *@
+@if (Report.Strips.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    @for (var i = 0; i < Report.Strips.Count; i++)
+    {
+        var strip = Report.Strips[i];
+        <table style="margin-bottom:5mm;@(i % 3 == 2 ? "page-break-after:always;" : "")break-inside:avoid">
+            <colgroup><col style="width:50%" /><col style="width:50%" /></colgroup>
+            <tbody>
+                <tr>
+                    <td style="vertical-align:top">
+                        <div>รหัสลูกค้า <u>&emsp;@strip.CustomerCode&emsp;</u></div>
+                        <div>ชื่อลูกค้า <u>&emsp;@strip.CustomerName&emsp;</u></div>
+                        <div>วันที่ส่งใบสุ่ม ..........................</div>
+                        <div>วันที่ตรวจสอบ <u>&emsp;@ReportText.Date(strip.DeliveryDate)&emsp;</u></div>
+                        <div>ผลการตรวจสอบ&emsp;☐ ผ่าน&emsp;☐ ไม่ผ่าน</div>
+                        <div>P-NCR เลขที่ ..........................</div>
+                    </td>
+                    <td style="vertical-align:top">
+                        <div><b>Attribute Data</b></div>
+                        <div>วันที่ส่งสินค้า @ReportText.Date(strip.DeliveryDate)&emsp;จำนวน @strip.Boxes กล่อง&emsp;จำนวนสุ่ม @strip.Sample กล่อง</div>
+                        <div>จำนวนที่ยอมรับ 0&emsp;ไม่ยอมรับ 1 กล่อง</div>
+                        <table style="margin-top:2mm">
+                            <thead>
+                                <tr><th></th>@foreach (var range in Ranges) { <th class="num">@range</th> }</tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var defect in Defects)
+                                {
+                                    <tr><td>@defect</td>@for (var c = 0; c < Ranges.Length; c++) { <td class="num">@(c == 0 ? "/" : "")</td> }</tr>
+                                }
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    }
+    <p>หมายเหตุ ...........................................................................................................................................</p>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["ผู้ตรวจสอบ", "หัวหน้าแผนกประกันคุณภาพ", "ผู้จัดการฝ่ายประกันคุณภาพ", "ผู้จัดการฝ่ายสโตร์"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public ShippingInspectionReport Report { get; set; } = null!;
+
+    private static readonly string[] Ranges = [.. Enumerable.Range(0, 13).Select(i => $"{i * 10 + 1}-{i * 10 + 10}")];
+
+    private static readonly string[] Defects = ["ไม่มีป้ายบ่งชี้ผลิตภัณฑ์", "สภาพบรรจุภัณฑ์ไม่เรียบร้อย"];
+}
