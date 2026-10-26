@@ -47,7 +47,7 @@
         <MudItem xs="12" sm="6">
             <MudAutocomplete T="string" @bind-Value="form.Owner" Label="เจ้าของแม่พิมพ์" SearchFunc="SearchOwnerAsync"
                              CoerceText="true" CoerceValue="true" Clearable="true" MaxLength="MoldRegistry.PersonLength"
-                             HelperText="เลือกจากรายชื่อลูกค้า หรือพิมพ์เอง" />
+                             HelperText="เลือกจากลูกค้าเขตการขาย 00 และ 09 หรือพิมพ์เอง" />
         </MudItem>
         <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.AluminumWeight" Label="น้ำหนักอลูมิเนียม (กก.)" HideSpinButtons="true" Min="0m" /></MudItem>
     </MudGrid>
@@ -117,11 +117,11 @@
 
     private string DepartmentName(int? id) => departments.FirstOrDefault(d => d.Id == id)?.Name ?? "";
 
-    // OWNER's list: customers of เขตการขาย 00/09 — the territory comes with the customer ticket (#106), until then every customer.
+    // OWNER's list: customers of เขตการขาย 00 and 09, as in the legacy combo.
     private Task<IEnumerable<string>> SearchOwnerAsync(string? text, CancellationToken _)
     {
         var term = text?.Trim();
-        var names = new[] { MoldRegistry.DefaultPerson }.Concat(customers.Select(c => c.Name)).Distinct();
+        var names = new[] { MoldRegistry.DefaultPerson }.Concat(customers.Where(c => c.SalesTerritoryCode is "00" or "09").Select(c => c.Name)).Distinct();
         return Task.FromResult(string.IsNullOrEmpty(term) ? names : names.Where(n => n.Contains(term, StringComparison.OrdinalIgnoreCase)));
     }
 

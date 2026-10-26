@@ -13,6 +13,8 @@ public static class SalesModule
         services.AddModuleDbContext<SalesDbContext>(connectionString, SalesDbContext.Schema);
         services.AddScoped<CustomerDirectory>();
         services.AddScoped<CustomerRegistry>();
+        services.AddScoped<SalesTerritoryDirectory>();
+        services.AddScoped<SalesTerritoryRegistry>();
         return services;
     }
 
