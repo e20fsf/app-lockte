@@ -297,4 +297,41 @@ public sealed class ProductionReportTests(LocalDbFixture db)
         Assert.Equal("ล๊อตเคมีผ้าเบรก", ProductionDepartments.Find("B")!.MaterialLot2Label);
         Assert.Null(ProductionDepartments.Find("T")!.MaterialLot2Label);
     }
+
+    [Theory] // #117, #118: the next number of each department follows its own letter (BR-015), whatever the other departments hold
+    [InlineData("B", "B90310", "B90311")]
+    [InlineData("A", "A90310", "A90311")]
+    [InlineData("P", "P90310", "P90311")]
+    public async Task Each_department_numbers_its_own_reports(string department, string highest, string expected)
+    {
+        var product = await NewProductAsync();
+        await SavedAsync(Report(department, highest, Line(product, 10)));
+
+        var next = await AsAsync(s => s.Get<ProductionReportDirectory>().ProposeNumberAsync(department));
+
+        Assert.Equal(expected, next);
+    }
+
+    [Fact] // #117, #118: the mold is filled from the product in อัดผ้าเบรก and ผ้าคลัทช์และดิสเบรก (and ไดคาสท์), not in the other four
+    public async Task The_mold_is_filled_from_the_product_in_three_departments_only()
+    {
+        var mold = await NewMoldAsync();
+        var product = await NewProductAsync(mold);
+
+        var filled = new List<string>();
+        foreach (var department in ProductionDepartments.All)
+        {
+            var report = await SavedAsync(Report(department.Code, FreeNumber(department.Code), Line(product, 10)));
+            if (report.Lines[0].MoldId == mold) filled.Add(department.Code);
+        }
+
+        Assert.Equal(["D", "B", "K"], filled);
+    }
+
+    [Fact] // #117, #118: starting machines — ตกแต่ง, ประกอบ and บรรจุ have one, the other four none
+    public void Only_three_departments_have_a_starting_machine()
+    {
+        Assert.Equal([("T", "T01"), ("A", "A01"), ("P", "P01")],
+            ProductionDepartments.All.Where(d => d.DefaultMachineCode is not null).Select(d => (d.Code, d.DefaultMachineCode!)));
+    }
 }
