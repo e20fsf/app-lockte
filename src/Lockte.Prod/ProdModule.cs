@@ -20,6 +20,8 @@ public static class ProdModule
         services.AddScoped<ProductionReportDirectory>();
         services.AddScoped<StockRegistry>();
         services.AddScoped<StockDirectory>();
+        services.AddScoped<StockClosingRegistry>();
+        services.AddScoped<StockClosingDirectory>();
         services.AddScoped<StockWithdrawalRegistry>();
         services.AddScoped<StockWithdrawalDirectory>();
         services.AddScoped<Lockte.Sales.IProductLookup, SalesProductLookup>();
