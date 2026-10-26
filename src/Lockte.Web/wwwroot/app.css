@@ -98,6 +98,19 @@ h1:focus { outline: none; }
 .menu-item.mud-button-root .mud-button-label { width: 100%; justify-content: space-between; }
 .menu-item.mud-button-root .mud-button-icon-end { margin-left: auto; color: var(--lk-red); }
 .menu-item.mud-button-root:hover { background: #fff; border-color: #E3A9A9; box-shadow: var(--lk-shadow-lg); transform: translateY(-1px); }
+.menu-program { color: var(--lk-red-dark); font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; margin: -.25rem 0 .25rem; }
+
+/* หน้าเลือกโปรแกรม: การ์ดใหญ่ต่อโปรแกรม; การ์ดจางของโปรแกรมระยะถัดไปกดไม่ได้ */
+.menu-page.program-page { max-width: 1000px; }
+.program-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+.program-card { display: flex; flex-direction: column; align-items: center; gap: .4rem; padding: 1.75rem 1.25rem; min-height: 180px; box-sizing: border-box; justify-content: center; color: var(--lk-ink); text-decoration: none; background: #fff; border: 1px solid var(--lk-line); border-radius: var(--lk-radius); box-shadow: var(--lk-shadow); transition: box-shadow .15s, border-color .15s, transform .15s; }
+a.program-card:hover { border-color: #E3A9A9; box-shadow: var(--lk-shadow-lg); transform: translateY(-1px); }
+.program-card .program-card-icon { font-size: 2.75rem; color: var(--lk-red); }
+.program-card-title { font-size: 1.3rem; font-weight: 700; }
+.program-card-detail { color: var(--lk-muted); font-size: 1rem; }
+.program-card-later { background: var(--lk-head); box-shadow: none; border-style: dashed; cursor: default; opacity: .7; }
+.program-card-later .program-card-icon { color: var(--lk-muted); }
+.app-bar .program-switcher .mud-button-root { font-weight: 500; }
 
 /* หน้า login / เปลี่ยนรหัส (static HTML) */
 .account-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; background: linear-gradient(180deg, #fff 0, var(--lk-bg) 55%); border-top: 4px solid var(--lk-red); }

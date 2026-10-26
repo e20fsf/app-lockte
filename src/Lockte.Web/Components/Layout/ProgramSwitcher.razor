@@ -1,0 +1,55 @@
+@* ตัวสลับโปรแกรมในแถบหัว: the program this page is on, and a menu to go to another one or to the program chooser.
+   Also remembers that program as the user's last one, so the next login opens it (Start). *@
+@using System.Security.Claims
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject ScopedServices Services
+
+<MudMenu Label="@(current?.Title ?? "เลือกโปรแกรม")" StartIcon="@Icons.Material.Filled.Apps" EndIcon="@Icons.Material.Filled.ArrowDropDown"
+         Variant="Variant.Text" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Class="program-switcher mr-2">
+    @foreach (var program in ProgramMenus.All)
+    {
+        <MudMenuItem Href="@program.Root" Icon="@(program == current ? Icons.Material.Filled.Check : Icons.Material.Filled.Apps)">@program.Title</MudMenuItem>
+    }
+    <MudDivider />
+    <MudMenuItem Href="@ProgramMenus.ChooserHref" Icon="@Icons.Material.Filled.GridView">หน้าเลือกโปรแกรม</MudMenuItem>
+</MudMenu>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private ProgramMenu? current;
+    private string? saved;
+
+    protected override void OnInitialized()
+    {
+        current = ProgramMenus.Of(Navigation.ToBaseRelativePath(Navigation.Uri));
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    // Saved only once interactive: the prerender of the same page would write it twice.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await RememberAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // A page of no program (ประวัติการแก้ไข) keeps showing the program the user came from.
+        current = ProgramMenus.Of(Navigation.ToBaseRelativePath(e.Location)) ?? current;
+        await InvokeAsync(StateHasChanged);
+        await RememberAsync();
+    }
+
+    private async Task RememberAsync()
+    {
+        if (current is null || current.Key == saved) return;
+        var userId = (await AuthState).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return;
+        saved = current.Key;
+        await Services.RunAsync<LastProgramService, bool>(async s => { await s.SetAsync(userId, current.Key); return true; });
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

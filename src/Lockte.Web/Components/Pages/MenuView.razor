@@ -1,32 +1,34 @@
 @page "/menu/{Number:int}"
 @attribute [Authorize]
 
+@* A menu page of a program: routed here for โปรแกรมพนักงาน, wrapped by OrderMenuPage for ผลผลิตและORDER. *@
 @if (menu is null)
 {
     <PageTitle>ไม่พบเมนู — LOCKTE</PageTitle>
     <MudAlert Severity="Severity.Warning">ไม่พบเมนู @Number</MudAlert>
-    <MudLink Href="">กลับเมนูหลัก</MudLink>
+    <MudLink Href="@Program.HrefOf(ProgramMenu.Main)">กลับเมนูหลัก</MudLink>
 }
 else
 {
     <PageTitle>@menu.Title — LOCKTE</PageTitle>
     <div class="menu-page">
-        @if (menu.Number == EmployeeMenu.Main)
+        @if (menu.Number == ProgramMenu.Main)
         {
             <img src="brand/logo.svg" alt="LOCKTE" class="menu-logo" />
+            <div class="menu-program">@Program.Title</div>
         }
         <h1 class="menu-title">@menu.Title</h1>
         <MudStack Spacing="2" Class="menu-items">
             @foreach (var item in menu.Items)
             {
-                <MudButton Href="@item.Href" Target="@(item.NewTab ? "_blank" : null)" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                <MudButton Href="@Program.HrefOf(item)" Target="@(item.NewTab ? "_blank" : null)" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
                            EndIcon="@(item.SubMenu is null ? null : Icons.Material.Filled.ChevronRight)" Class="menu-item">
                     @item.Text
                 </MudButton>
             }
             @if (menu.Back is { } back)
             {
-                <MudButton Href="@EmployeeMenu.HrefOf(back)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
+                <MudButton Href="@Program.HrefOf(back)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
                     กลับเมนูเดิม
                 </MudButton>
             }
@@ -36,9 +38,13 @@ else
 
 @code {
     [Parameter]
-    public int Number { get; set; } = EmployeeMenu.Main;
+    public int Number { get; set; } = ProgramMenu.Main;
+
+    /// <summary>A class, so a wrapper passing it always re-renders this page (an unchanged int alone would not).</summary>
+    [Parameter]
+    public ProgramMenu Program { get; set; } = EmployeeMenu.Menu;
 
     private MenuPage? menu;
 
-    protected override void OnParametersSet() => menu = EmployeeMenu.Find(Number);
+    protected override void OnParametersSet() => menu = Program.Find(Number);
 }

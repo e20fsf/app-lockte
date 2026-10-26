@@ -1,19 +1,6 @@
 namespace Lockte.Web.Menus;
 
 /// <summary>
-/// An item on a menu page: opens another menu page, or a screen/report by its SCR/RPT code — its own
-/// <see cref="Page"/> once built, the placeholder until then. <see cref="NewTab"/>: a report printed straight from the
-/// menu (a PDF in a new tab, as Access opened its preview).
-/// </summary>
-public sealed record MenuItem(string Text, int? SubMenu = null, string? Code = null, string? Page = null, bool NewTab = false)
-{
-    public string Href => SubMenu is { } n ? EmployeeMenu.HrefOf(n) : Page ?? $"hr/{Code}";
-}
-
-/// <summary>A menu page; <see cref="Back"/> is where its "กลับเมนูเดิม" goes (null on the main menu).</summary>
-public sealed record MenuPage(int Number, string Title, int? Back, IReadOnlyList<MenuItem> Items);
-
-/// <summary>
 /// โครงเมนูเดิมของ <c>พนักงาน.accdb</c> (Switchboard) ตาม <c>specs/employee/screens.md</c> "แผนผังเมนู" — same pages,
 /// order and "กลับเมนูเดิม" targets, including ⚠ oddities (เมนูหลัก "เวลาทำงาน" opens เมนู 7, เมนู 3 returns to เมนู 7).
 /// Labels use the <c>CONTEXT.md</c> terms where the legacy ones are listed as _Avoid_ (ตัด WEEK → ปิดงวดค่าแรง,
@@ -23,14 +10,12 @@ public sealed record MenuPage(int Number, string Title, int? Back, IReadOnlyList
 /// </summary>
 public static class EmployeeMenu
 {
-    /// <summary>One step of the "you are here" trail; <see cref="Href"/> is null on the current page.</summary>
-    public sealed record Crumb(string Text, string? Href);
+    public const int Main = ProgramMenu.Main;
 
-    public const int Main = 1;
+    public static string HrefOf(int number) => Menu.HrefOf(number);
 
-    public static string HrefOf(int number) => number == Main ? "" : $"menu/{number}";
-
-    public static IReadOnlyList<MenuPage> Pages { get; } =
+    // Menu pages stay at menu/n, as before the ORDER program joined the app; the main menu moved from "/" to "hr".
+    public static ProgramMenu Menu { get; } = new("hr", "พนักงานและค่าแรง", "hr", "menu", "hr",
     [
         new(1, "เมนูหลัก", null,
         [
@@ -157,47 +142,5 @@ public static class EmployeeMenu
             new("พิมพ์หนังสือรับรอง", Code: "RPT-53", Page: "hr/certificates"),
             new("พิมพ์หนังสือเกษียณหรือปลดออก", Code: "RPT-54", Page: "hr/severance"),
         ]),
-    ];
-
-    public static MenuPage? Find(int number) => Pages.FirstOrDefault(p => p.Number == number);
-
-    /// <summary>The menu page holding the item with this code, and the item.</summary>
-    public static (MenuPage Page, MenuItem Item)? FindItem(string code)
-        => Pages.SelectMany(p => p.Items.Select(i => (Page: p, Item: i)))
-            .Where(x => string.Equals(x.Item.Code, code, StringComparison.OrdinalIgnoreCase))
-            .Select(x => ((MenuPage, MenuItem)?)(x.Page, x.Item))
-            .FirstOrDefault();
-
-    /// <summary>
-    /// "You are here" for a page path relative to the site root (no leading slash): เมนูหลัก → … → the menu item, following
-    /// each menu's "กลับเมนูเดิม" up to the main menu. A path below a menu item's page (an employee's own screen) belongs to
-    /// that item. A path that is on no menu (ประวัติการแก้ไข) gets no trail.
-    /// </summary>
-    public static IReadOnlyList<Crumb> Trail(string path)
-    {
-        path = path.Split('?', '#')[0].Trim('/');
-        MenuPage? menu = null;
-        MenuItem? item = null;
-
-        if (path.Length == 0) menu = Find(Main);
-        else if (path.StartsWith("menu/", StringComparison.OrdinalIgnoreCase) && int.TryParse(path[5..], out var n)) menu = Find(n);
-        else
-        {
-            var hit = Pages.SelectMany(p => p.Items.Where(i => i.SubMenu is null).Select(i => (Page: p, Item: i)))
-                .Where(x => path.Equals(x.Item.Href, StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith(x.Item.Href + "/", StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.Item.Href.Length)
-                .Select(x => ((MenuPage, MenuItem)?)(x.Page, x.Item))
-                .FirstOrDefault();
-            if (hit is null) return [];
-            (menu, item) = hit.Value;
-        }
-        if (menu is null) return [];
-
-        var trail = new List<Crumb>();
-        if (item is not null) trail.Add(new Crumb(item.Text, null));
-        for (var m = menu; m is not null; m = m.Back is { } b ? Find(b) : null)
-            trail.Insert(0, new Crumb(m.Title, item is null && m == menu ? null : HrefOf(m.Number)));
-        return trail;
-    }
+    ]);
 }

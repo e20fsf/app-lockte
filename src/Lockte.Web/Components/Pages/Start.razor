@@ -1,0 +1,20 @@
+@page "/"
+@attribute [Authorize]
+@using System.Security.Claims
+@inject ScopedServices Services
+@inject NavigationManager Navigation
+
+@* Where a staff user lands after login: the program they last worked in, or the program chooser the first time. *@
+<PageTitle>LOCKTE</PageTitle>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = (await AuthState).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var last = userId is null ? null : await Services.RunAsync<LastProgramService, string?>(s => s.GetAsync(userId));
+        Navigation.NavigateTo(ProgramMenus.Find(last)?.Root ?? ProgramMenus.ChooserHref, replace: true);
+    }
+}

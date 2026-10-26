@@ -207,6 +207,21 @@ namespace Lockte.Web.Accounts.Migrations
                     b.HasAnnotation("Lockte:AuditName", "ผู้ใช้");
                 });
 
+            modelBuilder.Entity("Lockte.Web.Accounts.UserLastProgram", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Program")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("LastPrograms", "auth");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -271,6 +286,15 @@ namespace Lockte.Web.Accounts.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", "auth");
+                });
+
+            modelBuilder.Entity("Lockte.Web.Accounts.UserLastProgram", b =>
+                {
+                    b.HasOne("Lockte.Web.Accounts.AppUser", null)
+                        .WithOne()
+                        .HasForeignKey("Lockte.Web.Accounts.UserLastProgram", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
