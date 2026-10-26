@@ -71,6 +71,7 @@
     @if (!own)
     {
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(OrderEntryMode.Print))" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="reports/order/sale-order/blank" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์ฟอร์มเปล่า</MudButton>
     }
     <MudButton Variant="Variant.Outlined" OnClick="@(() => SaveAsync(own ? OrderEntryMode.SaveToHistory : OrderEntryMode.Save))" Disabled="busy"
                StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
@@ -162,7 +163,8 @@
                 return;
             }
             Snackbar.Add($"บันทึก ORDER เลขที่ {orderNo} แล้ว", Severity.Success);
-            Navigation.NavigateTo(OrderMenu.HrefOf(17));
+            // "พิมพ์" goes on to the form พิมพ์ใบ sale order with this order chosen (BR-002 step 8); the other buttons back to the menu.
+            Navigation.NavigateTo(mode == OrderEntryMode.Print ? $"order/orders/print?id={result.Id}" : OrderMenu.HrefOf(17));
         }
         finally
         {

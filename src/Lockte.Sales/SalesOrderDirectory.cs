@@ -43,6 +43,27 @@ public sealed record SalesOrderDto(
     public decimal TotalOutstandingAmount => Lines.Sum(l => l.OutstandingAmount ?? 0);
 }
 
+/// <summary>A line of the printed SALE ORDER (RPT-01): the ค้างส่ง values.</summary>
+public sealed record SalesOrderPrintLine(int LineNo, string? ProductCode, string ProductName, string? Unit, decimal Quantity, decimal? UnitPrice, decimal? Amount);
+
+/// <summary>
+/// The data of the printed ใบ SALE ORDER (RPT-01): the head and the lines still ค้างส่ง in line order — the legacy printed from
+/// T-ODD, so a line delivered in full is not on it and an order with none cannot be printed again. <see cref="Total"/> = Σ จำนวนเงิน.
+/// </summary>
+public sealed record SalesOrderPrint(
+    int Id,
+    string OrderNo,
+    DateOnly OrderDate,
+    string CustomerCode,
+    string CustomerName,
+    string? PaymentTerms,
+    string? SalesTerritoryCode,
+    string? Remark,
+    IReadOnlyList<SalesOrderPrintLine> Lines)
+{
+    public decimal Total => Lines.Sum(l => l.Amount ?? 0);
+}
+
 /// <summary>What choosing a customer fills into the head of an ORDER (BR-002): the copied name, its เขตการขาย, เงื่อนไขการชำระเงิน and หมายเหตุ.</summary>
 public sealed record OrderDefaults(string CustomerName, int? SalesTerritoryId, string? PaymentTerms, string? Remark);
 
@@ -86,6 +107,18 @@ public sealed class SalesOrderDirectory(SalesDbContext db, IProductLookup? produ
     }
 
     public async Task<bool> NumberExistsAsync(string orderNo) => await db.SalesOrders.AnyAsync(o => o.OrderNo == orderNo.Trim());
+
+    /// <summary>
+    /// What RPT-01 prints for an order: its ค้างส่ง lines (null when none is left — nothing to print, as before, ⚠ RPT-01).
+    /// </summary>
+    public async Task<SalesOrderPrint?> GetPrintAsync(int id)
+    {
+        var order = await GetAsync(id);
+        var lines = order?.Lines.Where(l => l.OutstandingQuantity > 0).ToList();
+        if (order is null || lines is not { Count: > 0 }) return null;
+        return new SalesOrderPrint(order.Id, order.OrderNo, order.OrderDate, order.CustomerCode, order.CustomerName, order.PaymentTerms, order.SalesTerritoryCode,
+            order.Remark, lines.Select(l => new SalesOrderPrintLine(l.LineNo, l.ProductCode, l.ProductName, l.Unit, l.OutstandingQuantity, l.UnitPrice, l.OutstandingAmount)).ToList());
+    }
 
     /// <summary>The head's starting values for a customer (BR-002); null when there is no such customer.</summary>
     public async Task<OrderDefaults?> DefaultsForCustomerAsync(int customerId)
