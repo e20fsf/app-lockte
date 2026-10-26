@@ -1,0 +1,291 @@
+@page "/order/products"
+@page "/order/products/new"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+
+@* SCR-03 ข้อมูลสินค้า (ฟอร์ม P_NAME เพิ่ม + P_NAME2/P_NAME1 แก้ไข): both menu items open this page — "เพิ่มข้อมูลสินค้า" with
+   a blank form, "แก้ไขและพิมพ์ข้อมูลสินค้า" with the list to pick a product from. "รายการต่อไป" = "บันทึกแล้วเพิ่มรายการต่อไป".
+   ต้นทุนต่อหน่วย is typed by hand (no formula, #28). The form's hints are help text, not rules. ลูกค้าเจ้าของ: only
+   customers whose code starts with 40, as in the legacy combo. Delete is a button with a confirmation (instead of
+   clearing the name, BR-021). The printed lists (RPT-21) come with #137. *@
+<PageTitle>ข้อมูลสินค้า — LOCKTE</PageTitle>
+<h1 class="mb-4">@(adding ? "เพิ่มข้อมูลสินค้า" : "แก้ไขข้อมูลสินค้า")</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">@(form.Id is null ? "เพิ่มสินค้า" : $"แก้สินค้า {form.Code}")</MudText>
+        <MudSpacer />
+        <MudButton Href="order/products/lists" StartIcon="@Icons.Material.Filled.Tune">แก้ไขรายการเลือก (ประเภท ชนิดเบรก รุ่น กลุ่มสินค้า)</MudButton>
+    </MudStack>
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">ต้องระบุประเภทของสินค้าทุกชิ้นที่เพิ่มใหม่ · งานรับจ้างฉีดอลูมิเนียมต้องใส่รหัสลูกค้า น้ำหนักอลูมิเนียมและราคาขาย</MudAlert>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.Code" Label="รหัสสินค้า" MaxLength="ProductRegistry.CodeLength" Required="true" RequiredError="กรุณากรอกรหัสสินค้า" HelperText="@GroupText" /></MudItem>
+        <MudItem xs="12" sm="5"><MudTextField @bind-Value="form.Name" Label="ชื่อสินค้า" MaxLength="ProductRegistry.TextLength" Required="true" RequiredError="กรุณากรอกชื่อสินค้า" /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Unit" Label="หน่วย" MaxLength="ProductRegistry.TextLength" /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Pack" Label="หน่วยบรรจุ" MaxLength="ProductRegistry.TextLength" /></MudItem>
+
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.AluminumWeight" Label="นน.อลูมิเนียม" HideSpinButtons="true" Min="0m" Adornment="Adornment.End" AdornmentText="กก." /></MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.BrakePadWeight" Label="นน.ผ้าเบรก" HideSpinButtons="true" Min="0m" Adornment="Adornment.End" AdornmentText="กก." /></MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.CorkWeight" Label="นน.ไม้ก๊อก" HideSpinButtons="true" Min="0m" Adornment="Adornment.End" AdornmentText="กก." /></MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.SteelCost" Label="ค่าเหล็ก" HideSpinButtons="true" Min="0m" Adornment="Adornment.End" AdornmentText="บาท" /></MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.PairWeight" Label="นน.รวม 1 คู่" HideSpinButtons="true" Min="0m" Adornment="Adornment.End" AdornmentText="กก." /></MudItem>
+
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.SellingPrice" Label="ราคาขาย" HideSpinButtons="true" Min="0m" /></MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="form.UnitCost" Label="ต้นทุนต่อหน่วย" HideSpinButtons="true" Min="0m" HelperText="กรอกเอง ไม่มีสูตร" /></MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int?" @bind-Value="form.ProductTypeId" Label="ประเภท" Clearable="true">
+                @foreach (var t in types)
+                {
+                    <MudSelectItem T="int?" Value="t.Id">@t.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudAutocomplete T="MoldDto" @bind-Value="form.Mold" Label="รหัสแม่พิมพ์" SearchFunc="SearchMoldAsync"
+                             ToStringFunc="@(m => m is null ? "" : m.Code)" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="CustomerDto" @bind-Value="form.Customer" Label="ลูกค้าเจ้าของ (รหัส 40…)" SearchFunc="SearchCustomerAsync"
+                             ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+        </MudItem>
+        <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.ProducedOn" Label="วันที่ผลิต" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="3">
+            <MudSelect T="int?" @bind-Value="form.ModelId" Label="รุ่น" Clearable="true">
+                @foreach (var m in models)
+                {
+                    <MudSelectItem T="int?" Value="m.Id">@m.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Barcode" Label="BARCODE" MaxLength="ProductRegistry.BarcodeLength" HelperText="ให้ใส่เลขต่อจาก 88593144" /></MudItem>
+
+        <MudItem xs="12">
+            <MudText Typo="Typo.subtitle2">ข้อมูล มอก. — ใส่เฉพาะผ้าเบรกกล่อง ผ้าเบรกสกินแพ็ค ผ้าเบรกสกินแพ็คใส่สปริง ดิสเบรกสกินแพ็ค และดิสเบรกกล่องเท่านั้น นอกนั้นไม่ต้องใส่</MudText>
+        </MudItem>
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.StandardNumber" Label="เลข มอก." MaxLength="ProductRegistry.TextLength" /></MudItem>
+        <MudItem xs="6" sm="2">
+            <MudSelect T="int?" @bind-Value="form.BrakeTypeId" Label="TYPE" Clearable="true">
+                @foreach (var t in brakeTypes)
+                {
+                    <MudSelectItem T="int?" Value="t.Id">@t.Code — @t.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.Size" Label="SIZE (กว้าง×ยาว×สูง)" MaxLength="ProductRegistry.TextLength" /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Formula" Label="FORMULA (สูตร A หรือ B หรืออื่น ๆ)" MaxLength="ProductRegistry.TextLength" /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.StandardModel" Label="MODEL (เช่น C100)" MaxLength="ProductRegistry.TextLength" /></MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="SaveAndNextAsync" Disabled="busy">บันทึกแล้วเพิ่มรายการต่อไป</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบสินค้านี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+        <MudText Typo="Typo.h6">รายการสินค้า</MudText>
+        <MudTextField @bind-Value="search" Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="ReloadAsync" Label="ค้นหา (รหัสหรือชื่อ)" Clearable="true" Margin="Margin.Dense" Style="max-width:18rem" />
+        <MudText Typo="Typo.caption">แสดงสูงสุด @ProductSearchMax รายการ — พิมพ์ค้นหาเพื่อกรอง</MudText>
+    </MudStack>
+    <MudTable Items="products" Dense="true" Hover="true" Loading="products is null" T="ProductListItem" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<ProductListItem> e) => EditAsync(e.Item!.Id))">
+        <HeaderContent><MudTh>รหัส</MudTh><MudTh>ชื่อ</MudTh><MudTh>หน่วย</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Code</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.Unit</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ไม่พบสินค้า</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(8)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private const int ProductSearchMax = 200;
+
+    private IReadOnlyList<ProductListItem>? products;
+    private IReadOnlyList<ProductTypeDto> types = [];
+    private IReadOnlyList<ProductModelDto> models = [];
+    private IReadOnlyList<BrakeTypeDto> brakeTypes = [];
+    private IReadOnlyList<MoldDto> molds = [];
+    private IReadOnlyList<CustomerDto> customers = [];
+    private IReadOnlyList<ProductGroupDto> groups = [];
+    private ProductForm form = new();
+    private string? search;
+    private bool busy;
+    private bool adding;
+
+    private string? GroupText
+    {
+        get
+        {
+            var names = groups.Where(g => ProductGroupPattern.Matches(g.Pattern, form.Code.Trim())).Where(g => g.Pattern != "*").Select(g => g.Name).Distinct().ToList();
+            return names.Count == 0 ? "ตัวอักษรนำหน้าบอกกลุ่มสินค้า" : "กลุ่ม: " + string.Join(", ", names);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        adding = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/').EndsWith("/new", StringComparison.OrdinalIgnoreCase);
+        await LoadListsAsync();
+        molds = await Services.RunAsync<MoldDirectory, IReadOnlyList<MoldDto>>(d => d.GetAllAsync());
+        customers = await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(c => c.GetAllAsync());
+        await ReloadAsync();
+        New();
+    }
+
+    private async Task LoadListsAsync()
+    {
+        (types, models, brakeTypes, groups) = await Services.RunAsync<ProductDirectory,
+            (IReadOnlyList<ProductTypeDto>, IReadOnlyList<ProductModelDto>, IReadOnlyList<BrakeTypeDto>, IReadOnlyList<ProductGroupDto>)>(
+            async d => (await d.GetProductTypesAsync(), await d.GetModelsAsync(), await d.GetBrakeTypesAsync(), await d.GetGroupsAsync()));
+    }
+
+    private async Task ReloadAsync()
+    {
+        var term = search;
+        products = await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(term, null, ProductSearchMax));
+    }
+
+    private Task<IEnumerable<MoldDto>> SearchMoldAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term) ? molds.AsEnumerable() : molds.Where(m => m.Code.Contains(term, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    // The combo of P_NAME / P_NAME2: customers whose code starts with 40 (the product's current customer stays choosable).
+    private Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        var list = customers.Where(c => c.Code.StartsWith("40", StringComparison.Ordinal) || c.Id == form.Customer?.Id);
+        return Task.FromResult(string.IsNullOrEmpty(term) ? list
+            : list.Where(c => c.Code.Contains(term, StringComparison.OrdinalIgnoreCase) || c.Name.Contains(term, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    // BARCODE starts with the legacy default prefix.
+    private void New() => form = new ProductForm { Barcode = "88593144" };
+
+    private async Task EditAsync(int id)
+    {
+        var p = await Services.RunAsync<ProductDirectory, ProductDto?>(d => d.GetAsync(id));
+        if (p is null)
+        {
+            Snackbar.Add("ไม่พบสินค้านี้ อาจถูกลบไปแล้ว", Severity.Warning);
+            await ReloadAsync();
+            return;
+        }
+        form = new ProductForm
+        {
+            Id = p.Id, Code = p.Code, Name = p.Name, Unit = p.Unit, Pack = p.Pack, AluminumWeight = p.AluminumWeight,
+            BrakePadWeight = p.BrakePadWeight, CorkWeight = p.CorkWeight, SteelCost = p.SteelCost, PairWeight = p.PairWeight,
+            SellingPrice = p.SellingPrice, UnitCost = p.UnitCost, ProductTypeId = p.ProductTypeId,
+            Mold = p.MoldId is { } m ? molds.FirstOrDefault(x => x.Id == m) : null,
+            Customer = p.CustomerId is { } c ? customers.FirstOrDefault(x => x.Id == c) : null,
+            ProducedOn = p.ProducedOn?.ToDateTime(TimeOnly.MinValue), ModelId = p.ModelId, Barcode = p.Barcode,
+            StandardNumber = p.StandardNumber, BrakeTypeId = p.BrakeTypeId, Size = p.Size, Formula = p.Formula,
+            StandardModel = p.StandardModel, RowVersion = p.RowVersion,
+        };
+    }
+
+    private Task SaveAsync() => SaveAsync(next: false);
+
+    private Task SaveAndNextAsync() => SaveAsync(next: true);
+
+    private async Task SaveAsync(bool next)
+    {
+        busy = true;
+        try
+        {
+            var input = new ProductInput(form.Id, form.Code, form.Name, form.RowVersion, form.Unit, form.Pack, form.AluminumWeight,
+                form.BrakePadWeight, form.CorkWeight, form.SteelCost, form.PairWeight, form.SellingPrice, form.UnitCost,
+                form.ProductTypeId, form.Mold?.Id, form.Customer?.Id, form.ProducedOn is { } d ? DateOnly.FromDateTime(d) : null,
+                form.ModelId, form.Barcode, form.StandardNumber, form.BrakeTypeId, form.Size, form.Formula, form.StandardModel);
+            var result = await Services.RunAsync<ProductRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            await ReloadAsync();
+            if (next) New(); else await EditAsync(result.Id!.Value);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            New();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบสินค้า", $"ลบสินค้า {form.Code} {form.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (form.Id!.Value, form.RowVersion!);
+            var result = await Services.RunAsync<ProductRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class ProductForm
+    {
+        public int? Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? Unit { get; set; }
+        public string? Pack { get; set; }
+        public decimal? AluminumWeight { get; set; }
+        public decimal? BrakePadWeight { get; set; }
+        public decimal? CorkWeight { get; set; }
+        public decimal? SteelCost { get; set; }
+        public decimal? PairWeight { get; set; }
+        public decimal? SellingPrice { get; set; }
+        public decimal? UnitCost { get; set; }
+        public int? ProductTypeId { get; set; }
+        public MoldDto? Mold { get; set; }
+        public CustomerDto? Customer { get; set; }
+        public DateTime? ProducedOn { get; set; }
+        public int? ModelId { get; set; }
+        public string? Barcode { get; set; }
+        public string? StandardNumber { get; set; }
+        public int? BrakeTypeId { get; set; }
+        public string? Size { get; set; }
+        public string? Formula { get; set; }
+        public string? StandardModel { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}
