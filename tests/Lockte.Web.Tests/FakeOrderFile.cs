@@ -41,6 +41,14 @@ public static class FakeOrderFile
         ["ODD"] = OrderLine(refNoSize: 50),
         ["ORDER"] = OrderLine(refNoSize: 50),
         ["ODDส่งออก"] = OrderLine(refNoSize: 13),
+        ["P_REPไดคาสท์"] = ReportLine(),
+        ["P_REPตกแต่ง"] = ReportLine(),
+        ["P_REPอัดผ้าเบรก"] = ReportLine(),
+        ["P_REPฝนผ้าเบรก"] = ReportLine(),
+        ["P_REPผ้าคลัทช์และดิสเบรค"] = ReportLine(),
+        ["P_REPประกอบ"] = ReportLine(),
+        ["P_REPบรรจุ"] = ReportLine(),
+        ["P_REP"] = ReportLine(),
     };
 
     /// <summary>The columns of ODD, ORDER and ODDส่งออก (they share one structure, data-model.md); REF_NO is Text(13) in ODDส่งออก.</summary>
@@ -51,6 +59,14 @@ public static class FakeOrderFile
         ("DISC_PS", "DOUBLE"), ("NET", "DOUBLE"), ("MARK", "TEXT(50)"), ("SALE_ID", "TEXT(4)"), ("DL_DATE", "DATETIME"), ("INV_NO", "TEXT(11)"),
         ("INV_SUF", "LONG"), ("DL_QTY", "DOUBLE"), ("DL_NET", "DOUBLE"), ("UND_QTY", "DOUBLE"), ("DUERE_D", "TEXT(50)"), ("DATE_DL", "DATETIME"),
         ("LOT", "TEXT(255)"), ("REMARK", "TEXT(255)"),
+    ];
+
+    /// <summary>The columns of the P_REP tables (data-model.md): one structure for the seven departments and the transferred copy.</summary>
+    private static (string Column, string Type)[] ReportLine() =>
+    [
+        ("DATE", "DATETIME"), ("REF_NO", "TEXT(8)"), ("SUF_NO", "LONG"), ("MC_NO", "TEXT(10)"), ("SHIFT", "TEXT(50)"), ("TT_T", "DOUBLE"), ("LOT_MTR1", "TEXT(50)"),
+        ("LOT_MTR2", "TEXT(50)"), ("PD_C", "TEXT(5)"), ("PD_N", "TEXT(50)"), ("U_NAME", "TEXT(50)"), ("QTY", "DOUBLE"), ("NG", "DOUBLE"), ("EMP_ID", "TEXT(40)"),
+        ("TOTAL", "DOUBLE"), ("MARK1", "TEXT(50)"), ("MOULD", "TEXT(100)"), ("LOT", "TEXT(50)"),
     ];
 
     [SupportedOSPlatform("windows")]
