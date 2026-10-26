@@ -1,0 +1,41 @@
+@* RPT-12 STOCK CARD, ระดับ B on A4 ตั้ง: the head "รหัส … ชื่อสินค้า …"; วันที่, เลขที่, ลำดับ, เข้า, เบิก (shown negative, as the legacy), คงเหลือ (running), พนักงาน, หมายเหตุ —
+   and "รวม Σเข้า Σเบิก คงเหลือ" with a double line. The entries are those of the current period (the balance is the sum of the entries not closed, BR-006); the balance may be negative. *@
+<p class="sub">รหัส @Report.ProductCode&emsp;ชื่อสินค้า @Report.ProductName@(string.IsNullOrWhiteSpace(Report.Unit) ? "" : $"  หน่วย {Report.Unit}")</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:11%" /><col style="width:13%" /><col style="width:7%" /><col style="width:13%" /><col style="width:13%" /><col style="width:14%" /><col style="width:9%" /><col style="width:20%" /></colgroup>
+        <thead><tr><th>วันที่</th><th>เลขที่</th><th class="num">ลำดับ</th><th class="num">เข้า</th><th class="num">เบิก</th><th class="num">คงเหลือ</th><th>พนักงาน</th><th>หมายเหตุ</th></tr></thead>
+        <tbody>
+            @foreach (var line in Report.Lines)
+            {
+                <tr>
+                    <td>@(line.Date is { } date ? ReportText.Date(date) : "")</td>
+                    <td>@line.DocumentNo</td>
+                    <td class="num">@line.LineNo</td>
+                    <td class="num">@(line.In != 0 ? OrderReports.Qty(line.In) : "")</td>
+                    <td class="num">@(line.Out != 0 ? OrderReports.Qty(line.Out) : "")</td>
+                    <td class="num">@OrderReports.Qty(line.Balance)</td>
+                    <td>@line.Employee</td>
+                    <td>@line.Remark</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="3"><b>รวม</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.TotalIn)</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.TotalOut)</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.Balance)</b></td>
+                <td colspan="2"></td>
+            </tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public StockCardReport Report { get; set; } = null!;
+}

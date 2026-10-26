@@ -1,0 +1,87 @@
+@page "/order/stock/reports/{Kind}"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+
+@* The forms that open the stock reports (#124): สต็อกสินค้าตามกลุ่มสินค้า (ฟอร์ม รหัสย่อ → RPT-11: choose a กลุ่มสินค้า) and สต็อกสินค้าตามรหัสสินค้า (ฟอร์ม รหัสสินค้า1 → RPT-12 STOCK CARD:
+   choose a product). The last choice is remembered in this browser as the default of the next time, per screen (BR-022). "พิมพ์" opens the PDF in a new tab. *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    @if (Kind == "group")
+    {
+        <MudSelect T="string" @bind-Value="pattern" @bind-Value:after="RememberAsync" Label="กลุ่มสินค้า (รหัสย่อ)" Clearable="true">
+            @foreach (var g in groups)
+            {
+                <MudSelectItem T="string" Value="@g.Pattern">@g.Pattern  @g.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudTextField @bind-Value="pattern" @bind-Value:after="RememberAsync" Label="หรือพิมพ์รหัส (มี * ได้ เช่น SB*)" Class="mt-2" Clearable="true" />
+    }
+    else
+    {
+        <MudAutocomplete T="ProductListItem" @bind-Value="product" @bind-Value:after="RememberAsync" SearchFunc="SearchProductAsync" Label="สินค้า"
+                         ToStringFunc="@(p => p is null ? "" : $"{p.Code}  {p.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="30" />
+    }
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Href="@Url" Target="_blank" Disabled="@(Url.Length == 0)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(4)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Kind { get; set; } = "group";
+
+    private string Title => Kind == "group" ? "พิมพ์สต็อกสินค้าตามกลุ่มสินค้า" : "พิมพ์ STOCK CARD ตามรหัสสินค้า";
+
+    private IReadOnlyList<ProductGroupDto> groups = [];
+    private string? pattern;
+    private ProductListItem? product;
+    private bool loadedMemory;
+
+    private string Url => Kind == "group"
+        ? (string.IsNullOrWhiteSpace(pattern) ? "" : "/reports/order/stock/balance?pattern=" + Uri.EscapeDataString(pattern.Trim()))
+        : (product is null ? "" : "/reports/order/stock/card?product=" + product.Id);
+
+    protected override async Task OnInitializedAsync()
+        => groups = await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductGroupDto>>(d => d.GetGroupsAsync());
+
+    protected override void OnParametersSet()
+    {
+        pattern = null;
+        product = null;
+        loadedMemory = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("order.stock-report." + Kind) is { Success: true, Value: { } saved })
+            {
+                pattern = saved.Pattern;
+                if (saved.ProductId is { } id && await Services.RunAsync<ProductDirectory, ProductDto?>(d => d.GetAsync(id)) is { } p) product = new ProductListItem(p.Id, p.Code, p.Name, p.Unit);
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): start empty.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("order.stock-report." + Kind, new Remembered(pattern, product?.Id)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private sealed record Remembered(string? Pattern, int? ProductId);
+}
