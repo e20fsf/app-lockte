@@ -1,0 +1,271 @@
+@page "/order/production/edit/{Mode}"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-11 แก้ไขผลผลิต (ฟอร์ม P_REP4 ตามเลขที่ใบ / P_REP6 ตามวันที่, BR-019): find a report by its number or its date → its lines, every field can be changed. It is the same row the
+   department head keyed (one table, ข้อสมมติ ค) — and the stock is NOT changed until the range is transferred again (⚠ Q-54, the report says so: "เข้าสต็อกแล้ว"). The total is worked
+   out again from ดี + เสีย (ข้อสมมติ ก). A line is deleted with its button after a confirmation (ข้อสมมติ ง). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        @if (Mode == "date")
+        {
+            <MudDatePicker Editable="true" @bind-Date="searchDate" Label="วันที่ผลิต" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
+        }
+        else
+        {
+            <MudTextField @bind-Value="searchNumber" Label="เลขที่ใบรายงาน" Style="max-width:14rem" Clearable="true" />
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FindAsync" StartIcon="@Icons.Material.Filled.Search">ค้นหา</MudButton>
+    </MudStack>
+    @if (found is not null)
+    {
+        <MudTable Items="found" Dense="true" Hover="true" Class="mt-3" T="ProductionReportSummary" Breakpoint="Breakpoint.None"
+                  OnRowClick="@((TableRowClickEventArgs<ProductionReportSummary> e) => OpenAsync(e.Item!.Id))">
+            <HeaderContent><MudTh>เลขที่</MudTh><MudTh>แผนก</MudTh><MudTh>วันที่</MudTh><MudTh>บรรทัด</MudTh><MudTh>สต็อก</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.ReportNo</MudTd>
+                <MudTd>@context.DepartmentName</MudTd>
+                <MudTd>@(context.ReportDate is { } d ? ThaiDate.Format(d) : "")</MudTd>
+                <MudTd>@context.Lines</MudTd>
+                <MudTd>@(context.StockedAt is null ? "ยังไม่โอน" : "เข้าสต็อกแล้ว")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>ไม่พบใบรายงาน</MudText></NoRecordsContent>
+        </MudTable>
+    }
+</MudPaper>
+
+@if (report is not null && department is not null)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true" Style="overflow-x:auto">
+        <MudText Typo="Typo.h6" Class="mb-2">ใบรายงาน @report.ReportNo แผนก@(department.Name)</MudText>
+        @if (report.InStock)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">ใบนี้เข้าสต็อกแล้ว — การแก้ที่นี่ยังไม่เปลี่ยนสต็อก จนกว่าจะโอนผลผลิตช่วงนี้ซ้ำ (และถ้าโอนซ้ำ ค่าที่แก้จะเป็นค่าที่เข้าสต็อก)</MudAlert>
+        }
+        <MudGrid Spacing="2" Class="mb-2">
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="reportDate" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="reportNo" Label="เลขที่" MaxLength="ProductionReportRegistry.ReportNoLength" /></MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int?" @bind-Value="machineId" Label="เครื่อง" Clearable="true">
+                    @foreach (var m in machines)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)m.Id)">@m.Code @m.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+        <MudTable Items="rows" Dense="true" Breakpoint="Breakpoint.None" T="Row" Elevation="0">
+            <HeaderContent>
+                <MudTh>ที่</MudTh><MudTh>รหัสสินค้า</MudTh><MudTh>ชื่อสินค้า</MudTh><MudTh>หน่วย</MudTh><MudTh>กะ</MudTh><MudTh>ชม.</MudTh><MudTh>@department.MaterialLot1Label</MudTh>
+                @if (department.MaterialLot2Label is { } lot2) { <MudTh>@lot2</MudTh> }
+                <MudTh>จำนวนดี</MudTh><MudTh>เสีย</MudTh><MudTh>จำนวนรวม</MudTh><MudTh>พนักงาน</MudTh><MudTh>รหัสพิมพ์</MudTh><MudTh>ล๊อตการผลิต</MudTh><MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.LineNo</MudTd>
+                <MudTd Style="min-width:12rem">
+                    <MudAutocomplete T="ProductListItem" Value="context.Product" ValueChanged="p => ChooseProductAsync(context, p)" SearchFunc="SearchProductAsync"
+                                     ToStringFunc="@(p => p is null ? "" : p.Code)" ResetValueOnEmptyText="true" MaxItems="30" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd Style="min-width:12rem"><MudTextField @bind-Value="context.ProductName" Margin="Margin.Dense" /></MudTd>
+                <MudTd Style="min-width:5rem"><MudTextField @bind-Value="context.Unit" Margin="Margin.Dense" /></MudTd>
+                <MudTd Style="min-width:6rem">
+                    <MudSelect T="int?" @bind-Value="context.ShiftId" Margin="Margin.Dense" Clearable="true">
+                        @foreach (var s in shifts)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)s.Id)">@s.Code</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd Style="min-width:5rem"><MudNumericField T="decimal?" @bind-Value="context.Hours" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+                <MudTd Style="min-width:9rem"><MudTextField @bind-Value="context.MaterialLot1" Margin="Margin.Dense" /></MudTd>
+                @if (department.MaterialLot2Label is not null) { <MudTd Style="min-width:9rem"><MudTextField @bind-Value="context.MaterialLot2" Margin="Margin.Dense" /></MudTd> }
+                <MudTd Style="min-width:7rem"><MudNumericField T="decimal?" @bind-Value="context.Good" Immediate="true" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+                <MudTd Style="min-width:6rem"><MudNumericField T="decimal?" @bind-Value="context.Reject" Immediate="true" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+                <MudTd Style="text-align:right">@(context.Good is null && context.Reject is null ? "" : ProductionReportRegistry.Total(context.Good, context.Reject).ToString("0.####"))</MudTd>
+                <MudTd Style="min-width:12rem">
+                    <MudAutocomplete T="ProductionEmployeeRef" @bind-Value="context.Employee" SearchFunc="SearchEmployeeAsync"
+                                     ToStringFunc="@(e => e is null ? "" : $"{e.Code} {e.Name}")" ResetValueOnEmptyText="true" MaxItems="30" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd Style="min-width:10rem">
+                    <MudSelect T="int?" @bind-Value="context.MoldId" Margin="Margin.Dense" Clearable="true">
+                        @foreach (var m in molds)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)m.Id)">@m.Code</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd Style="min-width:10rem"><MudTextField @bind-Value="context.Lot" Margin="Margin.Dense" /></MudTd>
+                <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteLineAsync(context)" aria-label="ลบบรรทัดนี้" /></MudTd>
+            </RowTemplate>
+        </MudTable>
+        <MudStack Row="true" Spacing="2" Class="mt-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Save">บันทึก</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@OrderMenu.HrefOf(11)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Mode { get; set; } = "number";
+
+    private string Title => Mode == "date" ? "แก้ไขผลผลิตตามวันที่" : "แก้ไขผลผลิตตามเลขที่ใบรายงาน";
+
+    private string? searchNumber;
+    private DateTime? searchDate = DateTime.Today;
+    private IReadOnlyList<ProductionReportSummary>? found;
+    private ProductionReportDto? report;
+    private ProductionDepartment? department;
+    private DateTime? reportDate;
+    private string reportNo = "";
+    private int? machineId;
+    private List<MachineDto> machines = [];
+    private List<ShiftDto> shifts = [];
+    private List<MoldDto> molds = [];
+    private readonly List<Row> rows = [];
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        machines = (await Services.RunAsync<OrgDirectory, IReadOnlyList<MachineDto>>(d => d.GetMachinesAsync())).ToList();
+        shifts = (await Services.RunAsync<OrgDirectory, IReadOnlyList<ShiftDto>>(d => d.GetShiftsAsync())).ToList();
+        molds = (await Services.RunAsync<MoldDirectory, IReadOnlyList<MoldDto>>(d => d.GetAllAsync(inUseOnly: false))).ToList();
+    }
+
+    protected override void OnParametersSet()
+    {
+        found = null;
+        report = null;
+    }
+
+    private async Task FindAsync()
+    {
+        report = null;
+        var (number, date) = Mode == "date" ? ((string?)null, searchDate is { } d ? DateOnly.FromDateTime(d) : (DateOnly?)null) : (searchNumber, (DateOnly?)null);
+        found = await Services.RunAsync<ProductionReportDirectory, IReadOnlyList<ProductionReportSummary>>(r => r.SearchAsync(number, date));
+        if (found.Count == 1) await OpenAsync(found[0].Id);
+    }
+
+    private async Task OpenAsync(int id)
+    {
+        report = await Services.RunAsync<ProductionReportDirectory, ProductionReportDto?>(d => d.GetAsync(id));
+        if (report is null) return;
+        department = ProductionDepartments.Find(report.DepartmentCode);
+        reportDate = report.ReportDate?.ToDateTime(TimeOnly.MinValue);
+        reportNo = report.ReportNo;
+        machineId = report.MachineId;
+        rows.Clear();
+        foreach (var l in report.Lines)
+        {
+            ProductListItem? product = l.ProductId is { } productId && await Services.RunAsync<ProductDirectory, ProductDto?>(d => d.GetAsync(productId)) is { } p
+                ? new ProductListItem(p.Id, p.Code, p.Name, p.Unit) : null;
+            ProductionEmployeeRef? employee = l.EmployeeId is { } employeeId ? await Services.RunAsync<IProductionEmployeeLookup, ProductionEmployeeRef?>(x => x.FindAsync(employeeId)) : null;
+            rows.Add(new Row
+            {
+                Id = l.Id, RowVersion = l.RowVersion, LineNo = l.LineNo, Product = product, ProductName = l.ProductName, Unit = l.Unit, ShiftId = l.ShiftId, Hours = l.Hours,
+                MaterialLot1 = l.MaterialLot1, MaterialLot2 = l.MaterialLot2, Good = l.GoodQuantity, Reject = l.RejectQuantity, Employee = employee, MoldId = l.MoldId, Lot = l.Lot,
+            });
+        }
+    }
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private async Task<IEnumerable<ProductionEmployeeRef>> SearchEmployeeAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<IProductionEmployeeLookup, IReadOnlyList<ProductionEmployeeRef>>(l => l.SearchAsync(text, 30));
+
+    private async Task ChooseProductAsync(Row row, ProductListItem? product)
+    {
+        row.Product = product;
+        if (product is null) return;
+        if (await Services.RunAsync<ProductionReportDirectory, ProductionLineDefaults?>(d => d.DefaultsForProductAsync(department!.Code, product.Id)) is { } defaults)
+        {
+            row.ProductName = defaults.ProductName;
+            row.Unit = defaults.Unit;
+            if (defaults.MoldId is not null) row.MoldId = defaults.MoldId;
+        }
+    }
+
+    private ProductionReportInput ToInput(IEnumerable<Row> lines) => new(report!.Id, report.RowVersion, report.DepartmentCode, reportDate is { } d ? DateOnly.FromDateTime(d) : null, reportNo, machineId,
+        lines.Select(r => new ProductionReportLineInput(r.Id, r.RowVersion, r.Product?.Id, r.ProductName, r.Unit, r.ShiftId, r.Hours, r.MaterialLot1, r.MaterialLot2,
+            r.Good, r.Reject, r.Employee?.Id, r.MoldId, r.Lot)).ToList());
+
+    private async Task<bool> PersistAsync(IEnumerable<Row> lines)
+    {
+        var input = ToInput(lines);
+        var result = await Services.RunAsync<ProductionReportRegistry, ProductionReportSaveResult>(r => r.SaveAsync(input, ProductionSaveMode.Save));
+        foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+        return result.Succeeded;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            if (!await PersistAsync(rows)) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            await FindAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await OpenAsync(report!.Id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteLineAsync(Row row)
+    {
+        if (await Dialogs.ShowMessageBoxAsync("ลบบรรทัด", $"ลบบรรทัดที่ {row.LineNo} ของใบ {report!.ReportNo}?", yesText: "ลบ", cancelText: "ยกเลิก") != true) return;
+        busy = true;
+        try
+        {
+            if (!await PersistAsync(rows.Where(r => r != row))) return;
+            Snackbar.Add("ลบบรรทัดแล้ว", Severity.Success);
+            await FindAsync();
+            if (found is { Count: > 0 } && found.Any(f => f.Id == report?.Id)) await OpenAsync(report!.Id);
+            else report = null;
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await OpenAsync(report!.Id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class Row
+    {
+        public int? Id { get; set; }
+        public byte[]? RowVersion { get; set; }
+        public int LineNo { get; set; }
+        public ProductListItem? Product { get; set; }
+        public string? ProductName { get; set; }
+        public string? Unit { get; set; }
+        public int? ShiftId { get; set; }
+        public decimal? Hours { get; set; }
+        public string? MaterialLot1 { get; set; }
+        public string? MaterialLot2 { get; set; }
+        public decimal? Good { get; set; }
+        public decimal? Reject { get; set; }
+        public ProductionEmployeeRef? Employee { get; set; }
+        public int? MoldId { get; set; }
+        public string? Lot { get; set; }
+    }
+}
