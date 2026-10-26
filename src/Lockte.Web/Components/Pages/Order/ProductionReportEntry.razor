@@ -1,0 +1,212 @@
+@page "/order/production/report/{Department}"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+@* SCR-10 บันทึกใบรายงานผลผลิต (ฟอร์ม REF_NO<แผนก>2 + P_REP<แผนก>1/2): one screen for every แผนก, configured by ProductionDepartments (#116).
+   Head: วันที่, เลขที่ (the next one is offered, BR-015), เครื่อง (ตกแต่ง T01, ประกอบ A01, บรรจุ P01). Lines: pick the สินค้า → ชื่อ หน่วย
+   (+ แม่พิมพ์ in the departments that take it from the product); จำนวนรวม = ดี + เสีย, shown as soon as either is keyed (AC-21). "บันทึก"
+   drops the lines without จำนวนดี and opens the next report; "กลับเมนูเดิม" also drops those without a date (BR-016). The พิมพ์รายงาน link is
+   a placeholder until #139. *@
+<PageTitle>บันทึกผลผลิตแผนก@(department?.Name) — LOCKTE</PageTitle>
+
+@if (department is null)
+{
+    <MudAlert Severity="Severity.Error">ไม่รู้จักแผนก '@Department'</MudAlert>
+}
+else
+{
+    <h1 class="mb-4">บันทึกผลผลิตแผนก@(department.Name)</h1>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="reportDate" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="reportNo" Label="เลขที่" MaxLength="ProductionReportRegistry.ReportNoLength" /></MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int?" @bind-Value="machineId" Label="เครื่อง" Clearable="true">
+                    @foreach (var m in machines)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)m.Id)">@m.Code @m.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true" Style="overflow-x:auto">
+        <MudTable Items="rows" Dense="true" Breakpoint="Breakpoint.None" T="Row" Elevation="0">
+            <HeaderContent>
+                <MudTh>ที่</MudTh><MudTh>รหัสสินค้า</MudTh><MudTh>ชื่อสินค้า</MudTh><MudTh>หน่วย</MudTh><MudTh>กะ</MudTh><MudTh>ชม.</MudTh>
+                <MudTh>@department.MaterialLot1Label</MudTh>
+                @if (department.MaterialLot2Label is { } lot2) { <MudTh>@lot2</MudTh> }
+                <MudTh>จำนวนดี</MudTh><MudTh>เสีย</MudTh><MudTh>จำนวนรวม</MudTh><MudTh>พนักงาน</MudTh><MudTh>รหัสพิมพ์</MudTh><MudTh>ล๊อตการผลิต</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.No</MudTd>
+                <MudTd Style="min-width:12rem">
+                    <MudAutocomplete T="ProductListItem" Value="context.Product" ValueChanged="p => ChooseProductAsync(context, p)" SearchFunc="SearchProductAsync"
+                                     ToStringFunc="@(p => p is null ? "" : p.Code)" ResetValueOnEmptyText="true" MaxItems="30" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd Style="min-width:12rem"><MudTextField @bind-Value="context.ProductName" Margin="Margin.Dense" /></MudTd>
+                <MudTd Style="min-width:5rem"><MudTextField @bind-Value="context.Unit" Margin="Margin.Dense" /></MudTd>
+                <MudTd Style="min-width:6rem">
+                    <MudSelect T="int?" @bind-Value="context.ShiftId" Margin="Margin.Dense" Clearable="true">
+                        @foreach (var s in shifts)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)s.Id)">@s.Code</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd Style="min-width:5rem"><MudNumericField T="decimal?" @bind-Value="context.Hours" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+                <MudTd Style="min-width:9rem"><MudTextField @bind-Value="context.MaterialLot1" Margin="Margin.Dense" /></MudTd>
+                @if (department.MaterialLot2Label is not null) { <MudTd Style="min-width:9rem"><MudTextField @bind-Value="context.MaterialLot2" Margin="Margin.Dense" /></MudTd> }
+                <MudTd Style="min-width:7rem"><MudNumericField T="decimal?" @bind-Value="context.Good" Immediate="true" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+                <MudTd Style="min-width:6rem"><MudNumericField T="decimal?" @bind-Value="context.Reject" Immediate="true" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+                <MudTd Style="text-align:right">@(context.Good is null && context.Reject is null ? "" : ProductionReportRegistry.Total(context.Good, context.Reject).ToString("0.####"))</MudTd>
+                <MudTd Style="min-width:12rem">
+                    <MudAutocomplete T="ProductionEmployeeRef" @bind-Value="context.Employee" SearchFunc="SearchEmployeeAsync"
+                                     ToStringFunc="@(e => e is null ? "" : $"{e.Code} {e.Name}")" ResetValueOnEmptyText="true" MaxItems="30" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd Style="min-width:10rem">
+                    <MudSelect T="int?" @bind-Value="context.MoldId" Margin="Margin.Dense" Clearable="true">
+                        @foreach (var m in molds)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)m.Id)">@m.Code</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd Style="min-width:10rem"><MudTextField @bind-Value="context.Lot" Margin="Margin.Dense" Placeholder="260903B35-A/1" /></MudTd>
+            </RowTemplate>
+        </MudTable>
+        <MudButton OnClick="AddRow" Class="mt-2" StartIcon="@Icons.Material.Filled.Add">เพิ่มบรรทัด</MudButton>
+    </MudPaper>
+
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Save">บันทึก</MudButton>
+        <MudButton Href="@PrintHref" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายงาน</MudButton>
+        <MudButton OnClick="LeaveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+    </MudStack>
+}
+
+@code {
+    private const int FirstRows = 8;
+
+    [Parameter]
+    public string Department { get; set; } = "";
+
+    private ProductionDepartment? department;
+    private DateTime? reportDate = DateTime.Today;
+    private string reportNo = "";
+    private int? machineId;
+    private int? defaultMachineId;
+    private List<MachineDto> machines = [];
+    private List<ShiftDto> shifts = [];
+    private List<MoldDto> molds = [];
+    private readonly List<Row> rows = [];
+    private bool busy;
+
+    // The report-printing screen is ticket #139; until then the link goes back to this menu.
+    private string PrintHref => OrderMenu.HrefOf(12);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        department = ProductionDepartments.Find(Department);
+        if (department is null) return;
+        machines = (await Services.RunAsync<OrgDirectory, IReadOnlyList<MachineDto>>(d => d.GetMachinesAsync())).ToList();
+        shifts = (await Services.RunAsync<OrgDirectory, IReadOnlyList<ShiftDto>>(d => d.GetShiftsAsync())).ToList();
+        molds = (await Services.RunAsync<MoldDirectory, IReadOnlyList<MoldDto>>(d => d.GetAllAsync(inUseOnly: true))).ToList();
+        defaultMachineId = await Services.RunAsync<ProductionReportDirectory, int?>(d => d.DefaultMachineIdAsync(department.Code));
+        await NewReportAsync();
+    }
+
+    private async Task NewReportAsync(string? number = null)
+    {
+        reportNo = number ?? await Services.RunAsync<ProductionReportDirectory, string?>(d => d.ProposeNumberAsync(department!.Code)) ?? "";
+        machineId = defaultMachineId;
+        rows.Clear();
+        for (var i = 0; i < FirstRows; i++) AddRow();
+    }
+
+    private void AddRow() => rows.Add(new Row { No = rows.Count + 1 });
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private async Task<IEnumerable<ProductionEmployeeRef>> SearchEmployeeAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<IProductionEmployeeLookup, IReadOnlyList<ProductionEmployeeRef>>(l => l.SearchAsync(text, 30));
+
+    private async Task ChooseProductAsync(Row row, ProductListItem? product)
+    {
+        row.Product = product;
+        if (product is null) return;
+        if (await Services.RunAsync<ProductionReportDirectory, ProductionLineDefaults?>(d => d.DefaultsForProductAsync(department!.Code, product.Id)) is { } defaults)
+        {
+            row.ProductName = defaults.ProductName;
+            row.Unit = defaults.Unit;
+            if (defaults.MoldId is not null) row.MoldId = defaults.MoldId;
+        }
+    }
+
+    private ProductionReportInput ToInput() => new(null, null, department!.Code, reportDate is { } d ? DateOnly.FromDateTime(d) : null, reportNo, machineId,
+        rows.Select(r => new ProductionReportLineInput(null, null, r.Product?.Id, r.ProductName, r.Unit, r.ShiftId, r.Hours, r.MaterialLot1, r.MaterialLot2,
+            r.Good, r.Reject, r.Employee?.Id, r.MoldId, r.Lot)).ToList());
+
+    private async Task<ProductionReportSaveResult?> TrySaveAsync(ProductionSaveMode mode)
+    {
+        var input = ToInput();
+        var result = await Services.RunAsync<ProductionReportRegistry, ProductionReportSaveResult>(r => r.SaveAsync(input, mode));
+        foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+        return result.Succeeded ? result : null;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            if (await TrySaveAsync(ProductionSaveMode.Save) is not { } result) return;
+            Snackbar.Add(result.Id is null ? "ไม่มีบรรทัดที่มีจำนวนดี จึงไม่ได้บันทึก" : $"บันทึกใบรายงาน {reportNo} แล้ว", result.Id is null ? Severity.Warning : Severity.Success);
+            await NewReportAsync(result.NextNo);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task LeaveAsync()
+    {
+        busy = true;
+        try
+        {
+            if (await TrySaveAsync(ProductionSaveMode.Leave) is null) return;
+            Navigation.NavigateTo(OrderMenu.HrefOf(12));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class Row
+    {
+        public int No { get; set; }
+        public ProductListItem? Product { get; set; }
+        public string? ProductName { get; set; }
+        public string? Unit { get; set; }
+        public int? ShiftId { get; set; }
+        public decimal? Hours { get; set; }
+        public string? MaterialLot1 { get; set; }
+        public string? MaterialLot2 { get; set; }
+        public decimal? Good { get; set; }
+        public decimal? Reject { get; set; }
+        public ProductionEmployeeRef? Employee { get; set; }
+        public int? MoldId { get; set; }
+        public string? Lot { get; set; }
+    }
+}
