@@ -1,0 +1,45 @@
+@* "You are here": เมนูหลัก › เมนูย่อย › หน้านี้ — each step but the last links back (EmployeeMenu.Trail). Not shown on the main menu itself. *@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+@if (crumbs.Count > 1)
+{
+    <nav aria-label="ตำแหน่งปัจจุบัน" class="menu-trail">
+        @for (var i = 0; i < crumbs.Count; i++)
+        {
+            var crumb = crumbs[i];
+            if (i > 0)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="menu-trail-sep" />
+            }
+            if (crumb.Href is null)
+            {
+                <span class="menu-trail-here" aria-current="page">@crumb.Text</span>
+            }
+            else
+            {
+                <a href="@(crumb.Href.Length == 0 ? "./" : crumb.Href)">@if (i == 0) {<MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Small" Class="menu-trail-home" />}@crumb.Text</a>
+            }
+        }
+    </nav>
+}
+
+@code {
+    private IReadOnlyList<EmployeeMenu.Crumb> crumbs = [];
+
+    protected override void OnInitialized()
+    {
+        Update();
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void Update() => crumbs = EmployeeMenu.Trail(Navigation.ToBaseRelativePath(Navigation.Uri));
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        Update();
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}
