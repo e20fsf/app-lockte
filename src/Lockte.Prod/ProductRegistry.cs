@@ -353,3 +353,13 @@ public static class ProductGroupPattern
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
     }
 }
+
+/// <summary>
+/// The product register as module ขายและส่งของ reads it for the lines of an ORDER (<see cref="Lockte.Sales.IProductLookup"/>) —
+/// the interface lives there because this module already depends on it.
+/// </summary>
+internal sealed class SalesProductLookup(ProductDirectory products) : Lockte.Sales.IProductLookup
+{
+    public async Task<Lockte.Sales.ProductRef?> FindAsync(int productId)
+        => await products.GetAsync(productId) is { } p ? new Lockte.Sales.ProductRef(p.Id, p.Code, p.Name, p.Unit) : null;
+}
