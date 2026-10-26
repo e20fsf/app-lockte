@@ -31,6 +31,11 @@ namespace Lockte.Sales.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ที่อยู่");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -45,11 +50,124 @@ namespace Lockte.Sales.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<int?>("CreditDays")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เครดิต (วัน)");
+
+                    b.Property<string>("District")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "อำเภอ");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
                         .HasAnnotation("Lockte:AuditName", "ชื่อลูกค้า");
+
+                    b.Property<string>("Phone1")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "โทร 1");
+
+                    b.Property<string>("Phone2")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "โทร 2");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "รหัสไปรษณีย์");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "จังหวัด");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "หมายเหตุ");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("SalesTerritoryId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เขตการขาย");
+
+                    b.Property<string>("TransportAddress")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ที่อยู่ขนส่ง");
+
+                    b.Property<string>("TransportName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อขนส่ง");
+
+                    b.Property<string>("TransportPhone")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "โทรขนส่ง");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("PostalCode");
+
+                    b.HasIndex("SalesTerritoryId");
+
+                    b.ToTable("Customers", "sales");
+
+                    b.HasAnnotation("Lockte:AuditName", "ลูกค้า");
+                });
+
+            modelBuilder.Entity("Lockte.Sales.Data.SalesTerritory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("nvarchar(4)")
+                        .HasAnnotation("Lockte:AuditName", "รหัสเขตการขาย");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "พนักงานขาย");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อเขตการขาย");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -70,9 +188,9 @@ namespace Lockte.Sales.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Customers", "sales");
+                    b.ToTable("SalesTerritories", "sales");
 
-                    b.HasAnnotation("Lockte:AuditName", "ลูกค้า");
+                    b.HasAnnotation("Lockte:AuditName", "เขตการขาย");
                 });
 
             modelBuilder.Entity("Lockte.SharedKernel.Persistence.HistoryRecord", b =>
@@ -138,6 +256,16 @@ namespace Lockte.Sales.Data.Migrations
                         {
                             t.ExcludeFromMigrations();
                         });
+                });
+
+            modelBuilder.Entity("Lockte.Sales.Data.Customer", b =>
+                {
+                    b.HasOne("Lockte.Sales.Data.SalesTerritory", "SalesTerritory")
+                        .WithMany()
+                        .HasForeignKey("SalesTerritoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("SalesTerritory");
                 });
 #pragma warning restore 612, 618
         }

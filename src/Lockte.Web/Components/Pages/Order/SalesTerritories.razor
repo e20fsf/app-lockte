@@ -1,0 +1,148 @@
+@page "/order/territories"
+@page "/order/territories/new"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+
+@* SCR-07 รายชื่อเซล (ฟอร์ม EMPLO เพิ่ม + EMPLO1 แก้ไข) — เขตการขาย รหัส 00–11 + ชื่อ + พนักงานขาย. The code means a territory,
+   not a person (Q-22): the พนักงานขาย is chosen from the employee register (#16), blank for 00 ออฟฟิศ / 11 เซลออนไลน์. Delete
+   is a button with a confirmation (instead of clearing the name, BR-021); a territory customers use cannot be deleted. *@
+<PageTitle>เขตการขาย — LOCKTE</PageTitle>
+<h1 class="mb-4">@(adding ? "เพิ่มเขตการขาย" : "แก้ไขและลบเขตการขาย")</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มเขตการขาย" : $"แก้เขตการขาย {form.Code}")</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="2"><MudTextField @bind-Value="form.Code" Label="รหัสเขต" MaxLength="SalesTerritoryRegistry.CodeLength" Required="true" RequiredError="กรุณากรอกรหัสเขตการขาย" HelperText="เช่น 00–11" /></MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Name" Label="ชื่อ" MaxLength="SalesTerritoryRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อเขตการขาย" /></MudItem>
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="EmployeeListItem" @bind-Value="form.Employee" Label="พนักงานขาย (รหัส หรือ ชื่อ)" SearchFunc="SearchEmployeeAsync"
+                             ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50"
+                             HelperText="ว่างได้ เช่น ออฟฟิศ" />
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบเขตการขายนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">รายชื่อเขตการขาย</MudText>
+    <MudTable Items="territories" Dense="true" Hover="true" Loading="territories is null" T="SalesTerritoryDto" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<SalesTerritoryDto> e) => Edit(e.Item!))">
+        <HeaderContent><MudTh>รหัสเขต</MudTh><MudTh>ชื่อ</MudTh><MudTh>พนักงานขาย</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Code</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@(context.EmployeeCode is null ? "" : $"{context.EmployeeCode}  {context.EmployeeName}")</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ยังไม่มีเขตการขาย</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(9)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<SalesTerritoryDto>? territories;
+    private List<EmployeeListItem> employees = [];
+    private TerritoryForm form = new();
+    private bool busy;
+    private bool adding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        adding = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/').EndsWith("/new", StringComparison.OrdinalIgnoreCase);
+        employees = (await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync())).Where(e => e.IsWorking).ToList();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+        => territories = await Services.RunAsync<SalesTerritoryDirectory, IReadOnlyList<SalesTerritoryDto>>(d => d.GetAllAsync());
+
+    private Task<IEnumerable<EmployeeListItem>> SearchEmployeeAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? employees.AsEnumerable()
+            : employees.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+
+    private void New() => form = new TerritoryForm();
+
+    private void Edit(SalesTerritoryDto t) => form = new TerritoryForm
+    {
+        Id = t.Id, Code = t.Code, Name = t.Name, RowVersion = t.RowVersion,
+        Employee = t.EmployeeId is { } id ? employees.FirstOrDefault(e => e.Id == id) ?? new EmployeeListItem(id, t.EmployeeCode ?? "", t.EmployeeName ?? "", null, false) : null,
+    };
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new SalesTerritoryInput(form.Id, form.Code, form.Name, form.Employee?.Id, form.RowVersion);
+            var result = await Services.RunAsync<SalesTerritoryRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบเขตการขาย", $"ลบเขตการขาย {form.Code} {form.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (form.Id!.Value, form.RowVersion!);
+            var result = await Services.RunAsync<SalesTerritoryRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class TerritoryForm
+    {
+        public int? Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public EmployeeListItem? Employee { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

@@ -25,8 +25,8 @@ public static class OrderMenu
         ]),
         new(7, "ข้อมูลลูกค้า", 1,
         [
-            new("เพิ่มข้อมูลลูกค้า", Code: "SCR-02-1"),
-            new("แก้ไขและพิมพ์ข้อมูลลูกค้า", Code: "SCR-02-2"),
+            new("เพิ่มข้อมูลลูกค้า", Code: "SCR-02-1", Page: "order/customers/new"),
+            new("แก้ไขและพิมพ์ข้อมูลลูกค้า", Code: "SCR-02-2", Page: "order/customers"),
         ]),
         new(8, "ข้อมูลสินค้า", 1,
         [
@@ -57,8 +57,8 @@ public static class OrderMenu
             new("เลือกตามวันที่ ORDER", Code: "SCR-06-2"),
             new("เลือกตามรหัสลูกค้า", Code: "SCR-06-3"),
             new("แก้ไข ORDER ที่เขตการขายรับมาทั้งหมด", Code: "SCR-06-4"), // แก้ไข ORDER ที่เซลรับมาทั้งหมด
-            new("เพิ่มเขตการขาย", Code: "SCR-07-1"), // เพิ่มรายชื่อเซล
-            new("แก้ไขและลบเขตการขาย", Code: "SCR-07-2"), // แก้ไขและลบรายชื่อเซล
+            new("เพิ่มเขตการขาย", Code: "SCR-07-1", Page: "order/territories/new"), // เพิ่มรายชื่อเซล
+            new("แก้ไขและลบเขตการขาย", Code: "SCR-07-2", Page: "order/territories"), // แก้ไขและลบรายชื่อเซล
         ]),
         new(13, "ยอดค้างส่ง", 2, // ORDER ค้างส่ง
         [
