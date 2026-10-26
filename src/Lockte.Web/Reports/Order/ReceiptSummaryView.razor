@@ -1,0 +1,38 @@
+@* RPT-06 สรุปการรับ ORDER (สรุปการรับORDER), ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ …, then (ลำดับ) รหัส, ชื่อเขตการขาย, จำนวนใบ ORDER, จำนวนเงิน
+   — every territory of the register, even with no order — and "รวมทั้งหมด" with a double line. Source = the orders in the history
+   (BR-012, #28). *@
+<p class="sub">ตั้งแต่วันที่ @(Report.From is { } from ? ReportText.Date(from) : "-")&emsp;ถึงวันที่ @(Report.To is { } to ? ReportText.Date(to) : "-")</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="width:90%;margin:0 auto">
+        <colgroup><col style="width:8%" /><col style="width:12%" /><col style="width:40%" /><col style="width:15%" /><col style="width:25%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อเขตการขาย</th><th class="num">จำนวนใบ ORDER</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var row = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@row.Code</td>
+                    <td>@row.Name</td>
+                    <td class="num">@row.Orders</td>
+                    <td class="num">@ReportText.Decimal2(row.Amount)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td></td><td></td><td><b>รวมทั้งหมด</b></td>
+                <td class="num"><b>@Report.TotalOrders</b></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.TotalAmount)</b></td>
+            </tr>
+            <tr><td colspan="5" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ReceiptSummaryReport Report { get; set; } = null!;
+}

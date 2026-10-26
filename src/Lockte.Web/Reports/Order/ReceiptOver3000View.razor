@@ -1,0 +1,37 @@
+@* RPT-06 สรุป ORDER มากกว่า 3000 (สรุปการรับORDER1), ระดับ B on A4 ตั้ง: per customer, Σ จำนวน (not money) of at least 3,000 in the range,
+   with Σ จำนวน and Σ จำนวนเงิน. The head says the limit is on the quantity (D-10). *@
+<p class="sub">ตั้งแต่วันที่ @(Report.From is { } from ? ReportText.Date(from) : "-")&emsp;ถึงวันที่ @(Report.To is { } to ? ReportText.Date(to) : "-")&emsp;ลูกค้าที่สั่งรวมตั้งแต่ @OrderReports.Qty(Report.Limit) หน่วยขึ้นไป (นับจำนวน ไม่ใช่เงิน)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:7%" /><col style="width:15%" /><col style="width:38%" /><col style="width:18%" /><col style="width:22%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัสลูกค้า</th><th>ชื่อลูกค้า</th><th class="num">จำนวนรวม</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var row = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@row.CustomerCode</td>
+                    <td>@row.CustomerName</td>
+                    <td class="num">@OrderReports.Qty(row.Quantity)</td>
+                    <td class="num">@ReportText.Decimal2(row.Amount)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td></td><td></td><td><b>รวมทั้งหมด @Report.Rows.Count ราย</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.Rows.Sum(r => r.Quantity))</b></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.Rows.Sum(r => r.Amount))</b></td>
+            </tr>
+            <tr><td colspan="5" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ReceiptOver3000Report Report { get; set; } = null!;
+}
