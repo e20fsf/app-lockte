@@ -12,6 +12,8 @@
     <ProjectReference Include="..\Lockte.Org\Lockte.Org.csproj" />
     <!-- Public services only (CustomerDirectory): ลูกค้างานรับจ้างผลิต of ค่าแรงงานรับจ้าง (BR-009, ADR 0002). -->
     <ProjectReference Include="..\Lockte.Sales\Lockte.Sales.csproj" />
+    <!-- The interface of the employee lookup for ใบรายงานผลผลิต (IProductionEmployeeLookup) lives in module ผลิต, which does not refer to this one. -->
+    <ProjectReference Include="..\Lockte.Prod\Lockte.Prod.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -17,6 +17,8 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
     internal DbSet<BrakeType> BrakeTypes => Set<BrakeType>();
     internal DbSet<ProductModel> ProductModels => Set<ProductModel>();
     internal DbSet<ProductGroup> ProductGroups => Set<ProductGroup>();
+    internal DbSet<ProductionReport> ProductionReports => Set<ProductionReport>();
+    internal DbSet<ProductionReportLine> ProductionReportLines => Set<ProductionReportLine>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -104,6 +106,43 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             p.HasOne(x => x.Mold).WithMany().HasForeignKey(x => x.MoldId).OnDelete(DeleteBehavior.Restrict);
             p.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ModelId).OnDelete(DeleteBehavior.Restrict);
             p.HasOne(x => x.BrakeType).WithMany().HasForeignKey(x => x.BrakeTypeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductionReport>(r =>
+        {
+            r.HasAuditName("ใบรายงานผลผลิต");
+            r.Property(x => x.DepartmentCode).HasMaxLength(1).HasAuditName("แผนก");
+            r.Property(x => x.ReportDate).HasAuditName("วันที่");
+            r.Property(x => x.ReportNo).HasMaxLength(ProductionReportRegistry.ReportNoLength).HasAuditName("เลขที่ใบรายงาน");
+            r.Property(x => x.MachineId).HasAuditName("เครื่องจักร");
+            r.HasIndex(x => x.ReportNo).IsUnique();
+            r.HasIndex(x => new { x.DepartmentCode, x.ReportDate });
+            r.HasMany(x => x.Lines).WithOne(x => x.ProductionReport).HasForeignKey(x => x.ProductionReportId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductionReportLine>(l =>
+        {
+            l.HasAuditName("บรรทัดใบรายงานผลผลิต");
+            l.Property(x => x.LineNo).HasAuditName("ลำดับ");
+            l.Property(x => x.ShiftId).HasAuditName("กะ");
+            l.Property(x => x.Hours).HasPrecision(9, 2).HasAuditName("ชั่วโมง");
+            l.Property(x => x.MaterialLot1).HasMaxLength(ProductionReportRegistry.TextLength).HasAuditName("Lot วัตถุดิบ 1");
+            l.Property(x => x.MaterialLot2).HasMaxLength(ProductionReportRegistry.TextLength).HasAuditName("Lot วัตถุดิบ 2");
+            l.Property(x => x.ProductId).HasAuditName("สินค้า");
+            l.Property(x => x.ProductName).HasMaxLength(ProductionReportRegistry.TextLength).HasAuditName("ชื่อสินค้า");
+            l.Property(x => x.Unit).HasMaxLength(ProductionReportRegistry.TextLength).HasAuditName("หน่วย");
+            l.Property(x => x.GoodQuantity).HasPrecision(18, 4).HasAuditName("จำนวนดี");
+            l.Property(x => x.RejectQuantity).HasPrecision(18, 4).HasAuditName("เสีย");
+            l.Property(x => x.TotalQuantity).HasPrecision(18, 4).HasAuditName("จำนวนรวม");
+            l.Property(x => x.EmployeeId).HasAuditName("พนักงาน");
+            l.Property(x => x.MoldId).HasAuditName("แม่พิมพ์");
+            l.Property(x => x.Lot).HasMaxLength(ProductionReportRegistry.TextLength).HasAuditName("Lot ผลผลิต");
+            l.HasIndex(x => new { x.ProductionReportId, x.LineNo }).IsUnique();
+            l.HasIndex(x => x.ProductId);
+            l.HasIndex(x => x.EmployeeId);
+            // A product or mold that a report uses cannot be deleted (ข้อสมมติ ง).
+            l.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+            l.HasOne(x => x.Mold).WithMany().HasForeignKey(x => x.MoldId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

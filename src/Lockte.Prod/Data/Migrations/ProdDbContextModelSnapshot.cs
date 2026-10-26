@@ -482,6 +482,183 @@ namespace Lockte.Prod.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "ประเภทสินค้า");
                 });
 
+            modelBuilder.Entity("Lockte.Prod.Data.ProductionReport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DepartmentCode")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("nvarchar(1)")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
+
+                    b.Property<int?>("MachineId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เครื่องจักร");
+
+                    b.Property<DateOnly?>("ReportDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่");
+
+                    b.Property<string>("ReportNo")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่ใบรายงาน");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportNo")
+                        .IsUnique();
+
+                    b.HasIndex("DepartmentCode", "ReportDate");
+
+                    b.ToTable("ProductionReports", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "ใบรายงานผลผลิต");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.ProductionReportLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "พนักงาน");
+
+                    b.Property<decimal>("GoodQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนดี");
+
+                    b.Property<decimal?>("Hours")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)")
+                        .HasAnnotation("Lockte:AuditName", "ชั่วโมง");
+
+                    b.Property<int>("LineNo")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับ");
+
+                    b.Property<string>("Lot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "Lot ผลผลิต");
+
+                    b.Property<string>("MaterialLot1")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "Lot วัตถุดิบ 1");
+
+                    b.Property<string>("MaterialLot2")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "Lot วัตถุดิบ 2");
+
+                    b.Property<int?>("MoldId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แม่พิมพ์");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "สินค้า");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อสินค้า");
+
+                    b.Property<int>("ProductionReportId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("RejectQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "เสีย");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("ShiftId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "กะ");
+
+                    b.Property<decimal>("TotalQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนรวม");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "หน่วย");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("MoldId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ProductionReportId", "LineNo")
+                        .IsUnique();
+
+                    b.ToTable("ProductionReportLines", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "บรรทัดใบรายงานผลผลิต");
+                });
+
             modelBuilder.Entity("Lockte.SharedKernel.Persistence.HistoryRecord", b =>
                 {
                     b.Property<long>("Id")
@@ -576,6 +753,36 @@ namespace Lockte.Prod.Data.Migrations
                     b.Navigation("Mold");
 
                     b.Navigation("ProductType");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.ProductionReportLine", b =>
+                {
+                    b.HasOne("Lockte.Prod.Data.Mold", "Mold")
+                        .WithMany()
+                        .HasForeignKey("MoldId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Lockte.Prod.Data.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Lockte.Prod.Data.ProductionReport", "ProductionReport")
+                        .WithMany("Lines")
+                        .HasForeignKey("ProductionReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Mold");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("ProductionReport");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.ProductionReport", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }
