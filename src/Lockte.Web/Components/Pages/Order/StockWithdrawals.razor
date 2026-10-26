@@ -1,0 +1,151 @@
+@page "/order/stock/withdrawals"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-13 เบิกเพื่อผลิต (ฟอร์ม P_ST2 + P_ST1, BR-018): วันที่, เลขที่ (typed, no register), พนักงาน (from the HR register) and the lines — ลำดับ, สินค้า, จำนวน. The quantity is kept
+   negative whatever sign is typed (ข้อสมมติ ข). "ใบต่อไป" drops the lines with no quantity and opens the next slip. "แก้ไข" chooses a slip by its number (P_ST4) and changes its
+   lines; a line whose quantity is cleared is deleted. The balance is not checked (⚠ kept). "พิมพ์รายงาน" opens RPT-18 for a range. *@
+<PageTitle>เบิกเพื่อผลิต — LOCKTE</PageTitle>
+<h1 class="mb-4">เบิกเพื่อผลิต</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudAutocomplete T="string" Value="editing" ValueChanged="OpenAsync" Label="แก้ไขใบเบิก — เลือกเลขที่ใบเบิก" SearchFunc="SearchSlipsAsync" Clearable="true"
+                         ResetValueOnEmptyText="true" MaxItems="100" Style="min-width:20rem" />
+        @if (editing is not null)
+        {
+            <MudText Typo="Typo.body2">กำลังแก้ใบเบิกเลขที่ @editing — ล้างจำนวนเพื่อลบบรรทัด</MudText>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="number" Label="เลขที่ใบเบิก" MaxLength="StockRegistry.DocumentNoLength" Disabled="@(editing is not null)" /></MudItem>
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="ProductionEmployeeRef" @bind-Value="employee" Label="พนักงาน" SearchFunc="SearchEmployeeAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="30" />
+        </MudItem>
+    </MudGrid>
+    <MudTable Items="rows" Dense="true" Breakpoint="Breakpoint.None" T="Row" Class="mt-3" Elevation="0">
+        <HeaderContent><MudTh>ลำดับ</MudTh><MudTh>รหัสสินค้า</MudTh><MudTh>ชื่อสินค้า</MudTh><MudTh>จำนวน</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.LineNo</MudTd>
+            <MudTd Style="min-width:14rem">
+                <MudAutocomplete T="ProductListItem" @bind-Value="context.Product" SearchFunc="SearchProductAsync" ToStringFunc="@(p => p is null ? "" : p.Code)"
+                                 ResetValueOnEmptyText="true" MaxItems="30" Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd>@context.Product?.Name</MudTd>
+            <MudTd Style="min-width:8rem"><MudNumericField T="decimal?" @bind-Value="context.Quantity" HideSpinButtons="true" Margin="Margin.Dense" /></MudTd>
+        </RowTemplate>
+    </MudTable>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton OnClick="AddRow" StartIcon="@Icons.Material.Filled.Add">เพิ่มบรรทัด</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Save">@(editing is null ? "ใบต่อไป" : "บันทึก")</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true" Style="max-width:44rem">
+    <MudText Typo="Typo.h6" Class="mb-2">พิมพ์รายงานใบเบิก</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="reportFrom" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
+        <MudDatePicker Editable="true" @bind-Date="reportTo" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
+        <MudButton Variant="Variant.Outlined" Href="@ReportUrl" Target="_blank" Disabled="@(ReportUrl.Length == 0)" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายงาน</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private const int FirstRows = 8;
+
+    private DateTime? date = DateTime.Today;
+    private string number = "";
+    private ProductionEmployeeRef? employee;
+    private string? editing;
+    private readonly List<Row> rows = [];
+    private DateTime? reportFrom = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? reportTo = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1).AddDays(-1);
+    private bool busy;
+
+    private string ReportUrl => reportFrom is null || reportTo is null || reportFrom > reportTo ? ""
+        : $"/reports/order/withdrawals?from={reportFrom.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}&to={reportTo.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+
+    protected override void OnInitialized() => NewSlip();
+
+    private void NewSlip()
+    {
+        editing = null;
+        number = "";
+        rows.Clear();
+        for (var i = 0; i < FirstRows; i++) AddRow();
+    }
+
+    private void AddRow() => rows.Add(new Row { LineNo = rows.Count + 1 });
+
+    private async Task<IEnumerable<string>> SearchSlipsAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<StockWithdrawalDirectory, IReadOnlyList<string>>(d => d.GetSlipNumbersAsync(text));
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private async Task<IEnumerable<ProductionEmployeeRef>> SearchEmployeeAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<IProductionEmployeeLookup, IReadOnlyList<ProductionEmployeeRef>>(l => l.SearchAsync(text, 30));
+
+    private async Task OpenAsync(string? documentNo)
+    {
+        if (documentNo is null) { NewSlip(); return; }
+        if (await Services.RunAsync<StockWithdrawalDirectory, WithdrawalSlipDto?>(d => d.GetSlipAsync(documentNo)) is not { } slip) { Snackbar.Add("ไม่พบใบเบิกนี้", Severity.Warning); return; }
+        editing = slip.DocumentNo;
+        number = slip.DocumentNo;
+        date = slip.Date?.ToDateTime(TimeOnly.MinValue);
+        employee = slip.EmployeeId is { } id ? await Services.RunAsync<IProductionEmployeeLookup, ProductionEmployeeRef?>(l => l.FindAsync(id)) : null;
+        rows.Clear();
+        foreach (var line in slip.Lines)
+            rows.Add(new Row
+            {
+                LineNo = line.LineNo, Id = line.Id, RowVersion = line.RowVersion, Product = new ProductListItem(line.ProductId, line.ProductCode, line.ProductName, line.Unit),
+                Quantity = Math.Abs(line.Quantity),
+            });
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new WithdrawalSlipInput(number, date is { } d ? DateOnly.FromDateTime(d) : null, employee?.Id,
+                rows.Where(r => r.Product is not null || r.Id is not null).Select(r => new WithdrawalLineInput(r.Id, r.RowVersion, r.LineNo, r.Product?.Id ?? 0, r.Quantity)).ToList());
+            var result = await Services.RunAsync<StockWithdrawalRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add($"บันทึกใบเบิกเลขที่ {number} แล้ว", Severity.Success);
+            NewSlip();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            if (editing is not null) await OpenAsync(editing);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class Row
+    {
+        public int LineNo { get; set; }
+        public int? Id { get; set; }
+        public byte[]? RowVersion { get; set; }
+        public ProductListItem? Product { get; set; }
+        public decimal? Quantity { get; set; }
+    }
+}
