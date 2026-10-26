@@ -3,6 +3,9 @@ using System.Runtime.Versioning;
 
 namespace Lockte.Migration;
 
+/// <summary>The legacy file as it was when read: name, size, last write and the time of reading (UTC).</summary>
+public sealed record LegacySource(string FileName, long Bytes, DateTime LastWriteUtc, DateTime ReadAtUtc);
+
 /// <summary>One row of a legacy Access table, by column name (case-insensitive). DBNull is null.</summary>
 public sealed class LegacyRow(IReadOnlyDictionary<string, object?> values)
 {
@@ -73,6 +76,13 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
 
     private static string Literal(DateOnly date) => $"#{date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}#";
 
+    /// <summary>The master-data tables of <c>ผลผลิตและORDER.accdb</c> (#107), named as in data-model.md.</summary>
+    public static IReadOnlyList<string> OrderMasterDataTables { get; } =
+        ["เซล", "P_CUS", "P_NAME", "MC_N", "รหัสพิมพ์", "แผนก", "ประเภท", "TYPE", "MODEL", "รหัสสินค้าย่อ", "EMPO"];
+
+    /// <summary>The file the rows were read from — set when read by <see cref="ReadOrderFile"/>.</summary>
+    public LegacySource? Source { get; init; }
+
     public IReadOnlyList<LegacyRow> this[string table]
         => tables.TryGetValue(table, out var rows) ? rows : throw new KeyNotFoundException($"ไม่พบตาราง {table} ในไฟล์ต้นทาง");
 
@@ -86,8 +96,39 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     /// </summary>
     [SupportedOSPlatform("windows")]
     public static LegacyDatabase ReadAccessFile(string accdbPath)
+        => ReadCopy(accdbPath, (connection, tables, counts) =>
+        {
+            foreach (var table in MasterDataTables.Concat(OpenPeriodTables))
+                tables[table] = Read(connection, table, null);
+            foreach (var (table, where) in HistoryTables)
+            {
+                tables[table] = Read(connection, table, where);
+                using var count = new OleDbCommand($"SELECT COUNT(*) FROM [{table}]", connection);
+                counts[table] = Convert.ToInt32(count.ExecuteScalar());
+            }
+            foreach (var table in WarningMigration.Tables) // ใบเตือน, every year (#59)
+                tables[table] = Read(connection, table, null);
+        });
+
+    /// <summary>
+    /// The master-data tables of <c>ผลผลิตและORDER.accdb</c> (#107), read from a copy the same way (<see cref="ReadAccessFile"/>).
+    /// The file's name, size and time are kept in <see cref="Source"/> for the report.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static LegacyDatabase ReadOrderFile(string accdbPath)
+        => ReadCopy(accdbPath, (connection, tables, _) =>
+        {
+            foreach (var table in OrderMasterDataTables)
+                tables[table] = Read(connection, table, null);
+        });
+
+    [SupportedOSPlatform("windows")]
+    private static LegacyDatabase ReadCopy(string accdbPath,
+        Action<OleDbConnection, Dictionary<string, IReadOnlyList<LegacyRow>>, Dictionary<string, int>> read)
     {
         if (!File.Exists(accdbPath)) throw new FileNotFoundException($"ไม่พบไฟล์ {accdbPath}", accdbPath);
+        var info = new FileInfo(accdbPath);
+        var source = new LegacySource(info.Name, info.Length, info.LastWriteTimeUtc, DateTime.UtcNow);
         var folder = Directory.CreateTempSubdirectory("lockte-migration-");
         try
         {
@@ -99,19 +140,10 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
             using (var connection = new OleDbConnection($"Provider=Microsoft.ACE.OLEDB.16.0;Data Source={copy};Mode=Read;"))
             {
                 connection.Open();
-                foreach (var table in MasterDataTables.Concat(OpenPeriodTables))
-                    tables[table] = Read(connection, table, null);
-                foreach (var (table, where) in HistoryTables)
-                {
-                    tables[table] = Read(connection, table, where);
-                    using var count = new OleDbCommand($"SELECT COUNT(*) FROM [{table}]", connection);
-                    counts[table] = Convert.ToInt32(count.ExecuteScalar());
-                }
-                foreach (var table in WarningMigration.Tables) // ใบเตือน, every year (#59)
-                    tables[table] = Read(connection, table, null);
+                read(connection, tables, counts);
             }
             OleDbConnection.ReleaseObjectPool();
-            return new LegacyDatabase(tables, counts);
+            return new LegacyDatabase(tables, counts) { Source = source };
         }
         finally
         {

@@ -85,8 +85,20 @@ public sealed class FakeLegacyFile
         ("PAY", "SINGLE"), ("CODE_A", "TEXT(50)"),
     ];
 
-    public Dictionary<string, List<Dictionary<string, object?>>> Tables { get; } =
-        Schema.Keys.ToDictionary(t => t, _ => new List<Dictionary<string, object?>>());
+    private readonly Dictionary<string, (string Column, string Type)[]> schema;
+
+    public FakeLegacyFile() : this(Schema)
+    {
+    }
+
+    /// <summary>Another legacy file's tables, e.g. <see cref="FakeOrderFile.Schema"/> for ผลผลิตและORDER.accdb.</summary>
+    public FakeLegacyFile(Dictionary<string, (string Column, string Type)[]> schema)
+    {
+        this.schema = schema;
+        Tables = schema.Keys.ToDictionary(t => t, _ => new List<Dictionary<string, object?>>());
+    }
+
+    public Dictionary<string, List<Dictionary<string, object?>>> Tables { get; }
 
     public FakeLegacyFile Row(string table, params (string Column, object? Value)[] values)
     {
@@ -149,7 +161,7 @@ public sealed class FakeLegacyFile
         using (var connection = new OleDbConnection(connectionString))
         {
             connection.Open();
-            foreach (var (table, columns) in Schema)
+            foreach (var (table, columns) in schema)
             {
                 using (var create = new OleDbCommand(
                     $"CREATE TABLE [{table}] ({string.Join(", ", columns.Select(c => $"[{c.Column}] {c.Type}"))})", connection))

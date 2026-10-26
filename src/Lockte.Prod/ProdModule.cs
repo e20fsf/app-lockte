@@ -35,6 +35,26 @@ public static class ProdModule
     }
 }
 
+/// <summary>
+/// ลบข้อมูลหลักของ module ผลิตก่อนการย้ายข้อมูลรอบใหม่ (#107: ลบแล้วโหลดใหม่) — สินค้า with its lists, then แม่พิมพ์. For the
+/// data-migration tool only: a bulk delete, so it writes no history. Tables that refer to these (ใบรายงานผลผลิต, สต็อก…)
+/// are deleted before them by the tickets that add those tables.
+/// </summary>
+public sealed class ProdDataReset(ProdDbContext db)
+{
+    public async Task DeleteAllAsync()
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Products.ExecuteDeleteAsync();
+        await db.ProductTypes.ExecuteDeleteAsync();
+        await db.BrakeTypes.ExecuteDeleteAsync();
+        await db.ProductModels.ExecuteDeleteAsync();
+        await db.ProductGroups.ExecuteDeleteAsync();
+        await db.Molds.ExecuteDeleteAsync();
+        await transaction.CommitAsync();
+    }
+}
+
 /// <summary>For <c>dotnet ef migrations add … -p src/Lockte.Prod</c> only (no database connection is made).</summary>
 internal sealed class ProdDbContextFactory : IDesignTimeDbContextFactory<ProdDbContext>
 {

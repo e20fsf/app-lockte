@@ -12,7 +12,21 @@ public static class CodeKinds
     /// <summary>T-SHIFT.SHIFT / EMPLO.SHIFT / T-แผนก.SHIFT → รหัสกะ A–G.</summary>
     public const string Shift = "shift";
 
-    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift];
+    /// <summary>
+    /// T-EMPO.ID (พนักงานฝ่ายผลิต of ผลผลิตและORDER, #107) → รหัสพนักงาน in the HR register; code <c>-</c> = decided not to link.
+    /// With a duplicated ID (<c>B179</c>) the name column says which of the rows is kept.
+    /// </summary>
+    public const string ProductionEmployee = "production-employee";
+    /// <summary>
+    /// T-เซล.ID (เขตการขาย, #107) → รหัสพนักงาน of its พนักงานขาย in the HR register; code <c>-</c> = the territory has no
+    /// พนักงานขาย (00 ออฟฟิศ, 11 เซลออนไลน์).
+    /// </summary>
+    public const string SalesRepresentative = "sales-representative";
+
+    /// <summary>The code of a decision "link nobody" (<see cref="ProductionEmployee"/>, <see cref="SalesRepresentative"/>).</summary>
+    public const string Nobody = "-";
+
+    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift, ProductionEmployee, SalesRepresentative];
 }
 
 /// <summary>
