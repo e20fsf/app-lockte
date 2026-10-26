@@ -13,6 +13,9 @@ public static class ProdModule
         services.AddModuleDbContext<ProdDbContext>(connectionString, ProdDbContext.Schema);
         services.AddScoped<MoldDirectory>();
         services.AddScoped<MoldRegistry>();
+        services.AddScoped<ProductDirectory>();
+        services.AddScoped<ProductRegistry>();
+        services.AddScoped<ProductListRegistry>();
         return services;
     }
 

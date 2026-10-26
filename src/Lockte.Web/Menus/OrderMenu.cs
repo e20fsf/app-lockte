@@ -30,8 +30,8 @@ public static class OrderMenu
         ]),
         new(8, "ข้อมูลสินค้า", 1,
         [
-            new("เพิ่มข้อมูลสินค้า", Code: "SCR-03-1"),
-            new("แก้ไขและพิมพ์ข้อมูลสินค้า", Code: "SCR-03-2"),
+            new("เพิ่มข้อมูลสินค้า", Code: "SCR-03-1", Page: "order/products/new"),
+            new("แก้ไขและพิมพ์ข้อมูลสินค้า", Code: "SCR-03-2", Page: "order/products"),
         ]),
         new(2, "ORDER", 1,
         [

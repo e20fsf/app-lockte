@@ -64,6 +64,10 @@ public sealed class CustomerDirectory(SalesDbContext db)
         => await db.Customers.AsNoTracking().OrderBy(c => c.Code)
             .Select(c => new CustomerDto(c.Id, c.Code, c.Name, c.RowVersion)).ToListAsync();
 
+    public async Task<CustomerDto?> GetAsync(int id)
+        => await db.Customers.AsNoTracking().Where(c => c.Id == id)
+            .Select(c => new CustomerDto(c.Id, c.Code, c.Name, c.RowVersion)).FirstOrDefaultAsync();
+
     public async Task<CustomerDto?> FindByCodeAsync(string code)
     {
         var normalized = CustomerRegistry.Code(code);
