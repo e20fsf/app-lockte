@@ -66,7 +66,15 @@ public sealed record ProductionReportLineDto(
     decimal GoodQuantity, decimal? RejectQuantity, decimal TotalQuantity, int? EmployeeId, int? MoldId, string? MoldCode, string? Lot, byte[] RowVersion);
 
 public sealed record ProductionReportDto(
-    int Id, string DepartmentCode, DateOnly? ReportDate, string ReportNo, int? MachineId, IReadOnlyList<ProductionReportLineDto> Lines, byte[] RowVersion);
+    int Id, string DepartmentCode, DateOnly? ReportDate, string ReportNo, int? MachineId, IReadOnlyList<ProductionReportLineDto> Lines, byte[] RowVersion,
+    DateTimeOffset? StockedAt = null)
+{
+    /// <summary>เข้าสต็อกแล้ว: the production was transferred to the stock (BR-005); changing the report does not change the stock until the range is transferred again (⚠ BR-019).</summary>
+    public bool InStock => StockedAt is not null;
+}
+
+/// <summary>A report in the list of แก้ไขผลผลิต (SCR-11): found by its number or by its date.</summary>
+public sealed record ProductionReportSummary(int Id, string DepartmentCode, string DepartmentName, DateOnly? ReportDate, string ReportNo, int Lines, DateTimeOffset? StockedAt);
 
 public sealed record ProductionLineDefaults(string ProductName, string? Unit, int? MoldId, string? MoldCode);
 
@@ -271,5 +279,18 @@ public sealed class ProductionReportDirectory(ProdDbContext db, OrgDirectory org
         r.Id, r.DepartmentCode, r.ReportDate, r.ReportNo, r.MachineId,
         r.Lines.OrderBy(l => l.LineNo).Select(l => new ProductionReportLineDto(l.Id, l.LineNo, l.ProductId, l.ProductName, l.Unit, l.ShiftId, l.Hours,
             l.MaterialLot1, l.MaterialLot2, l.GoodQuantity, l.RejectQuantity, l.TotalQuantity, l.EmployeeId, l.MoldId, l.Mold?.Code, l.Lot, l.RowVersion)).ToList(),
-        r.RowVersion);
+        r.RowVersion, r.StockedAt);
+
+    /// <summary>
+    /// Reports found for แก้ไขผลผลิต (SCR-11): by <paramref name="reportNo"/> (the whole number or the start of it) or by <paramref name="date"/>, newest first; both given = both must match.
+    /// </summary>
+    public async Task<IReadOnlyList<ProductionReportSummary>> SearchAsync(string? reportNo, DateOnly? date, int max = 200)
+    {
+        var query = db.ProductionReports.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(reportNo)) { var no = reportNo.Trim().ToUpperInvariant(); query = query.Where(r => r.ReportNo.StartsWith(no)); }
+        if (date is { } d) query = query.Where(r => r.ReportDate == d);
+        var rows = await query.OrderByDescending(r => r.ReportDate).ThenBy(r => r.ReportNo).Take(max)
+            .Select(r => new { r.Id, r.DepartmentCode, r.ReportDate, r.ReportNo, Lines = r.Lines.Count, r.StockedAt }).ToListAsync();
+        return rows.Select(r => new ProductionReportSummary(r.Id, r.DepartmentCode, ProductionDepartments.Find(r.DepartmentCode)?.Name ?? r.DepartmentCode, r.ReportDate, r.ReportNo, r.Lines, r.StockedAt)).ToList();
+    }
 }

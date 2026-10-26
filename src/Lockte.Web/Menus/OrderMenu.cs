@@ -110,8 +110,8 @@ public static class OrderMenu
         ]),
         new(11, "แก้ไขผลผลิต", 3,
         [
-            new("แก้ไขตามเลขที่ใบรายงาน", Code: "SCR-11-1"),
-            new("แก้ไขตามวันที่", Code: "SCR-11-2"),
+            new("แก้ไขตามเลขที่ใบรายงาน", Code: "SCR-11-1", Page: "order/production/edit/number"),
+            new("แก้ไขตามวันที่", Code: "SCR-11-2", Page: "order/production/edit/date"),
         ]),
         new(4, "สต็อกสินค้าคงเหลือ", 3, // STOCK คงเหลือ
         [
