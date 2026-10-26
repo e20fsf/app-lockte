@@ -34,6 +34,12 @@ public sealed record WorkTMismatch(string Table, string EmployeeCode, DateOnly D
 /// <summary>What a legacy value became, and whether the code map or the legacy value itself gave it.</summary>
 public sealed record CodeMapUse(string Kind, string Legacy, string Code, string? Name, string? Prefix, bool FromMap);
 
+/// <summary>
+/// One legacy employee code of ผลผลิตและORDER (T-EMPO.ID, T-เซล.ID) and what it became in the HR register (#107):
+/// <see cref="HrCode"/> blank when it has none. The codes only — no names.
+/// </summary>
+public sealed record EmployeeMatch(string Kind, string LegacyCode, string? HrCode, string Result);
+
 public sealed class MigrationReport
 {
     public const string DqFile = "dq-exceptions.csv";
@@ -41,6 +47,8 @@ public sealed class MigrationReport
     public const string CodeMapFile = "code-map-used.csv";
     public const string MonthlyFile = "monthly-totals.csv";
     public const string WorkTFile = "work-t-check.csv";
+    public const string SourceFile = "source-info.csv";
+    public const string EmployeeMatchFile = "employee-match.csv";
 
     public const string NotLoaded = "ไม่โหลด";
     public const string LoadedBlank = "โหลดโดยเว้นช่องนี้ว่าง";
@@ -49,6 +57,14 @@ public sealed class MigrationReport
     public List<TableCount> Tables { get; } = [];
     public List<CodeMapUse> CodeMapUsed { get; } = [];
     public List<MonthlyTotal> MonthlyTotals { get; } = [];
+
+    /// <summary>The legacy file read — name, size, its last write and when the copy was read (#107).</summary>
+    public LegacySource? Source { get; internal set; }
+
+    /// <summary>What the run did on its own that nobody needs to decide (a value fixed the one possible way, a row matched).</summary>
+    public List<string> Notes { get; } = [];
+
+    public List<EmployeeMatch> EmployeeMatches { get; } = [];
 
     /// <summary>AC-01: migrated rows whose legacy WORK_T was compared (rows of the open period have none yet).</summary>
     public int WorkTChecked { get; internal set; }
@@ -90,6 +106,28 @@ public sealed class MigrationReport
                   m.WorkIn.ToString("HH:mm:ss", CultureInfo.InvariantCulture), m.WorkOut.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
                   m.RestMinutes, Number(m.Legacy), Number(m.New) })
                 .Prepend([$"ตรวจ {WorkTChecked} แถว", $"ไม่ตรง {WorkTMismatches.Count} แถว", null, null, null, null, null, null, null]));
+        WriteOrderFiles(folder);
+    }
+
+    private void WriteOrderFiles(string folder)
+    {
+        if (Source is not null || Notes.Count > 0)
+            Csv.Write(Path.Combine(folder, SourceFile), ["รายการ", "ค่า"], SourceLines());
+        if (EmployeeMatches.Count > 0)
+            Csv.Write(Path.Combine(folder, EmployeeMatchFile), ["ชนิด", "รหัสเดิม", "รหัสทะเบียนพนักงาน", "ผล"],
+                EmployeeMatches.Select(m => new object?[] { m.Kind, m.LegacyCode, m.HrCode, m.Result }));
+    }
+
+    private IEnumerable<object?[]> SourceLines()
+    {
+        if (Source is { } source)
+        {
+            yield return ["ไฟล์ต้นทาง", source.FileName];
+            yield return ["ขนาด (ไบต์)", source.Bytes];
+            yield return ["แก้ไขล่าสุด (UTC)", source.LastWriteUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)];
+            yield return ["อ่านสำเนาเมื่อ (UTC)", source.ReadAtUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)];
+        }
+        foreach (var note in Notes) yield return ["หมายเหตุ", note];
     }
 
     private static string Number(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);

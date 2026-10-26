@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using Lockte.Hr;
 using Lockte.Org;
+using Lockte.Prod;
 using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Microsoft.Data.SqlClient;
@@ -12,15 +13,21 @@ namespace Lockte.Migration;
 /// Command line of the console: <c>--source พนักงาน.accdb --connection "&lt;SQL Server&gt;" --confirm &lt;database&gt;
 /// --out &lt;folder&gt; [--map code-map.csv]</c>. The connection may come from env <c>LOCKTE_MIGRATION_SQL</c> instead.
 /// <c>--confirm</c> must repeat the database name, because every run deletes the master data there first.
+/// <c>--program order</c> (#107) reads <c>ผลผลิตและORDER.accdb</c> instead of <c>พนักงาน.accdb</c> (the default,
+/// <c>employee</c>); run it after the employee program's migration on the same database.
 /// </summary>
-public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder)
+public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram)
 {
+    public const string EmployeeProgram = "employee";
+    public const string OrderProgram = "order";
+
     public const string ConnectionVariable = "LOCKTE_MIGRATION_SQL";
 
     public const string Usage = """
         Lockte.Migration --source <พนักงาน.accdb> --connection "<SQL Server connection string>" --confirm <database>
-                         --out <folder> [--map <code-map.csv>]
+                         --out <folder> [--map <code-map.csv>] [--program employee|order]
           ลบข้อมูลหลักและประวัติในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
+          --program order = ย้ายข้อมูลหลักของ ผลผลิตและORDER.accdb (รันหลังย้ายข้อมูลโปรแกรมพนักงานลงฐานข้อมูลเดียวกัน)
           --connection ใช้ env LOCKTE_MIGRATION_SQL แทนได้ · รายงานเขียนลง <folder>
         """;
 
@@ -42,7 +49,9 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         if (string.IsNullOrEmpty(database)) return (null, "connection string ต้องระบุ Database");
         if (!string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
-        return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output), null);
+        var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
+        if (program is not (EmployeeProgram or OrderProgram)) return (null, $"--program ต้องเป็น {EmployeeProgram} หรือ {OrderProgram}");
+        return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program), null);
     }
 }
 
@@ -56,6 +65,7 @@ public static class MigrationTool
             // The delete-everything and bulk-load services of the modules: registered for this tool only, never in the web app.
             .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
+            .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -74,6 +84,25 @@ public static class MigrationTool
         await scope.ServiceProvider.GetRequiredService<WarningMigration>().RunAsync(legacy, report); // ใบเตือน (#59)
         await scope.ServiceProvider.GetRequiredService<OrphanPayEmployeeMigration>().RunAsync(legacy, report); // พนักงานตัวแทนของรหัสกำพร้าที่มีผลค่าแรง
         await scope.ServiceProvider.GetRequiredService<PayHistoryMigration>().RunAsync(legacy, report); // ผลค่าแรง, after the open period
+        report.WriteTo(outputFolder);
+        return report;
+    }
+}
+
+public static class OrderMigrationTool
+{
+    /// <summary>
+    /// The master-data run of ผลผลิตและORDER (#107): reads a copy of <paramref name="sourceFile"/>, deletes and loads สินค้า,
+    /// แม่พิมพ์ and เครื่องจักร and fills ลูกค้า and เขตการขาย, writes the DQ report, the row counts, the code map used and the
+    /// employee matches into <paramref name="outputFolder"/>.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static async Task<MigrationReport> RunAsync(IServiceProvider services, string sourceFile, string? codeMapFile, string outputFolder)
+    {
+        var map = codeMapFile is null ? CodeMap.Empty : CodeMap.Read(codeMapFile);
+        var legacy = LegacyDatabase.ReadOrderFile(sourceFile);
+        await using var scope = services.CreateAsyncScope();
+        var report = await scope.ServiceProvider.GetRequiredService<OrderMasterDataMigration>().RunAsync(legacy, map);
         report.WriteTo(outputFolder);
         return report;
     }

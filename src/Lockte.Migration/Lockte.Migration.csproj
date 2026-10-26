@@ -14,6 +14,7 @@
     <ProjectReference Include="..\Lockte.Org\Lockte.Org.csproj" />
     <ProjectReference Include="..\Lockte.Hr\Lockte.Hr.csproj" />
     <ProjectReference Include="..\Lockte.Sales\Lockte.Sales.csproj" />
+    <ProjectReference Include="..\Lockte.Prod\Lockte.Prod.csproj" />
   </ItemGroup>
 
   <ItemGroup>
