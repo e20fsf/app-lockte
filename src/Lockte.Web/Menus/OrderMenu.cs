@@ -100,8 +100,8 @@ public static class OrderMenu
         ]),
         new(12, "บันทึกผลผลิต", 3,
         [
-            new("บันทึกผลผลิตแผนกไดคาสท์", Code: "SCR-10-1"),
-            new("บันทึกผลผลิตแผนกตกแต่ง", Code: "SCR-10-2"),
+            new("บันทึกผลผลิตแผนกไดคาสท์", Code: "SCR-10-1", Page: "order/production/report/D"),
+            new("บันทึกผลผลิตแผนกตกแต่ง", Code: "SCR-10-2", Page: "order/production/report/T"),
             new("บันทึกผลผลิตแผนกอัดผ้าเบรก", Code: "SCR-10-3"),
             new("บันทึกผลผลิตแผนกฝนผ้าเบรก", Code: "SCR-10-4"),
             new("บันทึกผลผลิตแผนกประกอบ", Code: "SCR-10-5"),
