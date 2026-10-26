@@ -1,0 +1,75 @@
+@* RPT-07 ใบรายงานการส่งสินค้า (รายงานส่งออก2, WI-ST005-1/2551 ฉบับที่2), ระดับ B on A4 นอน: ตั้งแต่วันที่ … ถึงวันที่ …, a group per customer — head "รหัส ชื่อลูกค้า",
+   the rows by วันที่ส่ง → เลขที่บิล (ที่ starts at 1 again at every invoice), "รวม n รายการ Σจำนวนเงิน Σกล่อง" at the end of a group — and, at the end,
+   "รวมทั้งหมด Σจำนวนเงิน บิล n ใบ ลูกค้า n ราย SALE ORDER n ใบ Σกล่อง" with the sign boxes ผู้รายงาน / หัวหน้าแผนก / ผู้จัดการฝ่าย.
+   A customer of code 40… (งานรับจ้างผลิต) is shown the pieces and "ชิ้น" in the กล่อง column instead of boxes; Σกล่อง counts the real boxes only. *@
+<p class="sub">แผนกสโตร์&emsp;ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Rows == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:8%" /><col style="width:3%" /><col style="width:8%" /><col style="width:22%" /><col style="width:7%" /><col style="width:4%" />
+            <col style="width:7%" /><col style="width:9%" /><col style="width:10%" /><col style="width:8%" /><col style="width:8%" /><col style="width:6%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th>วันที่ส่ง</th><th class="num">ที่</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th>
+                <th class="num">ราคา</th><th class="num">จำนวนเงิน</th><th>ใบ ORDER</th><th>เลขที่บิล</th><th>LOT NO.</th><th class="num">กล่อง</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var customer in Report.Customers)
+            {
+                <tr><td colspan="12"><b>@customer.CustomerCode&emsp;@customer.CustomerName</b></td></tr>
+                DateOnly? lastDate = null;
+                string? lastInvoice = null;
+                var no = 0;
+                foreach (var row in customer.Rows)
+                {
+                    if (row.InvoiceNo != lastInvoice || row.DeliveryDate != lastDate) no = 0;
+                    no++;
+                    var pieces = DeliveryReports.ShowsPieces(customer.CustomerCode);
+                    <tr>
+                        <td>@(row.DeliveryDate != lastDate ? ReportText.Date(row.DeliveryDate) : null)</td>
+                        <td class="num">@no</td>
+                        <td>@row.ProductCode</td>
+                        <td>@row.ProductName</td>
+                        <td class="num">@DeliveryReports.Qty(row.Quantity)</td>
+                        <td>@row.Unit</td>
+                        <td class="num">@(row.UnitPrice is { } price ? ReportText.Decimal2(price) : "")</td>
+                        <td class="num">@(row.Amount is { } amount ? ReportText.Decimal2(amount) : "")</td>
+                        <td>@row.OrderNo</td>
+                        <td>@row.InvoiceNo</td>
+                        <td>@row.Lot</td>
+                        <td class="num">@(pieces ? $"{DeliveryReports.Qty(row.Quantity)} ชิ้น" : row.Boxes is { } boxes ? DeliveryReports.Qty(boxes) : "")</td>
+                    </tr>
+                    lastDate = row.DeliveryDate;
+                    lastInvoice = row.InvoiceNo;
+                }
+                <tr class="total">
+                    <td colspan="4"><b>รวม @customer.Rows.Count รายการ</b></td>
+                    <td colspan="3"></td>
+                    <td class="num"><b>@ReportText.Decimal2(customer.Amount)</b></td>
+                    <td colspan="3"></td>
+                    <td class="num"><b>@DeliveryReports.Qty(customer.Boxes)</b></td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="4"><b>รวมทั้งหมด</b></td>
+                <td colspan="3"></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.Amount)</b></td>
+                <td colspan="3"><b>บิล @Report.Invoices ใบ&ensp;ลูกค้า @Report.Customers.Count ราย&ensp;SALE ORDER @Report.Orders ใบ</b></td>
+                <td class="num"><b>@DeliveryReports.Qty(Report.Boxes)</b></td>
+            </tr>
+            <tr><td colspan="12" class="end"></td></tr>
+        </tbody>
+    </table>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["ผู้รายงาน", "หัวหน้าแผนก", "ผู้จัดการฝ่าย"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public DeliveryReport Report { get; set; } = null!;
+}

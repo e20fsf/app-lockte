@@ -1,0 +1,92 @@
+@page "/order/delivery-reports/{Kind}"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage Storage
+
+@* The form that opens the delivery documents (#136): ตั้งแต่วันที่ … ถึงวันที่ … (the legacy form วันที่ส่งออก), then "พิมพ์". The last dates typed are remembered
+   in this browser as the defaults of the next time, per screen (BR-022). ใบรายงานการส่งสินค้า has a second button for the quality check before delivery
+   (รายงานตรวจสอบคุณภาพก่อนส่งให้ลูกค้า); the month in the head of the manager's report comes from the dates (D-5). *@
+<PageTitle>@Info.Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Info.Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Row="true" Spacing="2">
+        <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl(Info.Path)" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        @if (Kind == "deliveries")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/order/deliveries/inspection")" Target="_blank" Disabled="@(Problem is not null)">พิมพ์รายงานตรวจสอบคุณภาพก่อนส่งให้ลูกค้า</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(Info.Menu)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private sealed record Form(string Title, string Path, int Menu);
+
+    private static readonly Dictionary<string, Form> Forms = new()
+    {
+        ["deliveries"] = new("พิมพ์ใบรายงานการส่งสินค้า", "reports/order/deliveries", 5),
+        ["manager"] = new("พิมพ์รายงานส่งผู้จัดการโรงงาน", "reports/order/deliveries/manager", 5),
+    };
+
+    [Parameter] public string Kind { get; set; } = "";
+
+    private Form Info => Forms.GetValueOrDefault(Kind) ?? Forms["deliveries"];
+
+    private DateTime? from;
+    private DateTime? to;
+    private bool loadedMemory;
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    protected override void OnParametersSet()
+    {
+        var today = DateTime.Today;
+        from = new DateTime(today.Year, today.Month, 1);
+        to = from.Value.AddMonths(1).AddDays(-1);
+        loadedMemory = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("order.delivery-report." + Kind) is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the month.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("order.delivery-report." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private string PdfUrl(string path)
+        => "/" + path + "?from=" + from?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "&to=" + to?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To);
+}
