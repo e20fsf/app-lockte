@@ -205,4 +205,22 @@ public sealed class OrderHistoryMigrationTests(MigrationDbFixture db) : IDisposa
         }
         Assert.True(File.Exists(Path.Combine(work.FullName, "second", MigrationReport.MonthlyFile)));
     }
+
+    [Fact] // a delivery with no line number is still a delivery: loaded with line 0 and reported, not left out
+    public async Task A_delivery_without_a_line_number_is_loaded_with_line_zero()
+    {
+        var file = Standard();
+        var noLine = Line("08-69-0001", "08-01-001", 1, "G1001", 4, 10, 40, March.AddDays(4), more: [("DL_DATE", March.AddDays(21)), ("INV_NO", "0100009"), ("DL_QTY", 4.0), ("DL_NET", 40.0), ("MARK", "a")])
+            .Where(c => c.Item1 != "SUF_NO").ToArray();
+        file.Row("ODDส่งออก", noLine);
+
+        var report = await RunAsync(Save(file));
+
+        var delivery = Table(report, "ODDส่งออก");
+        Assert.Equal((8, 1, 6), (delivery.SourceRows, delivery.Rejected, delivery.Loaded));
+        Assert.True(report.Tables.All(t => t.Balanced));
+        var loaded = (await AsAsync(s => s.Get<SalesDeliveryDirectory>().SearchAsync(new DeliverySearch(InvoiceNo: "0100009")))).Single();
+        Assert.Equal((0, 4m), (loaded.LineNo, loaded.Quantity));
+        Assert.Contains(report.Exceptions, e => e.Table == "ODDส่งออก" && e.Problem.Contains("ลำดับ 0") && e.Action == "โหลดโดยเว้นช่องนี้ว่าง");
+    }
 }
