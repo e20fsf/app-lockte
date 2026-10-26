@@ -75,6 +75,11 @@ public sealed record ProductionReportDto(
 /// <summary>A report in the list of แก้ไขผลผลิต (SCR-11): found by its number or by its date.</summary>
 public sealed record ProductionReportSummary(int Id, string DepartmentCode, string DepartmentName, DateOnly? ReportDate, string ReportNo, int Lines, DateTimeOffset? StockedAt);
 
+/// <summary>A production line as the output reports sum it (RPT-10 ช่วงวันที่, RPT-16, ผลผลิตเดือน): what was made, where, how many good and rejected.</summary>
+public sealed record YieldLine(
+    DateOnly Date, string DepartmentCode, int? MachineId, string ProductCode, string ProductName, string? Unit, string? ProductType, string? Model, decimal? AluminumWeight,
+    decimal Good, decimal Reject, decimal Total);
+
 public sealed record ProductionLineDefaults(string ProductName, string? Unit, int? MoldId, string? MoldCode);
 
 public sealed class ProductionReportRegistry(ProdDbContext db, OrgDirectory org, IProductionEmployeeLookup? employees = null)
@@ -261,6 +266,17 @@ public sealed class ProductionReportDirectory(ProdDbContext db, OrgDirectory org
         var mold = ProductionDepartments.Find(departmentCode)?.FillsMoldFromProduct == true ? product.Mold : null;
         return new ProductionLineDefaults(product.Name, product.Unit, mold?.Id, mold?.Code);
     }
+
+    /// <summary>
+    /// The lines of the reports dated in the range that went into the stock (เข้าสต็อกแล้ว, BR-020: the output reports read the transferred copy), with the product's type and model.
+    /// A line with no product is not in any group of the output reports.
+    /// </summary>
+    public async Task<IReadOnlyList<YieldLine>> GetYieldLinesAsync(DateOnly from, DateOnly to)
+        => (await db.ProductionReportLines.AsNoTracking()
+            .Where(l => l.ProductionReport.StockedAt != null && l.ProductionReport.ReportDate >= from && l.ProductionReport.ReportDate <= to && l.Product != null)
+            .Select(l => new YieldLine(l.ProductionReport.ReportDate!.Value, l.ProductionReport.DepartmentCode, l.ProductionReport.MachineId, l.Product!.Code, l.Product.Name, l.Product.Unit,
+                l.Product.ProductType == null ? null : l.Product.ProductType.Name, l.Product.Model == null ? null : l.Product.Model.Name, l.Product.AluminumWeight,
+                l.GoodQuantity, l.RejectQuantity ?? 0, l.TotalQuantity)).ToListAsync());
 
     private static ProductionReportDto ToDto(ProductionReport r) => new(
         r.Id, r.DepartmentCode, r.ReportDate, r.ReportNo, r.MachineId,

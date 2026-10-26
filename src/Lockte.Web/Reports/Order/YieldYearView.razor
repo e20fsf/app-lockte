@@ -1,0 +1,42 @@
+@using Lockte.SharedKernel
+@* ผลผลิตเดือน (ปุ่ม มค.–ธค. of the form รายงานผลผลิต), ระดับ B on A4 นอน: a product by the twelve months of the year (จำนวนดี) and the total. All twelve months are worked out at once (the legacy was one button a month); a month with no
+   output is 0, as the legacy table was set to 0 before it was filled. *@
+<p class="sub">ผลผลิตเดือน มกราคม–ธันวาคม พ.ศ. @(Report.Year + 543)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="font-size:80%">
+        <thead>
+            <tr>
+                <th>รหัสสินค้า</th><th>ชื่อสินค้า</th>
+                @foreach (var month in ThaiDate.Culture.DateTimeFormat.AbbreviatedMonthNames.Take(12))
+                {
+                    <th class="num">@month</th>
+                }
+                <th class="num">รวม</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Report.Rows)
+            {
+                <tr>
+                    <td>@row.Code</td>
+                    <td>@row.Name</td>
+                    @foreach (var value in row.Months)
+                    {
+                        <td class="num">@OrderReports.Qty(value)</td>
+                    }
+                    <td class="num"><b>@OrderReports.Qty(row.Total)</b></td>
+                </tr>
+            }
+            <tr><td colspan="15" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MonthlyYieldReport Report { get; set; } = null!;
+}

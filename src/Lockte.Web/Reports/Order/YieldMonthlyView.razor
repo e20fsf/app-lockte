@@ -1,0 +1,45 @@
+@* RPT-16 รายงานผลผลิตประจำเดือน (PC-PD003-5/2547 ฉบับที่ 1, BR-020), ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ … (the month in the head is worked out from the dates, D-5); แผนก, ชื่อผลผลิต, จำนวนได้, จำนวนเสีย,
+   จำนวนรวม, %ของเสีย (3 decimals), เป้าหมาย, ผล (ผ่าน / ไม่ผ่าน = % ไม่เกินเป้า); a group with no output is not shown; ดี + เสีย = 0 shows "-" (the legacy showed an error); "รวม" with the % to 2 decimals against the
+   objective 0.80; the sign boxes: ผู้จัดการฝ่ายวางแผนและควบคุมการผลิต / ผู้จัดการโรงงาน. Only the reports that went into the stock are counted. *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:21%" /><col style="width:20%" /><col style="width:11%" /><col style="width:10%" /><col style="width:11%" /><col style="width:10%" /><col style="width:8%" /><col style="width:9%" /></colgroup>
+        <thead><tr><th>แผนก</th><th>ชื่อผลผลิต</th><th class="num">จำนวนได้</th><th class="num">จำนวนเสีย</th><th class="num">จำนวนรวม</th><th class="num">% ของเสีย</th><th class="num">เป้าหมาย</th><th>ผล</th></tr></thead>
+        <tbody>
+            @foreach (var row in Report.Rows)
+            {
+                <tr>
+                    <td>@row.Department</td>
+                    <td>@row.Name</td>
+                    <td class="num">@OrderReports.Qty(row.Good)</td>
+                    <td class="num">@OrderReports.Qty(row.Reject)</td>
+                    <td class="num">@OrderReports.Qty(row.Total)</td>
+                    <td class="num">@(row.Percent is { } p ? p.ToString("0.000") : "-")</td>
+                    <td class="num">@(row.Target is { } t ? t.ToString("0.##") : "")</td>
+                    <td>@(row.Passed is { } passed ? (passed ? "ผ่าน" : "ไม่ผ่าน") : "")</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="2"><b>รวม</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.Good)</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.Reject)</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.Total)</b></td>
+                <td class="num"><b>@(Report.Percent is { } all ? ReportText.Decimal2(all) : "-")</b></td>
+                <td class="num"><b>@YieldReport.OverallTarget.ToString("0.00")</b></td>
+                <td><b>@(Report.Passed is { } overall ? (overall ? "ผ่าน" : "ไม่ผ่าน") : "")</b></td>
+            </tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["ผู้จัดการฝ่ายวางแผนและควบคุมการผลิต", "ผู้จัดการโรงงาน"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public YieldReport Report { get; set; } = null!;
+}

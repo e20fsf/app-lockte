@@ -1,0 +1,38 @@
+@* RPT-10 รายงานผลผลิตรวมแผนกไดคาสท์, ระดับ B on A4 ตั้ง: ช่วงวันที่; (ลำดับ) รหัส, ชื่อผลผลิต, จำนวน + หน่วย, นน. (น้ำหนักต่อชิ้น, 3 decimals), ใช้อลูมิเนียม (2 decimals) — a product with no weight is still in with its quantity and a blank
+   aluminium; only the aluminium is totalled. The quantity is ดี + เสีย (the metal went into the rejects too). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:7%" /><col style="width:15%" /><col style="width:33%" /><col style="width:14%" /><col style="width:8%" /><col style="width:11%" /><col style="width:12%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อผลผลิต</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">นน./ชิ้น</th><th class="num">ใช้อลูมิเนียม</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var row = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@row.Code</td>
+                    <td>@row.Name</td>
+                    <td class="num">@OrderReports.Qty(row.Quantity)</td>
+                    <td>@row.Unit</td>
+                    <td class="num">@(row.Weight is { } w ? w.ToString("0.000") : "")</td>
+                    <td class="num">@(row.Aluminum is { } a ? ReportText.Decimal2(a) : "")</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="6"><b>รวมอลูมิเนียม</b></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.TotalAluminum)</b></td>
+            </tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public DieCastReport Report { get; set; } = null!;
+}
