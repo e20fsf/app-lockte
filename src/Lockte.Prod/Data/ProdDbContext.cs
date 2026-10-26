@@ -21,6 +21,7 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
     internal DbSet<ProductionReportLine> ProductionReportLines => Set<ProductionReportLine>();
     internal DbSet<MoldUsage> MoldUsages => Set<MoldUsage>();
     internal DbSet<MoldCutoff> MoldCutoffs => Set<MoldCutoff>();
+    internal DbSet<StockEntry> StockEntries => Set<StockEntry>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -117,6 +118,7 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             r.Property(x => x.ReportDate).HasAuditName("วันที่");
             r.Property(x => x.ReportNo).HasMaxLength(ProductionReportRegistry.ReportNoLength).HasAuditName("เลขที่ใบรายงาน");
             r.Property(x => x.MachineId).HasAuditName("เครื่องจักร");
+            r.Property(x => x.StockedAt).HasAuditName("เข้าสต็อกเมื่อ");
             r.HasIndex(x => x.ReportNo).IsUnique();
             r.HasIndex(x => new { x.DepartmentCode, x.ReportDate });
             r.HasMany(x => x.Lines).WithOne(x => x.ProductionReport).HasForeignKey(x => x.ProductionReportId).OnDelete(DeleteBehavior.Cascade);
@@ -167,6 +169,25 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             c.Property(x => x.Cumulative).HasAuditName("ยอดสะสม");
             c.HasIndex(x => new { x.CutDate, x.MoldId }).IsUnique();
             c.HasOne(x => x.Mold).WithMany().HasForeignKey(x => x.MoldId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StockEntry>(e =>
+        {
+            e.HasAuditName("รายการสต็อก");
+            e.Property(x => x.Date).HasAuditName("วันที่");
+            e.Property(x => x.DocumentNo).HasMaxLength(StockRegistry.DocumentNoLength).HasAuditName("เลขที่เอกสาร");
+            e.Property(x => x.LineNo).HasAuditName("ลำดับ");
+            e.Property(x => x.ProductId).HasAuditName("สินค้า");
+            e.Property(x => x.Quantity).HasPrecision(18, 4).HasAuditName("จำนวน");
+            e.Property(x => x.EmployeeId).HasAuditName("ผู้ทำรายการ");
+            e.Property(x => x.Kind).HasConversion<byte>().HasAuditName("ชนิดรายการ");
+            e.Property(x => x.Remark).HasMaxLength(StockRegistry.RemarkLength).HasAuditName("หมายเหตุ");
+            e.Property(x => x.ClosedOn).HasAuditName("ปิดงวดเมื่อ");
+            e.HasIndex(x => new { x.ProductId, x.ClosedOn });
+            e.HasIndex(x => new { x.Kind, x.Date });
+            e.HasIndex(x => x.DocumentNo);
+            // A product that has stock entries cannot be deleted (ข้อสมมติ ง).
+            e.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Lockte.Prod.Data.Migrations
 {
     [DbContext(typeof(ProdDbContext))]
-    [Migration("20261026121501_MoldUsage")]
+    [Migration("20261026122307_MoldUsage")]
     partial class MoldUsage
     {
         /// <inheritdoc />
@@ -638,6 +638,10 @@ namespace Lockte.Prod.Data.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<DateTimeOffset?>("StockedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasAnnotation("Lockte:AuditName", "เข้าสต็อกเมื่อ");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -771,6 +775,88 @@ namespace Lockte.Prod.Data.Migrations
                     b.ToTable("ProductionReportLines", "prod");
 
                     b.HasAnnotation("Lockte:AuditName", "บรรทัดใบรายงานผลผลิต");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.StockEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly?>("ClosedOn")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "ปิดงวดเมื่อ");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่");
+
+                    b.Property<string>("DocumentNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่เอกสาร");
+
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ทำรายการ");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint")
+                        .HasAnnotation("Lockte:AuditName", "ชนิดรายการ");
+
+                    b.Property<int?>("LineNo")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับ");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "สินค้า");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวน");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "หมายเหตุ");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentNo");
+
+                    b.HasIndex("Kind", "Date");
+
+                    b.HasIndex("ProductId", "ClosedOn");
+
+                    b.ToTable("StockEntries", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "รายการสต็อก");
                 });
 
             modelBuilder.Entity("Lockte.SharedKernel.Persistence.HistoryRecord", b =>
@@ -914,6 +1000,17 @@ namespace Lockte.Prod.Data.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ProductionReport");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.StockEntry", b =>
+                {
+                    b.HasOne("Lockte.Prod.Data.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("Lockte.Prod.Data.ProductionReport", b =>
