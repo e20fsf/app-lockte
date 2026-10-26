@@ -86,6 +86,11 @@
     </MudTable>
 </MudPaper>
 
+<MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+    <MudButton Variant="Variant.Outlined" Href="reports/order/molds" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อแม่พิมพ์</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="reports/order/molds/active" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อแม่พิมพ์ที่ยังใช้งานอยู่</MudButton>
+</MudStack>
+
 <MudButton Href="@OrderMenu.HrefOf(6)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
 
 @code {

@@ -72,6 +72,18 @@ public sealed record ProductDto(
     string? StandardModel,
     byte[] RowVersion);
 
+/// <summary>A row of the product lists (RPT-21): the legacy columns of P_NAME that identify and price a product.</summary>
+public sealed record ProductListLine(
+    string Code,
+    string Name,
+    string? Unit,
+    string? ProductTypeName,
+    decimal? SellingPrice,
+    decimal? UnitCost,
+    string? MoldCode,
+    string? CustomerCode,
+    string? CustomerName);
+
 public sealed record ProductTypeDto(int Id, string Name, byte[] RowVersion);
 
 public sealed record BrakeTypeDto(int Id, string Code, string Name, byte[] RowVersion);
@@ -293,6 +305,23 @@ public sealed class ProductDirectory(ProdDbContext db, CustomerDirectory custome
             .Where(p => string.IsNullOrEmpty(term) || p.Code.Contains(term) || p.Name.Contains(term))
             .OrderBy(p => p.Code).Take(max)
             .Select(p => new ProductListItem(p.Id, p.Code, p.Name, p.Unit)).ToListAsync();
+    }
+
+    /// <summary>
+    /// The lines of รายชื่อสินค้า (RPT-21) by รหัส: all, <paramref name="codePattern"/> only (พิมพ์ตามรหัส — Access <c>LIKE</c>:
+    /// <c>G1*</c>), and/or one customer's (พิมพ์ตามลูกค้า).
+    /// </summary>
+    public async Task<IReadOnlyList<ProductListLine>> GetListAsync(string? codePattern = null, int? customerId = null)
+    {
+        var rows = await db.Products.AsNoTracking().Include(p => p.ProductType).Include(p => p.Mold)
+            .Where(p => customerId == null || p.CustomerId == customerId).OrderBy(p => p.Code).ToListAsync();
+        var pattern = string.IsNullOrWhiteSpace(codePattern) ? null : codePattern.Trim();
+        var customerNames = new Dictionary<int, CustomerDto?>();
+        foreach (var id in rows.Where(r => r.CustomerId is not null).Select(r => r.CustomerId!.Value).Distinct())
+            customerNames[id] = await customers.GetAsync(id);
+        return rows.Where(p => pattern is null || ProductGroupPattern.Matches(pattern, p.Code))
+            .Select(p => new ProductListLine(p.Code, p.Name, p.Unit, p.ProductType?.Name, p.SellingPrice, p.UnitCost, p.Mold?.Code,
+                p.CustomerId is { } c ? customerNames[c]?.Code : null, p.CustomerId is { } c2 ? customerNames[c2]?.Name : null)).ToList();
     }
 
     public async Task<ProductDto?> GetAsync(int id)

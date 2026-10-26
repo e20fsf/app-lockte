@@ -136,9 +136,32 @@ public sealed class MoldRegistry(ProdDbContext db, OrgDirectory org)
     internal static string? Code(string? text) => Clean(text)?.ToUpperInvariant();
 }
 
+/// <summary>A row of ทะเบียนแม่พิมพ์ as RPT-21 prints it: the แผนก by name; <see cref="MaintenanceShots"/> is the SHOT criterion.</summary>
+public sealed record MoldRegisterLine(
+    string Code,
+    string Name,
+    int? PiecesPerShot,
+    string? Maker,
+    DateOnly? StartDate,
+    DateOnly? EndDate,
+    string? Owner,
+    string? DepartmentName,
+    int? MaintenanceShots);
+
 /// <summary>The public, read-only face of ทะเบียนแม่พิมพ์ (ADR 0002). Writes go through <see cref="MoldRegistry"/>.</summary>
-public sealed class MoldDirectory(ProdDbContext db)
+public sealed class MoldDirectory(ProdDbContext db, OrgDirectory org)
 {
+    /// <summary>
+    /// The lines of RPT-21 ทะเบียนแม่พิมพ์ by รหัส — every mold, the ones no longer used too — or, with
+    /// <paramref name="inUseOnly"/>, รายชื่อแม่พิมพ์ที่ยังใช้งานอยู่ (วันที่เลิกใช้ ว่าง).
+    /// </summary>
+    public async Task<IReadOnlyList<MoldRegisterLine>> GetRegisterAsync(bool inUseOnly = false)
+    {
+        var departments = (await org.GetDepartmentsAsync()).ToDictionary(d => d.Id, d => d.Name);
+        return (await GetAllAsync(inUseOnly)).Select(m => new MoldRegisterLine(m.Code, m.Name, m.PiecesPerShot, m.Maker, m.StartDate, m.EndDate,
+            m.Owner, m.DepartmentId is { } id ? departments.GetValueOrDefault(id) : null, m.MaintenanceShots)).ToList();
+    }
+
     /// <summary>By รหัส; <paramref name="inUseOnly"/> = รหัสพิมพ์ที่ยังใช้อยู่ (วันที่เลิกใช้ ว่าง).</summary>
     public async Task<IReadOnlyList<MoldDto>> GetAllAsync(bool inUseOnly = false)
         => (await db.Molds.AsNoTracking().Where(m => !inUseOnly || m.EndDate == null).OrderBy(m => m.Code).ToListAsync())
