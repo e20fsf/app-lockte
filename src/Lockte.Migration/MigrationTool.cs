@@ -66,6 +66,7 @@ public static class MigrationTool
             .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
+            .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -103,6 +104,7 @@ public static class OrderMigrationTool
         var legacy = LegacyDatabase.ReadOrderFile(sourceFile);
         await using var scope = services.CreateAsyncScope();
         var report = await scope.ServiceProvider.GetRequiredService<OrderMasterDataMigration>().RunAsync(legacy, map);
+        await scope.ServiceProvider.GetRequiredService<OrderHistoryMigration>().RunAsync(legacy, map, report); // ORDER, ประวัติ ORDER, ประวัติการส่ง (#112)
         report.WriteTo(outputFolder);
         return report;
     }

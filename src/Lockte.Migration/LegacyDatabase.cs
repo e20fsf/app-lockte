@@ -80,6 +80,17 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     public static IReadOnlyList<string> OrderMasterDataTables { get; } =
         ["เซล", "P_CUS", "P_NAME", "MC_N", "รหัสพิมพ์", "แผนก", "ประเภท", "TYPE", "MODEL", "รหัสสินค้าย่อ", "EMPO"];
 
+    /// <summary>ประวัติ ORDER and ประวัติการส่ง are moved from 1 Jan 2025 (#112, ข้อตัดสิน #17); ORDER ค้างส่ง (ODD) all.</summary>
+    public static readonly DateOnly OrderHistoryFrom = new(2025, 1, 1);
+
+    /// <summary>ORDER ค้างส่ง, ประวัติการรับ ORDER and ประวัติการส่งของ of <c>ผลผลิตและORDER.accdb</c> (#112): the table, and the filter on its date.</summary>
+    public static IReadOnlyDictionary<string, string?> OrderHistoryTables { get; } = new Dictionary<string, string?>
+    {
+        ["ODD"] = null,
+        ["ORDER"] = WhereFrom("OD_DATE", OrderHistoryFrom),
+        ["ODDส่งออก"] = WhereFrom("DL_DATE", OrderHistoryFrom),
+    };
+
     /// <summary>The file the rows were read from — set when read by <see cref="ReadOrderFile"/>.</summary>
     public LegacySource? Source { get; init; }
 
@@ -116,10 +127,16 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     /// </summary>
     [SupportedOSPlatform("windows")]
     public static LegacyDatabase ReadOrderFile(string accdbPath)
-        => ReadCopy(accdbPath, (connection, tables, _) =>
+        => ReadCopy(accdbPath, (connection, tables, counts) =>
         {
             foreach (var table in OrderMasterDataTables)
                 tables[table] = Read(connection, table, null);
+            foreach (var (table, where) in OrderHistoryTables)
+            {
+                tables[table] = Read(connection, table, where);
+                using var count = new OleDbCommand($"SELECT COUNT(*) FROM [{table}]", connection);
+                counts[table] = Convert.ToInt32(count.ExecuteScalar());
+            }
         });
 
     [SupportedOSPlatform("windows")]
