@@ -114,7 +114,7 @@ public sealed class SalesOrderDirectory(SalesDbContext db, IProductLookup? produ
     public async Task<SalesOrderPrint?> GetPrintAsync(int id)
     {
         var order = await GetAsync(id);
-        var lines = order?.Lines.Where(l => l.OutstandingQuantity > 0).ToList();
+        var lines = order?.Lines.Where(l => l.OutstandingQuantity != 0).ToList();
         if (order is null || lines is not { Count: > 0 }) return null;
         return new SalesOrderPrint(order.Id, order.OrderNo, order.OrderDate, order.CustomerCode, order.CustomerName, order.PaymentTerms, order.SalesTerritoryCode,
             order.Remark, lines.Select(l => new SalesOrderPrintLine(l.LineNo, l.ProductCode, l.ProductName, l.Unit, l.OutstandingQuantity, l.UnitPrice, l.OutstandingAmount)).ToList());
