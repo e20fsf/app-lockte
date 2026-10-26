@@ -1,0 +1,202 @@
+@page "/order/customers"
+@page "/order/customers/new"
+@attribute [Authorize]
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+
+@* SCR-02 ข้อมูลลูกค้า (ฟอร์ม P_CUS2 เพิ่ม + P_CUS1 แก้ไข): both menu items open this page — "เพิ่มข้อมูลลูกค้า" with a blank
+   form, "แก้ไขและพิมพ์ข้อมูลลูกค้า" with the list to pick a customer from. "รายต่อไป" = "บันทึกแล้วเพิ่มรายต่อไป". Adding:
+   the เขตการขาย is proposed from the code (BR-023) and can be changed; editing has no such rule. เครดิต is a number of
+   days (0 = เงินสด). Delete is a button with a confirmation (instead of clearing the code, BR-021). The printed
+   lists (RPT-21) come with #137. *@
+<PageTitle>ข้อมูลลูกค้า — LOCKTE</PageTitle>
+<h1 class="mb-4">@(adding ? "เพิ่มข้อมูลลูกค้า" : "แก้ไขข้อมูลลูกค้า")</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มลูกค้า" : $"แก้ลูกค้า {form.Code}")</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3">
+            <MudTextField @bind-Value="form.Code" @bind-Value:after="CodeChanged" Label="รหัสลูกค้า" MaxLength="CustomerRegistry.CodeLength"
+                          Required="true" RequiredError="กรุณากรอกรหัสลูกค้า" HelperText="เช่น 08-01-003" />
+        </MudItem>
+        <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.Name" Label="ชื่อลูกค้า" MaxLength="CustomerRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อลูกค้า" /></MudItem>
+        <MudItem xs="6" sm="3"><MudNumericField @bind-Value="form.CreditDays" Label="เครดิต (วัน)" HideSpinButtons="true" Min="0" Max="CustomerRegistry.MaxCreditDays" HelperText="0 = เงินสด" /></MudItem>
+        <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.Address" Label="ที่อยู่" MaxLength="CustomerRegistry.TextLength" HelperText="เลขที่ หมู่ ตำบล" /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.District" Label="อำเภอ" MaxLength="CustomerRegistry.TextLength" HelperText="ไม่ต้องใส่ อ." /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.Province" Label="จังหวัด" MaxLength="CustomerRegistry.TextLength" /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="form.PostalCode" Label="รหัสไปรษณีย์" MaxLength="CustomerRegistry.PostalCodeLength" /></MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.TransportName" Label="ชื่อขนส่ง" MaxLength="CustomerRegistry.TextLength" /></MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.TransportAddress" Label="ที่อยู่ขนส่ง" MaxLength="CustomerRegistry.TextLength" /></MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.TransportPhone" Label="โทรฯ ขนส่ง" MaxLength="CustomerRegistry.TextLength" /></MudItem>
+        <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.Phone1" Label="เบอร์โทร 1" MaxLength="CustomerRegistry.TextLength" /></MudItem>
+        <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.Phone2" Label="เบอร์โทร 2" MaxLength="CustomerRegistry.TextLength" /></MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="int?" @bind-Value="form.SalesTerritoryId" Label="เขตการขาย" Clearable="true">
+                @foreach (var t in territories)
+                {
+                    <MudSelectItem T="int?" Value="t.Id">@t.Code — @t.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12"><MudTextField @bind-Value="form.Remark" Label="หมายเหตุ (ชื่อ + ที่อยู่สำหรับพิมพ์)" MaxLength="CustomerRegistry.TextLength" /></MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="SaveAndNextAsync" Disabled="busy">บันทึกแล้วเพิ่มรายต่อไป</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบลูกค้ารายนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+        <MudText Typo="Typo.h6">รายชื่อลูกค้า</MudText>
+        <MudTextField @bind-Value="search" Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="ReloadAsync" Label="ค้นหา (รหัสหรือชื่อ)" Clearable="true" Margin="Margin.Dense" Style="max-width:18rem" />
+        <MudText Typo="Typo.caption">แสดงสูงสุด @SearchMax รายการ — พิมพ์ค้นหาเพื่อกรอง</MudText>
+    </MudStack>
+    <MudTable Items="customers" Dense="true" Hover="true" Loading="customers is null" T="CustomerDto" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<CustomerDto> e) => Edit(e.Item!))">
+        <HeaderContent><MudTh>รหัส</MudTh><MudTh>ชื่อ</MudTh><MudTh>เครดิต</MudTh><MudTh>จังหวัด</MudTh><MudTh>เขต</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Code</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.CreditText</MudTd>
+            <MudTd>@context.Province</MudTd>
+            <MudTd>@context.SalesTerritoryCode</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ไม่พบลูกค้า</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private const int SearchMax = 200;
+
+    private IReadOnlyList<CustomerDto>? customers;
+    private IReadOnlyList<SalesTerritoryDto> territories = [];
+    private CustomerForm form = new();
+    private string? search;
+    private bool busy;
+    private bool adding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        adding = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/').EndsWith("/new", StringComparison.OrdinalIgnoreCase);
+        territories = await Services.RunAsync<SalesTerritoryDirectory, IReadOnlyList<SalesTerritoryDto>>(d => d.GetAllAsync());
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var term = search;
+        customers = await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(term, SearchMax));
+    }
+
+    // BR-023 — only when adding (P_CUS2's CODE_AfterUpdate); the user can change the proposed เขตการขาย.
+    private async Task CodeChanged()
+    {
+        if (form.Id is not null || string.IsNullOrWhiteSpace(form.Code)) return;
+        var code = form.Code;
+        var proposed = await Services.RunAsync<SalesTerritoryDirectory, SalesTerritoryDto?>(d => d.DefaultForCustomerCodeAsync(code));
+        if (proposed is not null) form.SalesTerritoryId = proposed.Id;
+    }
+
+    private void New() => form = new CustomerForm();
+
+    private void Edit(CustomerDto c) => form = new CustomerForm
+    {
+        Id = c.Id, Code = c.Code, Name = c.Name, CreditDays = c.CreditDays, Address = c.Address, District = c.District,
+        Province = c.Province, PostalCode = c.PostalCode, TransportName = c.TransportName, TransportAddress = c.TransportAddress,
+        TransportPhone = c.TransportPhone, Phone1 = c.Phone1, Phone2 = c.Phone2, SalesTerritoryId = c.SalesTerritoryId,
+        Remark = c.Remark, RowVersion = c.RowVersion,
+    };
+
+    private Task SaveAsync() => SaveAsync(next: false);
+
+    private Task SaveAndNextAsync() => SaveAsync(next: true);
+
+    private async Task SaveAsync(bool next)
+    {
+        busy = true;
+        try
+        {
+            var input = new CustomerInput(form.Id, form.Code, form.Name, form.RowVersion, form.CreditDays, form.Address, form.District,
+                form.Province, form.PostalCode, form.TransportName, form.TransportAddress, form.TransportPhone, form.Phone1, form.Phone2,
+                form.SalesTerritoryId, form.Remark);
+            var result = await Services.RunAsync<CustomerRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            await ReloadAsync();
+            var saved = await Services.RunAsync<CustomerDirectory, CustomerDto?>(d => d.GetAsync(result.Id!.Value));
+            if (next || saved is null) New(); else Edit(saved);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            New();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบลูกค้า", $"ลบลูกค้า {form.Code} {form.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (form.Id!.Value, form.RowVersion!);
+            var result = await Services.RunAsync<CustomerRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class CustomerForm
+    {
+        public int? Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int? CreditDays { get; set; }
+        public string? Address { get; set; }
+        public string? District { get; set; }
+        public string? Province { get; set; }
+        public string? PostalCode { get; set; }
+        public string? TransportName { get; set; }
+        public string? TransportAddress { get; set; }
+        public string? TransportPhone { get; set; }
+        public string? Phone1 { get; set; }
+        public string? Phone2 { get; set; }
+        public int? SalesTerritoryId { get; set; }
+        public string? Remark { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

@@ -119,3 +119,13 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
         }).ToList();
     }
 }
+
+/// <summary>
+/// The employee register as module ขายและส่งของ reads it for พนักงานขาย (<see cref="Lockte.Sales.IEmployeeLookup"/>) —
+/// the interface lives there because this module already depends on it.
+/// </summary>
+internal sealed class SalesEmployeeLookup(EmployeeDirectory employees) : Lockte.Sales.IEmployeeLookup
+{
+    public async Task<Lockte.Sales.SalesRepresentativeRef?> FindAsync(int employeeId)
+        => await employees.GetAsync(employeeId) is { } e ? new Lockte.Sales.SalesRepresentativeRef(e.Id, e.Code, e.Name) : null;
+}
