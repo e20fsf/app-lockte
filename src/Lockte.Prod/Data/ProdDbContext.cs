@@ -19,6 +19,8 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
     internal DbSet<ProductGroup> ProductGroups => Set<ProductGroup>();
     internal DbSet<ProductionReport> ProductionReports => Set<ProductionReport>();
     internal DbSet<ProductionReportLine> ProductionReportLines => Set<ProductionReportLine>();
+    internal DbSet<MoldUsage> MoldUsages => Set<MoldUsage>();
+    internal DbSet<MoldCutoff> MoldCutoffs => Set<MoldCutoff>();
     internal DbSet<StockEntry> StockEntries => Set<StockEntry>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
@@ -145,6 +147,28 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             // A product or mold that a report uses cannot be deleted (ข้อสมมติ ง).
             l.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
             l.HasOne(x => x.Mold).WithMany().HasForeignKey(x => x.MoldId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MoldUsage>(u =>
+        {
+            u.HasAuditName("การใช้งานแม่พิมพ์");
+            u.Property(x => x.MoldId).HasAuditName("แม่พิมพ์");
+            u.Property(x => x.Day).HasAuditName("วันที่");
+            u.Property(x => x.Shots).HasAuditName("จำนวนครั้งที่ใช้");
+            u.Property(x => x.IsOpening).HasAuditName("ยอดยกมา");
+            u.HasIndex(x => new { x.MoldId, x.Day });
+            u.HasIndex(x => x.Day);
+            u.HasOne(x => x.Mold).WithMany().HasForeignKey(x => x.MoldId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MoldCutoff>(c =>
+        {
+            c.HasAuditName("ยอดสะสมการใช้งานแม่พิมพ์");
+            c.Property(x => x.MoldId).HasAuditName("แม่พิมพ์");
+            c.Property(x => x.CutDate).HasAuditName("วันตัดยอด");
+            c.Property(x => x.Cumulative).HasAuditName("ยอดสะสม");
+            c.HasIndex(x => new { x.CutDate, x.MoldId }).IsUnique();
+            c.HasOne(x => x.Mold).WithMany().HasForeignKey(x => x.MoldId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<StockEntry>(e =>

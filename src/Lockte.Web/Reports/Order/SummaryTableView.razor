@@ -1,0 +1,48 @@
+@* The summaries of การส่งออก (RPT-08, RPT-09, #114, #115), ระดับ B: one table — the head names the filter (D-10) — with the numbers right-aligned in the format of their column and a
+   closing row when the summary has one. The same SummaryTable is what the Excel button writes. A wide one (the year, twelve months) is printed A4 นอน. *@
+@if (Table.Filter is { } filter)
+{
+    <p class="sub">@filter</p>
+}
+@if (Table.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                @foreach (var column in Table.Columns)
+                {
+                    <th class="@(column.Format == SummaryFormat.Text ? null : "num")">@column.Header</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Table.Rows)
+            {
+                <tr>
+                    @for (var c = 0; c < Table.Columns.Count; c++)
+                    {
+                        <td class="@(Table.Columns[c].Format == SummaryFormat.Text ? null : "num")">@SummaryTable.Show(Table.Columns[c], c < row.Length ? row[c] : null)</td>
+                    }
+                </tr>
+            }
+            @if (Table.TotalRow is { } total)
+            {
+                <tr class="total">
+                    @for (var c = 0; c < Table.Columns.Count; c++)
+                    {
+                        <td class="@(Table.Columns[c].Format == SummaryFormat.Text ? null : "num")"><b>@SummaryTable.Show(Table.Columns[c], c < total.Length ? total[c] : null)</b></td>
+                    }
+                </tr>
+            }
+            <tr><td colspan="@Table.Columns.Count" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public SummaryTable Table { get; set; } = null!;
+}

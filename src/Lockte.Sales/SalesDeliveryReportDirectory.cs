@@ -20,7 +20,9 @@ public sealed record DeliveryReportRow(
     string OrderNo,
     DateOnly? DueDate,
     string? Lot,
-    decimal? Boxes);
+    decimal? Boxes,
+    int? SalesTerritoryId = null,
+    DateOnly? OrderDate = null);
 
 /// <summary>
 /// The rows behind the delivery reports (#136, #114, #115): the deliveries whose date is in a range. Grouping, totals and layout belong
@@ -35,7 +37,7 @@ public sealed class SalesDeliveryReportDirectory(Data.SalesDbContext db, IProduc
             .Select(d => new
             {
                 Date = d.DeliveryDate!.Value, d.InvoiceNo, d.InvoiceLine, d.CustomerId, CustomerCode = d.Customer.Code, d.CustomerName, d.ProductId, d.ProductName,
-                d.Unit, d.Quantity, d.UnitPrice, d.Amount, d.OrderNo, d.DueDate, d.Lot, d.Boxes,
+                d.Unit, d.Quantity, d.UnitPrice, d.Amount, d.OrderNo, d.DueDate, d.Lot, d.Boxes, d.SalesTerritoryId, d.OrderDate,
             })
             .ToListAsync();
         var codes = new Dictionary<int, string>();
@@ -44,7 +46,7 @@ public sealed class SalesDeliveryReportDirectory(Data.SalesDbContext db, IProduc
                 if (await products.FindAsync(id) is { } product) codes[id] = product.Code;
         return rows.OrderBy(r => r.CustomerCode, StringComparer.Ordinal).ThenBy(r => r.Date).ThenBy(r => r.InvoiceNo, StringComparer.Ordinal).ThenBy(r => r.InvoiceLine)
             .Select(r => new DeliveryReportRow(r.Date, r.InvoiceNo, r.InvoiceLine, r.CustomerId, r.CustomerCode, r.CustomerName, r.ProductId, codes.GetValueOrDefault(r.ProductId),
-                r.ProductName, r.Unit, r.Quantity, r.UnitPrice, r.Amount, r.OrderNo, r.DueDate, r.Lot, r.Boxes))
+                r.ProductName, r.Unit, r.Quantity, r.UnitPrice, r.Amount, r.OrderNo, r.DueDate, r.Lot, r.Boxes, r.SalesTerritoryId, r.OrderDate))
             .ToList();
     }
 }

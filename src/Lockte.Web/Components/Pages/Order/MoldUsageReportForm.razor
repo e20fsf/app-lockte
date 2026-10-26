@@ -1,0 +1,61 @@
+@page "/order/molds/usage-report"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* RPT-15 รายงานยอดแม่พิมพ์ (#125): การใช้งานของพิมพ์ถึงวันที่ … (every mold at a cut date) and STOCKพิมพ์ (one mold in a range). "พิมพ์" opens the PDF in a new tab. *@
+<PageTitle>รายงานยอดแม่พิมพ์ — LOCKTE</PageTitle>
+<h1 class="mb-4">รายงานยอดแม่พิมพ์</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudText Typo="Typo.h6" Class="mb-2">การใช้งานของพิมพ์ถึงวันที่</MudText>
+    <MudSelect T="DateOnly?" @bind-Value="cutDate" Label="วันตัดยอด" Style="max-width:18rem">
+        @foreach (var date in cutDates)
+        {
+            <MudSelectItem T="DateOnly?" Value="@((DateOnly?)date)">@ThaiDate.Format(date)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Href="@CumulativeUrl" Target="_blank" Disabled="@(cutDate is null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true" Style="max-width:44rem">
+    <MudText Typo="Typo.h6" Class="mb-2">การใช้งานแม่พิมพ์รายตัว (STOCKพิมพ์)</MudText>
+    <MudStack Spacing="2">
+        <MudAutocomplete T="MoldDto" @bind-Value="mold" SearchFunc="SearchMoldAsync" Label="แม่พิมพ์" ToStringFunc="@(m => m is null ? "" : $"{m.Code}  {m.Name}")"
+                         Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="max-width:30rem" />
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        </MudStack>
+    </MudStack>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Href="@StockUrl" Target="_blank" Disabled="@(mold is null || from is null || to is null || from > to)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(6)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<DateOnly> cutDates = [];
+    private IReadOnlyList<MoldDto> molds = [];
+    private DateOnly? cutDate;
+    private MoldDto? mold;
+    private DateTime? from = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? to = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1).AddDays(-1);
+
+    private string CumulativeUrl => cutDate is { } d ? "/reports/order/molds/usage?cut=" + d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "";
+
+    private string StockUrl => mold is null || from is null || to is null ? ""
+        : $"/reports/order/molds/stock?mold={mold.Id}&from={from.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}&to={to.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        cutDates = await Services.RunAsync<MoldUsageDirectory, IReadOnlyList<DateOnly>>(d => d.GetCutDatesAsync());
+        cutDate = cutDates.Count > 0 ? cutDates[0] : null;
+        molds = await Services.RunAsync<MoldDirectory, IReadOnlyList<MoldDto>>(d => d.GetAllAsync());
+    }
+
+    private Task<IEnumerable<MoldDto>> SearchMoldAsync(string? text, CancellationToken _)
+        => Task.FromResult<IEnumerable<MoldDto>>(molds.Where(m => string.IsNullOrWhiteSpace(text) || m.Code.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)
+            || m.Name.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)).Take(50).ToList());
+}

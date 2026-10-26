@@ -1,0 +1,35 @@
+@* RPT-15 การใช้งานของพิมพ์ถึงวันที่ … (ตัดSTOCKพิมพ์), ระดับ B on A4 ตั้ง: the cut date in the head, then ที่, รหัสพิมพ์, ชื่อพิมพ์, จำนวนการใช้งาน (ครั้ง), เกณฑ์บำรุงรักษา (50,000 SHOT / 100,000 ชิ้น / 1 ปี) and
+   อายุ (จำนวนการใช้งาน ÷ 2, as the legacy report — ❓ Q-34). No total row, as the legacy. The molds are those in use at the cut. *@
+<p class="sub">ถึงวันที่ @ReportText.Date(Report.CutDate)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:6%" /><col style="width:20%" /><col style="width:30%" /><col style="width:15%" /><col style="width:17%" /><col style="width:12%" /></colgroup>
+        <thead>
+            <tr><th class="num">ที่</th><th>รหัสพิมพ์</th><th>ชื่อพิมพ์</th><th class="num">จำนวนการใช้งาน (ครั้ง)</th><th>เกณฑ์บำรุงรักษา</th><th class="num">อายุ</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.MoldCode</td>
+                    <td>@line.MoldName</td>
+                    <td class="num">@line.Cumulative.ToString("#,##0")</td>
+                    <td>@line.Criterion</td>
+                    <td class="num">@line.Age.ToString("#,##0.#")</td>
+                </tr>
+            }
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MoldCumulativeReport Report { get; set; } = null!;
+}
