@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Lockte.Prod;
 using Lockte.Prod.Data;
+using Lockte.SharedKernel;
 using Lockte.Web.Reports;
 using Lockte.Web.Reports.Order;
 using Microsoft.EntityFrameworkCore;
@@ -248,5 +249,24 @@ public sealed class StockClosingTests(LocalDbFixture db)
         Assert.Equal((500m, 400m), (row.Balances[october], row.Balances[november]));
         Assert.Equal([code], narrowed.Rows.Select(r => r.ProductCode));
         Assert.Contains(november, await AsAsync(s => s.Get<StockClosingDirectory>().GetCutDatesAsync()));
+    }
+
+    [Fact] // RPT-14 as a table: a column per cut date, a blank where the product had no opening; Excel holds the same cells
+    public async Task The_opening_history_is_a_table_with_a_column_per_cut_date()
+    {
+        var (product, october, november) = await OctoberAndNovemberAsync();
+        await CutAsync(november);
+        var code = (await AsAsync(s => s.Get<StockDirectory>().GetEntriesAsync(product))).First().ProductCode;
+
+        var table = await AsAsync(s => StockCutReports.OpeningHistoryAsync(s.Get<StockClosingDirectory>(), october, november, code));
+
+        Assert.Equal(["รหัส", "ชื่อสินค้า", "หน่วย", ThaiDate.Format(october), ThaiDate.Format(november)], table.Columns.Select(c => c.Header));
+        var row = Assert.Single(table.Rows);
+        Assert.Equal((code, 500m, 400m), ((string)row[0]!, (decimal)row[3]!, (decimal)row[4]!));
+        Assert.Contains(code, table.Filter);
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(XlsxWriter.Write(table)));
+        Assert.NotNull(zip.GetEntry("xl/worksheets/sheet1.xml"));
+        var none = await AsAsync(s => StockCutReports.OpeningHistoryAsync(s.Get<StockClosingDirectory>(), october.AddYears(-30), october.AddYears(-30).AddDays(3), null));
+        Assert.Empty(none.Rows);
     }
 }

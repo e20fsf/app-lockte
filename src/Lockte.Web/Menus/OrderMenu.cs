@@ -118,7 +118,7 @@ public static class OrderMenu
             new("สต็อกสินค้าตามรหัสสินค้า", Code: "RPT-12", Page: "order/stock/reports/card"), // STOCK ตามรหัสสินค้า
             new("สต็อกสินค้าตามกลุ่มสินค้า", Code: "RPT-11", Page: "order/stock/reports/group"), // STOCK กลุ่มสินค้า
             new("โอนผลผลิตเข้าสต็อกสินค้า", Code: "SCR-16", Page: "order/stock/transfer"), // โอนผลผลิตเข้าSTOCK
-            new("พิมพ์สรุปสต็อกสินค้า", Code: "RPT-14"), // พิมพ์สรุปSTOCK
+            new("พิมพ์สรุปสต็อกสินค้า", Code: "RPT-14", Page: "order/stock/opening-history"), // พิมพ์สรุปSTOCK
         ]),
         new(16, "ตัดสต็อกสินค้า", 3, // ตัดSTOCK
         [
