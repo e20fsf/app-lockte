@@ -17,6 +17,7 @@ public static class SalesModule
         services.AddScoped<SalesTerritoryRegistry>();
         services.AddScoped<SalesOrderDirectory>();
         services.AddScoped<SalesOrderRegistry>();
+        services.AddScoped<SalesOrderEditor>();
         return services;
     }
 
