@@ -45,7 +45,14 @@ public static class SalesModule
 /// </summary>
 public sealed class SalesDataReset(SalesDbContext db)
 {
-    public async Task DeleteAllAsync() => await db.Customers.ExecuteDeleteAsync();
+    public async Task DeleteAllAsync()
+    {
+        // ORDER and deliveries refer to the customers: they go first.
+        await db.Deliveries.ExecuteDeleteAsync();
+        await db.SalesOrderLines.ExecuteDeleteAsync();
+        await db.SalesOrders.ExecuteDeleteAsync();
+        await db.Customers.ExecuteDeleteAsync();
+    }
 }
 
 /// <summary>For <c>dotnet ef migrations add … -p src/Lockte.Sales</c> only (no database connection is made).</summary>

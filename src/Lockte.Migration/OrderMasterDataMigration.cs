@@ -35,7 +35,8 @@ public sealed partial class OrderMasterDataMigration(
     MoldDirectory moldDirectory,
     OrgRegistry org,
     OrgDirectory orgDirectory,
-    EmployeeDirectory employeeDirectory)
+    EmployeeDirectory employeeDirectory,
+    SalesOrderImport orderImport)
 {
     private const string Other = "NF-06";
     private const string Duplicate = "DQ-2";
@@ -66,6 +67,7 @@ public sealed partial class OrderMasterDataMigration(
         (legacy, map, report) = (legacyDatabase, codeMap, new MigrationReport { Source = legacyDatabase.Source });
         using (audit.SuppressRowChanges())
         {
+            await orderImport.DeleteAllAsync(); // ORDER and deliveries refer to products and customers by id: they are loaded again after these (#112)
             await prodReset.DeleteAllAsync();
             await machineReset.DeleteAllAsync();
             var existingCustomers = (await customerDirectory.GetAllAsync()).ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
