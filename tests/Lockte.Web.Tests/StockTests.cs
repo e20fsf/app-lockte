@@ -263,4 +263,50 @@ public sealed class StockTests(LocalDbFixture db)
         Assert.Equal(0m, await BalanceAsync(product));
         Assert.False((await TransferAsync(month, month.AddMonths(1).AddDays(-1))).Busy);
     }
+
+    // ---------- BR-019 (#121) ----------
+
+    [Fact] // BR-019 (ข้อสมมติ ค): the report is changed after the transfer — the stock stays as it was until the range is transferred again
+    public async Task Changing_a_transferred_report_leaves_the_stock_until_the_range_is_transferred_again()
+    {
+        var month = NewMonth();
+        var product = await NewProductAsync();
+        var id = await ReportAsync("D", month.AddDays(3), Line(product, 100), Line(product, 40));
+        await TransferAsync(month, month.AddMonths(1).AddDays(-1));
+        Assert.Equal(140m, await BalanceAsync(product));
+        var report = (await AsAsync(s => s.Get<ProductionReportDirectory>().GetAsync(id)))!;
+        Assert.True(report.InStock);
+
+        // the first line becomes 300 + 20 rejects; the second line is deleted (left out of the lines saved)
+        var first = report.Lines[0];
+        var changed = await AsAsync(s => s.Get<ProductionReportRegistry>().SaveAsync(new ProductionReportInput(report.Id, report.RowVersion, "D", report.ReportDate, report.ReportNo, null,
+            [new ProductionReportLineInput(first.Id, first.RowVersion, product, null, null, null, null, null, null, 300m, 20m, null, null, null)]), ProductionSaveMode.Save));
+        Assert.True(changed.Succeeded);
+
+        Assert.Equal(140m, await BalanceAsync(product)); // the stock is not touched
+        var after = (await AsAsync(s => s.Get<ProductionReportDirectory>().GetAsync(id)))!;
+        Assert.Equal([320m], after.Lines.Select(l => l.TotalQuantity)); // the total is worked out again
+        await TransferAsync(month, month.AddMonths(1).AddDays(-1));
+        Assert.Equal(320m, await BalanceAsync(product));
+    }
+
+    [Fact] // SCR-11: reports are found by their number (the start of it is enough) or by their date
+    public async Task Reports_are_found_by_number_or_by_date()
+    {
+        var month = NewMonth();
+        var product = await NewProductAsync();
+        var first = await ReportAsync("D", month.AddDays(1), Line(product, 10));
+        await ReportAsync("T", month.AddDays(1), Line(product, 20));
+        await ReportAsync("T", month.AddDays(8), Line(product, 30));
+        var number = (await AsAsync(s => s.Get<ProductionReportDirectory>().GetAsync(first)))!.ReportNo;
+
+        var byNumber = await AsAsync(s => s.Get<ProductionReportDirectory>().SearchAsync(number.ToLowerInvariant(), null));
+        var byDate = await AsAsync(s => s.Get<ProductionReportDirectory>().SearchAsync(null, month.AddDays(1)));
+        var byBoth = await AsAsync(s => s.Get<ProductionReportDirectory>().SearchAsync(number, month.AddDays(8)));
+
+        Assert.Equal([first], byNumber.Select(r => r.Id));
+        Assert.Equal(("ไดคาสท์", 1, false), (byNumber[0].DepartmentName, byNumber[0].Lines, byNumber[0].StockedAt is not null));
+        Assert.Equal(2, byDate.Count);
+        Assert.Empty(byBoth);
+    }
 }
