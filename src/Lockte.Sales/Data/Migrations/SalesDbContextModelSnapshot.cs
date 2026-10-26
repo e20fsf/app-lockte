@@ -137,6 +137,142 @@ namespace Lockte.Sales.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "ลูกค้า");
                 });
 
+            modelBuilder.Entity("Lockte.Sales.Data.Delivery", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("Amount")
+                        .HasPrecision(24, 8)
+                        .HasColumnType("decimal(24,8)")
+                        .HasAnnotation("Lockte:AuditName", "มูลค่าส่ง");
+
+                    b.Property<decimal?>("Boxes")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนกล่อง");
+
+                    b.Property<bool>("Complete")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ส่งครบ");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลูกค้า");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อลูกค้า");
+
+                    b.Property<DateOnly?>("DeliveryDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่ส่ง");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "กำหนดส่ง");
+
+                    b.Property<int?>("InvoiceLine")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับในบิล");
+
+                    b.Property<string>("InvoiceNo")
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่บิล");
+
+                    b.Property<int>("LineNo")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับ");
+
+                    b.Property<string>("Lot")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "Lot");
+
+                    b.Property<DateOnly?>("OrderDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่ ORDER");
+
+                    b.Property<string>("OrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่ ORDER");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "สินค้า");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อสินค้า");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนส่ง");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("SalesTerritoryId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เขตการขาย");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "หน่วย");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "ราคา");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("DeliveryDate");
+
+                    b.HasIndex("InvoiceNo");
+
+                    b.HasIndex("OrderNo");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("Deliveries", "sales");
+
+                    b.HasAnnotation("Lockte:AuditName", "การส่งของ");
+                });
+
             modelBuilder.Entity("Lockte.Sales.Data.SalesOrder", b =>
                 {
                     b.Property<int>("Id")
@@ -261,6 +397,39 @@ namespace Lockte.Sales.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)")
                         .HasAnnotation("Lockte:AuditName", "ยอดค้างส่ง");
+
+                    b.Property<decimal?>("PendingAmount")
+                        .HasPrecision(24, 8)
+                        .HasColumnType("decimal(24,8)")
+                        .HasAnnotation("Lockte:AuditName", "มูลค่าส่ง (ยังไม่บันทึก)");
+
+                    b.Property<decimal?>("PendingBoxes")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนกล่อง (ยังไม่บันทึก)");
+
+                    b.Property<DateOnly?>("PendingDeliveryDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่ส่ง (ยังไม่บันทึก)");
+
+                    b.Property<int?>("PendingInvoiceLine")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับในบิล (ยังไม่บันทึก)");
+
+                    b.Property<string>("PendingInvoiceNo")
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่บิล (ยังไม่บันทึก)");
+
+                    b.Property<string>("PendingLot")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "Lot (ยังไม่บันทึก)");
+
+                    b.Property<decimal?>("PendingQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนส่ง (ยังไม่บันทึก)");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int")
@@ -450,6 +619,17 @@ namespace Lockte.Sales.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("SalesTerritory");
+                });
+
+            modelBuilder.Entity("Lockte.Sales.Data.Delivery", b =>
+                {
+                    b.HasOne("Lockte.Sales.Data.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("Lockte.Sales.Data.SalesOrder", b =>
