@@ -54,7 +54,7 @@ public sealed class ProgramMenuTests
     [Fact]
     public void An_item_not_built_yet_opens_the_placeholder_of_its_own_program()
     {
-        Assert.Equal("order/SCR-13", OrderMenu.Menu.HrefOf(OrderMenu.Menu.FindItem("SCR-13")!.Value.Item));
+        Assert.Equal("order/SCR-12-1", OrderMenu.Menu.HrefOf(OrderMenu.Menu.FindItem("SCR-12-1")!.Value.Item));
         Assert.Equal("hr/SCR-41", EmployeeMenu.Menu.HrefOf(EmployeeMenu.Menu.FindItem("SCR-41")!.Value.Item));
         Assert.Equal("order/menu/17", OrderMenu.HrefOf(17));
         Assert.Equal("order", OrderMenu.HrefOf(ProgramMenu.Main));
