@@ -129,8 +129,8 @@ public static class OrderMenu
         [
             new("เพิ่มรหัสแม่พิมพ์", Code: "SCR-17-1", Page: "order/molds/new"),
             new("แก้ไขและพิมพ์รหัสแม่พิมพ์", Code: "SCR-17-2", Page: "order/molds"),
-            new("ตัดยอดแม่พิมพ์", Code: "SCR-18"), // ตัดSTOCKแม่พิมพ์
-            new("รายงานยอดแม่พิมพ์", Code: "RPT-15"), // รายงานSTOCKแม่พิมพ์
+            new("ตัดยอดแม่พิมพ์", Code: "SCR-18", Page: "order/molds/cut"), // ตัดSTOCKแม่พิมพ์
+            new("รายงานยอดแม่พิมพ์", Code: "RPT-15", Page: "order/molds/usage-report"), // รายงานSTOCKแม่พิมพ์
             new("รหัสเครื่องจักร", Code: "SCR-19", Page: "order/machines"),
         ]),
         new(15, "QA พิมพ์รายงานการตรวจสอบ", 1, // QA1

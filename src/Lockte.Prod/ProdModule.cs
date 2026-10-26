@@ -18,6 +18,8 @@ public static class ProdModule
         services.AddScoped<ProductListRegistry>();
         services.AddScoped<ProductionReportRegistry>();
         services.AddScoped<ProductionReportDirectory>();
+        services.AddScoped<MoldUsageRegistry>();
+        services.AddScoped<MoldUsageDirectory>();
         services.AddScoped<Lockte.Sales.IProductLookup, SalesProductLookup>();
         return services;
     }
@@ -47,6 +49,8 @@ public sealed class ProdDataReset(ProdDbContext db)
     public async Task DeleteAllAsync()
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.MoldCutoffs.ExecuteDeleteAsync();
+        await db.MoldUsages.ExecuteDeleteAsync();
         await db.ProductionReportLines.ExecuteDeleteAsync();
         await db.ProductionReports.ExecuteDeleteAsync();
         await db.Products.ExecuteDeleteAsync();
