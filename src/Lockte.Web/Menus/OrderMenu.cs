@@ -47,9 +47,9 @@ public static class OrderMenu
         [
             new("ORDER ใหม่ เลขที่ออกอัตโนมัติ", Code: "SCR-04", Page: "order/orders/new"), // SALE ORDER ใหม่เลขที่เปลี่ยนอัตโนมัติ
             new("ORDER เก่าหรือใบ ORDER ของลูกค้า", Code: "SCR-05", Page: "order/orders/own"), // SALE ORDER เก่าหรือใบ ORDER ของลูกค้า
-            new("พิมพ์สรุปการรับ ORDER", Code: "RPT-06-1"),
-            new("รายงานการรับ ORDER ของแต่ละเขตการขาย", Code: "RPT-06-2"), // รายงานการรับ ORDER ของเซลแต่ละคน
-            new("รายงานการรับ ORDER ตามชื่อลูกค้า", Code: "RPT-06-3"),
+            new("พิมพ์สรุปการรับ ORDER", Code: "RPT-06-1", Page: "order/reports/receipts-summary"),
+            new("รายงานการรับ ORDER ของแต่ละเขตการขาย", Code: "RPT-06-2", Page: "order/reports/receipts-territory"), // รายงานการรับ ORDER ของเซลแต่ละคน
+            new("รายงานการรับ ORDER ตามชื่อลูกค้า", Code: "RPT-06-3", Page: "order/reports/receipts-customer"),
         ]),
         new(9, "แก้ไขและลบ ORDER", 2,
         [
@@ -62,13 +62,13 @@ public static class OrderMenu
         ]),
         new(13, "ยอดค้างส่ง", 2, // ORDER ค้างส่ง
         [
-            new("ยอดค้างส่งทั้งหมด", Code: "RPT-02"), // ORDER ค้างส่งทั้งหมด
-            new("ยอดค้างส่งรวม", Code: "RPT-03"), // ORDER ค้างส่งรวม
-            new("ยอดค้างส่งตามลูกค้า", Code: "RPT-04-1"), // ORDER ค้างส่งตามลูกค้า
-            new("ยอดค้างส่งตามรุ่น", Code: "RPT-04-2"), // ORDER ค้างส่งตามรุ่น
-            new("ยอดค้างส่งของเขตการขาย", Code: "RPT-04-3"), // ORDER ค้างส่งของเซล
-            new("สินค้าที่ลูกค้าสั่งซื้อ", Code: "RPT-04-4"),
-            new("ยอดค้างส่งของลูกค้า", Code: "RPT-04-5"), // ORDERค้างส่งของลูกค้า
+            new("ยอดค้างส่งทั้งหมด", Code: "RPT-02", Page: "order/reports/backorder"), // ORDER ค้างส่งทั้งหมด
+            new("ยอดค้างส่งรวม", Code: "RPT-03", Page: "order/reports/backorder-products"), // ORDER ค้างส่งรวม
+            new("ยอดค้างส่งตามลูกค้า", Code: "RPT-04-1", Page: "order/reports/backorder-customers"), // ORDER ค้างส่งตามลูกค้า
+            new("ยอดค้างส่งตามรุ่น", Code: "RPT-04-2", Page: "order/reports/backorder-models"), // ORDER ค้างส่งตามรุ่น
+            new("ยอดค้างส่งของเขตการขาย", Code: "RPT-04-3", Page: "order/reports/backorder-territory"), // ORDER ค้างส่งของเซล
+            new("สินค้าที่ลูกค้าสั่งซื้อ", Code: "RPT-04-4", Page: "order/reports/ordered-products"),
+            new("ยอดค้างส่งของลูกค้า", Code: "RPT-04-5", Page: "order/reports/backorder-product-customers"), // ORDERค้างส่งของลูกค้า
         ]),
         new(5, "รายงานการส่งของ", 2, // รายงานการส่งออก
         [

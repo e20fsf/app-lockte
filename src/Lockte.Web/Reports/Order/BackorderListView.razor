@@ -1,0 +1,63 @@
+@* RPT-02 ORDER ค้างส่งทั้งหมด and RPT-04 ORDER ค้างส่งของเขตการขาย (ODD, ODD ด้างส่งตามเซล), ระดับ B on A4 นอน. Grouped by วันที่ ORDER → เลขที่:
+   the date, the number, the customer and the territory only on the first line of a group, as the legacy printed it. The legacy
+   cut a long name or number (D-1): here it wraps. Totals: the lines and the quantity per unit (D-11 — the legacy added ตลับ + เส้น +
+   คู่ together). The head says the filter (D-10). *@
+@if (Report.Filter is { } filter)
+{
+    <p class="sub">@filter</p>
+}
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup>
+            <col style="width:9%" /><col style="width:10%" /><col style="width:9%" /><col style="width:20%" /><col style="width:4%" />
+            <col style="width:9%" /><col style="width:20%" /><col style="width:9%" /><col style="width:5%" /><col style="width:5%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th>วันที่</th><th>เลขที่</th><th>รหัส</th><th>ชื่อลูกค้า</th><th class="num">ลำดับ</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th>
+                <th class="num">จำนวน</th><th>หน่วย</th><th>@(Report.ShowTerritory ? "SALE" : "")</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                (DateOnly Date, string No, int Customer)? previous = null;
+            }
+            @foreach (var line in Report.Lines)
+            {
+                var first = previous != (line.OrderDate, line.OrderNo, line.CustomerId);
+                previous = (line.OrderDate, line.OrderNo, line.CustomerId);
+                <tr>
+                    <td>@(first ? ReportText.Date(line.OrderDate) : null)</td>
+                    <td>@(first ? line.OrderNo : null)</td>
+                    <td>@(first ? line.CustomerCode : null)</td>
+                    <td>@(first ? line.CustomerName : null)</td>
+                    <td class="num">@line.LineNo</td>
+                    <td>@line.ProductCode</td>
+                    <td>@line.ProductName</td>
+                    <td class="num">@OrderReports.Qty(line.Quantity)</td>
+                    <td>@line.Unit</td>
+                    <td>@(first && Report.ShowTerritory ? line.SalesTerritoryCode : null)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="4"><b>รวม @Report.Lines.Count บรรทัด</b></td>
+                <td colspan="6">
+                    @foreach (var total in OrderReports.UnitTotals(Report.Lines.Select(l => (l.Unit, l.Quantity))))
+                    {
+                        <b>@OrderReports.Qty(total.Quantity) @total.Unit</b><text>&emsp;</text>
+                    }
+                </td>
+            </tr>
+            <tr><td colspan="10" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public BackorderListReport Report { get; set; } = null!;
+}

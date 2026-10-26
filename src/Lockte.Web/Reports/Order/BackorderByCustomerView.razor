@@ -1,0 +1,48 @@
+@* RPT-04 ORDER ค้างส่งตามลูกค้า (ORDERค้างส่งตามลุกค้า), ระดับ B on A4 ตั้ง: a group per customer — head "รหัสลูกค้า … ชื่อลูกค้า …", then
+   (ลำดับ) รหัส, ชื่อสินค้า, จำนวน + หน่วย, and "รวม" per unit (D-11). *@
+@if (Report.Filter is { } filter)
+{
+    <p class="sub">@filter</p>
+}
+@if (Report.Groups.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    @foreach (var group in Report.Groups)
+    {
+        <table style="margin-bottom:6mm">
+            <colgroup><col style="width:7%" /><col style="width:15%" /><col style="width:46%" /><col style="width:20%" /><col style="width:12%" /></colgroup>
+            <thead>
+                <tr><th colspan="5" style="text-align:left">รหัสลูกค้า @group.CustomerCode&emsp;ชื่อลูกค้า @group.CustomerName</th></tr>
+                <tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th></tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < group.Rows.Count; i++)
+                {
+                    var row = group.Rows[i];
+                    <tr>
+                        <td class="num">@(i + 1)</td>
+                        <td>@row.Code</td>
+                        <td>@row.Name</td>
+                        <td class="num">@OrderReports.Qty(row.Quantity)</td>
+                        <td>@row.Unit</td>
+                    </tr>
+                }
+                @foreach (var total in OrderReports.UnitTotals(group.Rows.Select(r => (r.Unit, r.Quantity))))
+                {
+                    <tr class="total">
+                        <td></td><td></td><td><b>รวม</b></td>
+                        <td class="num"><b>@OrderReports.Qty(total.Quantity)</b></td>
+                        <td><b>@total.Unit</b></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public BackorderByCustomerReport Report { get; set; } = null!;
+}

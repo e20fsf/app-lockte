@@ -1,0 +1,47 @@
+@* RPT-06 รายงานการรับ ORDER ของเขตการขาย / ตามชื่อลูกค้า, ระดับ B on A4 นอน: ตั้งแต่วันที่ … ถึงวันที่ …; grouped by order — a head "เลขที่ วันที่ ลูกค้า", the
+   lines (ที่, รหัสสินค้า, ชื่อสินค้า, จำนวน + หน่วย, ราคา, จำนวนเงิน), "รวม" per order — then "รวมทั้งหมด". The money is the stored มูลค่าที่รับ. *@
+<p class="sub">ตั้งแต่วันที่ @(Report.From is { } from ? ReportText.Date(from) : "-")&emsp;ถึงวันที่ @(Report.To is { } to ? ReportText.Date(to) : "-")</p>
+@if (Report.Orders.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:5%" /><col style="width:15%" /><col style="width:35%" /><col style="width:14%" /><col style="width:8%" /><col style="width:11%" /><col style="width:12%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @foreach (var order in Report.Orders)
+            {
+                <tr>
+                    <td colspan="7"><b>เลขที่ @order.OrderNo&emsp;วันที่ @ReportText.Date(order.OrderDate)&emsp;@order.CustomerCode @order.CustomerName</b></td>
+                </tr>
+                @foreach (var line in order.Lines)
+                {
+                    <tr>
+                        <td class="num">@line.LineNo</td>
+                        <td>@line.ProductCode</td>
+                        <td>@line.ProductName</td>
+                        <td class="num">@OrderReports.Qty(line.Quantity)</td>
+                        <td>@line.Unit</td>
+                        <td class="num">@(line.UnitPrice is { } price ? ReportText.Decimal2(price) : "")</td>
+                        <td class="num">@(line.Amount is { } amount ? ReportText.Decimal2(amount) : "")</td>
+                    </tr>
+                }
+                <tr class="total">
+                    <td colspan="6"><b>รวม</b></td>
+                    <td class="num"><b>@ReportText.Decimal2(order.Amount)</b></td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="6"><b>รวมทั้งหมด @Report.Orders.Count ใบ</b></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.Amount)</b></td>
+            </tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ReceiptOrdersReport Report { get; set; } = null!;
+}
