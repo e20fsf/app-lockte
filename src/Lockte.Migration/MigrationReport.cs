@@ -49,6 +49,7 @@ public sealed class MigrationReport
     public const string WorkTFile = "work-t-check.csv";
     public const string SourceFile = "source-info.csv";
     public const string EmployeeMatchFile = "employee-match.csv";
+    public const string ListAdditionsFile = "list-values-added.csv";
 
     public const string NotLoaded = "ไม่โหลด";
     public const string LoadedBlank = "โหลดโดยเว้นช่องนี้ว่าง";
@@ -65,6 +66,9 @@ public sealed class MigrationReport
     public List<string> Notes { get; } = [];
 
     public List<EmployeeMatch> EmployeeMatches { get; } = [];
+
+    /// <summary>Values the legacy rows use that the list tables lacked, added to the list (one possible answer, #107).</summary>
+    public List<(string List, string Value)> ListAdditions { get; } = [];
 
     /// <summary>AC-01: migrated rows whose legacy WORK_T was compared (rows of the open period have none yet).</summary>
     public int WorkTChecked { get; internal set; }
@@ -113,6 +117,8 @@ public sealed class MigrationReport
     {
         if (Source is not null || Notes.Count > 0)
             Csv.Write(Path.Combine(folder, SourceFile), ["รายการ", "ค่า"], SourceLines());
+        if (ListAdditions.Count > 0)
+            Csv.Write(Path.Combine(folder, ListAdditionsFile), ["รายการเลือก", "ค่าที่เพิ่ม"], ListAdditions.Select(a => new object?[] { a.List, a.Value }));
         if (EmployeeMatches.Count > 0)
             Csv.Write(Path.Combine(folder, EmployeeMatchFile), ["ชนิด", "รหัสเดิม", "รหัสทะเบียนพนักงาน", "ผล"],
                 EmployeeMatches.Select(m => new object?[] { m.Kind, m.LegacyCode, m.HrCode, m.Result }));

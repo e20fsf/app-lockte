@@ -42,8 +42,6 @@ public sealed partial class OrderMasterDataMigration(
     private const string DepartmentByName = "DQ-5";
     private const string ZeroDate = "DQ-4";
     private const string Kept = "คงไว้ในฐานข้อมูลเหมือนเดิม";
-    private const string AddedToList = "โหลดโดยเพิ่มค่านี้เข้ารายการเลือก";
-    private const string FromMapSource = "ตารางจับคู่";
 
     private LegacyDatabase legacy = null!;
     private CodeMap map = null!;
@@ -80,6 +78,8 @@ public sealed partial class OrderMasterDataMigration(
             await LoadProductsAsync();
             await MatchProductionEmployeesAsync();
         }
+        foreach (var (list, count) in report.ListAdditions.GroupBy(a => a.List).Select(g => (g.Key, g.Count())))
+            report.Notes.Add($"รายการเลือก{list}: เพิ่ม {count} ค่าที่สินค้าใช้แต่ไม่อยู่ในตารางรายการเดิม (ฟอร์มเดิมเลือกจากค่าที่ใช้อยู่) — ดู {MigrationReport.ListAdditionsFile}");
         await CountBackAsync();
         return report;
     }
@@ -182,11 +182,11 @@ public sealed partial class OrderMasterDataMigration(
             var copies = group.ToList();
             var pick = ChooseCopy(tally, table, group.Key, "รหัสลูกค้า", copies, c => c.Row.Text("NAME"),
                 c => string.Join("|", CustomerColumns.Select(c2 => c.Row.Text(c2))), copies[0].Entry?.Name,
-                $"ใส่ {CodeKinds.Customer},{group.Key},,<ชื่อแถวที่ถูก> ในตารางจับคู่ (หรือแก้ในไฟล์)");
+                $"ใส่ {CodeKinds.Customer},{group.Key},,#<ลำดับแถวที่ถูก 1–{copies.Count}> (หรือชื่อแถวที่ถูก) ในตารางจับคู่ หรือแก้ในไฟล์");
             if (pick < 0) continue;
             var chosen = copies[pick];
             var row = chosen.Row;
-            var name = chosen.Entry?.Name ?? row.Text("NAME");
+            var name = NameOverride(chosen.Entry) ?? row.Text("NAME");
             UseCode(CodeKinds.Customer, chosen.Legacy, chosen.Code, name, null, chosen.Entry);
 
             var credit = CreditTerm.Parse(row.Text("CREDIT"));
@@ -422,7 +422,7 @@ public sealed partial class OrderMasterDataMigration(
         }
         ids[value] = saved.Id!.Value;
         addedToLists[newTable] = addedToLists.GetValueOrDefault(newTable) + 1;
-        report.Add(table, key, Other, $"{what} '{value}' ไม่อยู่ในรายการเลือกของ{what}", AddedToList);
+        report.ListAdditions.Add((what, value));
         return saved.Id;
     }
 
@@ -445,12 +445,14 @@ public sealed partial class OrderMasterDataMigration(
             if (rows.Count > 1)
             {
                 // The same ID twice (B179, Q-08): kept row = the one whose name the map names; else all wait for the decision.
-                var keep = entry?.Name is { } wanted ? rows.Where(r => string.Equals(r.Name, wanted, StringComparison.OrdinalIgnoreCase)).ToList() : [];
+                var keep = entry?.Name is { } wanted
+                    ? (Pick(wanted, rows.Count) is { } index ? new List<(string Code, string? Name)> { rows[index] } : rows.Where(r => string.Equals(r.Name, wanted, StringComparison.OrdinalIgnoreCase)).ToList())
+                    : [];
                 if (rows.Select(r => r.Name).Distinct().Count() == 1) keep = rows.Take(1).ToList();
                 if (keep.Count != 1)
                 {
                     foreach (var _ in rows)
-                        Reject(tally, table, group.Key, Duplicate, $"รหัสพนักงานซ้ำ {rows.Count} แถว ชื่อไม่ตรงกัน — ใส่ {CodeKinds.ProductionEmployee},{group.Key},<รหัสพนักงาน>,<ชื่อแถวที่ถูก> ในตารางจับคู่");
+                        Reject(tally, table, group.Key, Duplicate, $"รหัสพนักงานซ้ำ {rows.Count} แถว ชื่อไม่ตรงกัน — ใส่ {CodeKinds.ProductionEmployee},{group.Key},<รหัสพนักงาน>,#<ลำดับแถวที่ถูก 1–{rows.Count}> ในตารางจับคู่");
                     report.EmployeeMatches.Add(new EmployeeMatch("production", group.Key, null, "รหัสซ้ำ รอตัดสิน"));
                     continue;
                 }
@@ -532,7 +534,8 @@ public sealed partial class OrderMasterDataMigration(
         var chosen = -1;
         if (same) chosen = 0;
         else if (decision is not null)
-            chosen = rows.FindIndex(r => string.Equals(name(r), decision, StringComparison.OrdinalIgnoreCase));
+            chosen = Pick(decision, rows.Count) is { } index ? index
+                : rows.FindIndex(r => string.Equals(name(r), decision, StringComparison.OrdinalIgnoreCase));
         for (var i = 0; i < rows.Count; i++)
         {
             if (i == chosen) continue;
@@ -542,6 +545,20 @@ public sealed partial class OrderMasterDataMigration(
         }
         return chosen;
     }
+
+    /// <summary>
+    /// <c>#2</c> in the code map's name column = the second of the rows with the same key, in the file's order — a decision that
+    /// holds no name, so a map kept in the repo stays free of names. Null when <paramref name="decision"/> is not of that form
+    /// or the number is out of range.
+    /// </summary>
+    private static int? Pick(string decision, int count)
+        => decision.StartsWith('#') && int.TryParse(decision.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out var n) && n >= 1 && n <= count
+            ? n - 1 : null;
+
+    private static bool IsPick(string? decision) => decision is not null && decision.StartsWith('#');
+
+    /// <summary>The name a code-map line gives a customer (not a <c>#n</c> pick).</summary>
+    private static string? NameOverride(CodeMapEntry? entry) => IsPick(entry?.Name) ? null : entry?.Name;
 
     /// <summary>The same rule when the rows are just values (<see cref="ChooseCopy"/> would need a row type).</summary>
     private bool OneValue<T, TValue>(Tally tally, string table, string key, string what, List<T> rows, Func<T, TValue> value)
