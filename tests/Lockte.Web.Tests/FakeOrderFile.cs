@@ -38,7 +38,20 @@ public static class FakeOrderFile
         ["MODEL"] = [("MODEL", "TEXT(255)")],
         ["รหัสสินค้าย่อ"] = [("C", "TEXT(50)"), ("N", "TEXT(50)")],
         ["EMPO"] = [("ID", "TEXT(5)"), ("NAME", "TEXT(30)")],
+        ["ODD"] = OrderLine(refNoSize: 50),
+        ["ORDER"] = OrderLine(refNoSize: 50),
+        ["ODDส่งออก"] = OrderLine(refNoSize: 13),
     };
+
+    /// <summary>The columns of ODD, ORDER and ODDส่งออก (they share one structure, data-model.md); REF_NO is Text(13) in ODDส่งออก.</summary>
+    private static (string Column, string Type)[] OrderLine(int refNoSize) =>
+    [
+        ("OD_DATE", "DATETIME"), ("CUS_ID", "TEXT(50)"), ("CUS_N", "TEXT(50)"), ("REF_NO", $"TEXT({refNoSize})"), ("SUF_NO", "LONG"),
+        ("PD_C", "TEXT(6)"), ("PD_N", "TEXT(50)"), ("QTY", "DOUBLE"), ("U_NAME", "TEXT(50)"), ("U_PRICE", "DOUBLE"), ("AMOUNT", "DOUBLE"),
+        ("DISC_PS", "DOUBLE"), ("NET", "DOUBLE"), ("MARK", "TEXT(50)"), ("SALE_ID", "TEXT(4)"), ("DL_DATE", "DATETIME"), ("INV_NO", "TEXT(11)"),
+        ("INV_SUF", "LONG"), ("DL_QTY", "DOUBLE"), ("DL_NET", "DOUBLE"), ("UND_QTY", "DOUBLE"), ("DUERE_D", "TEXT(50)"), ("DATE_DL", "DATETIME"),
+        ("LOT", "TEXT(255)"), ("REMARK", "TEXT(255)"),
+    ];
 
     [SupportedOSPlatform("windows")]
     public static FakeLegacyFile Empty() => new(Schema);
