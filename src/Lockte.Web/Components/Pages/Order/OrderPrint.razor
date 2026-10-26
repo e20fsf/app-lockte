@@ -1,0 +1,47 @@
+@page "/order/orders/print"
+@attribute [Authorize]
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject NavigationManager Navigation
+
+@* ฟอร์ม พิมพ์ใบ sale order: choose the เลขที่ ORDER, then "พิมพ์" opens the ใบ SALE ORDER (RPT-01) as a PDF in a new tab. Only an order
+   with a line still ค้างส่ง can be printed — the legacy printed from T-ODD (⚠ RPT-01). "พิมพ์ฟอร์มเปล่า" prints the empty form. *@
+<PageTitle>พิมพ์ใบ SALE ORDER — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์ใบ SALE ORDER</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudAutocomplete T="SalesOrderListItem" Value="chosen" ValueChanged="@(o => chosen = o)" Label="เลขที่ ORDER" SearchFunc="SearchAsync"
+                     ToStringFunc="@(o => o is null ? "" : o.OrderNo)" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" CoerceText="false"
+                     HelperText="เลือกจากใบที่ยังค้างส่ง" />
+    @if (chosen is not null)
+    {
+        <MudText Class="mt-2">@ThaiDate.Format(chosen.OrderDate) · @chosen.CustomerCode @chosen.CustomerName · @chosen.Lines บรรทัด · @chosen.Amount.ToString("N2") บาท</MudText>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@(chosen is null ? null : $"reports/order/sale-order/{chosen.Id}")" Target="_blank"
+                   Disabled="chosen is null" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="reports/order/sale-order/blank" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์ฟอร์มเปล่า</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(17)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")]
+    public int? OrderId { get; set; }
+
+    private SalesOrderListItem? chosen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (OrderId is not { } id) return;
+        var order = await Services.RunAsync<SalesOrderDirectory, SalesOrderDto?>(d => d.GetAsync(id));
+        if (order is null) return;
+        var found = await Services.RunAsync<SalesOrderDirectory, IReadOnlyList<SalesOrderListItem>>(d => d.SearchAsync(new SalesOrderSearch(OrderSide.Outstanding, OrderNo: order.OrderNo)));
+        chosen = found.FirstOrDefault(o => o.Id == id);
+    }
+
+    private async Task<IEnumerable<SalesOrderListItem>> SearchAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<SalesOrderDirectory, IReadOnlyList<SalesOrderListItem>>(d => d.SearchAsync(new SalesOrderSearch(OrderSide.Outstanding, OrderNo: text), 50));
+}
