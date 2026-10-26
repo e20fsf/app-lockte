@@ -1,0 +1,185 @@
+@page "/order/reports/{Kind}"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+
+@* The small forms that open the ORDER reports (#113, the part of SCR-21 they use): ยอดค้างส่ง (เมนู 13) and สรุปการรับ ORDER (เมนู 17). The legacy
+   kept the last dates in a one-row table shared by everyone (BR-022); here what was typed last is remembered in this browser as the
+   defaults of the next time, per screen. "พิมพ์" opens the PDF in a new tab. *@
+<PageTitle>@Info.Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Info.Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Spacing="2">
+        @if (Info.Dates != Choice.None)
+        {
+            <MudStack Row="true" Spacing="2">
+                <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="@(Info.Dates == Choice.Required ? "ตั้งแต่วันที่" : "ตั้งแต่วันที่ ORDER (ว่าง = ทั้งหมด)")"
+                               Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="@(Info.Dates == Choice.Optional)" Style="max-width:16rem" />
+                <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="@(Info.Dates == Choice.Required ? "ถึงวันที่" : "ถึงวันที่ ORDER")"
+                               Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="@(Info.Dates == Choice.Optional)" Style="max-width:16rem" />
+            </MudStack>
+        }
+        @if (Info.Customer != Choice.None)
+        {
+            <MudAutocomplete T="CustomerDto" @bind-Value="customer" @bind-Value:after="RememberAsync" SearchFunc="SearchCustomerAsync"
+                             Label="@(Info.Customer == Choice.Required ? "ลูกค้า" : "ลูกค้า (ว่าง = ทุกราย)")" ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="max-width:30rem" />
+        }
+        @if (Info.Territory != Choice.None)
+        {
+            <MudSelect T="int?" @bind-Value="territoryId" @bind-Value:after="RememberAsync" Style="max-width:30rem" Clearable="@(Info.Territory == Choice.Optional)"
+                       Label="@(Info.Territory == Choice.Required ? "เขตการขาย" : "เขตการขาย (ว่าง = ทุกเขต)")">
+                @foreach (var t in territories)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Code  @t.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        @if (Info.Product)
+        {
+            <MudAutocomplete T="ProductListItem" @bind-Value="product" @bind-Value:after="RememberAsync" SearchFunc="SearchProductAsync"
+                             Label="สินค้า (ว่าง = ทุกสินค้า)" ToStringFunc="@(p => p is null ? "" : $"{p.Code}  {p.Name}")"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="30" Style="max-width:30rem" />
+        }
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl(Info.Path)" Target="_blank" Disabled="@(Problem is not null)"
+                   StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        @if (Kind == "receipts-summary")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/order/receipts/over-3000")" Target="_blank" Disabled="@(Problem is not null)">พิมพ์สรุป ORDER มากกว่า 3000</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(Info.Menu)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private enum Choice { None, Optional, Required }
+
+    /// <summary>One report form: its title, the PDF path, the fields it asks and its menu.</summary>
+    private sealed record Form(string Title, string Path, int Menu, Choice Dates = Choice.None, Choice Customer = Choice.None, Choice Territory = Choice.None, bool Product = false);
+
+    private static readonly Dictionary<string, Form> Forms = new()
+    {
+        ["backorder"] = new("ยอดค้างส่งทั้งหมด", "reports/order/backorder", 13, Choice.Optional, Choice.Optional, Choice.Optional),
+        ["backorder-products"] = new("ยอดค้างส่งรวม", "reports/order/backorder/products", 13, Choice.Optional, Choice.Optional, Choice.Optional),
+        ["backorder-customers"] = new("ยอดค้างส่งตามลูกค้า", "reports/order/backorder/customers", 13, Choice.Optional, Choice.Optional, Choice.Optional),
+        ["backorder-models"] = new("ยอดค้างส่งตามรุ่น", "reports/order/backorder/models", 13, Choice.Optional, Choice.Optional, Choice.Optional),
+        ["backorder-territory"] = new("ยอดค้างส่งของเขตการขาย", "reports/order/backorder/territory", 13, Choice.Optional, Choice.Optional, Choice.Required),
+        ["backorder-product-customers"] = new("ยอดค้างส่งของลูกค้า (แยกตามสินค้า)", "reports/order/backorder/product-customers", 13, Choice.Optional, Choice.Optional, Choice.Optional, Product: true),
+        ["ordered-products"] = new("สินค้าที่ลูกค้าสั่งซื้อ", "reports/order/ordered-products", 13, Customer: Choice.Optional, Product: true),
+        ["receipts-summary"] = new("พิมพ์สรุปการรับ ORDER", "reports/order/receipts/summary", 17, Choice.Required),
+        ["receipts-territory"] = new("รายงานการรับ ORDER ของแต่ละเขตการขาย", "reports/order/receipts/orders", 17, Choice.Required, Territory: Choice.Required),
+        ["receipts-customer"] = new("รายงานการรับ ORDER ตามชื่อลูกค้า", "reports/order/receipts/orders", 17, Choice.Required, Customer: Choice.Required),
+    };
+
+    [Parameter] public string Kind { get; set; } = "";
+
+    private Form Info => Forms.GetValueOrDefault(Kind) ?? Forms["backorder"];
+
+    private DateTime? from;
+    private DateTime? to;
+    private CustomerDto? customer;
+    private int? territoryId;
+    private ProductListItem? product;
+    private IReadOnlyList<SalesTerritoryDto> territories = [];
+    private bool loadedMemory;
+
+    private string? Problem
+    {
+        get
+        {
+            if (Info.Dates == Choice.Required && (from is null || to is null)) return "กรุณากรอกตั้งแต่วันที่และถึงวันที่";
+            if (from is { } f && to is { } t && f > t) return "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่";
+            if (Info.Customer == Choice.Required && customer is null) return "กรุณาเลือกลูกค้า";
+            if (Info.Territory == Choice.Required && territoryId is null) return "กรุณาเลือกเขตการขาย";
+            return null;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+        => territories = await Services.RunAsync<SalesTerritoryDirectory, IReadOnlyList<SalesTerritoryDto>>(d => d.GetAllAsync());
+
+    protected override void OnParametersSet()
+    {
+        var today = DateTime.Today;
+        from = to = null;
+        if (Info.Dates == Choice.Required)
+        {
+            from = new DateTime(today.Year, today.Month, 1);
+            to = from.Value.AddMonths(1).AddDays(-1);
+        }
+        customer = null;
+        territoryId = null;
+        product = null;
+        loadedMemory = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>(Key) is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                territoryId = saved.TerritoryId;
+                if (saved.CustomerId is { } customerId) customer = await Services.RunAsync<CustomerDirectory, CustomerDto?>(d => d.GetAsync(customerId));
+                if (saved.ProductId is { } productId && await Services.RunAsync<ProductDirectory, ProductDto?>(d => d.GetAsync(productId)) is { } p)
+                    product = new ProductListItem(p.Id, p.Code, p.Name, p.Unit);
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the defaults.
+        }
+    }
+
+    private string Key => "order.report." + Kind;
+
+    private async Task RememberAsync()
+    {
+        try
+        {
+            await Storage.SetAsync(Key, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null,
+                customer?.Id, territoryId, product?.Id));
+        }
+        catch (Exception)
+        {
+            // remembering is a convenience only
+        }
+    }
+
+    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private string PdfUrl(string path)
+    {
+        var query = new List<string>();
+        if (from is { } f) query.Add("from=" + f.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        if (to is { } t) query.Add("to=" + t.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        if (customer is not null) query.Add("customer=" + customer.Id);
+        if (territoryId is { } territory) query.Add("territory=" + territory);
+        if (product is not null) query.Add("product=" + product.Id);
+        return "/" + path + (query.Count == 0 ? "" : "?" + string.Join("&", query));
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To, int? CustomerId, int? TerritoryId, int? ProductId);
+}

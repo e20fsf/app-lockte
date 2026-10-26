@@ -12,10 +12,17 @@
 <h1 class="mb-4">@Info.Title</h1>
 
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
-    <MudStack Row="true" Spacing="2">
-        <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
-        <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
-    </MudStack>
+    @if (Kind == "schedule")
+    {
+        <MudText Typo="Typo.body2">ORDER ที่ยังค้างส่งทั้งหมด เรียงวันที่ ORDER → ลูกค้า → เลขที่ → ลำดับ</MudText>
+    }
+    else
+    {
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        </MudStack>
+    }
     @if (Problem is { } problem)
     {
         <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
@@ -39,6 +46,7 @@
     {
         ["deliveries"] = new("พิมพ์ใบรายงานการส่งสินค้า", "reports/order/deliveries", 5),
         ["manager"] = new("พิมพ์รายงานส่งผู้จัดการโรงงาน", "reports/order/deliveries/manager", 5),
+        ["schedule"] = new("พิมพ์กำหนดส่ง (DELIVERY SCHEDULE) ให้สโตร์", "reports/order/deliveries/schedule", 2),
     };
 
     [Parameter] public string Kind { get; set; } = "";
@@ -50,7 +58,7 @@
     private bool loadedMemory;
 
     private string? Problem
-        => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+        => Kind == "schedule" ? null : from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
 
     protected override void OnParametersSet()
     {
@@ -86,7 +94,7 @@
     }
 
     private string PdfUrl(string path)
-        => "/" + path + "?from=" + from?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "&to=" + to?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        => Kind == "schedule" ? "/" + path : "/" + path + "?from=" + from?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "&to=" + to?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private sealed record Remembered(DateOnly? From, DateOnly? To);
 }

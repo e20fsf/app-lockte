@@ -1,0 +1,43 @@
+@* RPT-03 ORDER ค้างส่งรวม (ORDERค้างส่งรวม), ระดับ B on A4 ตั้ง: (ลำดับ) รหัส, ชื่อสินค้า, จำนวน + หน่วย, the most first; ท้าย "รวม" per unit
+   with a double line (D-11). A long product name wraps (D-1). *@
+@if (Report.Filter is { } filter)
+{
+    <p class="sub">@filter</p>
+}
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:7%" /><col style="width:15%" /><col style="width:46%" /><col style="width:20%" /><col style="width:12%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var row = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@row.Code</td>
+                    <td>@row.Name</td>
+                    <td class="num">@OrderReports.Qty(row.Quantity)</td>
+                    <td>@row.Unit</td>
+                </tr>
+            }
+            @foreach (var total in OrderReports.UnitTotals(Report.Rows.Select(r => (r.Unit, r.Quantity))))
+            {
+                <tr class="total">
+                    <td></td><td></td><td><b>รวม</b></td>
+                    <td class="num"><b>@OrderReports.Qty(total.Quantity)</b></td>
+                    <td><b>@total.Unit</b></td>
+                </tr>
+            }
+            <tr><td colspan="5" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public BackorderByProductReport Report { get; set; } = null!;
+}

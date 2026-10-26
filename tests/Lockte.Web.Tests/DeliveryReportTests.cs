@@ -72,6 +72,27 @@ public sealed class DeliveryReportTests(LocalDbFixture db)
         await AsAsync(s => s.Get<SalesDeliveryRegistry>().SaveAsync());
     }
 
+    // ---------- RPT-05 ----------
+
+    [Fact] // the backorder with the due date, the whole order number (D-1) and the territory; the unit on every line
+    public async Task The_delivery_schedule_lists_the_backorder_with_its_due_date()
+    {
+        var f = await NewSetupAsync();
+        var month = NewMonth();
+        var number = await OrderAsync(f, $"{f.TerritoryCode}-70-0001", f.Customer, month, month.AddDays(7), L(f.Product, 100, 10m), L(f.Product, 20, 10m));
+
+        var report = await AsAsync(s => DeliveryReports.ScheduleAsync(s.Get<SalesOrderReportDirectory>()));
+
+        var mine = report.Lines.Where(l => l.OrderNo == number).ToList();
+        Assert.Equal([1, 2], mine.Select(l => l.LineNo));
+        Assert.All(mine, l => Assert.Equal(month.AddDays(7), l.DeliveryDue));
+        var html = await HtmlAsync<DeliveryScheduleView>(new BackorderListReport(report.Heading, null, mine, true));
+        Assert.Contains(number, html); // whole, not cut
+        Assert.Contains(ReportText.Date(month.AddDays(7)), html);
+        Assert.Contains("กำหนดส่ง", html);
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(html, "คู่").Count); // the unit on both lines and on the total
+    }
+
     // ---------- RPT-07 ----------
 
     [Fact] // groups by customer, then date and invoice; ที่ starts at 1 at every invoice; totals of a group and of all

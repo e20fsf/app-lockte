@@ -37,14 +37,14 @@ else
                         <td class="num">@no</td>
                         <td>@row.ProductCode</td>
                         <td>@row.ProductName</td>
-                        <td class="num">@DeliveryReports.Qty(row.Quantity)</td>
+                        <td class="num">@OrderReports.Qty(row.Quantity)</td>
                         <td>@row.Unit</td>
                         <td class="num">@(row.UnitPrice is { } price ? ReportText.Decimal2(price) : "")</td>
                         <td class="num">@(row.Amount is { } amount ? ReportText.Decimal2(amount) : "")</td>
                         <td>@row.OrderNo</td>
                         <td>@row.InvoiceNo</td>
                         <td>@row.Lot</td>
-                        <td class="num">@(pieces ? $"{DeliveryReports.Qty(row.Quantity)} ชิ้น" : row.Boxes is { } boxes ? DeliveryReports.Qty(boxes) : "")</td>
+                        <td class="num">@(pieces ? $"{OrderReports.Qty(row.Quantity)} ชิ้น" : row.Boxes is { } boxes ? OrderReports.Qty(boxes) : "")</td>
                     </tr>
                     lastDate = row.DeliveryDate;
                     lastInvoice = row.InvoiceNo;
@@ -54,7 +54,7 @@ else
                     <td colspan="3"></td>
                     <td class="num"><b>@ReportText.Decimal2(customer.Amount)</b></td>
                     <td colspan="3"></td>
-                    <td class="num"><b>@DeliveryReports.Qty(customer.Boxes)</b></td>
+                    <td class="num"><b>@OrderReports.Qty(customer.Boxes)</b></td>
                 </tr>
             }
             <tr class="total">
@@ -62,7 +62,7 @@ else
                 <td colspan="3"></td>
                 <td class="num"><b>@ReportText.Decimal2(Report.Amount)</b></td>
                 <td colspan="3"><b>บิล @Report.Invoices ใบ&ensp;ลูกค้า @Report.Customers.Count ราย&ensp;SALE ORDER @Report.Orders ใบ</b></td>
-                <td class="num"><b>@DeliveryReports.Qty(Report.Boxes)</b></td>
+                <td class="num"><b>@OrderReports.Qty(Report.Boxes)</b></td>
             </tr>
             <tr><td colspan="12" class="end"></td></tr>
         </tbody>

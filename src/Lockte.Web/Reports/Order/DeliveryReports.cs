@@ -51,14 +51,15 @@ public static class DeliveryReports
     public const string InspectionTitle = "รายงานการตรวจสอบสินค้าที่จัดส่งให้ลูกค้า";
     public const string ManagerTitlePrefix = "รายงานการส่งสินค้า";
 
-    /// <summary>A quantity as the reports print it: thousands separators, no needless decimals.</summary>
-    public static string Qty(decimal value) => value.ToString("#,##0.####", ThaiDate.Culture);
-
     /// <summary>A customer of code <c>40…</c> (งานรับจ้างผลิต) is shown the pieces and "ชิ้น" in the box column.</summary>
     public static bool ShowsPieces(string customerCode) => customerCode.StartsWith("40", StringComparison.Ordinal);
 
     /// <summary>A sample of the boxes of a customer, at most 5 (🔍 min(กล่อง, 5) from the samples; the legacy formula is not recovered).</summary>
     public const int MaxSample = 5;
+
+    /// <summary>RPT-05: every ค้างส่ง line, by order date → customer → number → line; the store's schedule.</summary>
+    public static async Task<BackorderListReport> ScheduleAsync(SalesOrderReportDirectory orders)
+        => new(ScheduleTitle, null, await orders.GetBackorderAsync(), ShowTerritory: true);
 
     public static async Task<DeliveryReport> DeliveryAsync(SalesDeliveryReportDirectory deliveries, DateOnly from, DateOnly to)
     {
@@ -100,6 +101,11 @@ public static class DeliveryReports
     public static RouteGroupBuilder MapDeliveryReports(this RouteGroupBuilder reports)
     {
         var group = reports.MapGroup("/order/deliveries");
+
+        // RPT-05 กำหนดส่ง (เมนู 2 "พิมพ์รายงานให้สโตร์"): no parameter
+        group.MapGet("/schedule", async (HttpContext http, SalesOrderReportDirectory orders, ReportPrinter printer, CancellationToken ct)
+            => Pdf(http, await printer.PrintAsync<DeliveryScheduleView>(ScheduleTitle, Paper.A4Landscape,
+                new() { ["Report"] = await ScheduleAsync(orders) }, AccountClaims.DisplayNameOf(http.User), DocumentKeys.DeliverySchedule, ct), ScheduleTitle));
 
         group.MapGet("/", async (DateOnly? from, DateOnly? to, HttpContext http, SalesDeliveryReportDirectory deliveries, ReportPrinter printer, CancellationToken ct)
             => HrAttendanceReports.Range(from, to) ?? Pdf(http, await printer.PrintAsync<DeliveryReportView>(DeliveryTitle, Paper.A4Landscape,

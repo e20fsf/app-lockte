@@ -1,0 +1,54 @@
+@* RPT-04 ยอดค้างส่งของลูกค้า (ORDERค้างส่งของลูกค้า — a group per product, D-8) and สินค้าที่ลูกค้าสั่งซื้อ, ระดับ B on A4 ตั้ง: the head of a group is
+   "รหัส ชื่อสินค้า"; the rows are the customers (ลำดับ, รหัสลูกค้า, ชื่อลูกค้า, and จำนวน + หน่วย when the report has quantities).
+   ยอดค้างส่ง ends each group with "รวม" (one unit per group). *@
+@if (Report.Filter is { } filter)
+{
+    <p class="sub">@filter</p>
+}
+@if (Report.Groups.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    @foreach (var group in Report.Groups)
+    {
+        <table style="margin-bottom:6mm">
+            <colgroup>
+                <col style="width:7%" /><col style="width:18%" /><col style="width:@(Report.ShowQuantity ? 45 : 75)%" />
+                @if (Report.ShowQuantity) { <col style="width:18%" /><col style="width:12%" /> }
+            </colgroup>
+            <thead>
+                <tr><th colspan="@(Report.ShowQuantity ? 5 : 3)" style="text-align:left">@group.ProductCode&emsp;@group.ProductName</th></tr>
+                <tr>
+                    <th class="num">ที่</th><th>รหัสลูกค้า</th><th>ชื่อลูกค้า</th>
+                    @if (Report.ShowQuantity) { <th class="num">จำนวน</th><th>หน่วย</th> }
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < group.Rows.Count; i++)
+                {
+                    var row = group.Rows[i];
+                    <tr>
+                        <td class="num">@(i + 1)</td>
+                        <td>@row.CustomerCode</td>
+                        <td>@row.CustomerName</td>
+                        @if (Report.ShowQuantity) { <td class="num">@OrderReports.Qty(row.Quantity ?? 0)</td><td>@group.Unit</td> }
+                    </tr>
+                }
+                @if (Report.ShowQuantity)
+                {
+                    <tr class="total">
+                        <td></td><td></td><td><b>รวม</b></td>
+                        <td class="num"><b>@OrderReports.Qty(group.Rows.Sum(r => r.Quantity ?? 0))</b></td>
+                        <td><b>@group.Unit</b></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public ProductCustomersReport Report { get; set; } = null!;
+}
