@@ -15,6 +15,7 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : M
     internal DbSet<SalesTerritory> SalesTerritories => Set<SalesTerritory>();
     internal DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     internal DbSet<SalesOrderLine> SalesOrderLines => Set<SalesOrderLine>();
+    internal DbSet<Delivery> Deliveries => Set<Delivery>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -40,6 +41,36 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : M
             o.HasMany(x => x.Lines).WithOne(x => x.SalesOrder).HasForeignKey(x => x.SalesOrderId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<Delivery>(d =>
+        {
+            d.HasAuditName("การส่งของ");
+            d.Property(x => x.OrderNo).HasMaxLength(SalesOrderRegistry.OrderNoLength).HasAuditName("เลขที่ ORDER");
+            d.Property(x => x.OrderDate).HasAuditName("วันที่ ORDER");
+            d.Property(x => x.LineNo).HasAuditName("ลำดับ");
+            d.Property(x => x.CustomerId).HasAuditName("ลูกค้า");
+            d.Property(x => x.CustomerName).HasMaxLength(CustomerRegistry.NameLength).HasAuditName("ชื่อลูกค้า");
+            d.Property(x => x.SalesTerritoryId).HasAuditName("เขตการขาย");
+            d.Property(x => x.ProductId).HasAuditName("สินค้า");
+            d.Property(x => x.ProductName).HasMaxLength(SalesOrderRegistry.TextLength).HasAuditName("ชื่อสินค้า");
+            d.Property(x => x.Unit).HasMaxLength(SalesOrderRegistry.TextLength).HasAuditName("หน่วย");
+            d.Property(x => x.UnitPrice).HasPrecision(18, 4).HasAuditName("ราคา");
+            d.Property(x => x.DueDate).HasAuditName("กำหนดส่ง");
+            d.Property(x => x.DeliveryDate).HasAuditName("วันที่ส่ง");
+            d.Property(x => x.InvoiceNo).HasMaxLength(SalesDeliveryRegistry.InvoiceNoLength).HasAuditName("เลขที่บิล");
+            d.Property(x => x.InvoiceLine).HasAuditName("ลำดับในบิล");
+            d.Property(x => x.Lot).HasMaxLength(SalesDeliveryRegistry.LotLength).HasAuditName("Lot");
+            d.Property(x => x.Quantity).HasPrecision(18, 4).HasAuditName("จำนวนส่ง");
+            d.Property(x => x.Amount).HasPrecision(24, 8).HasAuditName("มูลค่าส่ง");
+            d.Property(x => x.Boxes).HasPrecision(18, 4).HasAuditName("จำนวนกล่อง");
+            d.Property(x => x.Complete).HasAuditName("ส่งครบ");
+            d.HasIndex(x => x.OrderNo);
+            d.HasIndex(x => x.InvoiceNo);
+            d.HasIndex(x => x.DeliveryDate);
+            d.HasIndex(x => x.CustomerId);
+            d.HasIndex(x => x.ProductId);
+            d.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<SalesOrderLine>(l =>
         {
             l.HasAuditName("บรรทัด ORDER");
@@ -52,6 +83,13 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : M
             l.Property(x => x.ReceivedAmount).HasPrecision(24, 8).HasAuditName("มูลค่าที่รับ");
             l.Property(x => x.OutstandingQuantity).HasPrecision(18, 4).HasAuditName("ยอดค้างส่ง");
             l.Property(x => x.OutstandingAmount).HasPrecision(24, 8).HasAuditName("มูลค่าค้างส่ง");
+            l.Property(x => x.PendingDeliveryDate).HasAuditName("วันที่ส่ง (ยังไม่บันทึก)");
+            l.Property(x => x.PendingInvoiceNo).HasMaxLength(SalesDeliveryRegistry.InvoiceNoLength).HasAuditName("เลขที่บิล (ยังไม่บันทึก)");
+            l.Property(x => x.PendingInvoiceLine).HasAuditName("ลำดับในบิล (ยังไม่บันทึก)");
+            l.Property(x => x.PendingQuantity).HasPrecision(18, 4).HasAuditName("จำนวนส่ง (ยังไม่บันทึก)");
+            l.Property(x => x.PendingAmount).HasPrecision(24, 8).HasAuditName("มูลค่าส่ง (ยังไม่บันทึก)");
+            l.Property(x => x.PendingLot).HasMaxLength(SalesDeliveryRegistry.LotLength).HasAuditName("Lot (ยังไม่บันทึก)");
+            l.Property(x => x.PendingBoxes).HasPrecision(18, 4).HasAuditName("จำนวนกล่อง (ยังไม่บันทึก)");
             l.HasIndex(x => new { x.SalesOrderId, x.LineNo }).IsUnique();
             l.HasIndex(x => x.ProductId);
         });

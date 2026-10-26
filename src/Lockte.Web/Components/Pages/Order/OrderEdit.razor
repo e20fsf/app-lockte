@@ -191,7 +191,7 @@
         foreach (var l in loaded.Lines)
         {
             // Only what is on this side: a line deleted from it is not shown (its other side is still there).
-            var quantity = side == OrderSide.Outstanding ? (l.OutstandingQuantity > 0 ? l.OutstandingQuantity : (decimal?)null) : l.ReceivedQuantity;
+            var quantity = side == OrderSide.Outstanding ? (l.OutstandingQuantity != 0 ? l.OutstandingQuantity : (decimal?)null) : l.ReceivedQuantity;
             if (quantity is null) continue;
             lines.Add(new LineForm
             {

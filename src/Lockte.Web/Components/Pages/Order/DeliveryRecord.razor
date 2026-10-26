@@ -1,0 +1,146 @@
+@page "/order/deliveries/record"
+@attribute [Authorize]
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-08 บันทึกการส่งของ (ฟอร์ม บันทึกส่งออก1 + ย่อย บันทึกส่งออก2): choose the เลขที่ ORDER to see its backorder lines by เลขที่บิล, then
+   type the delivery on each line that was sent — วันที่ส่ง, เลขที่บิล, ลำดับในบิล, จำนวนส่ง, Lot (capitals), จำนวนกล่อง; มูลค่าส่ง =
+   ราคา × จำนวนส่ง. What is typed is kept as it is typed (as the bound form did). "บันทึก" processes every line with a quantity in
+   every order, not only the chosen one (BR-003): sent in full closes the line, in part leaves ค้าง − ส่ง, 0 records nothing. More than
+   the backorder is not stopped (it goes negative, as before). The stock is not touched. *@
+<PageTitle>บันทึกการส่งของ — LOCKTE</PageTitle>
+<h1 class="mb-4">บันทึกการส่งของ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudAutocomplete T="string" Value="orderNo" ValueChanged="OpenAsync" Label="เลือกใบ ORDER ที่ต้องการ (เลขที่)" SearchFunc="SearchNumbersAsync"
+                         Clearable="true" ResetValueOnEmptyText="true" MaxItems="100" Style="min-width:20rem" />
+        <MudText Typo="Typo.body2">มี @pending บรรทัดที่กรอกจำนวนส่งไว้ในทุกใบ — "บันทึก" จะประมวลผลทั้งหมด</MudText>
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudTable Items="lines" Dense="true" Breakpoint="Breakpoint.None" T="LineForm" Loading="loading">
+        <HeaderContent>
+            <MudTh>วันที่ ORDER</MudTh><MudTh>ลูกค้า</MudTh><MudTh>ลำดับ</MudTh><MudTh>สินค้า</MudTh><MudTh Style="text-align:right">ค้างส่ง</MudTh><MudTh Style="text-align:right">ราคา</MudTh>
+            <MudTh>กำหนดส่ง</MudTh><MudTh>วันที่ส่ง</MudTh><MudTh>เลขที่บิล</MudTh><MudTh>ลำดับในบิล</MudTh><MudTh>จำนวนส่ง</MudTh><MudTh>Lot</MudTh><MudTh>กล่อง</MudTh><MudTh Style="text-align:right">มูลค่าส่ง</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@ThaiDate.Format(context.Source.OrderDate)</MudTd>
+            <MudTd>@context.Source.CustomerCode @context.Source.CustomerName</MudTd>
+            <MudTd>@context.Source.LineNo</MudTd>
+            <MudTd>@context.Source.ProductCode @context.Source.ProductName</MudTd>
+            <MudTd Style="text-align:right">@context.Source.OutstandingQuantity.ToString("0.####")</MudTd>
+            <MudTd Style="text-align:right">@context.Source.UnitPrice?.ToString("N2")</MudTd>
+            <MudTd>@(context.Source.DueDate is { } due ? ThaiDate.Format(due) : "")</MudTd>
+            <MudTd Style="min-width:11rem"><MudDatePicker Editable="true" @bind-Date="context.DeliveryDate" @bind-Date:after="() => SaveRowAsync(context)" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Margin="Margin.Dense" Clearable="true" /></MudTd>
+            <MudTd Style="min-width:8rem"><MudTextField @bind-Value="context.InvoiceNo" @bind-Value:after="() => SaveRowAsync(context)" MaxLength="SalesDeliveryRegistry.InvoiceNoLength" Margin="Margin.Dense" /></MudTd>
+            <MudTd Style="min-width:5rem"><MudNumericField T="int?" @bind-Value="context.InvoiceLine" @bind-Value:after="() => SaveRowAsync(context)" HideSpinButtons="true" Margin="Margin.Dense" /></MudTd>
+            <MudTd Style="min-width:7rem"><MudNumericField T="decimal?" @bind-Value="context.Quantity" @bind-Value:after="() => SaveRowAsync(context)" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+            <MudTd Style="min-width:7rem"><MudTextField @bind-Value="context.Lot" @bind-Value:after="() => SaveRowAsync(context)" Margin="Margin.Dense" /></MudTd>
+            <MudTd Style="min-width:5rem"><MudNumericField T="decimal?" @bind-Value="context.Boxes" @bind-Value:after="() => SaveRowAsync(context)" HideSpinButtons="true" Margin="Margin.Dense" Min="0m" /></MudTd>
+            <MudTd Style="text-align:right">@(SalesOrderRules.Amount(context.Quantity, context.Source.UnitPrice)?.ToString("N2"))</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>@(orderNo is null ? "เลือกใบ ORDER" : "ใบนี้ไม่มีบรรทัดค้างส่ง")</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || pending == 0" StartIcon="@Icons.Material.Filled.Save">บันทึก</MudButton>
+    <MudButton Href="@OrderMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    private string? orderNo;
+    private readonly List<LineForm> lines = [];
+    private int pending;
+    private bool busy;
+    private bool loading;
+
+    protected override async Task OnInitializedAsync() => await CountAsync();
+
+    private async Task CountAsync() => pending = await Services.RunAsync<SalesDeliveryDirectory, int>(d => d.CountPendingAsync());
+
+    private async Task<IEnumerable<string>> SearchNumbersAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<SalesDeliveryDirectory, IReadOnlyList<string>>(d => d.BackorderNumbersAsync(text));
+
+    private async Task OpenAsync(string? number)
+    {
+        orderNo = number;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        loading = true;
+        try
+        {
+            lines.Clear();
+            if (orderNo is { } number)
+                foreach (var l in await Services.RunAsync<SalesDeliveryDirectory, IReadOnlyList<DeliveryLineDto>>(d => d.GetLinesAsync(number)))
+                    lines.Add(new LineForm(l) { DeliveryDate = l.DeliveryDate?.ToDateTime(TimeOnly.MinValue), InvoiceNo = l.InvoiceNo, InvoiceLine = l.InvoiceLine,
+                        Quantity = Plain(l.Quantity), Lot = l.Lot, Boxes = Plain(l.Boxes), RowVersion = l.RowVersion });
+            await CountAsync();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    // decimal(18,4) comes back as 100.0000: show 100.
+    private static decimal? Plain(decimal? value) => value / 1.0000000000000000000000000000m;
+
+    /// <summary>Keeps the row as typed (as the bound form did): its quantity decides whether "บันทึก" will process it.</summary>
+    private async Task SaveRowAsync(LineForm row)
+    {
+        try
+        {
+            var input = new PendingDeliveryInput(row.DeliveryDate is { } d ? DateOnly.FromDateTime(d) : null, row.InvoiceNo, row.InvoiceLine, row.Quantity, row.Lot, row.Boxes);
+            var (id, rowVersion) = (row.Source.LineId, row.RowVersion!);
+            var result = await Services.RunAsync<SalesDeliveryRegistry, ServiceResult>(r => r.SetPendingAsync(id, rowVersion, input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) { await ReloadAsync(); return; }
+            row.Lot = row.Lot?.Trim().ToUpperInvariant(); // as the legacy form capitalised it
+            var fresh = (await Services.RunAsync<SalesDeliveryDirectory, IReadOnlyList<DeliveryLineDto>>(dir => dir.GetLinesAsync(row.Source.OrderNo))).FirstOrDefault(l => l.LineId == id);
+            if (fresh is not null) row.RowVersion = fresh.RowVersion;
+            await CountAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<SalesDeliveryRegistry, DeliverySaveResult>(r => r.SaveAsync());
+            Snackbar.Add($"บันทึกการส่งแล้ว {result.Total} บรรทัด (ส่งครบ {result.Complete}, ส่งไม่ครบ {result.Partial}" + (result.Zero > 0 ? $", จำนวน 0 ไม่บันทึก {result.Zero}" : "") + ")", Severity.Success);
+            await ReloadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class LineForm(DeliveryLineDto source)
+    {
+        public DeliveryLineDto Source { get; } = source;
+        public byte[]? RowVersion { get; set; }
+        public DateTime? DeliveryDate { get; set; }
+        public string? InvoiceNo { get; set; }
+        public int? InvoiceLine { get; set; }
+        public decimal? Quantity { get; set; }
+        public string? Lot { get; set; }
+        public decimal? Boxes { get; set; }
+    }
+}

@@ -1,0 +1,221 @@
+@page "/order/deliveries/edit/{Mode}"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-09 แก้ไขรายการส่งของ (เมนู 10): find the deliveries of a เลขที่บิล, a เลขที่ ORDER or a วันที่ส่ง and change any field; the value
+   follows the quantity and price. A delivery is deleted with its button (with a confirmation) instead of clearing a field (BR-021).
+   Neither changing nor deleting gives the backorder back to the order (⚠ Q-57 kept): a delivery keyed wrongly and deleted does
+   not bring a line that was sent in full back — the order has to be keyed again. *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        @switch (Mode)
+        {
+            case "order":
+                <MudTextField @bind-Value="searchOrder" Label="เลขที่ใบ ORDER" Style="max-width:18rem" Clearable="true" />
+                break;
+            case "date":
+                <MudDatePicker Editable="true" @bind-Date="searchDate" Label="วันที่ส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
+                break;
+            default:
+                <MudTextField @bind-Value="searchInvoice" Label="เลขที่บิล" Style="max-width:14rem" Clearable="true" />
+                break;
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="FindAsync" StartIcon="@Icons.Material.Filled.Search">ค้นหา</MudButton>
+    </MudStack>
+    @if (found is not null)
+    {
+        <MudTable Items="found" Dense="true" Hover="true" Class="mt-3" T="DeliveryDto" Breakpoint="Breakpoint.None"
+                  OnRowClick="@((TableRowClickEventArgs<DeliveryDto> e) => Edit(e.Item!))">
+            <HeaderContent>
+                <MudTh>วันที่ส่ง</MudTh><MudTh>เลขที่บิล</MudTh><MudTh>เลขที่ ORDER</MudTh><MudTh>ลำดับ</MudTh><MudTh>ลูกค้า</MudTh><MudTh>สินค้า</MudTh>
+                <MudTh Style="text-align:right">จำนวนส่ง</MudTh><MudTh Style="text-align:right">มูลค่า</MudTh><MudTh>สถานะ</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@(context.DeliveryDate is { } d ? ThaiDate.Format(d) : "")</MudTd>
+                <MudTd>@context.InvoiceNo</MudTd>
+                <MudTd>@context.OrderNo</MudTd>
+                <MudTd>@context.LineNo</MudTd>
+                <MudTd>@context.CustomerCode @context.CustomerName</MudTd>
+                <MudTd>@context.ProductName</MudTd>
+                <MudTd Style="text-align:right">@Plain(context.Quantity)</MudTd>
+                <MudTd Style="text-align:right">@context.Amount?.ToString("N2")</MudTd>
+                <MudTd>@(context.Complete ? "ครบ" : "ไม่ครบ")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>ไม่พบรายการส่ง</MudText></NoRecordsContent>
+        </MudTable>
+    }
+</MudPaper>
+
+@if (editing is not null)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">แก้รายการส่ง เลขที่ ORDER @editing.OrderNo ลำดับ @editing.LineNo</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.DeliveryDate" Label="วันที่ส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+            <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.InvoiceNo" Label="เลขที่บิล" MaxLength="SalesDeliveryRegistry.InvoiceNoLength" /></MudItem>
+            <MudItem xs="6" sm="2"><MudNumericField T="int?" @bind-Value="form.InvoiceLine" Label="ลำดับในบิล" HideSpinButtons="true" /></MudItem>
+            <MudItem xs="6" sm="4"><MudTextField @bind-Value="form.Lot" Label="Lot" MaxLength="SalesDeliveryRegistry.LotLength" /></MudItem>
+            <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.OrderNo" Label="เลขที่ ORDER" MaxLength="SalesOrderRegistry.OrderNoLength" /></MudItem>
+            <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.OrderDate" Label="วันที่ ORDER" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+            <MudItem xs="12" sm="6">
+                <MudAutocomplete T="CustomerDto" @bind-Value="form.Customer" Label="ลูกค้า" SearchFunc="SearchCustomerAsync"
+                                 ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" ResetValueOnEmptyText="true" MaxItems="50" />
+            </MudItem>
+            <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.CustomerName" Label="ชื่อลูกค้า" MaxLength="CustomerRegistry.NameLength" /></MudItem>
+            <MudItem xs="12" sm="4">
+                <MudAutocomplete T="ProductListItem" @bind-Value="form.Product" Label="สินค้า" SearchFunc="SearchProductAsync"
+                                 ToStringFunc="@(p => p is null ? "" : p.Code)" ResetValueOnEmptyText="true" MaxItems="30" />
+            </MudItem>
+            <MudItem xs="12" sm="5"><MudTextField @bind-Value="form.ProductName" Label="ชื่อสินค้า" /></MudItem>
+            <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.Unit" Label="หน่วย" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="decimal" @bind-Value="form.Quantity" Label="จำนวนส่ง" HideSpinButtons="true" Min="0m" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="decimal?" @bind-Value="form.UnitPrice" Label="ราคา" HideSpinButtons="true" Min="0m" /></MudItem>
+            <MudItem xs="6" sm="3"><MudText Class="mt-4">มูลค่า <b>@(SalesOrderRules.Amount(form.Quantity, form.UnitPrice)?.ToString("N2"))</b></MudText></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="decimal?" @bind-Value="form.Boxes" Label="จำนวนกล่อง" HideSpinButtons="true" Min="0m" /></MudItem>
+            <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.DueDate" Label="กำหนดส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+        </MudGrid>
+        <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบรายการส่งนี้</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@OrderMenu.HrefOf(10)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter]
+    public string Mode { get; set; } = "invoice";
+
+    private IReadOnlyList<DeliveryDto>? found;
+    private DeliveryDto? editing;
+    private Form form = new();
+    private string? searchInvoice;
+    private string? searchOrder;
+    private DateTime? searchDate = DateTime.Today;
+    private bool busy;
+
+    private string Title => Mode switch
+    {
+        "order" => "แก้ไขรายการส่งของตามเลขที่ใบ ORDER",
+        "date" => "แก้ไขรายการส่งของตามวันที่ส่ง",
+        _ => "แก้ไขรายการส่งของตามเลขที่บิล",
+    };
+
+    private static string Plain(decimal value) => (value / 1.0000000000000000000000000000m).ToString("0.####");
+
+    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private async Task FindAsync()
+    {
+        var search = Mode switch
+        {
+            "order" => new DeliverySearch(OrderNo: searchOrder),
+            "date" => new DeliverySearch(Date: searchDate is { } d ? DateOnly.FromDateTime(d) : null),
+            _ => new DeliverySearch(InvoiceNo: searchInvoice),
+        };
+        found = await Services.RunAsync<SalesDeliveryDirectory, IReadOnlyList<DeliveryDto>>(dir => dir.SearchAsync(search));
+        editing = null;
+    }
+
+    private async Task Edit(DeliveryDto d)
+    {
+        editing = d;
+        var customer = await Services.RunAsync<CustomerDirectory, CustomerDto?>(c => c.GetAsync(d.CustomerId));
+        var product = await Services.RunAsync<ProductDirectory, ProductDto?>(p => p.GetAsync(d.ProductId));
+        form = new Form
+        {
+            OrderNo = d.OrderNo, OrderDate = d.OrderDate?.ToDateTime(TimeOnly.MinValue), Customer = customer, CustomerName = d.CustomerName,
+            Product = product is null ? null : new ProductListItem(product.Id, product.Code, product.Name, product.Unit), ProductName = d.ProductName, Unit = d.Unit,
+            UnitPrice = d.UnitPrice / 1.0000000000000000000000000000m, DueDate = d.DueDate?.ToDateTime(TimeOnly.MinValue),
+            DeliveryDate = d.DeliveryDate?.ToDateTime(TimeOnly.MinValue), InvoiceNo = d.InvoiceNo, InvoiceLine = d.InvoiceLine, Lot = d.Lot,
+            Quantity = d.Quantity / 1.0000000000000000000000000000m, Boxes = d.Boxes / 1.0000000000000000000000000000m,
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        if (editing is null) return;
+        busy = true;
+        try
+        {
+            if (form.Customer is null || form.Product is null) { Snackbar.Add("กรุณาเลือกลูกค้าและสินค้า", Severity.Error); return; }
+            var edit = new Lockte.Sales.DeliveryEdit(form.OrderNo, form.OrderDate is { } od ? DateOnly.FromDateTime(od) : null, form.Customer.Id, form.CustomerName, editing.SalesTerritoryId,
+                form.Product.Id, form.ProductName, form.Unit, form.UnitPrice, form.DueDate is { } due ? DateOnly.FromDateTime(due) : null,
+                form.DeliveryDate is { } dd ? DateOnly.FromDateTime(dd) : null, form.InvoiceNo, form.InvoiceLine, form.Lot, form.Quantity, form.Boxes, editing.RowVersion);
+            var id = editing.Id;
+            var result = await Services.RunAsync<SalesDeliveryEditor, ServiceResult>(r => r.SaveAsync(id, edit));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            await FindAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await FindAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (editing is null) return;
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบรายการส่ง",
+            $"ลบรายการส่ง เลขที่ ORDER {editing.OrderNo} ลำดับ {editing.LineNo} เลขที่บิล {editing.InvoiceNo}? (ยอดค้างส่งของ ORDER จะไม่ถูกคืน)", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (editing.Id, editing.RowVersion);
+            var result = await Services.RunAsync<SalesDeliveryEditor, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("ลบแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await FindAsync();
+        }
+    }
+
+    private sealed class Form
+    {
+        public string OrderNo { get; set; } = "";
+        public DateTime? OrderDate { get; set; }
+        public CustomerDto? Customer { get; set; }
+        public string CustomerName { get; set; } = "";
+        public ProductListItem? Product { get; set; }
+        public string ProductName { get; set; } = "";
+        public string? Unit { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public DateTime? DueDate { get; set; }
+        public DateTime? DeliveryDate { get; set; }
+        public string? InvoiceNo { get; set; }
+        public int? InvoiceLine { get; set; }
+        public string? Lot { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal? Boxes { get; set; }
+    }
+}
