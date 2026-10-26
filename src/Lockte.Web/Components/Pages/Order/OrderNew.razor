@@ -1,0 +1,41 @@
+@page "/order/orders/new"
+@attribute [Authorize]
+@using Lockte.Sales
+@inject ScopedServices Services
+@inject NavigationManager Navigation
+
+@* SCR-04 รับORDER: choose the เขตการขาย (the dropdown `เซล1`, "ค่าครั้งก่อน" = the last one chosen on this PC) and open the
+   order form with the next เลขที่ ORDER (BR-001, macro รับORDER1). The number is only proposed here — it is taken when the order is saved. *@
+<PageTitle>รับ ORDER — LOCKTE</PageTitle>
+<h1 class="mb-4">ORDER ใหม่ เลขที่ออกอัตโนมัติ</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudSelect T="string" @bind-Value="code" @bind-Value:after="PreviewAsync" Label="เลือกรหัสเขตการขายที่ต้องการ" HelperText="เลขที่ ORDER ออกแยกตามเขตการขายและปี">
+        @foreach (var t in territories)
+        {
+            <MudSelectItem T="string" Value="t.Code">@t.Code — @t.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudText Class="mt-2">เลขที่ถัดไป: <b>@(preview ?? "— (เขตนี้ยังไม่เคยมีเลข พิมพ์เองในหน้าถัดไป)")</b></MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="code is null" OnClick="Open">เปิดฟอร์ม</MudButton>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(17)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<SalesTerritoryDto> territories = [];
+    private string? preview;
+    private string? code;
+
+    protected override async Task OnInitializedAsync()
+        => territories = await Services.RunAsync<SalesTerritoryDirectory, IReadOnlyList<SalesTerritoryDto>>(d => d.GetAllAsync());
+
+    private async Task PreviewAsync()
+    {
+        var selected = code!;
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        preview = await Services.RunAsync<SalesOrderDirectory, string?>(d => d.ProposeNumberAsync(selected, today));
+    }
+
+    private void Open() => Navigation.NavigateTo($"order/orders/new/{Uri.EscapeDataString(code!)}");
+}

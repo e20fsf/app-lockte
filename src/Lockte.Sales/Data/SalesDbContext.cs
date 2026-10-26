@@ -13,9 +13,49 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : M
 
     internal DbSet<Customer> Customers => Set<Customer>();
     internal DbSet<SalesTerritory> SalesTerritories => Set<SalesTerritory>();
+    internal DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
+    internal DbSet<SalesOrderLine> SalesOrderLines => Set<SalesOrderLine>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<SalesOrder>(o =>
+        {
+            o.HasAuditName("ORDER");
+            o.Property(x => x.OrderNo).HasMaxLength(SalesOrderRegistry.OrderNoLength).HasAuditName("เลขที่ ORDER");
+            o.Property(x => x.OriginalNo).HasMaxLength(SalesOrderRegistry.OrderNoLength).HasAuditName("เลขเดิม");
+            o.Property(x => x.OrderDate).HasAuditName("วันที่");
+            o.Property(x => x.CustomerId).HasAuditName("ลูกค้า");
+            o.Property(x => x.CustomerName).HasMaxLength(CustomerRegistry.NameLength).HasAuditName("ชื่อลูกค้า");
+            o.Property(x => x.SalesTerritoryId).HasAuditName("เขตการขาย");
+            o.Property(x => x.DeliveryDate).HasAuditName("กำหนดส่ง");
+            o.Property(x => x.PaymentTerms).HasMaxLength(SalesOrderRegistry.TextLength).HasAuditName("เงื่อนไขการชำระเงิน");
+            o.Property(x => x.Remark).HasMaxLength(SalesOrderRegistry.TextLength).HasAuditName("หมายเหตุ");
+            o.Property(x => x.RecordedAt).HasAuditName("เข้าประวัติเมื่อ");
+            o.HasIndex(x => x.OrderNo).IsUnique();
+            o.HasIndex(x => x.OriginalNo);
+            o.HasIndex(x => x.CustomerId);
+            o.HasIndex(x => x.OrderDate);
+            o.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            o.HasOne(x => x.SalesTerritory).WithMany().HasForeignKey(x => x.SalesTerritoryId).OnDelete(DeleteBehavior.Restrict);
+            o.HasMany(x => x.Lines).WithOne(x => x.SalesOrder).HasForeignKey(x => x.SalesOrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SalesOrderLine>(l =>
+        {
+            l.HasAuditName("บรรทัด ORDER");
+            l.Property(x => x.LineNo).HasAuditName("ลำดับ");
+            l.Property(x => x.ProductId).HasAuditName("สินค้า");
+            l.Property(x => x.ProductName).HasMaxLength(SalesOrderRegistry.TextLength).HasAuditName("ชื่อสินค้า");
+            l.Property(x => x.Unit).HasMaxLength(SalesOrderRegistry.TextLength).HasAuditName("หน่วย");
+            l.Property(x => x.UnitPrice).HasPrecision(18, 4).HasAuditName("ราคา");
+            l.Property(x => x.ReceivedQuantity).HasPrecision(18, 4).HasAuditName("จำนวนที่รับ");
+            l.Property(x => x.ReceivedAmount).HasPrecision(24, 8).HasAuditName("มูลค่าที่รับ");
+            l.Property(x => x.OutstandingQuantity).HasPrecision(18, 4).HasAuditName("ยอดค้างส่ง");
+            l.Property(x => x.OutstandingAmount).HasPrecision(24, 8).HasAuditName("มูลค่าค้างส่ง");
+            l.HasIndex(x => new { x.SalesOrderId, x.LineNo }).IsUnique();
+            l.HasIndex(x => x.ProductId);
+        });
+
         modelBuilder.Entity<SalesTerritory>(t =>
         {
             t.HasAuditName("เขตการขาย");

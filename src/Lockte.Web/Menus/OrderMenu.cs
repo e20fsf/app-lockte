@@ -45,8 +45,8 @@ public static class OrderMenu
         ]),
         new(17, "รับ ORDER", 2, // แยก SALE ORDER
         [
-            new("ORDER ใหม่ เลขที่ออกอัตโนมัติ", Code: "SCR-04"), // SALE ORDER ใหม่เลขที่เปลี่ยนอัตโนมัติ
-            new("ORDER เก่าหรือใบ ORDER ของลูกค้า", Code: "SCR-05"), // SALE ORDER เก่าหรือใบ ORDER ของลูกค้า
+            new("ORDER ใหม่ เลขที่ออกอัตโนมัติ", Code: "SCR-04", Page: "order/orders/new"), // SALE ORDER ใหม่เลขที่เปลี่ยนอัตโนมัติ
+            new("ORDER เก่าหรือใบ ORDER ของลูกค้า", Code: "SCR-05", Page: "order/orders/own"), // SALE ORDER เก่าหรือใบ ORDER ของลูกค้า
             new("พิมพ์สรุปการรับ ORDER", Code: "RPT-06-1"),
             new("รายงานการรับ ORDER ของแต่ละเขตการขาย", Code: "RPT-06-2"), // รายงานการรับ ORDER ของเซลแต่ละคน
             new("รายงานการรับ ORDER ตามชื่อลูกค้า", Code: "RPT-06-3"),
