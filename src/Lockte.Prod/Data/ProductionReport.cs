@@ -18,6 +18,8 @@ internal sealed class ProductionReport : IAudited
     public string ReportNo { get; set; } = "";
     /// <summary>เครื่องจักร (MC_NO) of module องค์กร, checked on save (no database key across modules, like HR).</summary>
     public int? MachineId { get; set; }
+    /// <summary>เข้าสต็อกแล้ว: when โอนผลผลิตเข้าสต็อก last made this report's lines into stock entries (BR-005); null = not transferred.</summary>
+    public DateTimeOffset? StockedAt { get; set; }
 
     public List<ProductionReportLine> Lines { get; set; } = [];
 

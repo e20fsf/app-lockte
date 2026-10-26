@@ -1,0 +1,218 @@
+@page "/order/stock/entries"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Lockte.Prod.Data
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-14 เพิ่มและแก้ไขสต็อก (ฟอร์ม แก้ไขSTOCK + เพิ่มSTOCK, BR-006): choose a product that has stock → every entry of it with the balance (Σ จำนวน), every field can be
+   changed; "เพิ่มSTOCK" adds an entry — วันที่, เลขที่, ลำดับ, สินค้า, จำนวน (the user types the sign), พนักงาน, หมายเหตุ. The kind of an entry is a field of its own
+   (a remark "pd" is only a remark). Nothing stops a balance below 0 and nothing warns (⚠ BR-006 kept). *@
+<PageTitle>เพิ่มและแก้ไขสต็อกสินค้า — LOCKTE</PageTitle>
+<h1 class="mb-4">เพิ่มและแก้ไขสต็อกสินค้า</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudSelect T="int?" Value="productId" ValueChanged="ChooseAsync" Label="เลือกสินค้า" Style="min-width:28rem" Clearable="true">
+            @foreach (var b in balances)
+            {
+                <MudSelectItem T="int?" Value="@((int?)b.ProductId)">@b.ProductCode  @b.ProductName</MudSelectItem>
+            }
+        </MudSelect>
+        @if (productId is not null)
+        {
+            <MudText Typo="Typo.h6">ยอดคงเหลือ @OrderBalance</MudText>
+        }
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" OnClick="StartAdd" StartIcon="@Icons.Material.Filled.Add">เพิ่มสต็อก</MudButton>
+    </MudStack>
+</MudPaper>
+
+@if (productId is not null)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudTable Items="entries" Dense="true" Hover="true" T="StockEntryDto" Breakpoint="Breakpoint.None" OnRowClick="@((TableRowClickEventArgs<StockEntryDto> e) => StartEdit(e.Item!))">
+            <HeaderContent>
+                <MudTh>วันที่</MudTh><MudTh>เลขที่</MudTh><MudTh>ลำดับ</MudTh><MudTh Style="text-align:right">จำนวน</MudTh><MudTh>พนักงาน</MudTh><MudTh>ชนิด</MudTh><MudTh>หมายเหตุ</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@(context.Date is { } d ? ThaiDate.Format(d) : "")</MudTd>
+                <MudTd>@context.DocumentNo</MudTd>
+                <MudTd>@context.LineNo</MudTd>
+                <MudTd Style="text-align:right">@context.Quantity.ToString("#,##0.####")</MudTd>
+                <MudTd>@(context.EmployeeId is { } id ? employeeNames.GetValueOrDefault(id) : null)</MudTd>
+                <MudTd>@KindText(context.Kind)</MudTd>
+                <MudTd>@context.Remark</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>ยังไม่มีรายการ</MudText></NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@if (form is not null)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มรายการสต็อก" : "แก้รายการสต็อก")</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.Date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+            <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.DocumentNo" Label="เลขที่" MaxLength="StockRegistry.DocumentNoLength" /></MudItem>
+            <MudItem xs="6" sm="2"><MudNumericField T="int?" @bind-Value="form.LineNo" Label="ลำดับ" HideSpinButtons="true" /></MudItem>
+            <MudItem xs="12" sm="4">
+                <MudAutocomplete T="ProductListItem" @bind-Value="form.Product" Label="สินค้า" SearchFunc="SearchProductAsync"
+                                 ToStringFunc="@(p => p is null ? "" : $"{p.Code}  {p.Name}")" ResetValueOnEmptyText="true" MaxItems="30" />
+            </MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="decimal" @bind-Value="form.Quantity" Label="จำนวน (ใส่เครื่องหมายเอง)" HideSpinButtons="true" /></MudItem>
+            <MudItem xs="12" sm="5">
+                <MudAutocomplete T="ProductionEmployeeRef" @bind-Value="form.Employee" Label="พนักงาน" SearchFunc="SearchEmployeeAsync"
+                                 ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="30" />
+            </MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Remark" Label="หมายเหตุ" MaxLength="StockRegistry.RemarkLength" /></MudItem>
+        </MudGrid>
+        <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+            <MudButton OnClick="Cancel">ยกเลิก</MudButton>
+            <MudSpacer />
+            @if (form.Id is not null)
+            {
+                <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบรายการนี้</MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@OrderMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<StockBalance> balances = [];
+    private IReadOnlyList<StockEntryDto> entries = [];
+    private readonly Dictionary<int, string> employeeNames = [];
+    private int? productId;
+    private Form? form;
+    private bool busy;
+
+    private string OrderBalance => (balances.FirstOrDefault(b => b.ProductId == productId)?.Quantity ?? 0).ToString("#,##0.####");
+
+    protected override async Task OnInitializedAsync() => await ReloadBalancesAsync();
+
+    private async Task ReloadBalancesAsync()
+        => balances = await Services.RunAsync<StockDirectory, IReadOnlyList<StockBalance>>(d => d.GetBalancesAsync());
+
+    private async Task ChooseAsync(int? id)
+    {
+        productId = id;
+        form = null;
+        await ReloadEntriesAsync();
+    }
+
+    private async Task ReloadEntriesAsync()
+    {
+        entries = productId is { } id ? await Services.RunAsync<StockDirectory, IReadOnlyList<StockEntryDto>>(d => d.GetEntriesAsync(id)) : [];
+        foreach (var employee in entries.Where(e => e.EmployeeId is not null).Select(e => e.EmployeeId!.Value).Distinct().Where(e => !employeeNames.ContainsKey(e)))
+            if (await Services.RunAsync<IProductionEmployeeLookup, ProductionEmployeeRef?>(l => l.FindAsync(employee)) is { } found) employeeNames[employee] = $"{found.Code} {found.Name}";
+    }
+
+    private static string KindText(StockEntryKind kind) => kind switch
+    {
+        StockEntryKind.Production => "ผลผลิต",
+        StockEntryKind.Withdrawal => "เบิก",
+        StockEntryKind.OpeningBalance => "ยอดยกมา",
+        _ => "มือ",
+    };
+
+    private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));
+
+    private async Task<IEnumerable<ProductionEmployeeRef>> SearchEmployeeAsync(string? text, CancellationToken _)
+        => await Services.RunAsync<IProductionEmployeeLookup, IReadOnlyList<ProductionEmployeeRef>>(l => l.SearchAsync(text, 30));
+
+    private async Task StartAdd()
+    {
+        ProductListItem? product = null;
+        if (productId is { } id && await Services.RunAsync<ProductDirectory, ProductDto?>(d => d.GetAsync(id)) is { } p) product = new ProductListItem(p.Id, p.Code, p.Name, p.Unit);
+        form = new Form { Date = DateTime.Today, Product = product };
+    }
+
+    private async Task StartEdit(StockEntryDto entry)
+    {
+        var product = await Services.RunAsync<ProductDirectory, ProductDto?>(d => d.GetAsync(entry.ProductId));
+        ProductionEmployeeRef? employee = entry.EmployeeId is { } id ? await Services.RunAsync<IProductionEmployeeLookup, ProductionEmployeeRef?>(l => l.FindAsync(id)) : null;
+        form = new Form
+        {
+            Id = entry.Id, RowVersion = entry.RowVersion, Date = entry.Date?.ToDateTime(TimeOnly.MinValue), DocumentNo = entry.DocumentNo, LineNo = entry.LineNo,
+            Product = product is null ? null : new ProductListItem(product.Id, product.Code, product.Name, product.Unit), Quantity = entry.Quantity, Employee = employee, Remark = entry.Remark,
+        };
+    }
+
+    private void Cancel() => form = null;
+
+    private async Task SaveAsync()
+    {
+        if (form is null) return;
+        if (form.Product is null) { Snackbar.Add("กรุณาเลือกสินค้า", Severity.Error); return; }
+        busy = true;
+        try
+        {
+            var input = new StockEntryInput(form.Id, form.RowVersion, form.Date is { } d ? DateOnly.FromDateTime(d) : null, form.DocumentNo, form.LineNo, form.Product.Id,
+                form.Quantity, form.Employee?.Id, form.Remark);
+            var result = await Services.RunAsync<StockRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            productId = form.Product.Id;
+            form = null;
+            await ReloadBalancesAsync();
+            await ReloadEntriesAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            form = null;
+            await ReloadEntriesAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (form?.Id is not { } id) return;
+        if (await Dialogs.ShowMessageBoxAsync("ลบรายการสต็อก", "ลบรายการนี้?", yesText: "ลบ", cancelText: "ยกเลิก") != true) return;
+        busy = true;
+        try
+        {
+            var rowVersion = form.RowVersion!;
+            var result = await Services.RunAsync<StockRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("ลบแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            form = null;
+            await ReloadBalancesAsync();
+            await ReloadEntriesAsync();
+        }
+    }
+
+    private sealed class Form
+    {
+        public int? Id { get; set; }
+        public byte[]? RowVersion { get; set; }
+        public DateTime? Date { get; set; }
+        public string? DocumentNo { get; set; }
+        public int? LineNo { get; set; }
+        public ProductListItem? Product { get; set; }
+        public decimal Quantity { get; set; }
+        public ProductionEmployeeRef? Employee { get; set; }
+        public string? Remark { get; set; }
+    }
+}

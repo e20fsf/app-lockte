@@ -1,0 +1,72 @@
+@page "/order/stock/transfer"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* SCR-16 โอนผลผลิตเข้าสต็อก (ฟอร์ม วันที่โอนผลผลิต, BR-005): ช่วงวันที่ → "โอน" makes the production entries of every แผนก in the range again (delete and make):
+   running the same range twice is the same as once. The stock gets จำนวนรวม (ดี + เสีย). A range that holds production a ตัดสต็อก already carried over is warned
+   about, not stopped. One person at a time. *@
+<PageTitle>โอนผลผลิตเข้าสต็อกสินค้า — LOCKTE</PageTitle>
+<h1 class="mb-4">โอนผลผลิตเข้าสต็อกสินค้า</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Row="true" Spacing="2">
+        <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+    </MudStack>
+    <MudText Typo="Typo.body2" Class="mt-3">ทำใหม่ทั้งช่วง: ลบรายการผลผลิตของช่วงนี้ในสต็อกแล้วสร้างใหม่จากใบรายงานผลผลิตของทุกแผนก (จำนวนรวม = ดี + เสีย)</MudText>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    @if (result is { } r)
+    {
+        @if (r.Busy)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">มีผู้อื่นกำลังโอนผลผลิตอยู่ ลองใหม่อีกครั้งในอีกสักครู่</MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mt-3">
+                โอนแล้ว @r.Reports ใบรายงาน · สร้างรายการสต็อก @r.Entries รายการ@(r.LinesWithoutProduct > 0 ? $" · ข้ามบรรทัดที่ไม่มีสินค้า {r.LinesWithoutProduct} บรรทัด" : "")
+            </MudAlert>
+            @if (r.OverlapsClosedPeriod)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">
+                    ช่วงนี้ทับงวดที่ตัดสต็อกไปแล้ว: มีรายการผลผลิตที่ปิดงวดแล้ว @r.ClosedEntriesInRange รายการ (ไม่ถูกลบ) — ผลผลิตของช่วงนี้อาจนับซ้ำกับยอดยกมา ตรวจก่อนใช้ยอดคงเหลือ
+                </MudAlert>
+            }
+        }
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="TransferAsync" Disabled="@(busy || Problem is not null)" StartIcon="@Icons.Material.Filled.MoveDown">โอน</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(4)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? to = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1).AddDays(-1);
+    private StockTransferResult? result;
+    private bool busy;
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    private async Task TransferAsync()
+    {
+        busy = true;
+        try
+        {
+            var (f, t) = (DateOnly.FromDateTime(from!.Value), DateOnly.FromDateTime(to!.Value));
+            result = await Services.RunAsync<StockRegistry, StockTransferResult>(r => r.TransferProductionAsync(f, t));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}
