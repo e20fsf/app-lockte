@@ -1,0 +1,43 @@
+@* RPT-18 รายงานใบเบิก, ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ …, a group per slip — head "เลขที่ … วันที่ … พนักงาน …" — then (ลำดับ) รหัสสินค้า, ชื่อสินค้า, จำนวนเบิก + หน่วย,
+   "รวมทั้งหมด" per unit (D-11) at the end. The quantity is what was taken out, shown positive (the ledger keeps it negative). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:8%" /><col style="width:18%" /><col style="width:46%" /><col style="width:16%" /><col style="width:12%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="num">จำนวนเบิก</th><th>หน่วย</th></tr></thead>
+        <tbody>
+            @foreach (var slip in Report.Slips)
+            {
+                <tr><td colspan="5"><b>เลขที่ @slip.DocumentNo&emsp;วันที่ @(slip.Date is { } date ? ReportText.Date(date) : "-")@(slip.Employee is null ? "" : $"  พนักงาน {slip.Employee}")</b></td></tr>
+                @foreach (var line in slip.Lines)
+                {
+                    <tr>
+                        <td class="num">@line.LineNo</td>
+                        <td>@line.ProductCode</td>
+                        <td>@line.ProductName</td>
+                        <td class="num">@OrderReports.Qty(line.Quantity)</td>
+                        <td>@line.Unit</td>
+                    </tr>
+                }
+            }
+            @foreach (var total in OrderReports.UnitTotals(Report.Slips.SelectMany(s => s.Lines).Select(l => (l.Unit, l.Quantity))))
+            {
+                <tr class="total">
+                    <td></td><td></td><td><b>รวมทั้งหมด @Report.Slips.Count ใบ</b></td>
+                    <td class="num"><b>@OrderReports.Qty(total.Quantity)</b></td>
+                    <td><b>@total.Unit</b></td>
+                </tr>
+            }
+            <tr><td colspan="5" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public WithdrawalReport Report { get; set; } = null!;
+}

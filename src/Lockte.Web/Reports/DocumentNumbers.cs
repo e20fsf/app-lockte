@@ -52,10 +52,19 @@ public static class DocumentKeys
     public const string MoldRegister = "RPT-21-M";
     /// <summary>RPT-01 ใบ SALE ORDER (#110).</summary>
     public const string SaleOrder = "RPT-01-O";
+    /// <summary>RPT-05 DELIVERY SCHEDULE (#136).</summary>
+    public const string DeliverySchedule = "RPT-05";
+    /// <summary>RPT-07 ใบรายงานการส่งสินค้า (#136).</summary>
+    public const string DeliveryReport = "RPT-07";
+    /// <summary>รายงานการตรวจสอบสินค้าที่จัดส่งให้ลูกค้า (WI-QA033, #136).</summary>
+    public const string ShippingInspection = "RPT-07-Q";
+    /// <summary>RPT-08 รายงานส่งผู้จัดการโรงงาน (#136).</summary>
+    public const string ManagerDelivery = "RPT-08-M";
 
     public static IReadOnlyList<string> All { get; } =
     [
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
         InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2, MoldRegister, SaleOrder,
+        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery,
     ];
 }

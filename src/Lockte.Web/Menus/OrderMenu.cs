@@ -38,7 +38,7 @@ public static class OrderMenu
             new("รับ ORDER และพิมพ์สรุปการรับ", SubMenu: 17),
             new("แก้ไข, ลบ ORDER และเขตการขาย", SubMenu: 9), // แก้ไข,ลบ ORDERและเซล
             new("ยอดค้างส่ง", SubMenu: 13), // ORDER ค้างส่ง
-            new("กำหนดส่ง (พิมพ์รายงานให้สโตร์)", Code: "RPT-05"),
+            new("กำหนดส่ง (พิมพ์รายงานให้สโตร์)", Code: "RPT-05", Page: "order/delivery-reports/schedule"),
             new("บันทึกการส่งของ", Code: "SCR-08", Page: "order/deliveries/record"), // บันทึกการส่งออก
             new("รายงานการส่งของ", SubMenu: 5), // รายงานการส่งออก
             new("แก้ไขรายการส่งของ", SubMenu: 10), // แก้ไขรายการส่งออก
@@ -72,12 +72,12 @@ public static class OrderMenu
         ]),
         new(5, "รายงานการส่งของ", 2, // รายงานการส่งออก
         [
-            new("การส่งของตามวันที่กำหนด", Code: "RPT-07"), // ส่งออกตามวันที่กำหนด
+            new("การส่งของตามวันที่กำหนด", Code: "RPT-07", Page: "order/delivery-reports/deliveries"), // ส่งออกตามวันที่กำหนด
             new("การส่งของตามลูกค้าและเขตการขาย", Code: "RPT-08-1"), // ส่งออกตามลูกค้าและSALE
             new("การส่งของตามสินค้า", Code: "RPT-08-2"), // ส่งออกตามสินค้า
             new("การส่งของตามชนิดสินค้า", Code: "RPT-08-3"), // ส่งออกตามชนิดสินค้า
             new("สรุปการส่งของตามลูกค้า", Code: "RPT-08-4"), // สรุปการส่งออกตามลูกค้า
-            new("รายงานส่งผู้จัดการโรงงาน", Code: "RPT-08-5"),
+            new("รายงานส่งผู้จัดการโรงงาน", Code: "RPT-08-5", Page: "order/delivery-reports/manager"),
             new("รายงานการส่งของตามจังหวัด", Code: "RPT-08-6"), // รายงานส่งออกตามจังหวัด
         ]),
         new(10, "แก้ไขรายการส่งของ", 2, // แก้ไขรายการส่งออก
@@ -93,7 +93,7 @@ public static class OrderMenu
             // (#103) to follow screens.md and #121: เมนู 11.
             new("แก้ไขผลผลิต", SubMenu: 11),
             new("รายงานผลผลิตและพิมพ์ใบโอน", Code: "RPT-10"),
-            new("เบิกเพื่อผลิต, แก้ไขใบเบิกงานระหว่างผลิตและพิมพ์รายงาน", Code: "SCR-13"), // เบิกเพื่อผลิต,แก้ไขใบเบิกและพิมพ์รายงาน
+            new("เบิกเพื่อผลิต, แก้ไขใบเบิกงานระหว่างผลิตและพิมพ์รายงาน", Code: "SCR-13", Page: "order/stock/withdrawals"), // เบิกเพื่อผลิต,แก้ไขใบเบิกและพิมพ์รายงาน
             new("สต็อกสินค้าคงเหลือและโอนผลผลิต", SubMenu: 4), // STOCK คงเหลือโอนผลผลิตและNCR (NCR left out)
             new("ตัดสต็อกสินค้าสิ้นเดือน", SubMenu: 16), // ตัดSTOCKสิ้นเดือน
             new("เพิ่มและแก้ไขสต็อกสินค้า", Code: "SCR-14", Page: "order/stock/entries"), // เพิ่มและแก้ไขSTOCK
@@ -110,8 +110,8 @@ public static class OrderMenu
         ]),
         new(11, "แก้ไขผลผลิต", 3,
         [
-            new("แก้ไขตามเลขที่ใบรายงาน", Code: "SCR-11-1"),
-            new("แก้ไขตามวันที่", Code: "SCR-11-2"),
+            new("แก้ไขตามเลขที่ใบรายงาน", Code: "SCR-11-1", Page: "order/production/edit/number"),
+            new("แก้ไขตามวันที่", Code: "SCR-11-2", Page: "order/production/edit/date"),
         ]),
         new(4, "สต็อกสินค้าคงเหลือ", 3, // STOCK คงเหลือ
         [
@@ -137,7 +137,7 @@ public static class OrderMenu
         [
             new("ผลผลิต", SubMenu: 14),
             new("แม่พิมพ์", Code: "RPT-20"),
-            new("สินค้าที่ส่งของ", Code: "RPT-07-1"), // สินค้าส่งออก (the same form as เมนู 5 "ส่งออกตามวันที่กำหนด")
+            new("สินค้าที่ส่งของ", Code: "RPT-07-1", Page: "order/delivery-reports/deliveries"), // สินค้าส่งออก (the same form as เมนู 5 "ส่งออกตามวันที่กำหนด")
         ]),
         new(14, "QA ผลผลิต", 15, // QA
         [
