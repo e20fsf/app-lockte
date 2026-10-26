@@ -76,12 +76,12 @@ public sealed class SalesOrderDirectory(SalesDbContext db, IProductLookup? produ
     {
         var number = search.OrderNo?.Trim();
         var query = db.SalesOrders.AsNoTracking().Where(o => search.Side == OrderSide.Outstanding
-            ? o.Lines.Any(l => l.OutstandingQuantity > 0) : o.Lines.Any(l => l.ReceivedQuantity != null));
+            ? o.Lines.Any(l => l.OutstandingQuantity != 0) : o.Lines.Any(l => l.ReceivedQuantity != null));
         if (!string.IsNullOrEmpty(number)) query = query.Where(o => o.OrderNo.Contains(number));
         if (search.Date is { } date) query = query.Where(o => o.OrderDate == date);
         if (search.CustomerId is { } customer) query = query.Where(o => o.CustomerId == customer);
         return await query.OrderBy(o => o.OrderNo).Take(max).Select(o => new SalesOrderListItem(o.Id, o.OrderNo, o.OrderDate, o.Customer.Code, o.CustomerName,
-            search.Side == OrderSide.Outstanding ? o.Lines.Count(l => l.OutstandingQuantity > 0) : o.Lines.Count(l => l.ReceivedQuantity != null),
+            search.Side == OrderSide.Outstanding ? o.Lines.Count(l => l.OutstandingQuantity != 0) : o.Lines.Count(l => l.ReceivedQuantity != null),
             search.Side == OrderSide.Outstanding ? o.Lines.Sum(l => l.OutstandingAmount ?? 0) : o.Lines.Sum(l => l.ReceivedAmount ?? 0))).ToListAsync();
     }
 

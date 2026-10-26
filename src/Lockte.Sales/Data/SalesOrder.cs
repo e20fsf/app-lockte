@@ -65,6 +65,16 @@ internal sealed class SalesOrderLine : IAudited
     public decimal OutstandingQuantity { get; set; }
     public decimal? OutstandingAmount { get; set; }
 
+    // การส่งที่กรอกไว้แต่ยังไม่กด "บันทึก" (SCR-08: DL_DATE … DISC_PS of T-ODD): kept as soon as typed, processed by the
+    // button for every line that has a PendingQuantity (BR-003), then cleared.
+    public DateOnly? PendingDeliveryDate { get; set; }
+    public string? PendingInvoiceNo { get; set; }
+    public int? PendingInvoiceLine { get; set; }
+    public decimal? PendingQuantity { get; set; }
+    public decimal? PendingAmount { get; set; }
+    public string? PendingLot { get; set; }
+    public decimal? PendingBoxes { get; set; }
+
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
     public string UpdatedBy { get; set; } = "";

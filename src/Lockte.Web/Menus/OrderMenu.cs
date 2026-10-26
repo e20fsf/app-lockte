@@ -39,7 +39,7 @@ public static class OrderMenu
             new("แก้ไข, ลบ ORDER และเขตการขาย", SubMenu: 9), // แก้ไข,ลบ ORDERและเซล
             new("ยอดค้างส่ง", SubMenu: 13), // ORDER ค้างส่ง
             new("กำหนดส่ง (พิมพ์รายงานให้สโตร์)", Code: "RPT-05"),
-            new("บันทึกการส่งของ", Code: "SCR-08"), // บันทึกการส่งออก
+            new("บันทึกการส่งของ", Code: "SCR-08", Page: "order/deliveries/record"), // บันทึกการส่งออก
             new("รายงานการส่งของ", SubMenu: 5), // รายงานการส่งออก
             new("แก้ไขรายการส่งของ", SubMenu: 10), // แก้ไขรายการส่งออก
         ]),
@@ -82,9 +82,9 @@ public static class OrderMenu
         ]),
         new(10, "แก้ไขรายการส่งของ", 2, // แก้ไขรายการส่งออก
         [
-            new("แก้ไขตามเลขที่บิล", Code: "SCR-09-1"),
-            new("แก้ไขตามเลขที่ใบ ORDER", Code: "SCR-09-2"),
-            new("แก้ไขตามวันที่", Code: "SCR-09-3"),
+            new("แก้ไขตามเลขที่บิล", Code: "SCR-09-1", Page: "order/deliveries/edit/invoice"),
+            new("แก้ไขตามเลขที่ใบ ORDER", Code: "SCR-09-2", Page: "order/deliveries/edit/order"),
+            new("แก้ไขตามวันที่", Code: "SCR-09-3", Page: "order/deliveries/edit/date"),
         ]),
         new(3, "ผลผลิต", 1,
         [
