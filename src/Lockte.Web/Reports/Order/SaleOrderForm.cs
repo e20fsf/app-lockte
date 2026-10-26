@@ -94,7 +94,7 @@ public static class SaleOrderForm
         page.Text(10.7, 24.9, "เลขที่", 16);
         page.Text(21.7, 24.5, order.OrderNo, 19.9, bold: true, fit: 40);
         page.Text(165.1, 24.9, "วันที่", 16);
-        page.Text(172.8, 24.9, ThaiDate.Format(order.OrderDate), 16, fit: 17);
+        page.Text(172.8, 24.9, ThaiDate.Format(order.OrderDate), 16, fit: 17.5);
         page.Line(172.78, 25.24, 189.61, 25.24, 0.41);
 
         page.Text(10.8, 32.9, "รหัสลูกค้า", 16).Text(27.6, 32.9, order.CustomerCode, 16, fit: 46.27 - 27.6);

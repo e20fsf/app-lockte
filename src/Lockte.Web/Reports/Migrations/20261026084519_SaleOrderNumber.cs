@@ -14,7 +14,7 @@ namespace Lockte.Web.Reports.Migrations
             migrationBuilder.Sql("""
                 INSERT INTO report.DocumentNumbers ([Key], Name, Code, Edition, CreatedBy, CreatedAt, UpdatedBy, UpdatedAt)
                 SELECT v.[Key], v.Name, v.Code, v.Edition, 'system', SYSDATETIMEOFFSET(), 'system', SYSDATETIMEOFFSET()
-                FROM (VALUES (N'RPT-01', N'ใบ SALE ORDER', N'PC-SA001-1/2547', N' ฉบับที่ 2')) AS v([Key], Name, Code, Edition)
+                FROM (VALUES (N'RPT-01-O', N'ใบ SALE ORDER', N'PC-SA001-1/2547', N' ฉบับที่ 2')) AS v([Key], Name, Code, Edition)
                 WHERE NOT EXISTS (SELECT 1 FROM report.DocumentNumbers d WHERE d.[Key] = v.[Key]);
                 """);
         }
@@ -22,7 +22,7 @@ namespace Lockte.Web.Reports.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("DELETE FROM report.DocumentNumbers WHERE [Key] = N'RPT-01';");
+            migrationBuilder.Sql("DELETE FROM report.DocumentNumbers WHERE [Key] = N'RPT-01-O';");
         }
     }
 }

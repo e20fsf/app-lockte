@@ -51,7 +51,7 @@ public static class DocumentKeys
     /// <summary>RPT-21 ทะเบียนแม่พิมพ์ of ผลผลิตและORDER (#137): the only list of that program with a number.</summary>
     public const string MoldRegister = "RPT-21-M";
     /// <summary>RPT-01 ใบ SALE ORDER (#110).</summary>
-    public const string SaleOrder = "RPT-01";
+    public const string SaleOrder = "RPT-01-O";
 
     public static IReadOnlyList<string> All { get; } =
     [

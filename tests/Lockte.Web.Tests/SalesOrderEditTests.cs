@@ -258,3 +258,52 @@ public sealed class SalesOrderEditTests(LocalDbFixture db)
         });
     }
 }
+
+/// <summary>The data of the printed ใบ SALE ORDER (RPT-01, #110): the ค้างส่ง values only, in line order (⚠ RPT-01: printed from T-ODD).</summary>
+[Collection(LocalDbCollection.Name)]
+public sealed class SaleOrderPrintDataTests(LocalDbFixture db)
+{
+    private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+    private async Task<T> AsAsync<T>(Func<TestScope, Task<T>> action)
+    {
+        await using var scope = db.Scope("sales1");
+        return await action(scope);
+    }
+
+    private async Task<int> SavedAsync(Task<Lockte.SharedKernel.ServiceResult> save)
+    {
+        var result = await save;
+        Assert.True(result.Succeeded, string.Join(" ", result.Errors));
+        return result.Id!.Value;
+    }
+
+    [Fact]
+    public async Task The_print_has_the_backorder_lines_with_their_values_and_nothing_for_an_order_delivered_in_full()
+    {
+        var code = "P" + Guid.NewGuid().ToString("N")[..3].ToUpperInvariant();
+        var territory = await AsAsync(s => SavedAsync(s.Get<SalesTerritoryRegistry>().SaveAsync(new SalesTerritoryInput(null, code, "เขตพิมพ์", null, null))));
+        var customer = await AsAsync(s => SavedAsync(s.Get<CustomerRegistry>().SaveAsync(new CustomerInput(null, Unique("95-"), "ร้านพิมพ์ ORDER", null, SalesTerritoryId: territory))));
+        var p1 = await AsAsync(s => SavedAsync(s.Get<ProductRegistry>().SaveAsync(new ProductInput(null, Unique("ZP"), "สินค้า พิมพ์ ก", null, Unit: "คู่"))));
+        var p2 = await AsAsync(s => SavedAsync(s.Get<ProductRegistry>().SaveAsync(new ProductInput(null, Unique("ZP"), "สินค้า พิมพ์ ข", null, Unit: "ชิ้น"))));
+        var number = $"{code}-69-0001";
+        var saved = await AsAsync(s => s.Get<SalesOrderRegistry>().CreateAsync(new SalesOrderInput(number, new DateOnly(2026, 10, 17), customer, null, territory, null, "30", "หมายเหตุพิมพ์",
+            [new SalesOrderLineInput(p1, 50, 65m), new SalesOrderLineInput(p2, 10, 2.5m)]), OrderEntryMode.Print));
+        var order = (await AsAsync(s => s.Get<SalesOrderDirectory>().GetAsync(saved.Id!.Value)))!;
+
+        var print = (await AsAsync(s => s.Get<SalesOrderDirectory>().GetPrintAsync(order.Id)))!;
+        Assert.Equal((number, "30", code, "หมายเหตุพิมพ์", 3275m), (print.OrderNo, print.PaymentTerms, print.SalesTerritoryCode, print.Remark, print.Total));
+        Assert.Equal([(1, "คู่", 50m, 3250m), (2, "ชิ้น", 10m, 25m)], print.Lines.Select(l => (l.LineNo, l.Unit, l.Quantity, l.Amount)));
+
+        // one line delivered in full (its ค้างส่ง closed): it is not on the sheet, the history still has it
+        await AsAsync(s => SavedAsync(s.Get<SalesOrderEditor>().DeleteLineAsync(order.Id, order.Lines[0].Id, OrderSide.Outstanding, order.Lines[0].RowVersion)));
+        var after = (await AsAsync(s => s.Get<SalesOrderDirectory>().GetPrintAsync(order.Id)))!;
+        Assert.Equal([2], after.Lines.Select(l => l.LineNo));
+        Assert.Equal(25m, after.Total);
+
+        var closed = (await AsAsync(s => s.Get<SalesOrderDirectory>().GetAsync(order.Id)))!;
+        await AsAsync(s => SavedAsync(s.Get<SalesOrderEditor>().DeleteOrderAsync(order.Id, OrderSide.Outstanding, closed.RowVersion)));
+        Assert.Null(await AsAsync(s => s.Get<SalesOrderDirectory>().GetPrintAsync(order.Id)));
+        Assert.Null(await AsAsync(s => s.Get<SalesOrderDirectory>().GetPrintAsync(int.MaxValue)));
+    }
+}

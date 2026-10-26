@@ -24,6 +24,17 @@ public sealed class SaleOrderFormTests
                 double.Parse(m.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture), System.Net.WebUtility.HtmlDecode(m.Groups[3].Value)))
             .ToList();
 
+    /// <summary>The rules (SVG lines) of a page as x1, y1, x2, y2.</summary>
+    private static List<(double X1, double Y1, double X2, double Y2)> Rules(FormPage page)
+        => Regex.Matches(page.ToSvg(), "<line x1=\"([\\d.]+)\" y1=\"([\\d.]+)\" x2=\"([\\d.]+)\" y2=\"([\\d.]+)\"")
+            .Select(m => (D(m.Groups[1].Value), D(m.Groups[2].Value), D(m.Groups[3].Value), D(m.Groups[4].Value))).ToList();
+
+    private static double D(string text) => double.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+
+    private static bool Horizontal(FormPage page, double y) => Rules(page).Any(r => Math.Abs(r.Y1 - y) < 0.02 && Math.Abs(r.Y2 - y) < 0.02 && r.X1 < 12 && r.X2 > 191);
+
+    private static bool Vertical(FormPage page, double x) => Rules(page).Any(r => Math.Abs(r.X1 - x) < 0.02 && Math.Abs(r.X2 - x) < 0.02);
+
     private static string TextAt(FormPage page, double x, double y)
         => Assert.Single(Texts(page), t => Math.Abs(t.X - x) < 0.01 && Math.Abs(t.Y - y) < 0.01).Text;
 
@@ -51,12 +62,13 @@ public sealed class SaleOrderFormTests
     [Fact] // the rules: the table's frame and the total box with its double rule, as measured
     public void The_table_frame_and_the_total_box_are_where_the_legacy_rules_are()
     {
-        var svg = SaleOrderForm.Layout(Order(1), DocumentNumber)[0].ToSvg();
+        var page = SaleOrderForm.Layout(Order(1), DocumentNumber)[0];
 
-        foreach (var rule in new[] { "y1=\"37.28\"", "y1=\"45.27\"", "y1=\"51.74\"", "x1=\"11.44\"", "x1=\"20.4\"", "x1=\"38.29\"", "x1=\"107.86\"", "x1=\"128.76\"", "x1=\"140.67\"", "x1=\"160.54\"", "x1=\"191.41\"" })
-            Assert.Contains(rule, svg);
-        Assert.Contains("y1=\"58.16\"", svg); // the double rule under the total
-        Assert.Contains("y1=\"58.97\"", svg);
+        foreach (var y in new[] { 37.275, 45.265, 51.735 }) Assert.True(Horizontal(page, y), $"rule at y={y}");
+        foreach (var x in new[] { 11.44, 20.40, 38.285, 107.86, 128.755, 140.67, 160.54, 191.405 }) Assert.True(Vertical(page, x), $"rule at x={x}");
+        // the double rule under the total, over the amount column only
+        Assert.Contains(Rules(page), r => Math.Abs(r.Y1 - 58.16) < 0.02 && Math.Abs(r.X1 - 160.54) < 0.02 && Math.Abs(r.X2 - 191.405) < 0.02);
+        Assert.Contains(Rules(page), r => Math.Abs(r.Y1 - 58.965) < 0.02 && Math.Abs(r.X1 - 160.54) < 0.02 && Math.Abs(r.X2 - 191.405) < 0.02);
     }
 
     [Fact] // lines of a longer order follow at the row pitch, and the total sits under the last of them
@@ -81,7 +93,7 @@ public sealed class SaleOrderFormTests
         Assert.Contains(Texts(pages[1]), t => t.Text == "รวมทั้งหมด");
         Assert.Contains(Texts(pages[1]), t => t.Text == "ผู้เสนอ");
         Assert.Equal((SaleOrderForm.RowsPerPage + 3) * 3250m, Order(SaleOrderForm.RowsPerPage + 3).Total);
-        Assert.Equal("45,500.00", Texts(pages[1]).Single(t => t.Text.Contains(',') && t.Text.EndsWith(".00") && t.X == 189.3 && t.Y > 60).Text);
+        Assert.Equal("45,500.00", Texts(pages[1]).Where(t => t.X == 189.3 && t.Text.EndsWith(".00")).MaxBy(t => t.Y).Text); // the total is the lowest amount
     }
 
     [Fact] // D-1: a long name or remark is squeezed into its line, not cut — and the page text keeps the whole of it
@@ -114,7 +126,8 @@ public sealed class SaleOrderFormTests
         Assert.Contains("ผู้อนุมัติ", texts);
         Assert.Contains("*หมายเหตุ", texts);
         Assert.DoesNotContain("รวมทั้งหมด", texts);
-        Assert.Equal(11, Regex.Matches(page.ToSvg(), "<line x1=\"11.44\" y1=\"[\\d.]+\" x2=\"191.41\"").Count - 2); // the rules under 11 rows (the other two: the top and the heading's)
+        // the rules under the 11 rows, and the table's top and heading rule
+        Assert.Equal(11 + 2, Rules(page).Count(r => Math.Abs(r.Y1 - r.Y2) < 0.001 && Math.Abs(r.X1 - 11.44) < 0.02 && r.X2 > 191));
     }
 
     [Fact]
