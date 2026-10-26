@@ -14,7 +14,7 @@ namespace Lockte.Web.Tests;
 [Collection(LocalDbCollection.Name)]
 public sealed class OrderReportTests(LocalDbFixture db)
 {
-    private static int counter = Random.Shared.Next(0x1000);
+    private static int counter = Random.Shared.Next(0x100, 0x700);
 
     private static string TerritoryCode() => "R" + Interlocked.Increment(ref counter).ToString("X3");
 

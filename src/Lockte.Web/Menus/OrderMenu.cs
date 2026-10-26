@@ -73,10 +73,10 @@ public static class OrderMenu
         new(5, "รายงานการส่งของ", 2, // รายงานการส่งออก
         [
             new("การส่งของตามวันที่กำหนด", Code: "RPT-07", Page: "order/delivery-reports/deliveries"), // ส่งออกตามวันที่กำหนด
-            new("การส่งของตามลูกค้าและเขตการขาย", Code: "RPT-08-1"), // ส่งออกตามลูกค้าและSALE
-            new("การส่งของตามสินค้า", Code: "RPT-08-2"), // ส่งออกตามสินค้า
+            new("การส่งของตามลูกค้าและเขตการขาย", Code: "RPT-08-1", Page: "order/export-reports/customer-detail"), // ส่งออกตามลูกค้าและSALE
+            new("การส่งของตามสินค้า", Code: "RPT-08-2", Page: "order/export-reports/product-summary"), // ส่งออกตามสินค้า
             new("การส่งของตามชนิดสินค้า", Code: "RPT-08-3"), // ส่งออกตามชนิดสินค้า
-            new("สรุปการส่งของตามลูกค้า", Code: "RPT-08-4"), // สรุปการส่งออกตามลูกค้า
+            new("สรุปการส่งของตามลูกค้า", Code: "RPT-08-4", Page: "order/export-reports/customer-summary"), // สรุปการส่งออกตามลูกค้า
             new("รายงานส่งผู้จัดการโรงงาน", Code: "RPT-08-5", Page: "order/delivery-reports/manager"),
             new("รายงานการส่งของตามจังหวัด", Code: "RPT-08-6"), // รายงานส่งออกตามจังหวัด
         ]),
@@ -110,13 +110,13 @@ public static class OrderMenu
         ]),
         new(11, "แก้ไขผลผลิต", 3,
         [
-            new("แก้ไขตามเลขที่ใบรายงาน", Code: "SCR-11-1"),
-            new("แก้ไขตามวันที่", Code: "SCR-11-2"),
+            new("แก้ไขตามเลขที่ใบรายงาน", Code: "SCR-11-1", Page: "order/production/edit/number"),
+            new("แก้ไขตามวันที่", Code: "SCR-11-2", Page: "order/production/edit/date"),
         ]),
         new(4, "สต็อกสินค้าคงเหลือ", 3, // STOCK คงเหลือ
         [
-            new("สต็อกสินค้าตามรหัสสินค้า", Code: "RPT-12"), // STOCK ตามรหัสสินค้า
-            new("สต็อกสินค้าตามกลุ่มสินค้า", Code: "RPT-11"), // STOCK กลุ่มสินค้า
+            new("สต็อกสินค้าตามรหัสสินค้า", Code: "RPT-12", Page: "order/stock/reports/card"), // STOCK ตามรหัสสินค้า
+            new("สต็อกสินค้าตามกลุ่มสินค้า", Code: "RPT-11", Page: "order/stock/reports/group"), // STOCK กลุ่มสินค้า
             new("โอนผลผลิตเข้าสต็อกสินค้า", Code: "SCR-16", Page: "order/stock/transfer"), // โอนผลผลิตเข้าSTOCK
             new("พิมพ์สรุปสต็อกสินค้า", Code: "RPT-14"), // พิมพ์สรุปSTOCK
         ]),
@@ -129,8 +129,8 @@ public static class OrderMenu
         [
             new("เพิ่มรหัสแม่พิมพ์", Code: "SCR-17-1", Page: "order/molds/new"),
             new("แก้ไขและพิมพ์รหัสแม่พิมพ์", Code: "SCR-17-2", Page: "order/molds"),
-            new("ตัดยอดแม่พิมพ์", Code: "SCR-18"), // ตัดSTOCKแม่พิมพ์
-            new("รายงานยอดแม่พิมพ์", Code: "RPT-15"), // รายงานSTOCKแม่พิมพ์
+            new("ตัดยอดแม่พิมพ์", Code: "SCR-18", Page: "order/molds/cut"), // ตัดSTOCKแม่พิมพ์
+            new("รายงานยอดแม่พิมพ์", Code: "RPT-15", Page: "order/molds/usage-report"), // รายงานSTOCKแม่พิมพ์
             new("รหัสเครื่องจักร", Code: "SCR-19", Page: "order/machines"),
         ]),
         new(15, "QA พิมพ์รายงานการตรวจสอบ", 1, // QA1
