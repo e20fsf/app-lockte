@@ -53,10 +53,10 @@ public static class OrderMenu
         ]),
         new(9, "แก้ไขและลบ ORDER", 2,
         [
-            new("เลือกตามเลขที่ ORDER", Code: "SCR-06-1"),
-            new("เลือกตามวันที่ ORDER", Code: "SCR-06-2"),
-            new("เลือกตามรหัสลูกค้า", Code: "SCR-06-3"),
-            new("แก้ไข ORDER ที่เขตการขายรับมาทั้งหมด", Code: "SCR-06-4"), // แก้ไข ORDER ที่เซลรับมาทั้งหมด
+            new("เลือกตามเลขที่ ORDER", Code: "SCR-06-1", Page: "order/orders/edit/number"),
+            new("เลือกตามวันที่ ORDER", Code: "SCR-06-2", Page: "order/orders/edit/date"),
+            new("เลือกตามรหัสลูกค้า", Code: "SCR-06-3", Page: "order/orders/edit/customer"),
+            new("แก้ไข ORDER ที่เขตการขายรับมาทั้งหมด", Code: "SCR-06-4", Page: "order/orders/edit/history"), // แก้ไข ORDER ที่เซลรับมาทั้งหมด
             new("เพิ่มเขตการขาย", Code: "SCR-07-1", Page: "order/territories/new"), // เพิ่มรายชื่อเซล
             new("แก้ไขและลบเขตการขาย", Code: "SCR-07-2", Page: "order/territories"), // แก้ไขและลบรายชื่อเซล
         ]),

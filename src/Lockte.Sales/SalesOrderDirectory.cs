@@ -68,6 +68,23 @@ public sealed class SalesOrderDirectory(SalesDbContext db, IProductLookup? produ
         return await Query().FirstOrDefaultAsync(o => o.OrderNo == number) is { } order ? await ToDtoAsync(order) : null;
     }
 
+    /// <summary>
+    /// The orders SCR-06 offers to edit: the ones with a ค้างส่ง line (ODD2/ODD4/ODD6) or in the history (ODD8), found by
+    /// part of the number, the date or the customer; by number. <see cref="SalesOrderListItem.Amount"/> is the total of the side.
+    /// </summary>
+    public async Task<IReadOnlyList<SalesOrderListItem>> SearchAsync(SalesOrderSearch search, int max = 200)
+    {
+        var number = search.OrderNo?.Trim();
+        var query = db.SalesOrders.AsNoTracking().Where(o => search.Side == OrderSide.Outstanding
+            ? o.Lines.Any(l => l.OutstandingQuantity > 0) : o.Lines.Any(l => l.ReceivedQuantity != null));
+        if (!string.IsNullOrEmpty(number)) query = query.Where(o => o.OrderNo.Contains(number));
+        if (search.Date is { } date) query = query.Where(o => o.OrderDate == date);
+        if (search.CustomerId is { } customer) query = query.Where(o => o.CustomerId == customer);
+        return await query.OrderBy(o => o.OrderNo).Take(max).Select(o => new SalesOrderListItem(o.Id, o.OrderNo, o.OrderDate, o.Customer.Code, o.CustomerName,
+            search.Side == OrderSide.Outstanding ? o.Lines.Count(l => l.OutstandingQuantity > 0) : o.Lines.Count(l => l.ReceivedQuantity != null),
+            search.Side == OrderSide.Outstanding ? o.Lines.Sum(l => l.OutstandingAmount ?? 0) : o.Lines.Sum(l => l.ReceivedAmount ?? 0))).ToListAsync();
+    }
+
     public async Task<bool> NumberExistsAsync(string orderNo) => await db.SalesOrders.AnyAsync(o => o.OrderNo == orderNo.Trim());
 
     /// <summary>The head's starting values for a customer (BR-002); null when there is no such customer.</summary>
