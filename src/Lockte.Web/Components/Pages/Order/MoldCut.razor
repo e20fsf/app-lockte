@@ -1,0 +1,128 @@
+@page "/order/molds/cut"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject ProtectedLocalStorage Storage
+
+@* SCR-18 ตัดยอดแม่พิมพ์ (ฟอร์ม วันที่ตัดพิมพ์ / วันที่ตัดพิมพ์ซ้ำ, BR-008): ต้นงวด (FROM_DATE) and วันตัด (CUT_DATE); "ตัดยอด" counts the shots of the period from the production lines,
+   keeps the total of every mold in use at the cut date and carries it over as the opening of the next period; "ตัดซ้ำ" also needs the previous cut date (TO_DATE) to start
+   again from. The dates are remembered in this browser (BR-022), and a confirmation is asked before the cut (ข้อสมมติ ซ). *@
+<PageTitle>ตัดยอดแม่พิมพ์ — LOCKTE</PageTitle>
+<h1 class="mb-4">ตัดยอดแม่พิมพ์</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:52rem">
+    <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ต้นงวด (ตั้งแต่วันที่)" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <MudDatePicker Editable="true" @bind-Date="cut" @bind-Date:after="RememberAsync" Label="วันตัดยอด" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <MudSelect T="DateOnly?" @bind-Value="previous" Label="วันตัดงวดก่อน (เฉพาะตัดซ้ำ)" Clearable="true" Style="max-width:18rem">
+            @foreach (var date in cutDates)
+            {
+                <MudSelectItem T="DateOnly?" Value="@((DateOnly?)date)">@ThaiDate.Format(date)</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+    <MudText Typo="Typo.body2" Class="mt-3">นับจากจำนวนดีของบรรทัดผลผลิตที่มีแม่พิมพ์ ÷ ชิ้นต่อช็อต (ปัดลง) เฉพาะแม่พิมพ์ไดคาสท์และอัดผ้าเบรก — แม่พิมพ์ผ้าคลัทช์ยกยอดเดิม ไม่นับเพิ่ม</MudText>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    @if (result is { } r)
+    {
+        @if (r.Busy)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">มีผู้อื่นกำลังตัดยอดอยู่ ลองใหม่อีกครั้งในอีกสักครู่</MudAlert>
+        }
+        else if (r.Error is { } error)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@error</MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mt-3">
+                ตัดยอดแล้ว @r.Molds แม่พิมพ์ · สร้างรายการใช้งาน @r.UsageRows รายการ@(r.LinesWithoutPieces > 0 ? $" · ไม่นับ {r.LinesWithoutPieces} บรรทัดที่แม่พิมพ์ไม่มีชิ้นต่อช็อต" : "")
+            </MudAlert>
+        }
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => CutAsync(false)" Disabled="@(busy || Problem is not null)" StartIcon="@Icons.Material.Filled.ContentCut">ตัดยอด</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="() => CutAsync(true)" Disabled="@(busy || Problem is not null || previous is null)">ตัดซ้ำ</MudButton>
+        <MudButton Href="/order/molds/usage-report" StartIcon="@Icons.Material.Filled.Print">รายงานยอดแม่พิมพ์</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(6)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from;
+    private DateTime? cut;
+    private DateOnly? previous;
+    private IReadOnlyList<DateOnly> cutDates = [];
+    private MoldCutResult? result;
+    private bool busy;
+    private bool loadedMemory;
+
+    private string? Problem
+        => from is null || cut is null ? "กรุณากรอกต้นงวดและวันตัดยอด" : from > cut ? "ต้นงวดต้องไม่หลังวันตัด" : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cutDates = await Services.RunAsync<MoldUsageDirectory, IReadOnlyList<DateOnly>>(d => d.GetCutDatesAsync());
+        var today = DateTime.Today;
+        from = new DateTime(today.Year, today.Month, 1);
+        cut = from.Value.AddMonths(1).AddDays(-1);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("order.mold-cut") is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                cut = saved.Cut?.ToDateTime(TimeOnly.MinValue) ?? cut;
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the month.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("order.mold-cut", new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, cut is { } c ? DateOnly.FromDateTime(c) : null)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private async Task CutAsync(bool again)
+    {
+        var (f, c) = (DateOnly.FromDateTime(from!.Value), DateOnly.FromDateTime(cut!.Value));
+        var text = again
+            ? $"ตัดซ้ำ: ล้างการใช้งานปัจจุบัน ลบยอดสะสมตั้งแต่ {ThaiDate.Format(c)} แล้วเริ่มใหม่จากยอดสะสมของ {ThaiDate.Format(previous!.Value)} — ตัดยอด {ThaiDate.Format(f)} ถึง {ThaiDate.Format(c)}?"
+            : $"ตัดยอดแม่พิมพ์ {ThaiDate.Format(f)} ถึง {ThaiDate.Format(c)}? ยอดถึงวันตัดจะถูกยกมาเป็นยอดยกมาของงวดถัดไป";
+        if (await Dialogs.ShowMessageBoxAsync(again ? "ตัดซ้ำ" : "ตัดยอด", text, yesText: "ตัดยอด", cancelText: "ยกเลิก") != true) return;
+        busy = true;
+        try
+        {
+            var p = previous;
+            result = again
+                ? await Services.RunAsync<MoldUsageRegistry, MoldCutResult>(r => r.RecutAsync(f, c, p!.Value))
+                : await Services.RunAsync<MoldUsageRegistry, MoldCutResult>(r => r.CutAsync(f, c));
+            cutDates = await Services.RunAsync<MoldUsageDirectory, IReadOnlyList<DateOnly>>(d => d.GetCutDatesAsync());
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? Cut);
+}

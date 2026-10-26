@@ -1,0 +1,40 @@
+@* RPT-11 รายการSTOCKคงเหลือ (STOCKแผนก), ระดับ B on A4 ตั้ง: the head names the กลุ่มสินค้า (its code pattern and name) and the date of the balances (D-10 — the legacy head named neither);
+   (ลำดับ) รหัส, ชื่อสินค้า, จำนวน + หน่วย — only the products whose balance is not 0, a negative one printed as it is — and "รวม" per unit with a double line (D-11). A long name wraps (D-1). *@
+<p class="sub">กลุ่มสินค้า @Report.Pattern@(Report.GroupName is { } name ? " " + name : "")&emsp;ยอด ณ วันที่ @ReportText.Date(Report.AsOf)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:8%" /><col style="width:18%" /><col style="width:46%" /><col style="width:16%" /><col style="width:12%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.ProductCode</td>
+                    <td>@line.ProductName</td>
+                    <td class="num">@OrderReports.Qty(line.Quantity)</td>
+                    <td>@line.Unit</td>
+                </tr>
+            }
+            @foreach (var total in OrderReports.UnitTotals(Report.Lines.Select(l => (l.Unit, l.Quantity))))
+            {
+                <tr class="total">
+                    <td></td><td></td><td><b>รวม</b></td>
+                    <td class="num"><b>@OrderReports.Qty(total.Quantity)</b></td>
+                    <td><b>@total.Unit</b></td>
+                </tr>
+            }
+            <tr><td colspan="5" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public StockBalanceReport Report { get; set; } = null!;
+}

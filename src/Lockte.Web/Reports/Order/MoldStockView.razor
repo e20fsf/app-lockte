@@ -1,0 +1,33 @@
+@* RPT-15 STOCKพิมพ์, ระดับ B on A4 ตั้ง: one mold and a range — the head names both (D-10; the legacy named neither); วันที่, จำนวน (ครั้ง), and "รวมทั้งหมด". The row of the opening
+   total carried over at the last cut is marked "ยอดยกมา". *@
+<p class="sub">แม่พิมพ์ @Report.MoldCode @Report.MoldName&emsp;ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="width:70%;margin:0 auto">
+        <colgroup><col style="width:30%" /><col style="width:40%" /><col style="width:30%" /></colgroup>
+        <thead><tr><th>วันที่</th><th></th><th class="num">จำนวน (ครั้ง)</th></tr></thead>
+        <tbody>
+            @foreach (var line in Report.Lines)
+            {
+                <tr>
+                    <td>@ReportText.Date(line.Day)</td>
+                    <td>@(line.IsOpening ? "ยอดยกมา" : "")</td>
+                    <td class="num">@line.Shots.ToString("#,##0")</td>
+                </tr>
+            }
+            <tr class="total">
+                <td><b>รวมทั้งหมด</b></td><td></td>
+                <td class="num"><b>@Report.Total.ToString("#,##0")</b></td>
+            </tr>
+            <tr><td colspan="3" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MoldStockReport Report { get; set; } = null!;
+}
