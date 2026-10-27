@@ -190,7 +190,7 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             t.Property(x => x.AttributeRanges).HasMaxLength(QaSpecRegistry.LongTextLength).HasAuditName("ช่วงคอลัมน์ตำหนิ");
             t.Property(x => x.PageLayout).HasConversion<byte>().HasAuditName("โครงหน้า");
             t.Property(x => x.Paper).HasMaxLength(QaSpecRegistry.CodeLength).HasAuditName("ขนาดกระดาษ");
-            t.HasIndex(x => new { x.Code, x.Revision }).IsUnique();
+            t.HasIndex(x => new { x.Code, x.Revision, x.Name }).IsUnique(); // sheets of different names may share one control number (the seven packing sheets)
         });
 
         modelBuilder.Entity<QaModelSpec>(s =>

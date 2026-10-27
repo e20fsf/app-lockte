@@ -20,13 +20,15 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
 {
     public const string EmployeeProgram = "employee";
     public const string OrderProgram = "order";
+    public const string QaSpecProgram = "qa-spec";
 
     public const string ConnectionVariable = "LOCKTE_MIGRATION_SQL";
 
     public const string Usage = """
         Lockte.Migration --source <พนักงาน.accdb> --connection "<SQL Server connection string>" --confirm <database>
-                         --out <folder> [--map <code-map.csv>] [--program employee|order] [--remove-stock-duplicates yes]
+                         --out <folder> [--map <code-map.csv>] [--program employee|order|qa-spec] [--remove-stock-duplicates yes]
           ลบข้อมูลหลักและประวัติในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
+          --program qa-spec = สกัดสเปคตรวจ QA จากโฟลเดอร์นิยามรายงานที่กู้ไว้ (--source เป็นโฟลเดอร์ reports_decompiled; ผลอยู่ในฐานข้อมูลและ <folder> เท่านั้น ห้าม commit)
           --program order = ย้ายข้อมูลหลักของ ผลผลิตและORDER.accdb (รันหลังย้ายข้อมูลโปรแกรมพนักงานลงฐานข้อมูลเดียวกัน)
           --remove-stock-duplicates yes = ตัดผลผลิตที่นับซ้ำใน P_ST ตาม Q-47 (ค่าเริ่มต้น: ไม่ตัด รายงานจำนวนอย่างเดียว)
           --connection ใช้ env LOCKTE_MIGRATION_SQL แทนได้ · รายงานเขียนลง <folder>
@@ -51,7 +53,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         if (!string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram)) return (null, $"--program ต้องเป็น {EmployeeProgram} หรือ {OrderProgram}");
+        if (program is not (EmployeeProgram or OrderProgram or QaSpecProgram)) return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram} หรือ {QaSpecProgram}");
         return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase)), null);
     }
 }
@@ -67,7 +69,7 @@ public static class MigrationTool
             .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
-            .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>()
+            .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>().AddScoped<QaSpecImport>().AddScoped<QaSpecMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
