@@ -116,4 +116,21 @@ public sealed class ProductionReportMigrationTests(MigrationDbFixture db) : IDis
         var again = (await AsAsync(s => s.Get<ProductionReportDirectory>().FindByNumberAsync("D69001")))!;
         Assert.Equal(3, again.Lines.Count);
     }
+
+    [Fact] // a report with several machines: the one named most often is the report's, and the report says the line-level machines are not kept (decided by the users)
+    public async Task A_report_with_several_machines_is_listed()
+    {
+        var file = Standard();
+        var other = Row("D69003", 1, "G1001", 10, 0);
+        other = [.. other.Where(c => c.Item1 != "MC_NO"), ("MC_NO", "D02")];
+        file.Row("P_REPไดคาสท์", Row("D69003", 2, "G1001", 20, 0));
+        file.Row("P_REPไดคาสท์", Row("D69003", 3, "G1001", 30, 0));
+        file.Row("P_REPไดคาสท์", other);
+
+        var report = await RunAsync(Save(file));
+
+        Assert.Contains(report.Exceptions, e => e.Table == "P_REPไดคาสท์" && e.Key == "D69003" && e.Problem.Contains("หลายเครื่องในใบเดียว") && e.Action == "โหลดโดยใช้เครื่องเดียวของใบ");
+        Assert.Contains(report.Notes, n => n.Contains("หลายเครื่องในใบเดียวกัน") && n.Contains("ไม่เก็บเครื่องระดับบรรทัด"));
+        Assert.True(report.Tables.All(t => t.Balanced));
+    }
 }

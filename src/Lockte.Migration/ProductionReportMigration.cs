@@ -106,7 +106,12 @@ public sealed class ProductionReportMigration(
             var first = ordered[0];
             var dates = ordered.Select(r => CleanDate(r.Source, "DATE", r.Table, r.No)).OfType<DateOnly>().ToList();
             var machineCodes = ordered.Select(r => r.Source.Text("MC_NO")).Where(m => m is not null).GroupBy(m => m!, StringComparer.OrdinalIgnoreCase).OrderByDescending(g => g.Count()).ToList();
-            if (machineCodes.Count > 1) severalMachines++;
+            if (machineCodes.Count > 1)
+            {
+                severalMachines++;
+                // The machine of a line is not kept (the report has one machine, at its head — decided by the users): the machine named most often is the report's. The report lists them.
+                report.Add(first.Table, group.Key.No, Duplicate, $"หลายเครื่องในใบเดียว ({string.Join(", ", machineCodes.Select(g => $"{g.Key} ×{g.Count()}"))}) — ใช้เครื่อง {machineCodes[0].Key} เป็นเครื่องของใบ ข้อมูลเครื่องระดับบรรทัดไม่ถูกเก็บ", "โหลดโดยใช้เครื่องเดียวของใบ");
+            }
             int? machineId = null;
             if (machineCodes.Count > 0)
             {
@@ -196,7 +201,7 @@ public sealed class ProductionReportMigration(
 
     private void Notes(int severalMachines, int duplicateKeys, int fixedTotals, Dictionary<string, int> copyLeft, int copyRows, int sourceRows, int matched)
     {
-        if (severalMachines > 0) report.Notes.Add($"ใบรายงานผลผลิต {severalMachines} ใบมีหลายเครื่องในใบเดียวกัน — ใช้เครื่องที่พบมากสุดเป็นเครื่องของใบ");
+        if (severalMachines > 0) report.Notes.Add($"ใบรายงานผลผลิต {severalMachines} ใบมีหลายเครื่องในใบเดียวกัน — ใช้เครื่องที่พบมากสุดเป็นเครื่องของใบ (ผู้ใช้รับทราบ: ไม่เก็บเครื่องระดับบรรทัด กระทบเป้าตามเครื่องของ BR-020 และตัดยอดแม่พิมพ์) — รายการอยู่ใน dq-exceptions.csv");
         if (duplicateKeys > 0) report.Notes.Add($"ใบรายงานผลผลิต {duplicateKeys} แถวมีเลขที่+ลำดับซ้ำกับแถวอื่นของใบเดียวกัน — เก็บไว้ทุกแถว ให้ลำดับถัดไปที่ว่าง (คีย์เดิมไม่ unique)");
         if (fixedTotals > 0) report.Notes.Add($"ใบรายงานผลผลิต {fixedTotals} แถวที่จำนวนรวมว่างหรือไม่เท่า ดี + เสีย — คำนวณใหม่เป็น ดี + เสีย (AC-21)");
         var unmatchedCopies = copyLeft.Values.Sum();
