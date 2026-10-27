@@ -95,6 +95,7 @@ public static class OrderMenu
             // (#103) to follow screens.md and #121: เมนู 11.
             new("แก้ไขผลผลิต", SubMenu: 11),
             new("รายงานผลผลิตและพิมพ์ใบโอน", Code: "RPT-10", Page: "order/production/print"),
+            new("เปรียบเทียบ Lot การผลิต (ตรวจย้อนกลับ)", Code: "RPT-17", Page: "order/lot-trace"),
             new("เบิกเพื่อผลิต, แก้ไขใบเบิกงานระหว่างผลิตและพิมพ์รายงาน", Code: "SCR-13", Page: "order/stock/withdrawals"), // เบิกเพื่อผลิต,แก้ไขใบเบิกและพิมพ์รายงาน
             new("สต็อกสินค้าคงเหลือและโอนผลผลิต", SubMenu: 4), // STOCK คงเหลือโอนผลผลิตและNCR (NCR left out)
             new("ตัดสต็อกสินค้าสิ้นเดือน", SubMenu: 16), // ตัดSTOCKสิ้นเดือน

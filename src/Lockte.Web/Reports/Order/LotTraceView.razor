@@ -1,0 +1,52 @@
+@* RPT-17 เปรียบเทียบ Lot การผลิต, ระดับ B on A4 นอน: ตั้งแต่วันที่ … ถึงวันที่ … (of the first stage). A band for each department of the chain: the first has วันที่, Lot วัตถุดิบ (LOT_MTR1), รหัส, ชื่อผลผลิต, จำนวนดี, Lot;
+   the others รหัส, ชื่อผลผลิต, จำนวนทั้งหมด, Lot. A stage nobody received the Lot in is blank (the chain goes on from what was found). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="font-size:90%">
+        <thead>
+            <tr>
+                @for (var s = 0; s < Report.Stages.Count; s++)
+                {
+                    <th colspan="@(s == 0 ? 6 : 4)" style="text-align:center;border-bottom:0.5pt solid #000">@Report.Stages[s]</th>
+                }
+            </tr>
+            <tr>
+                <th>วันที่</th><th>Lot วัตถุดิบ</th><th>รหัส</th><th>ชื่อผลผลิต</th><th class="num">จำนวนดี</th><th>Lot</th>
+                @for (var s = 1; s < Report.Stages.Count; s++)
+                {
+                    <th>รหัส</th><th>ชื่อผลผลิต</th><th class="num">จำนวนรวม</th><th>Lot</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Report.Rows)
+            {
+                <tr>
+                    @for (var s = 0; s < Report.Stages.Count; s++)
+                    {
+                        var cell = s < row.Cells.Count ? row.Cells[s] : null;
+                        if (s == 0)
+                        {
+                            <td>@(cell?.Date is { } date ? ReportText.Date(date) : "")</td>
+                            <td>@cell?.MaterialLot</td>
+                        }
+                        <td>@cell?.ProductCode</td>
+                        <td>@cell?.ProductName</td>
+                        <td class="num">@(cell is null ? "" : OrderReports.Qty(cell.Quantity))</td>
+                        <td>@cell?.Lot</td>
+                    }
+                </tr>
+            }
+            <tr><td colspan="@(6 + 4 * (Report.Stages.Count - 1))" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public LotTraceReport Report { get; set; } = null!;
+}
