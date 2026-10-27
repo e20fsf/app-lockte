@@ -255,7 +255,10 @@ public sealed class OrderHistoryMigration(
             position++;
             if (row.Text("REF_NO") is not { } no) { Reject(tally, DeliveryTable, $"(REF_NO ว่าง) แถวที่ {position}", Other, "ไม่มีเลขที่ ORDER"); continue; }
             var key = $"{no} แถวที่ {position}";
-            if (Int(row, "SUF_NO") is not { } line) { Reject(tally, DeliveryTable, key, Other, "ไม่มีลำดับบรรทัด (SUF_NO)"); continue; }
+            // A delivery without a line number (about 2% of the real file) is still a delivery: its reports do not need the line, so it is loaded with line 0.
+            var lineNumber = Int(row, "SUF_NO");
+            if (lineNumber is null) report.Add(DeliveryTable, key, Other, "ไม่มีลำดับบรรทัด (SUF_NO) — โหลดโดยใช้ลำดับ 0", MigrationReport.LoadedBlank);
+            var line = lineNumber ?? 0;
             if (row.Text("CUS_ID") is not { } legacyCustomer) { Reject(tally, DeliveryTable, key, Other, "ไม่มีรหัสลูกค้า (CUS_ID)"); continue; }
             var customerCode = (map.Find(CodeKinds.Customer, legacyCustomer)?.Code ?? legacyCustomer).ToUpperInvariant();
             if (!customers.TryGetValue(customerCode, out var customer)) { Reject(tally, DeliveryTable, key, Other, $"ลูกค้า '{legacyCustomer}' ไม่มีในทะเบียนลูกค้า"); continue; }
