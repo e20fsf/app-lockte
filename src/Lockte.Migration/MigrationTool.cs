@@ -16,15 +16,24 @@ namespace Lockte.Migration;
 /// <c>--program order</c> (#107) reads <c>ผลผลิตและORDER.accdb</c> instead of <c>พนักงาน.accdb</c> (the default,
 /// <c>employee</c>); run it after the employee program's migration on the same database.
 /// </summary>
-public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram, bool RemoveStockDuplicates = false)
+public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram, bool RemoveStockDuplicates = false,
+    string? EmployeeFile = null, string? OrderFile = null, string? QaDefinitionsFolder = null)
 {
     public const string EmployeeProgram = "employee";
     public const string OrderProgram = "order";
     public const string QaSpecProgram = "qa-spec";
+    /// <summary>Both programs (and the QA specs) in one run, with one report.</summary>
+    public const string AllProgram = "all";
+    /// <summary>Sets the go-live flag on the database: the tool will not run on it again.</summary>
+    public const string MarkGoLiveProgram = "mark-go-live";
 
     public const string ConnectionVariable = "LOCKTE_MIGRATION_SQL";
 
     public const string Usage = """
+        Lockte.Migration --program all --employee <พนักงาน.accdb> --order <ผลผลิตและORDER.accdb> [--qa <reports_decompiled>] --connection "<SQL Server connection string>"
+                         --confirm <database> --out <folder> [--map <code-map.csv>] [--remove-stock-duplicates yes]
+          รันทั้งชุดในคำสั่งเดียว: โปรแกรมพนักงาน → ผลผลิตและORDER → (ถ้าระบุ --qa) สเปคตรวจ QA · ลบแล้วโหลดใหม่ รันซ้ำได้ · รายงานฉบับเดียวใน <folder>/summary.md
+          ฐานข้อมูลที่ตั้งธงเปิดใช้งานจริงแล้ว (--program mark-go-live --confirm <database>) จะไม่ยอมให้รัน
         Lockte.Migration --source <พนักงาน.accdb> --connection "<SQL Server connection string>" --confirm <database>
                          --out <folder> [--map <code-map.csv>] [--program employee|order|qa-spec] [--remove-stock-duplicates yes]
           ลบข้อมูลหลักและประวัติในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
@@ -43,8 +52,15 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
             values[args[i][2..]] = args[++i];
         }
         var connection = values.GetValueOrDefault("connection") ?? Environment.GetEnvironmentVariable(ConnectionVariable);
-        if (values.GetValueOrDefault("source") is not { } source) return (null, "ไม่ได้ระบุ --source");
-        if (values.GetValueOrDefault("out") is not { } output) return (null, "ไม่ได้ระบุ --out");
+        var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
+        if (program is not (EmployeeProgram or OrderProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram))
+            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {QaSpecProgram}, {AllProgram} หรือ {MarkGoLiveProgram}");
+        var whole = program is AllProgram or MarkGoLiveProgram;
+        if (!whole && values.GetValueOrDefault("source") is null) return (null, "ไม่ได้ระบุ --source");
+        var source = values.GetValueOrDefault("source") ?? "";
+        if (program == AllProgram && (values.GetValueOrDefault("employee") is null || values.GetValueOrDefault("order") is null)) return (null, "--program all ต้องระบุ --employee และ --order");
+        if (program != MarkGoLiveProgram && values.GetValueOrDefault("out") is null) return (null, "ไม่ได้ระบุ --out");
+        var output = values.GetValueOrDefault("out") ?? "";
         if (string.IsNullOrWhiteSpace(connection)) return (null, $"ไม่ได้ระบุ --connection หรือ env {ConnectionVariable}");
         string database;
         try { database = new SqlConnectionStringBuilder(connection).InitialCatalog; }
@@ -52,9 +68,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         if (string.IsNullOrEmpty(database)) return (null, "connection string ต้องระบุ Database");
         if (!string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
-        var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram or QaSpecProgram)) return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram} หรือ {QaSpecProgram}");
-        return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase)), null);
+        return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase),
+            values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa")), null);
     }
 }
 
