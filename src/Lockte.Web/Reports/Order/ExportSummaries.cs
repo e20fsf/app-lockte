@@ -171,6 +171,100 @@ public static class ExportSummaries
 
     public static string Title(SummaryTable table) => table.Title;
 
+    // ---------- ตามชนิดสินค้า / เขตการขาย / จังหวัด / พนักงานขาย (#115) ----------
+
+    public const string TypeSummaryPrefix = "ยอดขายสินค้าแต่ละชนิดเดือน";
+    public const string SalesPersonPrefix = "ยอดขายของพนักงานขายแต่ละคนเดือน";
+    public const string ProvinceTitle = "รายงานส่งออกตามจังหวัด";
+    public const string TerritoryYearTitle = "สรุปส่งออกตามเขตการขาย";
+    public const string NoType = "ไม่ระบุชนิด";
+
+    /// <summary>
+    /// The ชนิด of a product code is its กลุ่มสินค้า (the start of the code): of the groups whose pattern matches it, the most specific one — the pattern with the longest
+    /// fixed text; a pattern that is only wildcards (<c>*</c>) names no ชนิด. Several patterns may carry one name (G1* and G3* are both ก้ามเบรก), so the ชนิด is the name.
+    /// </summary>
+    public static string TypeOf(string? productCode, IReadOnlyList<ProductGroupDto> groups)
+    {
+        if (string.IsNullOrWhiteSpace(productCode)) return NoType;
+        var best = groups.Where(g => g.Pattern.Trim('*', '?', '#').Length > 0 && ProductGroupPattern.Matches(g.Pattern, productCode.Trim()))
+            .OrderByDescending(g => g.Pattern.Count(c => c is not ('*' or '?' or '#'))).ThenBy(g => g.Pattern, StringComparer.Ordinal).FirstOrDefault();
+        return best?.Name ?? NoType;
+    }
+
+    /// <summary>ยอดขายแต่ละชนิด (RPT-09): per ชนิด and unit Σ จำนวน and Σ จำนวนเงิน, with the share of the money (4 decimals); the head names the month of the range (D-5).</summary>
+    public static async Task<SummaryTable> TypeSummaryAsync(SalesDeliveryReportDirectory deliveries, ProductDirectory products, CustomerDirectory customers, SalesTerritoryDirectory territories,
+        ExportFilter filter)
+    {
+        var groups = await products.GetGroupsAsync();
+        var grouped = (await RowsAsync(deliveries, filter)).GroupBy(r => (Type: TypeOf(r.ProductCode, groups), Unit: NoUnit(r.Unit)))
+            .Select(g => (g.Key.Type, g.Key.Unit, Quantity: g.Sum(r => r.Quantity), Money: g.Sum(r => r.Amount ?? 0)))
+            .OrderBy(g => g.Type, StringComparer.Ordinal).ThenBy(g => g.Unit, StringComparer.Ordinal).ToList();
+        var total = grouped.Sum(g => g.Money);
+        var rows = grouped.Select((g, i) => new object?[] { i + 1, g.Type, g.Quantity, g.Unit, g.Money, total == 0 ? 0m : Math.Round(g.Money * 100 / total, 4) }).ToList();
+        return new($"{TypeSummaryPrefix} {ReportText.MonthTitle(filter.From, filter.To)}", await FilterTextAsync(filter, customers, territories),
+            [new("ที่", SummaryFormat.Integer), new("ชนิดสินค้า"), Number, new("หน่วย"), Amount, new("เปอร์เซ็นต์", SummaryFormat.Percent)], rows,
+            rows.Count == 0 ? null : [null, $"รวมทั้งหมด {grouped.Select(g => g.Type).Distinct().Count()} ชนิด", null, null, total, rows.Sum(r => (decimal)r[5]!)]);
+    }
+
+    /// <summary>สรุปส่งออกตามเซล: per เขตการขาย Σ จำนวนเงิน into the month columns of the range (the total blank when a month is — the rule of the year summary, Q-56).</summary>
+    public static async Task<SummaryTable> TerritoryMonthsAsync(SalesDeliveryReportDirectory deliveries, CustomerDirectory customers, SalesTerritoryDirectory territories, ExportFilter filter)
+    {
+        var month = ThaiDate.Culture.DateTimeFormat.MonthNames;
+        var delivered = await RowsAsync(deliveries, filter);
+        var columns = new List<SummaryColumn> { new("รหัสเซล"), new("ชื่อเซล") };
+        columns.AddRange(Enumerable.Range(0, 12).Select(m => new SummaryColumn(month[m], SummaryFormat.Money)));
+        columns.Add(new SummaryColumn("จำนวนเงินรวม", SummaryFormat.Money));
+        var rows = new List<object?[]>();
+        foreach (var territory in (await territories.GetAllAsync()).OrderBy(t => t.Code, StringComparer.Ordinal))
+        {
+            var months = new decimal?[12];
+            foreach (var row in delivered.Where(r => r.SalesTerritoryId == territory.Id))
+                months[row.DeliveryDate.Month - 1] = (months[row.DeliveryDate.Month - 1] ?? 0) + (row.Amount ?? 0);
+            var cells = new List<object?> { territory.Code, territory.Name };
+            cells.AddRange(months.Cast<object?>());
+            cells.Add(months.Any(m => m is null) ? null : months.Sum(m => m!.Value));
+            rows.Add(cells.ToArray());
+        }
+        return new(TerritoryYearTitle, await FilterTextAsync(filter with { CustomerId = null, CodePattern = null, SalesTerritoryId = null }, customers, territories), columns, rows);
+    }
+
+    /// <summary>รายงานส่งออกตามจังหวัด: Σ จำนวนเงิน per จังหวัด of the customer; a customer with none is "ไม่ระบุจังหวัด".</summary>
+    public static async Task<SummaryTable> ProvinceAsync(SalesDeliveryReportDirectory deliveries, CustomerDirectory customers, SalesTerritoryDirectory territories, ExportFilter filter)
+    {
+        var provinceOf = (await customers.GetAllAsync()).ToDictionary(c => c.Id, c => string.IsNullOrWhiteSpace(c.Province) ? "ไม่ระบุจังหวัด" : c.Province.Trim());
+        var grouped = (await RowsAsync(deliveries, filter)).GroupBy(r => provinceOf.GetValueOrDefault(r.CustomerId, "ไม่ระบุจังหวัด"))
+            .Select(g => (Province: g.Key, Money: g.Sum(r => r.Amount ?? 0))).OrderBy(g => g.Province, StringComparer.Ordinal).ToList();
+        var rows = grouped.Select((g, i) => new object?[] { i + 1, g.Province, g.Money }).ToList();
+        return new(ProvinceTitle, await FilterTextAsync(filter, customers, territories), [new("ที่", SummaryFormat.Integer), new("จังหวัด"), Amount], rows,
+            rows.Count == 0 ? null : [null, "รวมทั้งหมด", rows.Sum(r => (decimal)r[2]!)]);
+    }
+
+    /// <summary>
+    /// ยอดขายของพนักงานขายแต่ละคน (RPT-09): from the deliveries (not the ORDERs received) in the range, per เขตการขาย then per เลขที่ SALE ORDER with Σ จำนวนเงิน;
+    /// after each เขตการขาย a line "n ใบ" with its Σ จำนวนเงิน. Deliveries with no เขตการขาย come last as "ไม่ระบุเซล".
+    /// </summary>
+    public static async Task<SummaryTable> SalesPersonAsync(SalesDeliveryReportDirectory deliveries, CustomerDirectory customers, SalesTerritoryDirectory territories, ExportFilter filter)
+    {
+        var all = (await territories.GetAllAsync()).ToDictionary(t => t.Id);
+        var delivered = await RowsAsync(deliveries, filter);
+        var rows = new List<object?[]>();
+        var grand = 0m;
+        var orders = 0;
+        string CodeOf(int? id) => id is { } key && all.TryGetValue(key, out var found) ? found.Code : "";
+        foreach (var territory in delivered.GroupBy(r => r.SalesTerritoryId).OrderBy(g => g.Key is null ? 1 : 0).ThenBy(g => CodeOf(g.Key), StringComparer.Ordinal))
+        {
+            var code = territory.Key is null ? "ไม่ระบุเซล" : CodeOf(territory.Key);
+            var perOrder = territory.GroupBy(r => r.OrderNo).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => (OrderNo: g.Key, Money: g.Sum(r => r.Amount ?? 0))).ToList();
+            rows.AddRange(perOrder.Select((o, i) => new object?[] { code, i + 1, o.OrderNo, o.Money }));
+            rows.Add([code, null, $"{perOrder.Count} ใบ", perOrder.Sum(o => o.Money)]);
+            grand += perOrder.Sum(o => o.Money);
+            orders += perOrder.Count;
+        }
+        return new($"{SalesPersonPrefix} {ReportText.MonthTitle(filter.From, filter.To)}", await FilterTextAsync(filter, customers, territories),
+            [new("รหัสเซล"), new("ลำดับที่", SummaryFormat.Integer), new("เลขที่ใบ SALE ORDER"), Amount], rows,
+            rows.Count == 0 ? null : [null, null, $"รวมทั้งหมด {orders} ใบ", grand]);
+    }
+
     // ---------- PDF and Excel ----------
 
     public static RouteGroupBuilder MapExportSummaries(this RouteGroupBuilder reports)
@@ -203,6 +297,19 @@ public static class ExportSummaries
                     if (form == 100 && territory is null) return Results.BadRequest("กรุณาเลือกเขตการขาย");
                     table = await YearAsync(form, deliveries, customers, territories, filter);
                     wide = true;
+                    break;
+                case "type-summary":
+                    table = await TypeSummaryAsync(deliveries, products, customers, territories, filter);
+                    break;
+                case "territory-months":
+                    table = await TerritoryMonthsAsync(deliveries, customers, territories, filter);
+                    wide = true;
+                    break;
+                case "province":
+                    table = await ProvinceAsync(deliveries, customers, territories, filter);
+                    break;
+                case "sales-person":
+                    table = await SalesPersonAsync(deliveries, customers, territories, filter);
                     break;
                 default:
                     return Results.NotFound();
