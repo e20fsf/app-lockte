@@ -904,7 +904,7 @@ namespace Lockte.Prod.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code", "Revision")
+                    b.HasIndex("Code", "Revision", "Name")
                         .IsUnique()
                         .HasFilter("[Revision] IS NOT NULL");
 

@@ -39,6 +39,17 @@ if (!await OrgModule.IsUpToDateAsync(services) || !await HrModule.IsUpToDateAsyn
     return 1;
 }
 
+if (options.Program == MigrationOptions.QaSpecProgram)
+{
+    Console.WriteLine($"อ่านนิยามรายงานจาก {options.SourceFile} …");
+    await using var qaScope = services.CreateAsyncScope();
+    var qaReport = await qaScope.ServiceProvider.GetRequiredService<QaSpecMigration>().RunAsync(options.SourceFile, options.OutputFolder);
+    foreach (var table in qaReport.Tables)
+        Console.WriteLine($"{table.LegacyTable,-34} ต้นทาง {table.SourceRows,4}  โหลด {table.Loaded,4}  DQ {table.Rejected,3}  ไม่ย้าย {table.Excluded,4}  ในฐานข้อมูล {table.InDatabase,4}  {(table.Balanced ? "ตรง" : "ไม่ตรง")}");
+    foreach (var note in qaReport.Notes) Console.WriteLine(note);
+    Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return qaReport.Balanced ? 0 : 1;
+}
 Console.WriteLine($"อ่านสำเนาของ {options.SourceFile} …");
 if (options.Program == MigrationOptions.OrderProgram)
 {

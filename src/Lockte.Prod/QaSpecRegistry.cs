@@ -63,7 +63,7 @@ public sealed class QaSpecRegistry(ProdDbContext db)
         var errors = new List<string>();
         if (code is null) errors.Add("กรุณากรอกรหัสเอกสาร");
         else if (code.Length > CodeLength) errors.Add($"รหัสเอกสารยาวได้ไม่เกิน {CodeLength} ตัว");
-        else if (await db.QaDocumentTypes.AnyAsync(t => t.Code == code && t.Revision == Clean(input.Revision) && t.Id != input.Id)) errors.Add($"มีเอกสาร '{code}' ฉบับที่นี้อยู่แล้ว");
+        else if (name is not null && await db.QaDocumentTypes.AnyAsync(t => t.Code == code && t.Revision == Clean(input.Revision) && t.Name == name && t.Id != input.Id)) errors.Add($"มีเอกสาร '{code}' ฉบับนี้ชื่อนี้อยู่แล้ว");
         if (name is null) errors.Add("กรุณากรอกชื่อใบตรวจ");
         else if (name.Length > TextLength) errors.Add($"ชื่อใบตรวจยาวได้ไม่เกิน {TextLength} ตัว");
         TooLong(errors, "ฉบับที่", Clean(input.Revision), CodeLength);
