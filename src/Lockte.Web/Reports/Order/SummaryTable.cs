@@ -5,7 +5,7 @@ using Lockte.SharedKernel;
 
 namespace Lockte.Web.Reports.Order;
 
-public enum SummaryFormat { Text, Integer, Quantity, Money }
+public enum SummaryFormat { Text, Integer, Quantity, Money, Percent }
 
 public sealed record SummaryColumn(string Header, SummaryFormat Format = SummaryFormat.Text);
 
@@ -24,6 +24,7 @@ public sealed record SummaryTable(string Title, string? Filter, IReadOnlyList<Su
         {
             SummaryFormat.Money => ReportText.Decimal2(number),
             SummaryFormat.Integer => number.ToString("#,##0", ThaiDate.Culture),
+            SummaryFormat.Percent => number.ToString("0.0000", ThaiDate.Culture) + "%",
             _ => number.ToString("#,##0.####", ThaiDate.Culture),
         },
         int number => number.ToString("#,##0", ThaiDate.Culture),
@@ -63,7 +64,7 @@ public static class XlsxWriter
             // cell styles: 0 normal, 1 bold, 2 #,##0 (3), 3 #,##0.00 (4), 4 #,##0.#### (custom 164)
             Add(zip, "xl/styles.xml", """
                 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-                <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.####"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>
+                <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.####"/><numFmt numFmtId="165" formatCode="0.0000&quot;%&quot;"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>
                 """);
             Add(zip, "xl/worksheets/sheet1.xml", Sheet(table));
         }
@@ -102,7 +103,7 @@ public static class XlsxWriter
             case null:
                 return; // a blank cell stays blank
             case decimal number:
-                xml.Append($"""<c r="{reference}" s="{(column.Format switch { SummaryFormat.Money => 3, SummaryFormat.Integer => 2, _ => 4 })}"><v>{number.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture)}</v></c>""");
+                xml.Append($"""<c r="{reference}" s="{(column.Format switch { SummaryFormat.Money => 3, SummaryFormat.Integer => 2, SummaryFormat.Percent => 5, _ => 4 })}"><v>{number.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture)}</v></c>""");
                 return;
             case int number:
                 xml.Append($"""<c r="{reference}" s="2"><v>{number.ToString(System.Globalization.CultureInfo.InvariantCulture)}</v></c>""");
