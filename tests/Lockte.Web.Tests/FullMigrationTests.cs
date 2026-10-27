@@ -142,6 +142,7 @@ public sealed class FullMigrationTests(MigrationDbFixture db) : IDisposable
     [Theory] // rows with the same problem are one line of the summary
     [InlineData("รหัสสินค้า 'ZZ999' ไม่มีในทะเบียน 12 แถว", "รหัสสินค้า '…' ไม่มีในทะเบียน N แถว")]
     [InlineData("วันที่ 2025-12-10 จำนวน 1,461.5", "วันที่ N-N-N จำนวน N")]
+    [InlineData("หลายเครื่องในใบเดียว (PN1 ×3 PN2 ×2) — ใช้เครื่อง PN1", "หลายเครื่องในใบเดียว (…) — ใช้เครื่อง PNN")]
     public void The_kind_of_a_problem_leaves_out_what_is_special_to_a_row(string problem, string kind)
         => Assert.Equal(kind, FullMigrationTool.Kind(problem));
 }

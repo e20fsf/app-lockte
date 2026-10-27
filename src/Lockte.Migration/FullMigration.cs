@@ -125,7 +125,9 @@ public static class FullMigrationTool
     private static readonly Regex Quoted = new(@"'[^']*'", RegexOptions.Compiled);
 
     /// <summary>The problem without what is special to a row (quoted values, numbers), so a thousand rows with one problem are one line.</summary>
-    public static string Kind(string problem) => Number.Replace(Quoted.Replace(problem, "'…'"), "N");
+    private static readonly Regex Machines = new(@"\([^()]*×N[^()]*\)", RegexOptions.Compiled);
+
+    public static string Kind(string problem) => Machines.Replace(Number.Replace(Quoted.Replace(problem, "'…'"), "N"), "(…)");
 
     public static void WriteReport(string folder, IReadOnlyList<MigrationStep> steps)
     {
