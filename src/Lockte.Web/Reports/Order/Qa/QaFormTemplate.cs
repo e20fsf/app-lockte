@@ -42,17 +42,15 @@ public static partial class QaFormTemplates
 {
     private static readonly Lazy<IReadOnlyList<QaFormTemplate>> All = new(Build);
 
-    private static readonly Dictionary<string, string> KeyOfGroup = new(StringComparer.Ordinal)
+    /// <summary>
+    /// The template of the sheet whose spec is named <paramref name="specName"/>; null when its group has none yet. A group can have several shapes of sheet (with measure points or
+    /// without): with the numbers of points and defects of the spec the template whose rows fit them best is taken.
+    /// </summary>
+    public static QaFormTemplate? For(string specName, int? points = null, int? defects = null)
     {
-        ["ไดคาสท์"] = "D",
-        ["ตกแต่ง"] = "T",
-        ["พิมพ์"] = "M",
-        ["อัดผ้าเบรค"] = "B",
-        ["ฝนผ้าเบรค"] = "G",
-        ["ประกอบ"] = "A",
-    };
-
-    /// <summary>The template of the sheet whose spec is named <paramref name="specName"/>; null when its group has none yet (#131–#133).</summary>
-    public static QaFormTemplate? For(string specName)
-        => KeyOfGroup.TryGetValue(Lockte.Prod.QaSpecGroups.GroupOf(specName), out var key) ? All.Value.FirstOrDefault(t => t.Key == key) : null;
+        var group = Lockte.Prod.QaSpecGroups.GroupOf(specName);
+        var candidates = GroupKeys.Where(g => g.Group == group).Select(g => All.Value.First(t => t.Key == g.Key)).ToList();
+        if (candidates.Count <= 1 || points is null || defects is null) return candidates.FirstOrDefault();
+        return candidates.OrderBy(t => Math.Abs(t.Points.Count - points.Value) + Math.Abs(t.Defects.Count - defects.Value)).First();
+    }
 }
