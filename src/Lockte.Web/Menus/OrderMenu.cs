@@ -75,10 +75,12 @@ public static class OrderMenu
             new("การส่งของตามวันที่กำหนด", Code: "RPT-07", Page: "order/delivery-reports/deliveries"), // ส่งออกตามวันที่กำหนด
             new("การส่งของตามลูกค้าและเขตการขาย", Code: "RPT-08-1", Page: "order/export-reports/customer-detail"), // ส่งออกตามลูกค้าและSALE
             new("การส่งของตามสินค้า", Code: "RPT-08-2", Page: "order/export-reports/product-summary"), // ส่งออกตามสินค้า
-            new("การส่งของตามชนิดสินค้า", Code: "RPT-08-3"), // ส่งออกตามชนิดสินค้า
+            new("การส่งของตามชนิดสินค้า", Code: "RPT-08-3", Page: "order/export-reports/type-summary"), // ส่งออกตามชนิดสินค้า (ยอดขายแต่ละชนิด RPT-09)
             new("สรุปการส่งของตามลูกค้า", Code: "RPT-08-4", Page: "order/export-reports/customer-summary"), // สรุปการส่งออกตามลูกค้า
             new("รายงานส่งผู้จัดการโรงงาน", Code: "RPT-08-5", Page: "order/delivery-reports/manager"),
-            new("รายงานการส่งของตามจังหวัด", Code: "RPT-08-6"), // รายงานส่งออกตามจังหวัด
+            new("รายงานการส่งของตามจังหวัด", Code: "RPT-08-6", Page: "order/export-reports/province"), // รายงานส่งออกตามจังหวัด
+            new("สรุปการส่งของตามเขตการขายรายเดือน", Code: "RPT-08-7", Page: "order/export-reports/territory-months"), // สรุปส่งออกตามเซล1..12
+            new("ยอดขายของพนักงานขายแต่ละคน", Code: "RPT-09-1", Page: "order/export-reports/sales-person"), // ยอดขายSALEแต่ละคน
         ]),
         new(10, "แก้ไขรายการส่งของ", 2, // แก้ไขรายการส่งออก
         [
