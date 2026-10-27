@@ -14,8 +14,8 @@ namespace Lockte.Web.Tests;
 [Collection(LocalDbCollection.Name)]
 public sealed class ExportSummaryTests(LocalDbFixture db)
 {
-    private static int counter = Random.Shared.Next(0x1000);
-    private static int year = 2600;
+    private static int counter = Random.Shared.Next(0x100, 0x700); // "E" + 3 hex digits must stay within the 4-character territory code
+    private static int year = Random.Shared.Next(2600, 9000); // a range of its own per run: the database outlives the run
 
     private static string TerritoryCode() => "E" + Interlocked.Increment(ref counter).ToString("X3");
 
