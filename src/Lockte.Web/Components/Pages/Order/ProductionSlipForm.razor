@@ -1,0 +1,92 @@
+@page "/order/production/print"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage Storage
+
+@* RPT-10 พิมพ์ใบรายงานผลผลิต / ใบโอนผลผลิต (#139): ช่วงวันที่ and, if wanted, one แผนก and the start of a เลขที่ใบรายงาน (พิมพ์ตามใบรายงาน). One page per report, read from the reports themselves —
+   they need not have gone into the stock. Opened from the button "พิมพ์รายงาน" of SCR-10 with the department already chosen. What was typed last is remembered in this browser (BR-022). *@
+<PageTitle>พิมพ์ใบรายงานผลผลิต — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์ใบรายงานผลผลิต (ใบโอนผลผลิต)</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        </MudStack>
+        <MudSelect T="string" @bind-Value="department" @bind-Value:after="RememberAsync" Label="แผนก (ว่าง = ทุกแผนก)" Clearable="true" Style="max-width:24rem">
+            @foreach (var d in ProductionDepartments.All)
+            {
+                <MudSelectItem T="string" Value="@d.Code">@d.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudTextField @bind-Value="number" @bind-Value:after="RememberAsync" Label="เลขที่ใบรายงาน (ว่าง = ทุกใบ — พิมพ์ตามใบรายงานใส่เลขที่)" Style="max-width:24rem" Clearable="true" />
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Href="@Url" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [SupplyParameterFromQuery(Name = "dept")] public string? DepartmentParameter { get; set; }
+
+    private DateTime? from = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? to = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1).AddDays(-1);
+    private string? department;
+    private string? number;
+    private bool loadedMemory;
+
+    private string? Problem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    private string Url
+    {
+        get
+        {
+            var query = new List<string>
+            {
+                "from=" + from?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                "to=" + to?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            };
+            if (!string.IsNullOrWhiteSpace(department)) query.Add("dept=" + Uri.EscapeDataString(department));
+            if (!string.IsNullOrWhiteSpace(number)) query.Add("no=" + Uri.EscapeDataString(number.Trim()));
+            return "/reports/order/production/slips?" + string.Join("&", query);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("order.production-slips") is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                department = saved.Department;
+                number = saved.Number;
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the month.
+        }
+        if (ProductionDepartments.Find(DepartmentParameter) is { } chosen) department = chosen.Code; // the screen that opened this one
+        StateHasChanged();
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("order.production-slips", new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, department, number)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To, string? Department, string? Number);
+}
