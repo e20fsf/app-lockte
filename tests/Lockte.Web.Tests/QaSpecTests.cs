@@ -65,18 +65,20 @@ public sealed class QaSpecTests(LocalDbFixture db)
         Assert.Equal(("ฉบับที่ 03", "คู่", QaResultColumns.Pairs10, QaPageLayout.PackingBlankFourStrips), (again.Revision, again.SampleUnit, again.ResultColumns, again.PageLayout));
     }
 
-    [Fact] // the same code and edition twice is refused; another edition of the code is fine
-    public async Task A_document_type_with_the_same_code_and_edition_is_refused()
+    [Fact] // the same code, edition and name twice is refused; another edition, or another name under the same control number, is fine
+    public async Task A_document_type_with_the_same_code_edition_and_name_is_refused()
     {
         var code = Unique("WI-D");
         await NewTypeAsync(code, "ฉบับที่ 1");
 
-        var duplicate = await AsAsync(s => s.Get<QaSpecRegistry>().SaveTypeAsync(new QaDocumentTypeInput(null, code, "ฉบับที่ 1", "ซ้ำ", null, null, QaResultColumns.Pieces8, null, QaPageLayout.Short, null, null)));
+        var duplicate = await AsAsync(s => s.Get<QaSpecRegistry>().SaveTypeAsync(new QaDocumentTypeInput(null, code, "ฉบับที่ 1", "ใบตรวจทดสอบ", null, null, QaResultColumns.Pieces8, null, QaPageLayout.Short, null, null)));
+        var otherName = await AsAsync(s => s.Get<QaSpecRegistry>().SaveTypeAsync(new QaDocumentTypeInput(null, code, "ฉบับที่ 1", "ใบตรวจชื่ออื่น", null, null, QaResultColumns.Pieces8, null, QaPageLayout.Short, null, null)));
         var otherEdition = await AsAsync(s => s.Get<QaSpecRegistry>().SaveTypeAsync(new QaDocumentTypeInput(null, code, "ฉบับที่ 2", "ฉบับใหม่", null, null, QaResultColumns.Pieces8, null, QaPageLayout.Short, null, null)));
         var blank = await AsAsync(s => s.Get<QaSpecRegistry>().SaveTypeAsync(new QaDocumentTypeInput(null, " ", null, " ", null, null, QaResultColumns.Pieces8, null, QaPageLayout.Short, null, null)));
 
         Assert.False(duplicate.Succeeded);
         Assert.Contains("อยู่แล้ว", duplicate.Errors[0]);
+        Assert.True(otherName.Succeeded);
         Assert.True(otherEdition.Succeeded);
         Assert.Equal(2, blank.Errors.Count);
     }
