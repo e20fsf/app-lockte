@@ -15,7 +15,7 @@ public static class QaSheetReports
             CancellationToken ct) =>
         {
             if (await specs.GetSheetAsync(spec) is not { } sheet) return Results.NotFound("ไม่พบสเปคนี้");
-            if (QaFormTemplates.For(sheet.Name) is not { } template) return Results.NotFound("ยังไม่มีโครงพิมพ์ใบตรวจของกลุ่มนี้");
+            if (QaFormTemplates.For(sheet.Name, sheet.Points.Count, sheet.Defects.Count) is not { } template) return Results.NotFound("ยังไม่มีโครงพิมพ์ใบตรวจของกลุ่มนี้");
 
             var lines = new List<QaSheetLine>();
             if (!string.IsNullOrWhiteSpace(dept))

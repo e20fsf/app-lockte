@@ -53,9 +53,18 @@ public sealed class QaSheetTests(ChromiumFixture chromium)
     public void The_template_is_by_the_group_of_the_spec(string specName, string key)
         => Assert.Equal(key, QaFormTemplates.For(specName)?.Key);
 
+    [Theory] // a group with two shapes of sheet (with measure points or without) takes the template whose rows fit the spec
+    [InlineData("อัดดิสเบรคAR125", 0, 7, "H")]
+    [InlineData("อัดดิสเบรคSPARK135", 2, 5, "I")]
+    [InlineData("ดิสเบรคหลังผ่าร่อง4POT", 0, 7, "J")]
+    [InlineData("ดิสเบรคหลังผ่าร่องNINJA 650", 2, 5, "K")]
+    [InlineData("ดิสเบรคหลังผ่าร่องNINJA 650", null, null, "J")]
+    public void A_group_with_two_shapes_takes_the_one_that_fits(string specName, int? points, int? defects, string key)
+        => Assert.Equal(key, QaFormTemplates.For(specName, points, defects)?.Key);
+
     [Fact]
     public void A_group_without_a_template_has_none()
-        => Assert.Null(QaFormTemplates.For("อัดดิสเบรคAKIRA'F"));
+        => Assert.Null(QaFormTemplates.For("คลัทช์หลังอัดขึ้นรูปA100"));
 
     [Fact] // a family: a page for each line marked, the spec in its places, the fields filled; the blank one when nothing is marked
     public void A_sheet_has_a_page_for_each_marked_line_and_one_blank_when_none()
@@ -140,8 +149,8 @@ public sealed class QaSheetTests(ChromiumFixture chromium)
         foreach (var file in Directory.GetFiles(definitions, "*.txt"))
         {
             var name = Path.GetFileNameWithoutExtension(file);
-            if (name.Contains("ฟอร์มเปล่า") || QaFormTemplates.For(name) is not { } template) continue;
-            if (QaSheetReader.Read(name, ReportDefinition.Read(file)) is not { } sheet) continue;
+            if (name.Contains("ฟอร์มเปล่า") || QaSheetReader.Read(name, ReportDefinition.Read(file)) is not { } sheet) continue;
+            if (QaFormTemplates.For(name, sheet.Points.Count, sheet.Defects.Count) is not { } template) continue;
             var content = new QaSheetContent(sheet.Title, QaSheetForm.DocumentNumber(sheet.DocumentCode, sheet.Sequence, sheet.Revision), sheet.Models,
                 sheet.Points.Select(p => QaSheetForm.PointText(new QaMeasurePointDto(0, p.PointNo, p.Description, p.Standard))).ToList(), sheet.Defects, null, null);
             var pages = QaSheetForm.Layout(template, content, []);
