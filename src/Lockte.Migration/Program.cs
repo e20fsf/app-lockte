@@ -50,6 +50,24 @@ if (options.Program == MigrationOptions.QaSpecProgram)
     Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return qaReport.Balanced ? 0 : 1;
 }
+if (options.Program == MigrationOptions.MarkGoLiveProgram)
+{
+    await GoLiveGuard.MarkAsync(options.ConnectionString);
+    Console.WriteLine($"ตั้งธง {GoLiveGuard.Property} บนฐานข้อมูลแล้ว — เครื่องมือย้ายข้อมูลจะไม่รันบนฐานข้อมูลนี้อีก");
+    return 0;
+}
+if (options.Program == MigrationOptions.AllProgram)
+{
+    var steps = await FullMigrationTool.RunAsync(services, options, Console.WriteLine);
+    foreach (var step in steps)
+    {
+        Console.WriteLine($"== {step.Name}: {step.Elapsed.TotalSeconds:0} วินาที, ตาราง {step.Report.Tables.Count} ({(step.Report.Balanced ? "ตรงทั้งหมด" : "มีตารางไม่ตรง")}), ข้อยกเว้น DQ {step.Report.Exceptions.Count}");
+        foreach (var table in step.Report.Tables.Where(t => !t.Balanced))
+            Console.WriteLine($"   ไม่ตรง: {table.LegacyTable} ต้นทาง {table.SourceRows} ไม่ย้าย {table.Excluded} DQ {table.Rejected} โหลด {table.Loaded} ในฐานข้อมูล {table.InDatabase}");
+    }
+    Console.WriteLine($"รายงานฉบับเดียวอยู่ใน {Path.GetFullPath(Path.Combine(options.OutputFolder, "summary.md"))}");
+    return steps.All(s => s.Report.Balanced) ? 0 : 1;
+}
 Console.WriteLine($"อ่านสำเนาของ {options.SourceFile} …");
 if (options.Program == MigrationOptions.OrderProgram)
 {
