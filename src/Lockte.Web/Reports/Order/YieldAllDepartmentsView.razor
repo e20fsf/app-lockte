@@ -1,0 +1,55 @@
+@* RPT-10 รายงานผลผลิตรวมทุกแผนก (ตามรหัสสินค้า / ตามรุ่น), ระดับ B on A4 นอน: ช่วงวันที่ in the head; แผนก → ประเภท (or รุ่น) → (ลำดับ) รหัส, ชื่อผลผลิต, หน่วย, จำนวนได้, จำนวนเสีย, จำนวนทั้งหมด (2 decimals), a "รวม" row for each
+   type and for each department; the head names which one it is (D-8): "ตามรุ่น" has no code column and the name is the model. A type that is blank is "ไม่ระบุ". *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:5%" /><col style="width:@(Report.ByModel ? 0 : 12)%" /><col style="width:36%" /><col style="width:8%" /><col style="width:13%" /><col style="width:13%" /><col style="width:13%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>@(Report.ByModel ? "" : "รหัส")</th><th>@(Report.ByModel ? "รุ่น" : "ชื่อผลผลิต")</th><th>หน่วย</th><th class="num">จำนวนได้</th><th class="num">จำนวนเสีย</th><th class="num">จำนวนทั้งหมด</th></tr></thead>
+        <tbody>
+            @foreach (var department in Report.Rows.GroupBy(r => r.Department))
+            {
+                <tr><td colspan="7"><b style="border-bottom:1.5pt solid #000">@department.Key</b></td></tr>
+                @foreach (var type in department.GroupBy(r => r.Group))
+                {
+                    <tr><td colspan="7"><b>@type.Key</b></td></tr>
+                    var no = 0;
+                    @foreach (var row in type)
+                    {
+                        no++;
+                        <tr>
+                            <td class="num">@no</td>
+                            <td>@row.Code</td>
+                            <td>@row.Name</td>
+                            <td>@row.Unit</td>
+                            <td class="num">@ReportText.Decimal2(row.Good)</td>
+                            <td class="num">@ReportText.Decimal2(row.Reject)</td>
+                            <td class="num">@ReportText.Decimal2(row.Total)</td>
+                        </tr>
+                    }
+                    <tr class="total">
+                        <td colspan="4"><b>รวม @type.Key</b></td>
+                        <td class="num"><b>@ReportText.Decimal2(type.Sum(r => r.Good))</b></td>
+                        <td class="num"><b>@ReportText.Decimal2(type.Sum(r => r.Reject))</b></td>
+                        <td class="num"><b>@ReportText.Decimal2(type.Sum(r => r.Total))</b></td>
+                    </tr>
+                }
+                <tr class="total">
+                    <td colspan="4"><b>รวมแผนก@(department.Key)</b></td>
+                    <td class="num"><b>@ReportText.Decimal2(department.Sum(r => r.Good))</b></td>
+                    <td class="num"><b>@ReportText.Decimal2(department.Sum(r => r.Reject))</b></td>
+                    <td class="num"><b>@ReportText.Decimal2(department.Sum(r => r.Total))</b></td>
+                </tr>
+            }
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public AllDepartmentsReport Report { get; set; } = null!;
+}

@@ -60,6 +60,9 @@ public static class DocumentKeys
     public const string ShippingInspection = "RPT-07-Q";
     /// <summary>RPT-08 รายงานส่งผู้จัดการโรงงาน (#136).</summary>
     public const string ManagerDelivery = "RPT-08-M";
+    /// <summary>RPT-16 รายงานผลผลิตประจำเดือน (#138).</summary>
+    public const string MonthlyYield = "RPT-16";
+
     /// <summary>RPT-10 ใบรายงานผลผลิตประจำวัน / ใบโอนสินค้าระหว่างแผนก (#139).</summary>
     public const string ProductionSlip = "RPT-10";
 
@@ -67,6 +70,6 @@ public static class DocumentKeys
     [
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
         InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2, MoldRegister, SaleOrder,
-        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip,
+        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield,
     ];
 }
