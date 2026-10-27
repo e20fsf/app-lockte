@@ -27,6 +27,9 @@ FAMILIES = [
     ('D', 'ไดคาสท์JOG', 'die casting (WI-QA055)'),
     ('T', 'ตกแต่ง029', 'trimming (WI-QA023)'),
     ('M', 'พิมพ์029', 'new mold (WI-QA022)'),
+    ('B', 'อัดผ้าเบรคWAVE', 'drum brake after pressing (WI-QA050)'),
+    ('G', 'ฝนผ้าเบรคTS100', 'drum brake after grinding (WI-QA024)'),
+    ('A', 'ประกอบ052', 'assembled drum brake, short layout (WI-QA025)'),
 ]
 
 TW = 25.4 / 1440
@@ -142,6 +145,24 @@ class Pdf:
             if min(w, h) < 0.6 and max(w, h) > 0.6:
                 self.rules.append((r.x0 * PT, r.y0 * PT, r.x1 * PT, r.y1 * PT))
 
+    def shift_of(self, labels):
+        """How far down the print is from where the report's tops put it (the report can start below a page header): the median over the labels found on the print by their text."""
+        if self.empty:
+            return 0.0
+        offsets = []
+        for l in labels:
+            wanted = no_trail(norm(l['Caption']))
+            if len(wanted) < 4:
+                continue
+            candidates = [s['base'] - baseline_of(l['Top'], l['FontSize'] or 14) for s in self.spans if no_trail(s['norm']) == wanted and abs(s['x0'] - x_of(l['Left'])) < 20]
+            if candidates:
+                offsets.append(min(candidates, key=abs))
+        if not offsets:
+            return 0.0
+        offsets.sort()
+        median = offsets[len(offsets) // 2]
+        return median if abs(median) >= 2.0 else 0.0  # smaller than that is the formula's own error, not a page header
+
     def find(self, caption, expect_base, expect_x):
         wanted = no_trail(norm(caption))
         best, best_distance = None, 1e9
@@ -190,13 +211,13 @@ def char_index(caption_norm_prefix):
     return len(caption_norm_prefix)
 
 
-def static_items(label, pdf):
+def static_items(label, pdf, shift=0.0):
     """The label as pieces with their places in mm: from the sample PDF when it is found there, from the report's own place otherwise."""
     size = label['FontSize'] or 14
     bold = label['FontWeight'] >= 700
     anchor = {2: 1, 3: 2}.get(label['TextAlign'], 0)
     caption = label['Caption']
-    expect_base = baseline_of(label['Top'], size)
+    expect_base = baseline_of(label['Top'], size) + shift
     expect_x = x_of(label['Left'])
     span = pdf.find(caption, expect_base, expect_x)
     parts, tail = pieces_of(caption)
@@ -268,13 +289,14 @@ def family(key, name, note, definitions, samples):
     dynamic = {id(x) for x in [number, title] + points + defects + models + overlays + markers}
     static = [l for l in labels if id(l) not in dynamic]
 
+    shift = pdf.shift_of(labels)
     statics = []
     for l in static:
-        statics += static_items(l, pdf)
+        statics += static_items(l, pdf, shift)
 
     def slot(l, anchor_override=None):
         size = l['FontSize'] or 14
-        base_expect = baseline_of(l['Top'], size)
+        base_expect = baseline_of(l['Top'], size) + shift
         span = pdf.find(l['Caption'], base_expect, x_of(l['Left']))
         anchor = {2: 1, 3: 2}.get(l['TextAlign'], 0) if anchor_override is None else anchor_override
         if span is not None:
@@ -304,7 +326,7 @@ def family(key, name, note, definitions, samples):
         size = x['FontSize'] or 14
         anchor = {2: 1, 3: 2}.get(x['TextAlign'], 0)
         px = x_of(x['Left']) + 0.26 if anchor == 0 else x_of(x['Left'] + x['Width'] / 2)
-        fields.append('new(QaFieldKind.%s, %s, %s, %s, %d, %s)' % (kind, num(px), num(baseline_of(x['Top'], size)), num(size), anchor, cs(near)))
+        fields.append('new(QaFieldKind.%s, %s, %s, %s, %d, %s)' % (kind, num(px), num(baseline_of(x['Top'], size) + shift), num(size), anchor, cs(near)))
 
     out = ['    // %s: %s — the reference report has %d controls' % (key, note, len(c)),
            '    private static QaFormTemplate %sTemplate() => new(' % key,
@@ -319,7 +341,7 @@ def family(key, name, note, definitions, samples):
             '        Points: [' + ', '.join(slot(l) for l in points) + '],',
             '        Defects: [' + ', '.join(slot(l) for l in defects) + '],',
             '        Models: ' + (slot(models[0], 1) if models else 'null') + ',',
-            '        Picture: ' + ('new(%s, %s, %s, %s)' % (num(x_of(picture['Left'])), num(y_of(picture['Top'])), num(picture['Width'] * TW), num(picture['Height'] * TW * 0.9884)) if picture else 'null') + ',',
+            '        Picture: ' + ('new(%s, %s, %s, %s)' % (num(x_of(picture['Left'])), num(y_of(picture['Top']) + shift), num(picture['Width'] * TW), num(picture['Height'] * TW * 0.9884)) if picture else 'null') + ',',
             '        Fields:',
             '        [']
     out += ['            ' + f + ',' for f in fields]

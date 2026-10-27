@@ -32,7 +32,6 @@ public sealed class DocumentNumberTests(LocalDbFixture db)
     {
         var all = await AsUserAsync(s => s.ListAsync());
 
-        Assert.Equal(22, all.Count);
         Assert.Equal(all.Select(d => d.Key).Order(), DocumentKeys.All.Order());
     }
 

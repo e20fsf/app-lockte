@@ -47,12 +47,15 @@ public sealed class QaSheetTests(ChromiumFixture chromium)
     [InlineData("ไดคาสท์029", "D")]
     [InlineData("ตกแต่ง029", "T")]
     [InlineData("พิมพ์WING", "M")]
+    [InlineData("อัดผ้าเบรค068", "B")]
+    [InlineData("ฝนผ้าเบรคTS100", "G")]
+    [InlineData("ประกอบ052", "A")]
     public void The_template_is_by_the_group_of_the_spec(string specName, string key)
         => Assert.Equal(key, QaFormTemplates.For(specName)?.Key);
 
     [Fact]
     public void A_group_without_a_template_has_none()
-        => Assert.Null(QaFormTemplates.For("อัดผ้าเบรค068"));
+        => Assert.Null(QaFormTemplates.For("อัดดิสเบรคAKIRA'F"));
 
     [Fact] // a family: a page for each line marked, the spec in its places, the fields filled; the blank one when nothing is marked
     public void A_sheet_has_a_page_for_each_marked_line_and_one_blank_when_none()
@@ -92,6 +95,23 @@ public sealed class QaSheetTests(ChromiumFixture chromium)
         var marks = (string svg) => Regex.Matches(svg, @">/</text>").Count;
         Assert.True(marks(large) > marks(small));
         Assert.True(marks(small) > 0);
+    }
+
+    [Theory] // the groups of pairs: every family prints a page for the line, with its rules and its sample-size marks
+    [InlineData("อัดผ้าเบรค068")]
+    [InlineData("ฝนผ้าเบรค068")]
+    [InlineData("ประกอบ052")]
+    public void The_brake_groups_print_a_page_for_each_line(string specName)
+    {
+        var template = QaFormTemplates.For(specName)!;
+
+        var pages = QaSheetForm.Layout(template, Content(), [new("SB1001", "ก้าม", "L1", new DateOnly(2026, 5, 4), 100, 125), new("SB1002", "ก้ามสอง", null, null, 10, 5)]);
+
+        Assert.Equal(2, pages.Count);
+        Assert.Contains("WI-QA999-7/2570 ฉบับที่ 2", Svg(pages[0]));
+        Assert.Contains("SB1001", Svg(pages[0]));
+        Assert.True(template.Rules.Count > 40);
+        Assert.True(Regex.Matches(Svg(pages[0]), @">/</text>").Count > Regex.Matches(Svg(pages[1]), @">/</text>").Count); // 125 reaches more columns than 5
     }
 
     [Fact] // a page is A4 landscape, and the PDF has TH Sarabun New in it
