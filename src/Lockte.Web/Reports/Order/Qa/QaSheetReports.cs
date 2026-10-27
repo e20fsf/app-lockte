@@ -18,7 +18,7 @@ public static class QaSheetReports
             if (QaFormTemplates.For(sheet.Name, sheet.Points.Count, sheet.Defects.Count) is not { } template) return Results.NotFound("ยังไม่มีโครงพิมพ์ใบตรวจของกลุ่มนี้");
 
             var lines = new List<QaSheetLine>();
-            if (!string.IsNullOrWhiteSpace(dept))
+            if (!string.IsNullOrWhiteSpace(dept) && template.Strip is not { Blank: true })
             {
                 if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)) return Results.BadRequest("กรุณาระบุวันที่ (yyyy-MM-dd)");
                 foreach (var row in await selection.GetLinesAsync(dept, day, onlySelected: true))

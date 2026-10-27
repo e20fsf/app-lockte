@@ -35,6 +35,14 @@ FAMILIES = [
     ('I', 'อัดดิสเบรคSPARK135', 'อัดดิสเบรค', 'disc brake after pressing, with measure points (WI-QA061)'),
     ('J', 'ดิสเบรคหลังผ่าร่องS4 99 UP RR', 'ดิสเบรคหลังผ่าร่อง', 'disc brake after slotting, defects only (WI-QA027)'),
     ('K', 'ดิสเบรคหลังผ่าร่องNINJA 650', 'ดิสเบรคหลังผ่าร่อง', 'disc brake after slotting, with measure points (WI-QA027)'),
+    ('L', 'คลัทช์หลังอัดขึ้นรูปWAVE125', 'คลัทช์หลังอัดขึ้นรูป', 'clutch lining after pressing (WI-QA029)'),
+    ('N', 'คลัทช์สำเร็จรูปVR150', 'คลัทช์สำเร็จรูป', 'finished clutch lining (WI-QA030)'),
+    ('P', 'แผ่นผ้าคลัทช์C70', 'แผ่นผ้าคลัทช์', 'clutch plate, two sets of ranges (WI-QA034)'),
+    # packing (WI-QA026): a strip for each product (the header above, the signatures below); the group is a marker the code matches (QaFormTemplates.For). The blank form has the strips
+    # on page 1 and the signatures on page 2 — the signatures' page is the legacy's, kept: four strips fill the page.
+    ('S', 'คลัทช์บรรจุกล่อง', '*packing', 'packing, a strip for each product (WI-QA026)', {'strip': (21.0, 166.0, 37.55, 4, False)}),
+    ('Z', 'คลัทช์บรรจุกล่องฟอร์มเปล่า', '*packing-blank', 'packing, blank form, four strips (WI-QA026)',
+     {'strip': (21.0, 166.0, 37.55, 4, True), 'regions': [(0, -1, 60.1), (1, 172.0, 1e9)], 'max_top': 2154}),
 ]
 
 TW = 25.4 / 1440
@@ -101,6 +109,8 @@ def controls(path):
 
 
 def is_fixed(caption):
+    if caption.startswith('จำนวนชิ้นงาน'):  # "how many pieces are packed": a line of the packing check, not a count of the sample
+        return False
     return any(caption.startswith(p) for p in FIXED) or caption.startswith('หมายเหตุ')
 
 
@@ -124,49 +134,54 @@ def no_trail(text):
 
 
 class Pdf:
-    def __init__(self, path):
+    def __init__(self, path, regions=None):
+        """regions: (page, from y, to y) in mm — what of the print is the form (a family's print can spread over pages: the strips on one, the signatures on the next)."""
         self.spans, self.rules, self.used = [], [], set()
         self.empty = not os.path.exists(path)
         if self.empty:
             return  # no sample was printed for this family: everything is placed where the report has it
-        page = pymupdf.open(path)[0]
-        self.page = page
-        for block in page.get_text('rawdict')['blocks']:
-            for line in block.get('lines', []):
-                for span in line['spans']:
-                    chars = [c for c in span['chars'] if c['c'].strip()]
-                    if not chars:
-                        continue
-                    self.spans.append({
-                        'norm': ''.join(c['c'] for c in chars), 'chars': chars, 'size': span['size'], 'bold': 'Bold' in span['font'],
-                        'x0': span['origin'][0] * PT, 'base': span['origin'][1] * PT, 'x1': span['bbox'][2] * PT,
-                    })
-        drawings = page.get_drawings()
-        for d in drawings:
-            if d['type'] != 'f':
-                continue
-            r = d['rect']
-            w, h = r.width * PT, r.height * PT
-            if min(w, h) < 0.6 and max(w, h) > 0.6:
-                self.rules.append((r.x0 * PT, r.y0 * PT, r.x1 * PT, r.y1 * PT))
+        document = pymupdf.open(path)
+        for page_no, y_from, y_to in regions or [(0, -1, 1e9)]:
+            page = document[page_no]
+            for block in page.get_text('rawdict')['blocks']:
+                for line in block.get('lines', []):
+                    for span in line['spans']:
+                        chars = [c for c in span['chars'] if c['c'].strip()]
+                        text = ''.join(c['c'] for c in chars)
+                        base = span['origin'][1] * PT
+                        if not chars or text == '#Name?' or not (y_from <= base < y_to):  # '#Name?' is Access's error in a box, not a label (D-3)
+                            continue
+                        self.spans.append({
+                            'norm': text, 'chars': chars, 'size': span['size'], 'bold': 'Bold' in span['font'],
+                            'x0': span['origin'][0] * PT, 'base': base, 'x1': span['bbox'][2] * PT,
+                        })
+            for d in page.get_drawings():
+                if d['type'] != 'f':
+                    continue
+                r = d['rect']
+                w, h = r.width * PT, r.height * PT
+                if min(w, h) < 0.6 and max(w, h) > 0.6 and y_from <= (r.y0 + r.y1) / 2 * PT < y_to:
+                    self.rules.append((r.x0 * PT, r.y0 * PT, r.x1 * PT, r.y1 * PT))
 
-    def shift_of(self, labels):
-        """How far down the print is from where the report's tops put it (the report can start below a page header): the median over the labels found on the print by their text."""
+    def shifts(self, labels):
+        """How far down the print is from where the report's tops put it, for each section of the report (a section can start below a page header): the median over the labels of the section found on the print by their text."""
+        result = {}
         if self.empty:
-            return 0.0
-        offsets = []
-        for l in labels:
-            wanted = no_trail(norm(l['Caption']))
-            if len(wanted) < 4:
-                continue
-            candidates = [s['base'] - baseline_of(l['Top'], l['FontSize'] or 14) for s in self.spans if no_trail(s['norm']) == wanted and abs(s['x0'] - x_of(l['Left'])) < 20]
-            if candidates:
-                offsets.append(min(candidates, key=abs))
-        if not offsets:
-            return 0.0
-        offsets.sort()
-        median = offsets[len(offsets) // 2]
-        return median if abs(median) >= 2.0 else 0.0  # smaller than that is the formula's own error, not a page header
+            return result
+        for section in {l['sec'] for l in labels}:
+            offsets = []
+            for l in (x for x in labels if x['sec'] == section):
+                wanted = no_trail(norm(l['Caption']))
+                if len(wanted) < 4:
+                    continue
+                candidates = [s['base'] - baseline_of(l['Top'], l['FontSize'] or 14) for s in self.spans if no_trail(s['norm']) == wanted and abs(s['x0'] - x_of(l['Left'])) < 20]
+                if candidates:
+                    offsets.append(min(candidates, key=abs))
+            if offsets:
+                offsets.sort()
+                median = offsets[len(offsets) // 2]
+                result[section] = median if abs(median) >= 2.0 else 0.0  # smaller than that is the formula's own error, not a page header
+        return result
 
     def find(self, caption, expect_base, expect_x):
         wanted = no_trail(norm(caption))
@@ -177,7 +192,9 @@ class Pdf:
             distance = abs(s['base'] - expect_base) + abs(s['x0'] - expect_x) * 0.1
             if distance < best_distance:
                 best, best_distance = i, distance
-        if best is None or best_distance > 15:
+        if best is None:
+            return None
+        if best_distance > 15 and (best_distance > 80 or sum(1 for s in self.spans if no_trail(s['norm']) == wanted) != 1):
             return None
         self.used.add(best)
         return self.spans[best]
@@ -269,9 +286,11 @@ def slot_literal(x, base, size, bold, anchor):
     return 'new(%s, %s, %s, %s, %d)' % (num(x), num(base), num(size), 'true' if bold else 'false', anchor)
 
 
-def family(key, name, note, definitions, samples):
+def family(key, name, note, definitions, samples, options):
     c = controls(os.path.join(definitions, name + '.txt'))
-    pdf = Pdf(os.path.join(samples, name + '.pdf'))
+    if 'max_top' in options:  # a blank form repeats the strip in its report: the first one is the template
+        c = [x for x in c if x['Top'] < options['max_top']]
+    pdf = Pdf(os.path.join(samples, name + '.pdf'), options.get('regions'))
     labels = sorted([x for x in c if x['k'] == 'Label' and x.get('Caption', '').strip()], key=lambda x: (x['sec'], x['Top'], x['Left']))
     number = next(l for l in labels if re.match(r'^WI-QA\d+', l['Caption'].strip()))
     title = next(l for l in labels if l is not number and abs(l['Top'] - number['Top']) <= 60 and not is_fixed(l['Caption'].strip()))
@@ -294,14 +313,14 @@ def family(key, name, note, definitions, samples):
     dynamic = {id(x) for x in [number, title] + points + defects + models + overlays + markers}
     static = [l for l in labels if id(l) not in dynamic]
 
-    shift = pdf.shift_of(labels)
+    shifts = pdf.shifts(labels)
     statics = []
     for l in static:
-        statics += static_items(l, pdf, shift)
+        statics += static_items(l, pdf, shifts.get(l['sec'], 0.0))
 
     def slot(l, anchor_override=None):
         size = l['FontSize'] or 14
-        base_expect = baseline_of(l['Top'], size) + shift
+        base_expect = baseline_of(l['Top'], size) + shifts.get(l['sec'], 0.0)
         span = pdf.find(l['Caption'], base_expect, x_of(l['Left']))
         anchor = {2: 1, 3: 2}.get(l['TextAlign'], 0) if anchor_override is None else anchor_override
         if span is not None:
@@ -331,7 +350,7 @@ def family(key, name, note, definitions, samples):
         size = x['FontSize'] or 14
         anchor = {2: 1, 3: 2}.get(x['TextAlign'], 0)
         px = x_of(x['Left']) + 0.26 if anchor == 0 else x_of(x['Left'] + x['Width'] / 2)
-        fields.append('new(QaFieldKind.%s, %s, %s, %s, %d, %s)' % (kind, num(px), num(baseline_of(x['Top'], size) + shift), num(size), anchor, cs(near)))
+        fields.append('new(QaFieldKind.%s, %s, %s, %s, %d, %s)' % (kind, num(px), num(baseline_of(x['Top'], size) + shifts.get(x['sec'], 0.0)), num(size), anchor, cs(near)))
 
     out = ['    // %s: %s — the reference report has %d controls' % (key, note, len(c)),
            '    private static QaFormTemplate %sTemplate() => new(' % key,
@@ -346,7 +365,8 @@ def family(key, name, note, definitions, samples):
             '        Points: [' + ', '.join(slot(l) for l in points) + '],',
             '        Defects: [' + ', '.join(slot(l) for l in defects) + '],',
             '        Models: ' + (slot(models[0], 1) if models else 'null') + ',',
-            '        Picture: ' + ('new(%s, %s, %s, %s)' % (num(x_of(picture['Left'])), num(y_of(picture['Top']) + shift), num(picture['Width'] * TW), num(picture['Height'] * TW * 0.9884)) if picture else 'null') + ',',
+            '        Strip: ' + ('new(%s, %s, %s, %d, %s)' % (num(options['strip'][0]), num(options['strip'][1]), num(options['strip'][2]), options['strip'][3], 'true' if options['strip'][4] else 'false') if 'strip' in options else 'null') + ',',
+            '        Picture: ' + ('new(%s, %s, %s, %s)' % (num(x_of(picture['Left'])), num(y_of(picture['Top']) + shifts.get(picture['sec'], 0.0)), num(picture['Width'] * TW), num(picture['Height'] * TW * 0.9884)) if picture else 'null') + ',',
             '        Fields:',
             '        [']
     out += ['            ' + f + ',' for f in fields]
@@ -362,15 +382,15 @@ def main():
     parts = ['// <auto-generated>',
              '// Generated by tools/qa-form-templates/generate.py from the recovered report definitions and the sample PDFs. Do not edit by hand: run the script again.',
              '// </auto-generated>', 'namespace Lockte.Web.Reports.Order.Qa;', '', 'public static partial class QaFormTemplates', '{']
-    for key, name, group, note in FAMILIES:
-        body, statics, points, defects, fields, rules = family(key, name, note, definitions, samples)
+    for key, name, group, note, *rest in FAMILIES:
+        body, statics, points, defects, fields, rules = family(key, name, note, definitions, samples, rest[0] if rest else {})
         print('%s: %d text pieces, %d point rows, %d defect rows, %d fields, %d rules' % (key, statics, points, defects, fields, rules))
         parts.append(body)
         parts.append('')
-    parts.append('    private static IReadOnlyList<QaFormTemplate> Build() => [' + ', '.join('%sTemplate()' % k for k, _, _, _ in FAMILIES) + '];')
+    parts.append('    private static IReadOnlyList<QaFormTemplate> Build() => [' + ', '.join('%sTemplate()' % k for k, *_ in FAMILIES) + '];')
     parts.append('')
     parts.append('    /// <summary>The group of sheets (the start of the name of their spec) each template serves.</summary>')
-    parts.append('    private static readonly (string Group, string Key)[] GroupKeys = [' + ', '.join('(%s, "%s")' % (cs(g), k) for k, _, g, _ in FAMILIES) + '];')
+    parts.append('    private static readonly (string Group, string Key)[] GroupKeys = [' + ', '.join('(%s, "%s")' % (cs(g), k) for k, _, g, *_ in FAMILIES) + '];')
     parts.append('}')
     with open(target, 'w', encoding='utf-8-sig', newline='\r\n') as f:
         f.write('\n'.join(parts) + '\n')

@@ -22,6 +22,13 @@ public enum QaFieldKind { ProductCode, ProductName, Lot, Quantity, Date, SampleS
 public sealed record QaField(QaFieldKind Kind, double X, double Base, double Size, int Anchor, string Near);
 
 /// <summary>
+/// A sheet that holds a strip for each product (packing): what is above <paramref name="Top"/> is the header, from there to <paramref name="FooterTop"/> the first strip, which is printed again
+/// every <paramref name="Pitch"/> mm — <paramref name="PerPage"/> to a page — and what is below is the footer (the signatures), printed after the last strip on its page, or on a page of its own
+/// when four strips have filled the page (as the legacy blank form did). A <paramref name="Blank"/> form prints its strips empty.
+/// </summary>
+public sealed record QaStrip(double Top, double FooterTop, double Pitch, int PerPage, bool Blank);
+
+/// <summary>
 /// The frame of an inspection sheet of one family (#130): what is on every sheet — rules, tick boxes, labels — the places the model's own text goes, and the data fields. Made by
 /// <c>tools/qa-form-templates/generate.py</c> from the recovered report and its sample print; <see cref="QaFormTemplates"/> holds them.
 /// </summary>
@@ -35,7 +42,8 @@ public sealed record QaFormTemplate(
     IReadOnlyList<QaTextSlot> Defects,
     QaTextSlot? Models,
     QaPicture? Picture,
-    IReadOnlyList<QaField> Fields);
+    IReadOnlyList<QaField> Fields,
+    QaStrip? Strip = null);
 
 /// <summary>The templates by the group of the sheet (the start of the name of its spec, see <c>QaSpecGroups</c>).</summary>
 public static partial class QaFormTemplates
@@ -49,6 +57,7 @@ public static partial class QaFormTemplates
     public static QaFormTemplate? For(string specName, int? points = null, int? defects = null)
     {
         var group = Lockte.Prod.QaSpecGroups.GroupOf(specName);
+        if (Lockte.Prod.QaSpecGroups.IsPacking(group)) group = group.EndsWith("ฟอร์มเปล่า", StringComparison.Ordinal) ? "*packing-blank" : "*packing"; // every packing sheet has the one frame
         var candidates = GroupKeys.Where(g => g.Group == group).Select(g => All.Value.First(t => t.Key == g.Key)).ToList();
         if (candidates.Count <= 1 || points is null || defects is null) return candidates.FirstOrDefault();
         return candidates.OrderBy(t => Math.Abs(t.Points.Count - points.Value) + Math.Abs(t.Defects.Count - defects.Value)).First();

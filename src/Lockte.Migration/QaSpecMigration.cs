@@ -98,7 +98,7 @@ public static class QaSheetReader
     }
 
     private static bool IsFixed(string caption)
-        => FixedPrefixes.Any(p => caption.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || caption.StartsWith("หมายเหตุ", StringComparison.Ordinal);
+        => !caption.StartsWith("จำนวนชิ้นงาน", StringComparison.Ordinal) && FixedPrefixes.Any(p => caption.StartsWith(p, StringComparison.OrdinalIgnoreCase)) || caption.StartsWith("หมายเหตุ", StringComparison.Ordinal);
 
     /// <summary>Reads a sheet; null when the report carries no document number (it is not an inspection sheet).</summary>
     public static QaSheet? Read(string reportName, IReadOnlyList<ReportControl> controls)

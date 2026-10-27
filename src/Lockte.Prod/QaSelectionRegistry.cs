@@ -26,6 +26,9 @@ public static class QaSpecGroups
     /// <summary>The sheets of a new mold (ฟอร์ม <c>ตรวจสอบพิมพ์</c>): printed without a production line.</summary>
     public static IReadOnlyList<string> NewMold { get; } = ["พิมพ์"];
 
+    /// <summary>The sheets of the packing department are named by what is packed ("คลัทช์บรรจุกล่อง", "ดรัมสกินแพ็ค", and the same with "ฟอร์มเปล่า"): no model code, so the whole name is the group.</summary>
+    public static bool IsPacking(string group) => group.Contains("บรรจุ", StringComparison.Ordinal) || group.Contains("สกินแพ็ค", StringComparison.Ordinal);
+
     public static string GroupOf(string specName)
     {
         var match = Regex.Match(specName, @"^(.*?)(?=[A-Za-z0-9#]|$)");
@@ -114,15 +117,16 @@ public sealed class QaSelectionDirectory(ProdDbContext db)
 
     /// <summary>The specs a department prints: those of its groups (see <see cref="QaSpecGroups"/>), by name.</summary>
     public async Task<IReadOnlyList<QaSpecSummary>> GetSpecsAsync(string departmentCode)
-        => QaSpecGroups.ByDepartment.TryGetValue(departmentCode.Trim(), out var groups) ? await SpecsOfGroupsAsync(groups) : [];
+        => departmentCode.Trim().Equals("P", StringComparison.OrdinalIgnoreCase) ? await SpecsWhereAsync(QaSpecGroups.IsPacking)
+            : QaSpecGroups.ByDepartment.TryGetValue(departmentCode.Trim(), out var groups) ? await SpecsWhereAsync(groups.Contains) : [];
 
     /// <summary>The specs of a new mold's inspection (ตรวจสอบพิมพ์), by name.</summary>
-    public Task<IReadOnlyList<QaSpecSummary>> GetMoldSpecsAsync() => SpecsOfGroupsAsync(QaSpecGroups.NewMold);
+    public Task<IReadOnlyList<QaSpecSummary>> GetMoldSpecsAsync() => SpecsWhereAsync(QaSpecGroups.NewMold.Contains);
 
-    private async Task<IReadOnlyList<QaSpecSummary>> SpecsOfGroupsAsync(IReadOnlyList<string> groups)
+    private async Task<IReadOnlyList<QaSpecSummary>> SpecsWhereAsync(Func<string, bool> groupFits)
     {
         var all = await db.QaModelSpecs.AsNoTracking().Select(s => new { s.Id, s.DocumentTypeId, TypeCode = s.DocumentType.Code, s.Name, s.Models, s.DocumentSequence, Points = s.Points.Count, Defects = s.Defects.Count }).ToListAsync();
-        return all.Where(s => groups.Contains(QaSpecGroups.GroupOf(s.Name), StringComparer.Ordinal)).OrderBy(s => s.Name, StringComparer.Ordinal)
+        return all.Where(s => groupFits(QaSpecGroups.GroupOf(s.Name))).OrderBy(s => s.Name, StringComparer.Ordinal)
             .Select(s => new QaSpecSummary(s.Id, s.DocumentTypeId, s.TypeCode, s.Name, s.Models, s.DocumentSequence, s.Points, s.Defects)).ToList();
     }
 }
