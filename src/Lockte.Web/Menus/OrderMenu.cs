@@ -118,12 +118,12 @@ public static class OrderMenu
             new("สต็อกสินค้าตามรหัสสินค้า", Code: "RPT-12", Page: "order/stock/reports/card"), // STOCK ตามรหัสสินค้า
             new("สต็อกสินค้าตามกลุ่มสินค้า", Code: "RPT-11", Page: "order/stock/reports/group"), // STOCK กลุ่มสินค้า
             new("โอนผลผลิตเข้าสต็อกสินค้า", Code: "SCR-16", Page: "order/stock/transfer"), // โอนผลผลิตเข้าSTOCK
-            new("พิมพ์สรุปสต็อกสินค้า", Code: "RPT-14"), // พิมพ์สรุปSTOCK
+            new("พิมพ์สรุปสต็อกสินค้า", Code: "RPT-14", Page: "order/stock/opening-history"), // พิมพ์สรุปSTOCK
         ]),
         new(16, "ตัดสต็อกสินค้า", 3, // ตัดSTOCK
         [
-            new("ตัดสต็อกสินค้าครั้งแรก", Code: "SCR-15-1"), // ตัด STOCK ครั้งแรก
-            new("ตัดสต็อกสินค้าซ้ำ (ต้องมีการโอนผลผลิตเข้าสต็อกสินค้าก่อน)", Code: "SCR-15-2"), // ตัด STOCK ซ้ำ(ต้องมีการโอนผลผลิตเข้าSTOCKก่อน)
+            new("ตัดสต็อกสินค้าครั้งแรก", Code: "SCR-15-1", Page: "order/stock/close/first"), // ตัด STOCK ครั้งแรก
+            new("ตัดสต็อกสินค้าซ้ำ (ต้องมีการโอนผลผลิตเข้าสต็อกสินค้าก่อน)", Code: "SCR-15-2", Page: "order/stock/close/again"), // ตัด STOCK ซ้ำ(ต้องมีการโอนผลผลิตเข้าSTOCKก่อน)
         ]),
         new(6, "รหัสแม่พิมพ์", 1, // รหัสพิมพ์
         [
