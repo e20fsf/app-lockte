@@ -47,6 +47,9 @@ public static partial class QaFormTemplates
         ["ไดคาสท์"] = "D",
         ["ตกแต่ง"] = "T",
         ["พิมพ์"] = "M",
+        ["อัดผ้าเบรค"] = "B",
+        ["ฝนผ้าเบรค"] = "G",
+        ["ประกอบ"] = "A",
     };
 
     /// <summary>The template of the sheet whose spec is named <paramref name="specName"/>; null when its group has none yet (#131–#133).</summary>

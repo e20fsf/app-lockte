@@ -77,10 +77,11 @@ def compare(sample, ours):
             dots = [c for c in o_chars if abs(c[2] - base) < 1.0 and c[0] == '.' and x - 1 <= c[1] <= x1 + 1]
             if dots:
                 ends.append(abs(max(d[3] for d in dots) - x1))
-    free = list(o_rules)
+    free = [r for r in o_rules if max(r[2] - r[0], r[3] - r[1]) >= 15]
     off_rules = 0
     worst_rule = 0.0
-    for x0, y0, x1, y1 in [r for r in s_rules if not (r[2] < 81 and 52 < r[1] < 168)]:
+    # the frame: rules of 15 mm and more (the drawing of the piece is the model's own)
+    for x0, y0, x1, y1 in [r for r in s_rules if not (r[2] < 81 and 52 < r[1] < 168) and max(r[2] - r[0], r[3] - r[1]) >= 15]:
         match = min(free, key=lambda r: abs(r[0] - x0) + abs(r[1] - y0) + abs(r[2] - x1) + abs(r[3] - y1), default=None)
         if match is None:
             off_rules += 1
