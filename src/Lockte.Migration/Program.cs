@@ -42,7 +42,7 @@ if (!await OrgModule.IsUpToDateAsync(services) || !await HrModule.IsUpToDateAsyn
 Console.WriteLine($"อ่านสำเนาของ {options.SourceFile} …");
 if (options.Program == MigrationOptions.OrderProgram)
 {
-    var orderReport = await OrderMigrationTool.RunAsync(services, options.SourceFile, options.CodeMapFile, options.OutputFolder);
+    var orderReport = await OrderMigrationTool.RunAsync(services, options.SourceFile, options.CodeMapFile, options.OutputFolder, options.RemoveStockDuplicates);
     foreach (var table in orderReport.Tables)
         Console.WriteLine($"{table.LegacyTable,-14} → {table.NewTable,-26} ต้นทาง {table.SourceRows,5}  โหลด {table.Loaded,5}  " +
             $"DQ {table.Rejected,4}  ไม่ย้าย {table.Excluded,4}  ในฐานข้อมูล {table.InDatabase,5}  {(table.Balanced ? "ตรง" : "ไม่ตรง")}");

@@ -1,0 +1,133 @@
+@page "/order/stock/close/{Mode}"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject IDialogService Dialogs
+@inject ProtectedLocalStorage Storage
+
+@* SCR-15 ตัดสต็อกสิ้นงวด (ฟอร์ม วันที่ตัดSTOCK / วันที่ตัดSTOCK1, BR-007): วันตัดงวดนี้ (FROM_DATE) and, to cut again, วันตัดงวดก่อน (TO_DATE). The button of the legacy was called "พิมพ์"
+   though it cut: here it says what it does, after a confirmation (ข้อสมมติ ซ). What was dated up to the cut date is closed and the balance of every product is carried
+   over; then RPT-13 is opened to print. "ตัดซ้ำ" needs the production transferred first — the withdrawals and hand entries closed by the first cut do not come back (⚠ Q-29). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:52rem">
+    @if (Again)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">ตัดซ้ำใช้เมื่อแก้ผลผลิตของงวดที่ตัดไปแล้ว: โอนผลผลิตเข้าสต็อกของช่วงนั้นก่อน แล้วตัดซ้ำ — รายการเบิกและรายการที่แก้มือของงวดนั้นที่ปิดไปแล้วจะไม่ถูกนำกลับ ยอดจึงยังไม่หักการเบิกเหล่านั้น</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="cut" @bind-Date:after="RememberAsync" Label="วันตัดงวดนี้" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        @if (Again)
+        {
+            <MudSelect T="DateOnly?" @bind-Value="previous" Label="วันตัดงวดก่อน" Style="max-width:18rem">
+                @foreach (var date in cutDates)
+                {
+                    <MudSelectItem T="DateOnly?" Value="@((DateOnly?)date)">@ThaiDate.Format(date)</MudSelectItem>
+                }
+            </MudSelect>
+        }
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    @if (result is { } r)
+    {
+        @if (r.Busy)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">มีผู้อื่นกำลังตัดสต็อกอยู่ ลองใหม่อีกครั้งในอีกสักครู่</MudAlert>
+        }
+        else if (r.Error is { } error)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@error</MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mt-3">ตัดสต็อกแล้ว: ยอดยกมา @r.Products สินค้า · ปิดงวด @r.EntriesClosed รายการ</MudAlert>
+        }
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CutAsync" Disabled="@(busy || Problem is not null)" StartIcon="@Icons.Material.Filled.ContentCut">@(Again ? "ตัดสต็อกซ้ำ" : "ตัดสต็อก")</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@ReportUrl" Target="_blank" Disabled="@(ReportUrl.Length == 0)" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายงานตัดสต็อก</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(16)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Mode { get; set; } = "first";
+
+    private bool Again => Mode == "again";
+
+    private string Title => Again ? "ตัดสต็อกสินค้าซ้ำ" : "ตัดสต็อกสินค้าครั้งแรก";
+
+    private DateTime? cut;
+    private DateOnly? previous;
+    private IReadOnlyList<DateOnly> cutDates = [];
+    private StockCutResult? result;
+    private bool busy;
+    private bool loadedMemory;
+
+    private string? Problem => cut is null ? "กรุณากรอกวันตัดงวดนี้" : Again && previous is null ? "กรุณาเลือกวันตัดงวดก่อน" : null;
+
+    private string ReportUrl => cut is { } c ? "/reports/order/stock/cut?cut=" + c.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        cutDates = await Services.RunAsync<StockClosingDirectory, IReadOnlyList<DateOnly>>(d => d.GetCutDatesAsync());
+        var today = DateTime.Today;
+        cut = new DateTime(today.Year, today.Month, 1).AddDays(-1);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("order.stock-close") is { Success: true, Value: { } saved } && saved.Cut is { } remembered)
+            {
+                cut = remembered.ToDateTime(TimeOnly.MinValue);
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the end of last month.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("order.stock-close", new Remembered(cut is { } c ? DateOnly.FromDateTime(c) : null)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private async Task CutAsync()
+    {
+        var date = DateOnly.FromDateTime(cut!.Value);
+        var text = Again
+            ? $"ตัดสต็อกซ้ำ ณ {ThaiDate.Format(date)}: เอายอดยกมางวดนี้ออก คืนยอดยกมาของ {ThaiDate.Format(previous!.Value)} แล้วตัดใหม่ — ได้โอนผลผลิตของช่วงนี้ก่อนแล้วหรือยัง?"
+            : $"ตัดสต็อก ณ {ThaiDate.Format(date)}: รายการถึงวันนี้จะปิดงวด และยอดคงเหลือของทุกสินค้าจะถูกยกมาเป็นยอดยกมา";
+        if (await Dialogs.ShowMessageBoxAsync(Title, text, yesText: "ตัดสต็อก", cancelText: "ยกเลิก") != true) return;
+        busy = true;
+        try
+        {
+            var p = previous;
+            result = Again
+                ? await Services.RunAsync<StockClosingRegistry, StockCutResult>(r => r.RecutAsync(date, p!.Value))
+                : await Services.RunAsync<StockClosingRegistry, StockCutResult>(r => r.CutAsync(date));
+            cutDates = await Services.RunAsync<StockClosingDirectory, IReadOnlyList<DateOnly>>(d => d.GetCutDatesAsync());
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed record Remembered(DateOnly? Cut);
+}

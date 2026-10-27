@@ -17,18 +17,19 @@ public sealed record ProductionDepartment(
     string? DefaultMachineCode,
     string MaterialLot1Label,
     string? MaterialLot2Label,
-    bool FillsMoldFromProduct);
+    bool FillsMoldFromProduct,
+    decimal RejectTargetPercent = 0);
 
 public static class ProductionDepartments
 {
     public static IReadOnlyList<ProductionDepartment> All { get; } =
     [
-        new("D", "ไดคาสท์", null, "ล๊อตอลูมิเนียม", "ล๊อตขาเหล็ก", true),
-        new("T", "ตกแต่ง", "T01", "ล๊อตวัตถุดิบ1", null, false),
-        new("B", "อัดผ้าเบรก", null, "ล๊อตเหล็ก", "ล๊อตเคมีผ้าเบรก", true),
-        new("G", "ฝนผ้าเบรก", null, "ล๊อตวัตถุดิบ1", null, false),
-        new("K", "ผ้าคลัทช์และดิสเบรก", null, "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", true),
-        new("A", "ประกอบ", "A01", "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", false),
+        new("D", "ไดคาสท์", null, "ล๊อตอลูมิเนียม", "ล๊อตขาเหล็ก", true, 1.2m),
+        new("T", "ตกแต่ง", "T01", "ล๊อตวัตถุดิบ1", null, false, 0.16m),
+        new("B", "อัดผ้าเบรก", null, "ล๊อตเหล็ก", "ล๊อตเคมีผ้าเบรก", true, 1.2m),
+        new("G", "ฝนผ้าเบรก", null, "ล๊อตวัตถุดิบ1", null, false, 0.3m),
+        new("K", "ผ้าคลัทช์และดิสเบรก", null, "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", true, 1.2m),
+        new("A", "ประกอบ", "A01", "ล๊อตวัตถุดิบ1", "ล๊อตวัตถุดิบ2", false, 0.35m),
         new("P", "บรรจุ", "P01", "ล๊อตวัตถุดิบ1", null, false),
     ];
 
@@ -79,6 +80,10 @@ public sealed record ProductionReportSummary(int Id, string DepartmentCode, stri
 public sealed record YieldLine(
     DateOnly Date, string DepartmentCode, int? MachineId, string ProductCode, string ProductName, string? Unit, string? ProductType, string? Model, decimal? AluminumWeight,
     decimal Good, decimal Reject, decimal Total);
+
+/// <summary>A production line as the Lot trace (RPT-17) reads it: where it was made (department, machine), what, how many, and its Lots — the one it made and the two it received.</summary>
+public sealed record LotLine(
+    DateOnly? Date, string DepartmentCode, int? MachineId, string? ProductCode, string ProductName, decimal Good, decimal Total, string? Lot, string? MaterialLot1, string? MaterialLot2);
 
 public sealed record ProductionLineDefaults(string ProductName, string? Unit, int? MoldId, string? MoldCode);
 
@@ -277,6 +282,36 @@ public sealed class ProductionReportDirectory(ProdDbContext db, OrgDirectory org
             .Select(l => new YieldLine(l.ProductionReport.ReportDate!.Value, l.ProductionReport.DepartmentCode, l.ProductionReport.MachineId, l.Product!.Code, l.Product.Name, l.Product.Unit,
                 l.Product.ProductType == null ? null : l.Product.ProductType.Name, l.Product.Model == null ? null : l.Product.Model.Name, l.Product.AluminumWeight,
                 l.GoodQuantity, l.RejectQuantity ?? 0, l.TotalQuantity)).ToListAsync());
+
+    private IQueryable<LotLine> LotLines(IQueryable<ProductionReportLine> lines)
+        => lines.OrderBy(l => l.ProductionReport.ReportDate).ThenBy(l => l.Lot).ThenBy(l => l.Id)
+            .Select(l => new LotLine(l.ProductionReport.ReportDate, l.ProductionReport.DepartmentCode, l.ProductionReport.MachineId, l.Product == null ? null : l.Product.Code, l.ProductName,
+                l.GoodQuantity, l.TotalQuantity, l.Lot, l.MaterialLot1, l.MaterialLot2));
+
+    /// <summary>The production lines of reports dated in the range — the first stage of a Lot trace.</summary>
+    public async Task<IReadOnlyList<LotLine>> GetLotLinesAsync(DateOnly from, DateOnly to)
+        => await LotLines(db.ProductionReportLines.AsNoTracking().Where(l => l.ProductionReport.ReportDate >= from && l.ProductionReport.ReportDate <= to)).ToListAsync();
+
+    /// <summary>The lines whose own Lot is one of <paramref name="lots"/>, of any date (the stage before in a trace).</summary>
+    public async Task<IReadOnlyList<LotLine>> GetLotLinesByLotAsync(IReadOnlyCollection<string> lots)
+        => lots.Count == 0 ? [] : await LotLines(db.ProductionReportLines.AsNoTracking().Where(l => l.Lot != null && lots.Contains(l.Lot))).ToListAsync();
+
+    /// <summary>The lines that received one of <paramref name="lots"/> as raw material 1 (<paramref name="second"/> false) or 2, of any date (the stage after in a trace).</summary>
+    public async Task<IReadOnlyList<LotLine>> GetLotLinesByMaterialLotAsync(IReadOnlyCollection<string> lots, bool second = false)
+        => lots.Count == 0 ? [] : await LotLines(db.ProductionReportLines.AsNoTracking()
+            .Where(l => second ? l.MaterialLot2 != null && lots.Contains(l.MaterialLot2) : l.MaterialLot1 != null && lots.Contains(l.MaterialLot1))).ToListAsync();
+
+    /// <summary>
+    /// The reports to print (RPT-10): those dated in the range, of one department or all, and whose number starts with <paramref name="reportNo"/> when given — by number, with their lines.
+    /// Whether they went into the stock does not matter (as the legacy printed the department's own table).
+    /// </summary>
+    public async Task<IReadOnlyList<ProductionReportDto>> ListAsync(DateOnly from, DateOnly to, string? departmentCode = null, string? reportNo = null)
+    {
+        var query = db.ProductionReports.AsNoTracking().Include(r => r.Lines).ThenInclude(l => l.Mold).Where(r => r.ReportDate >= from && r.ReportDate <= to);
+        if (!string.IsNullOrWhiteSpace(departmentCode)) { var code = departmentCode.Trim().ToUpperInvariant(); query = query.Where(r => r.DepartmentCode == code); }
+        if (!string.IsNullOrWhiteSpace(reportNo)) { var no = reportNo.Trim().ToUpperInvariant(); query = query.Where(r => r.ReportNo.StartsWith(no)); }
+        return (await query.OrderBy(r => r.ReportNo).ToListAsync()).Select(ToDto).ToList();
+    }
 
     private static ProductionReportDto ToDto(ProductionReport r) => new(
         r.Id, r.DepartmentCode, r.ReportDate, r.ReportNo, r.MachineId,

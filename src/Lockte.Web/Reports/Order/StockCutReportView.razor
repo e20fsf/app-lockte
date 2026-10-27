@@ -1,0 +1,38 @@
+@* RPT-13 รายงานการตัดสต็อกผลผลิตวันที่ … (รายงานตัดSTOCK), ระดับ B on A4 ตั้ง: (ลำดับ) รหัส, ชื่อสินค้า, จำนวน + หน่วย, ราคา (ต้นทุนต่อหน่วย), จำนวนเงิน — only the products whose
+   balance is not 0, by code — and "รวมทั้งหมด" with a double line. A negative balance is printed and takes its value off the total; a product with no cost has no price and no
+   value (blank, not 0 — ⚠ BR-010). *@
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:6%" /><col style="width:14%" /><col style="width:34%" /><col style="width:14%" /><col style="width:8%" /><col style="width:11%" /><col style="width:13%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.ProductCode</td>
+                    <td>@line.ProductName</td>
+                    <td class="num">@ReportText.Decimal2(line.Quantity)</td>
+                    <td>@line.Unit</td>
+                    <td class="num">@(line.UnitCost is { } cost ? ReportText.Decimal2(cost) : "")</td>
+                    <td class="num">@(line.Value is { } value ? ReportText.Decimal2(value) : "")</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="6"><b>รวมทั้งหมด</b></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.TotalValue)</b></td>
+            </tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public StockCutReport Report { get; set; } = null!;
+}

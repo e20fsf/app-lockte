@@ -1,0 +1,69 @@
+@page "/order/lot-trace"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.SharedKernel
+@using Lockte.Web.Reports.Order
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage Storage
+
+@* RPT-17 เปรียบเทียบ Lot การผลิต (#127, the Lot-comparison buttons of the form รายงานผลผลิต): ช่วงวันที่ of the first stage, then one button for each chain — ไดคาสท์ → ตกแต่ง (→ ประกอบ),
+   อัดผ้าเบรก → ฝนผ้าเบรก (→ ประกอบ), อัดดิสเบรก → ดิสเบรก, and the whole chain from either end. The dates are remembered in this browser (BR-022). *@
+<PageTitle>เปรียบเทียบ Lot การผลิต — LOCKTE</PageTitle>
+<h1 class="mb-4">เปรียบเทียบ Lot การผลิต (ตรวจย้อนกลับ)</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:52rem">
+    <MudStack Row="true" Spacing="2">
+        <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Spacing="1" Class="mt-4">
+        @foreach (var (kind, title) in LotTraceReports.Titles)
+        {
+            <MudButton Variant="Variant.Outlined" Href="@Url(kind)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">@title</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? to = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1).AddDays(-1);
+    private bool loadedMemory;
+
+    private string? Problem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    private string Url(string kind)
+        => $"/reports/order/lot-trace/{kind}?from={from?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}&to={to?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("order.lot-trace") is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the month.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("order.lot-trace", new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To);
+}
