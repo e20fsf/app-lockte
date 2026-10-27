@@ -1,0 +1,225 @@
+@page "/order/qa/specs"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@using Microsoft.AspNetCore.Components.Forms
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* สเปคตรวจรายรุ่น (#128): per model the values the inspection sheet carried in its report labels — the models it serves, the measure points (number, the text of the required value and its
+   limits, as printed), the defects, the picture of the piece and the model's own sequence number of the document. The QA edits them; every change is in the history. *@
+<PageTitle>สเปคตรวจรายรุ่น QA — LOCKTE</PageTitle>
+<h1 class="mb-4">สเปคตรวจรายรุ่น QA</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มสเปค" : $"แก้สเปค {form.Name}")</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="5">
+            <MudSelect T="int?" @bind-Value="form.DocumentTypeId" Label="ชนิดเอกสาร" Required="true" RequiredError="กรุณาเลือกชนิดเอกสาร">
+                @foreach (var t in types)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Code @t.Revision — @t.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="5"><MudTextField @bind-Value="form.Name" Label="ชื่อสเปค" MaxLength="QaSpecRegistry.TextLength" Required="true" RequiredError="กรุณากรอกชื่อสเปค" /></MudItem>
+        <MudItem xs="12" sm="2"><MudNumericField T="int?" @bind-Value="form.DocumentSequence" Label="ลำดับเลขเอกสาร (-n)" Min="0" /></MudItem>
+        <MudItem xs="12"><MudTextField @bind-Value="form.Models" Label="รุ่นที่ใช้ได้ร่วม (คั่นด้วยจุลภาค)" MaxLength="QaSpecRegistry.LongTextLength" /></MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.subtitle1" Class="mt-4 mb-1">จุดวัด</MudText>
+    <MudStack Spacing="1">
+        @for (var i = 0; i < form.Points.Count; i++)
+        {
+            var point = form.Points[i];
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudText Style="width:2rem">@(i + 1)</MudText>
+                <MudTextField @bind-Value="point.PointNo" Label="เลขจุดวัด" Margin="Margin.Dense" Style="max-width:8rem" MaxLength="QaSpecRegistry.CodeLength" />
+                <MudTextField @bind-Value="point.Description" Label="ข้อความค่าที่กำหนด" Margin="Margin.Dense" MaxLength="QaSpecRegistry.LongTextLength" />
+                <MudTextField @bind-Value="point.Standard" Label="ค่ากลาง / พิกัด / ต่ำสุด–สูงสุด" Margin="Margin.Dense" MaxLength="QaSpecRegistry.LongTextLength" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => form.Points.Remove(point))" aria-label="ลบจุดวัด" />
+            </MudStack>
+        }
+    </MudStack>
+    <MudButton Class="mt-1" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => form.Points.Add(new PointForm()))">เพิ่มจุดวัด</MudButton>
+
+    <MudTextField @bind-Value="form.DefectsText" Class="mt-4" Label="รายการตำหนิ (หนึ่งรายการต่อบรรทัด)" Lines="5" AutoGrow="true" />
+
+    <MudText Typo="Typo.subtitle1" Class="mt-4 mb-1">รูปชิ้นงานพร้อมเลขจุดวัด</MudText>
+    @if (form.ImageData is not null)
+    {
+        <img src="@ImageSource" alt="รูปชิ้นงาน" style="max-width:20rem;max-height:14rem;display:block" class="mb-2" />
+    }
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+        <InputFile OnChange="PickImageAsync" accept="image/png,image/jpeg" />
+        @if (form.ImageData is not null)
+        {
+            <MudButton OnClick="RemoveImage">เอารูปออก</MudButton>
+        }
+    </MudStack>
+
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบสเปคนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+        <MudText Typo="Typo.h6">รายการสเปค</MudText>
+        <MudTextField @bind-Value="search" Immediate="true" Label="ค้นหา (ชื่อสเปคหรือรุ่น)" Clearable="true" Margin="Margin.Dense" Style="max-width:18rem" />
+    </MudStack>
+    <MudTable Items="Shown" Dense="true" Hover="true" Loading="specs is null" T="QaSpecSummary" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<QaSpecSummary> e) => EditAsync(e.Item!))">
+        <HeaderContent><MudTh>เอกสาร</MudTh><MudTh>ชื่อสเปค</MudTh><MudTh>รุ่นที่ใช้ร่วม</MudTh><MudTh Style="text-align:right">จุดวัด</MudTh><MudTh Style="text-align:right">ตำหนิ</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.DocumentTypeCode</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.Models</MudTd>
+            <MudTd Style="text-align:right">@context.Points</MudTd>
+            <MudTd Style="text-align:right">@context.Defects</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ไม่พบสเปค</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(15)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<QaDocumentTypeDto> types = [];
+    private IReadOnlyList<QaSpecSummary>? specs;
+    private SpecForm form = new();
+    private string? search;
+    private bool busy;
+
+    private sealed class PointForm { public string? PointNo { get; set; } public string? Description { get; set; } public string? Standard { get; set; } }
+
+    private sealed class SpecForm
+    {
+        public int? Id { get; set; }
+        public int? DocumentTypeId { get; set; }
+        public string Name { get; set; } = "";
+        public string? Models { get; set; }
+        public int? DocumentSequence { get; set; }
+        public List<PointForm> Points { get; set; } = [];
+        public string? DefectsText { get; set; }
+        public byte[]? ImageData { get; set; }
+        public string? ImageContentType { get; set; }
+        public bool NewImage { get; set; }
+        public bool RemoveImage { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+
+    private string ImageSource => $"data:{form.ImageContentType ?? "image/png"};base64,{Convert.ToBase64String(form.ImageData!)}";
+
+    private IEnumerable<QaSpecSummary> Shown => (specs ?? [])
+        .Where(s => string.IsNullOrWhiteSpace(search) || s.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)
+            || (s.Models ?? "").Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        New();
+        types = await Services.RunAsync<QaSpecDirectory, IReadOnlyList<QaDocumentTypeDto>>(d => d.GetTypesAsync());
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync() => specs = await Services.RunAsync<QaSpecDirectory, IReadOnlyList<QaSpecSummary>>(d => d.GetSpecsAsync());
+
+    private void New() => form = new SpecForm { Points = [new PointForm()] };
+
+    private async Task EditAsync(QaSpecSummary summary)
+    {
+        var spec = await Services.RunAsync<QaSpecDirectory, QaSpecDto?>(d => d.GetSpecAsync(summary.Id));
+        if (spec is null) { Snackbar.Add("ไม่พบสเปคนี้แล้ว", Severity.Warning); await ReloadAsync(); return; }
+        var image = spec.HasImage ? await Services.RunAsync<QaSpecDirectory, (byte[] Data, string ContentType)?>(d => d.GetImageAsync(summary.Id)) : null;
+        form = new SpecForm
+        {
+            Id = spec.Id, DocumentTypeId = spec.DocumentTypeId, Name = spec.Name, Models = spec.Models, DocumentSequence = spec.DocumentSequence, RowVersion = spec.RowVersion,
+            Points = spec.Points.Select(p => new PointForm { PointNo = p.PointNo, Description = p.Description, Standard = p.Standard }).ToList(),
+            DefectsText = string.Join("\n", spec.Defects), ImageData = image?.Data, ImageContentType = image?.ContentType,
+        };
+    }
+
+    private async Task PickImageAsync(InputFileChangeEventArgs e)
+    {
+        if (e.File.Size > QaSpecRegistry.MaxImageBytes) { Snackbar.Add($"รูปใหญ่เกิน {QaSpecRegistry.MaxImageBytes / 1024 / 1024} MB", Severity.Error); return; }
+        await using var stream = e.File.OpenReadStream(QaSpecRegistry.MaxImageBytes);
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+        form.ImageData = memory.ToArray();
+        form.ImageContentType = e.File.ContentType;
+        form.NewImage = true;
+        form.RemoveImage = false;
+    }
+
+    private void RemoveImage()
+    {
+        form.ImageData = null;
+        form.ImageContentType = null;
+        form.NewImage = false;
+        form.RemoveImage = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (form.DocumentTypeId is not { } typeId) { Snackbar.Add("กรุณาเลือกชนิดเอกสาร", Severity.Error); return; }
+        busy = true;
+        try
+        {
+            var defects = (form.DefectsText ?? "").Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var input = new QaSpecInput(form.Id, typeId, form.Name, form.Models, form.DocumentSequence,
+                form.Points.Select(p => new QaMeasurePointInput(p.PointNo, p.Description, p.Standard)).ToList(), defects,
+                form.NewImage ? form.ImageData : null, form.NewImage ? form.ImageContentType : null, form.RemoveImage, form.RowVersion);
+            var result = await Services.RunAsync<QaSpecRegistry, ServiceResult>(r => r.SaveSpecAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบสเปค", $"ลบสเปค {form.Name} พร้อมจุดวัดและรายการตำหนิ?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var id = form.Id!.Value;
+            var rowVersion = form.RowVersion!;
+            var result = await Services.RunAsync<QaSpecRegistry, ServiceResult>(r => r.DeleteSpecAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+}

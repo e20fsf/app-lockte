@@ -22,6 +22,11 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
     internal DbSet<MoldUsage> MoldUsages => Set<MoldUsage>();
     internal DbSet<MoldCutoff> MoldCutoffs => Set<MoldCutoff>();
     internal DbSet<StockEntry> StockEntries => Set<StockEntry>();
+    internal DbSet<QaDocumentType> QaDocumentTypes => Set<QaDocumentType>();
+    internal DbSet<QaModelSpec> QaModelSpecs => Set<QaModelSpec>();
+    internal DbSet<QaMeasurePoint> QaMeasurePoints => Set<QaMeasurePoint>();
+    internal DbSet<QaDefect> QaDefects => Set<QaDefect>();
+    internal DbSet<QaSampleSize> QaSampleSizes => Set<QaSampleSize>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -169,6 +174,60 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             c.Property(x => x.Cumulative).HasAuditName("ยอดสะสม");
             c.HasIndex(x => new { x.CutDate, x.MoldId }).IsUnique();
             c.HasOne(x => x.Mold).WithMany().HasForeignKey(x => x.MoldId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<QaDocumentType>(t =>
+        {
+            t.HasAuditName("ชนิดเอกสารใบตรวจ QA");
+            t.Property(x => x.Code).HasMaxLength(QaSpecRegistry.CodeLength).HasAuditName("รหัสเอกสาร");
+            t.Property(x => x.Revision).HasMaxLength(QaSpecRegistry.CodeLength).HasAuditName("ฉบับที่");
+            t.Property(x => x.Name).HasMaxLength(QaSpecRegistry.TextLength).HasAuditName("ชื่อใบตรวจ");
+            t.Property(x => x.DepartmentStep).HasMaxLength(QaSpecRegistry.TextLength).HasAuditName("แผนก/ขั้นตอน");
+            t.Property(x => x.SampleUnit).HasMaxLength(QaSpecRegistry.CodeLength).HasAuditName("หน่วยสุ่ม");
+            t.Property(x => x.ResultColumns).HasConversion<byte>().HasAuditName("ชนิดคอลัมน์ผล");
+            t.Property(x => x.AttributeRanges).HasMaxLength(QaSpecRegistry.LongTextLength).HasAuditName("ช่วงคอลัมน์ตำหนิ");
+            t.Property(x => x.PageLayout).HasConversion<byte>().HasAuditName("โครงหน้า");
+            t.Property(x => x.Paper).HasMaxLength(QaSpecRegistry.CodeLength).HasAuditName("ขนาดกระดาษ");
+            t.HasIndex(x => new { x.Code, x.Revision }).IsUnique();
+        });
+
+        modelBuilder.Entity<QaModelSpec>(s =>
+        {
+            s.HasAuditName("สเปคตรวจรายรุ่น");
+            s.Property(x => x.Name).HasMaxLength(QaSpecRegistry.TextLength).HasAuditName("ชื่อสเปค");
+            s.Property(x => x.Models).HasMaxLength(QaSpecRegistry.LongTextLength).HasAuditName("รุ่นที่ใช้ร่วม");
+            s.Property(x => x.DocumentSequence).HasAuditName("ลำดับเลขเอกสาร");
+            s.Property(x => x.ImageData).HasAuditName("รูปชิ้นงาน");
+            s.Property(x => x.ImageContentType).HasMaxLength(QaSpecRegistry.CodeLength).HasAuditName("ชนิดไฟล์รูป");
+            s.HasIndex(x => new { x.DocumentTypeId, x.Name }).IsUnique();
+            s.HasOne(x => x.DocumentType).WithMany().HasForeignKey(x => x.DocumentTypeId).OnDelete(DeleteBehavior.Restrict);
+            s.HasMany(x => x.Points).WithOne(p => p.QaModelSpec).HasForeignKey(p => p.QaModelSpecId).OnDelete(DeleteBehavior.Cascade);
+            s.HasMany(x => x.Defects).WithOne(d => d.QaModelSpec).HasForeignKey(d => d.QaModelSpecId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QaMeasurePoint>(p =>
+        {
+            p.HasAuditName("จุดวัดของสเปค");
+            p.Property(x => x.Sequence).HasAuditName("ลำดับ");
+            p.Property(x => x.PointNo).HasMaxLength(QaSpecRegistry.CodeLength).HasAuditName("เลขจุดวัด");
+            p.Property(x => x.Description).HasMaxLength(QaSpecRegistry.LongTextLength).HasAuditName("ข้อความค่าที่กำหนด");
+            p.Property(x => x.Standard).HasMaxLength(QaSpecRegistry.LongTextLength).HasAuditName("ค่ามาตรฐาน");
+            p.HasIndex(x => new { x.QaModelSpecId, x.Sequence }).IsUnique();
+        });
+
+        modelBuilder.Entity<QaDefect>(d =>
+        {
+            d.HasAuditName("รายการตำหนิของสเปค");
+            d.Property(x => x.Sequence).HasAuditName("ลำดับ");
+            d.Property(x => x.Name).HasMaxLength(QaSpecRegistry.TextLength).HasAuditName("รายการตำหนิ");
+            d.HasIndex(x => new { x.QaModelSpecId, x.Sequence }).IsUnique();
+        });
+
+        modelBuilder.Entity<QaSampleSize>(s =>
+        {
+            s.HasAuditName("จำนวนสุ่มตามขนาด Lot");
+            s.Property(x => x.UpTo).HasAuditName("จำนวนดีสูงสุดของช่วง");
+            s.Property(x => x.SampleSize).HasAuditName("จำนวนสุ่ม");
         });
 
         modelBuilder.Entity<StockEntry>(e =>
