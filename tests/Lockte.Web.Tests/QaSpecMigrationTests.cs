@@ -147,7 +147,7 @@ public sealed class QaSpecMigrationTests(MigrationDbFixture db) : IDisposable
         var summary = (await AsAsync(s => s.Get<QaSpecDirectory>().GetSpecsAsync())).Single(s => s.Name == "ทดสอบฉีด029");
         var spec = (await AsAsync(s => s.Get<QaSpecDirectory>().GetSpecAsync(summary.Id)))!;
 
-        Assert.Equal(("P.1", "51.0     0.2  mm.  /  50.80-51.20  mm."), (spec.Points[0].PointNo, spec.Points[0].Standard));
+        Assert.Equal(("P.1", "     51.0     0.2  mm.  /  50.80-51.20  mm."), (spec.Points[0].PointNo, spec.Points[0].Standard)); // the spaces after the number stay
         Assert.Equal(["ขาเหล็ก ไม่ตรง", "ผิวชิ้นงานเป็นรอย"], spec.Defects);
         Assert.Equal((3, "029"), (spec.DocumentSequence, spec.Models));
         Assert.Contains(report.Exceptions, e => e.Table == "ทดสอบฉีด029" && e.Problem.Contains("ป้ายพิกัดซ้อน") && e.Problem.Contains("+0.3"));

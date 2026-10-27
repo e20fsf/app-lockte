@@ -3,6 +3,7 @@ using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
 using Lockte.Web.Reports.Hr;
 using Lockte.Web.Reports.Order;
+using Lockte.Web.Reports.Order.Qa;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -44,6 +45,7 @@ public static class ReportsRegistration
         reports.MapHrEvaluationReports(); // ปรับค่าแรง ประเมินผล (#67)
         reports.MapOrderMasterListReports(); // รายชื่อข้อมูลหลักของผลผลิตและORDER (#137)
         reports.MapSaleOrderReports(); // ใบ SALE ORDER (#110)
+        reports.MapQaSheetReports(); // ใบตรวจคุณภาพ QA (#130)
         reports.MapYieldReports(); // ผลผลิตประจำเดือน และผลผลิตรวม (#138)
         reports.MapLotTraceReports(); // เปรียบเทียบ Lot การผลิต (#127)
         reports.MapStockCutReports(); // รายงานตัดสต็อก (#123)
