@@ -1,0 +1,45 @@
+@page "/order/qa/mold"
+@attribute [Authorize]
+@using Lockte.Prod
+@inject ScopedServices Services
+
+@* QA1 → แม่พิมพ์ (ฟอร์ม ตรวจสอบพิมพ์, #130): the button of a model prints the sheet for the inspection of a mould that has just been made (WI-QA022) — blank, to be filled by hand,
+   as the legacy printed it: there is no production line behind it. *@
+<PageTitle>ใบตรวจแม่พิมพ์ใหม่ QA — LOCKTE</PageTitle>
+<h1 class="mb-4">ใบตรวจก้ามเบรกหลังฉีดแม่พิมพ์ใหม่</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.body2" Class="mb-2">กดรุ่นเพื่อพิมพ์ใบตรวจ (ใบว่างสำหรับกรอกมือ)</MudText>
+    @if (specs is null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (specs.Count == 0)
+    {
+        <MudText>ยังไม่มีสเปคตรวจแม่พิมพ์ — เพิ่มที่ <MudLink Href="order/qa/specs">สเปคตรวจรายรุ่น QA</MudLink></MudText>
+    }
+    else
+    {
+        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+            @foreach (var spec in specs)
+            {
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Href="@($"/reports/order/qa/sheet?spec={spec.Id}")" Target="_blank">@ShortName(spec.Name)</MudButton>
+            }
+        </MudStack>
+    }
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(15)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<QaSpecSummary>? specs;
+
+    protected override async Task OnInitializedAsync()
+        => specs = await Services.RunAsync<QaSelectionDirectory, IReadOnlyList<QaSpecSummary>>(d => d.GetMoldSpecsAsync());
+
+    private static string ShortName(string name)
+    {
+        var group = QaSpecGroups.GroupOf(name);
+        return group.Length > 0 && name.StartsWith(group, StringComparison.Ordinal) && name.Length > group.Length ? name[group.Length..] : name;
+    }
+}

@@ -50,7 +50,7 @@ public sealed class MenuTrailTests
     public void The_order_program_has_its_own_trail_with_the_legacy_back_targets()
     {
         // เมนู 15 QA → ผลผลิต opens เมนู 14, whose "กลับเมนูเดิม" goes back to 15.
-        var trail = OrderMenu.Menu.Trail("order/SCR-12-1");
+        var trail = OrderMenu.Menu.Trail("order/qa/production/D");
         Assert.Equal(["เมนูหลัก", "QA พิมพ์รายงานการตรวจสอบ", "QA ผลผลิต", "ไดคาสท์"], trail.Select(c => c.Text));
         Assert.Equal(["order", "order/menu/15", "order/menu/14", null], trail.Select(c => c.Href));
         Assert.Equal(["เมนูหลัก", "ORDER", "ยอดค้างส่ง"], Texts("order/menu/13"));

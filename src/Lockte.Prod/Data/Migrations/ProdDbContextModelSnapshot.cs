@@ -725,6 +725,10 @@ namespace Lockte.Prod.Data.Migrations
                     b.Property<int>("ProductionReportId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("QaSelected")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ติดเครื่องหมายสุ่มตรวจ");
+
                     b.Property<decimal?>("RejectQuantity")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)")
@@ -765,6 +769,9 @@ namespace Lockte.Prod.Data.Migrations
                     b.HasIndex("MoldId");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("QaSelected")
+                        .HasFilter("[QaSelected] = 1");
 
                     b.HasIndex("ProductionReportId", "LineNo")
                         .IsUnique();

@@ -133,4 +133,18 @@ public sealed class ProductionReportMigrationTests(MigrationDbFixture db) : IDis
         Assert.Contains(report.Notes, n => n.Contains("หลายเครื่องในใบเดียวกัน") && n.Contains("ไม่เก็บเครื่องระดับบรรทัด"));
         Assert.True(report.Tables.All(t => t.Balanced));
     }
+
+    [Fact] // MARK1 = Y (any case) is the QA's mark (SCR-12): kept as the user left it, counted in a note
+    public async Task The_qa_mark_is_kept()
+    {
+        var file = Standard();
+        file.Row("P_REPไดคาสท์", [.. Row("D69004", 1, "G1001", 10, 0, date: new DateTime(2026, 7, 7)), ("MARK1", "y")]);
+        file.Row("P_REPไดคาสท์", [.. Row("D69004", 2, "G1002", 20, 0, date: new DateTime(2026, 7, 7)), ("MARK1", null)]);
+
+        var report = await RunAsync(Save(file));
+
+        var lines = await AsAsync(s => s.Get<QaSelectionDirectory>().GetLinesAsync("D", new DateOnly(2026, 7, 7)));
+        Assert.Equal([true, false], lines.Select(l => l.Selected));
+        Assert.Contains(report.Notes, n => n.Contains("1 แถวยังติดเครื่องหมายสุ่มตรวจ"));
+    }
 }
