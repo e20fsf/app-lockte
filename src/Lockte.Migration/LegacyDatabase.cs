@@ -89,6 +89,21 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         ["ODD"] = null,
         ["ORDER"] = WhereFrom("OD_DATE", OrderHistoryFrom),
         ["ODDส่งออก"] = WhereFrom("DL_DATE", OrderHistoryFrom),
+        // ใบรายงานผลผลิต 7 แผนก and the transferred copy (#122), from the same date
+        ["P_REPไดคาสท์"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["P_REPตกแต่ง"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["P_REPอัดผ้าเบรก"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["P_REPฝนผ้าเบรก"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["P_REPผ้าคลัทช์และดิสเบรค"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["P_REPประกอบ"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["P_REPบรรจุ"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["P_REP"] = WhereFrom("DATE", OrderHistoryFrom),
+        // สมุดสต็อกและการใช้งานแม่พิมพ์ (#126): the period now open in full (a wrong year is a DQ row), the closed ones and the cut history from the same date
+        ["P_ST"] = null,
+        ["P_ADDST"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["ต้นงวดP_ST"] = WhereFrom("DATE", OrderHistoryFrom),
+        ["การใช้งานของพิมพ์0"] = null,
+        ["ตันงวดการใช้งานของพิมพ์0"] = WhereFrom("DAY", OrderHistoryFrom),
     };
 
     /// <summary>The file the rows were read from — set when read by <see cref="ReadOrderFile"/>.</summary>

@@ -16,7 +16,7 @@ namespace Lockte.Migration;
 /// <c>--program order</c> (#107) reads <c>ผลผลิตและORDER.accdb</c> instead of <c>พนักงาน.accdb</c> (the default,
 /// <c>employee</c>); run it after the employee program's migration on the same database.
 /// </summary>
-public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram)
+public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram, bool RemoveStockDuplicates = false)
 {
     public const string EmployeeProgram = "employee";
     public const string OrderProgram = "order";
@@ -25,9 +25,10 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
 
     public const string Usage = """
         Lockte.Migration --source <พนักงาน.accdb> --connection "<SQL Server connection string>" --confirm <database>
-                         --out <folder> [--map <code-map.csv>] [--program employee|order]
+                         --out <folder> [--map <code-map.csv>] [--program employee|order] [--remove-stock-duplicates yes]
           ลบข้อมูลหลักและประวัติในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
           --program order = ย้ายข้อมูลหลักของ ผลผลิตและORDER.accdb (รันหลังย้ายข้อมูลโปรแกรมพนักงานลงฐานข้อมูลเดียวกัน)
+          --remove-stock-duplicates yes = ตัดผลผลิตที่นับซ้ำใน P_ST ตาม Q-47 (ค่าเริ่มต้น: ไม่ตัด รายงานจำนวนอย่างเดียว)
           --connection ใช้ env LOCKTE_MIGRATION_SQL แทนได้ · รายงานเขียนลง <folder>
         """;
 
@@ -51,7 +52,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
         if (program is not (EmployeeProgram or OrderProgram)) return (null, $"--program ต้องเป็น {EmployeeProgram} หรือ {OrderProgram}");
-        return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program), null);
+        return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase)), null);
     }
 }
 
@@ -66,7 +67,7 @@ public static class MigrationTool
             .AddScoped<HrDataReset>().AddScoped<OrgDataReset>().AddScoped<SalesDataReset>().AddScoped<HrHistoryImport>()
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
-            .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>()
+            .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -98,13 +99,15 @@ public static class OrderMigrationTool
     /// employee matches into <paramref name="outputFolder"/>.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public static async Task<MigrationReport> RunAsync(IServiceProvider services, string sourceFile, string? codeMapFile, string outputFolder)
+    public static async Task<MigrationReport> RunAsync(IServiceProvider services, string sourceFile, string? codeMapFile, string outputFolder, bool removeStockDuplicates = false)
     {
         var map = codeMapFile is null ? CodeMap.Empty : CodeMap.Read(codeMapFile);
         var legacy = LegacyDatabase.ReadOrderFile(sourceFile);
         await using var scope = services.CreateAsyncScope();
         var report = await scope.ServiceProvider.GetRequiredService<OrderMasterDataMigration>().RunAsync(legacy, map);
         await scope.ServiceProvider.GetRequiredService<OrderHistoryMigration>().RunAsync(legacy, map, report); // ORDER, ประวัติ ORDER, ประวัติการส่ง (#112)
+        await scope.ServiceProvider.GetRequiredService<ProductionReportMigration>().RunAsync(legacy, map, report); // ใบรายงานผลผลิต 7 แผนก (#122)
+        await scope.ServiceProvider.GetRequiredService<StockMigration>().RunAsync(legacy, map, report, removeStockDuplicates); // สมุดสต็อกและการใช้งานแม่พิมพ์ (#126)
         report.WriteTo(outputFolder);
         return report;
     }

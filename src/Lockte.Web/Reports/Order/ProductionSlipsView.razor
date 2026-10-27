@@ -1,0 +1,77 @@
+@* RPT-10 ใบรายงานผลผลิตประจำวัน (P_REP<แผนก>2), ระดับ B on A4 นอน, one page per report: the head — "เลขที่ …", "แผนก …", "วัน…ที่ …", เครื่อง — then the table (กะ, ชม., ที่, the two material lots with the labels of the department,
+   รหัส, ชื่อผลผลิต, หน่วย, จำนวนดี, จำนวนเสีย, จำนวนทั้งหมด (1 decimal), รหัสพิมพ์, ล็อตการผลิต, พนักงาน), "รวม Σดี Σเสีย Σทั้งหมด เปอร์เซ็นต์เสีย" of the machine and "รวมทั้งหมด … เปอร์เซ็นต์เสียรวม  ผ่าน/ไม่ผ่าน ไม่เกิน <เป้า>"
+   (the target of the department; none for บรรจุ). The legacy printed "ผ่านไม่เกิน" run together: here it is spaced. The sign line: ผู้รายงาน / หัวหน้าแผนก / หัวหน้าแผนกรับโอน / หัวหน้าแผนกประกันคุณภาพ / ผู้จัดการฝ่าย. *@
+@if (Report.Slips.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    @for (var i = 0; i < Report.Slips.Count; i++)
+    {
+        var slip = Report.Slips[i];
+        var department = slip.Department;
+        <div style="@(i < Report.Slips.Count - 1 ? "page-break-after:always" : null)">
+            <table style="margin-bottom:2mm">
+                <tr>
+                    <td><b>แผนก@(department.Name)</b>@(slip.Machine is { } machine ? $"   เครื่อง {machine}" : "")</td>
+                    <td style="text-align:center">@(slip.Date is { } date ? ProductionSlipReports.DateText(date) : "")</td>
+                    <td style="text-align:right"><b>เลขที่ @slip.ReportNo</b></td>
+                </tr>
+            </table>
+            <table>
+                <colgroup>
+                    <col style="width:4%" /><col style="width:4%" /><col style="width:3%" /><col style="width:10%" /><col style="width:10%" /><col style="width:7%" /><col style="width:19%" />
+                    <col style="width:4%" /><col style="width:7%" /><col style="width:6%" /><col style="width:7%" /><col style="width:7%" /><col style="width:8%" /><col style="width:4%" />
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>กะ</th><th class="num">ชม.</th><th class="num">ที่</th><th>@department.MaterialLot1Label</th><th>@(department.MaterialLot2Label ?? "")</th><th>รหัส</th><th>ชื่อผลผลิต</th>
+                        <th>หน่วย</th><th class="num">จำนวนดี</th><th class="num">จำนวนเสีย</th><th class="num">จำนวนทั้งหมด</th><th>รหัสพิมพ์</th><th>ล็อตการผลิต</th><th>พนักงาน</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in slip.Lines)
+                    {
+                        <tr>
+                            <td>@line.Shift</td>
+                            <td class="num">@(line.Hours is { } hours ? hours.ToString("0.#") : "")</td>
+                            <td class="num">@line.LineNo</td>
+                            <td>@line.MaterialLot1</td>
+                            <td>@line.MaterialLot2</td>
+                            <td>@line.ProductCode</td>
+                            <td>@line.ProductName</td>
+                            <td>@line.Unit</td>
+                            <td class="num">@OrderReports.Qty(line.Good)</td>
+                            <td class="num">@(line.Reject is { } reject ? OrderReports.Qty(reject) : "")</td>
+                            <td class="num">@line.Total.ToString("#,##0.0")</td>
+                            <td>@line.Mold</td>
+                            <td>@line.Lot</td>
+                            <td>@line.Employee</td>
+                        </tr>
+                    }
+                    <tr class="total">
+                        <td colspan="8"><b>รวม@(slip.Machine is { } m ? " " + m : "")</b></td>
+                        <td class="num"><b>@OrderReports.Qty(slip.Good)</b></td>
+                        <td class="num"><b>@OrderReports.Qty(slip.Reject)</b></td>
+                        <td class="num"><b>@slip.Total.ToString("#,##0.0")</b></td>
+                        <td colspan="3"><b>เปอร์เซ็นต์เสีย @(slip.RejectPercent is { } p ? ReportText.Decimal2(p) : "-")</b></td>
+                    </tr>
+                    <tr class="total">
+                        <td colspan="8"><b>รวมทั้งหมด</b></td>
+                        <td class="num"><b>@OrderReports.Qty(slip.Good)</b></td>
+                        <td class="num"><b>@OrderReports.Qty(slip.Reject)</b></td>
+                        <td class="num"><b>@slip.Total.ToString("#,##0.0")</b></td>
+                        <td colspan="3"><b>เปอร์เซ็นต์เสียรวม @(slip.RejectPercent is { } q ? ReportText.Decimal2(q) : "-")@(slip.Passed is { } passed ? $"   {(passed ? "ผ่าน" : "ไม่ผ่าน")} ไม่เกิน {slip.Department.RejectTargetPercent:0.##}" : "")</b></td>
+                    </tr>
+                    <tr><td colspan="14" class="end"></td></tr>
+                </tbody>
+            </table>
+            <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["ผู้รายงาน", "หัวหน้าแผนก", "หัวหน้าแผนกรับโอน", "หัวหน้าแผนกประกันคุณภาพ", "ผู้จัดการฝ่าย"])" />
+        </div>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public ProductionSlipsReport Report { get; set; } = null!;
+}
