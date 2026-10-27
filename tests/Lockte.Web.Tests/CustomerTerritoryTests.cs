@@ -11,7 +11,7 @@ public sealed class CustomerTerritoryTests(LocalDbFixture db)
 {
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
-    private static int territoryCounter = Random.Shared.Next(0x1000);
+    private static int territoryCounter = Random.Shared.Next(0x100, 0x700);
 
     /// <summary>Territory codes are at most 4 characters.</summary>
     private static string TerritoryCode() => "X" + Interlocked.Increment(ref territoryCounter).ToString("X3");

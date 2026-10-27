@@ -73,10 +73,10 @@ public static class OrderMenu
         new(5, "รายงานการส่งของ", 2, // รายงานการส่งออก
         [
             new("การส่งของตามวันที่กำหนด", Code: "RPT-07", Page: "order/delivery-reports/deliveries"), // ส่งออกตามวันที่กำหนด
-            new("การส่งของตามลูกค้าและเขตการขาย", Code: "RPT-08-1"), // ส่งออกตามลูกค้าและSALE
-            new("การส่งของตามสินค้า", Code: "RPT-08-2"), // ส่งออกตามสินค้า
+            new("การส่งของตามลูกค้าและเขตการขาย", Code: "RPT-08-1", Page: "order/export-reports/customer-detail"), // ส่งออกตามลูกค้าและSALE
+            new("การส่งของตามสินค้า", Code: "RPT-08-2", Page: "order/export-reports/product-summary"), // ส่งออกตามสินค้า
             new("การส่งของตามชนิดสินค้า", Code: "RPT-08-3"), // ส่งออกตามชนิดสินค้า
-            new("สรุปการส่งของตามลูกค้า", Code: "RPT-08-4"), // สรุปการส่งออกตามลูกค้า
+            new("สรุปการส่งของตามลูกค้า", Code: "RPT-08-4", Page: "order/export-reports/customer-summary"), // สรุปการส่งออกตามลูกค้า
             new("รายงานส่งผู้จัดการโรงงาน", Code: "RPT-08-5", Page: "order/delivery-reports/manager"),
             new("รายงานการส่งของตามจังหวัด", Code: "RPT-08-6"), // รายงานส่งออกตามจังหวัด
         ]),
@@ -92,7 +92,7 @@ public static class OrderMenu
             // The legacy Switchboard Items row points at เมนู 14 (QA), leaving เมนู 11 unreachable; the user decided
             // (#103) to follow screens.md and #121: เมนู 11.
             new("แก้ไขผลผลิต", SubMenu: 11),
-            new("รายงานผลผลิตและพิมพ์ใบโอน", Code: "RPT-10"),
+            new("รายงานผลผลิตและพิมพ์ใบโอน", Code: "RPT-10", Page: "order/production/print"),
             new("เบิกเพื่อผลิต, แก้ไขใบเบิกงานระหว่างผลิตและพิมพ์รายงาน", Code: "SCR-13", Page: "order/stock/withdrawals"), // เบิกเพื่อผลิต,แก้ไขใบเบิกและพิมพ์รายงาน
             new("สต็อกสินค้าคงเหลือและโอนผลผลิต", SubMenu: 4), // STOCK คงเหลือโอนผลผลิตและNCR (NCR left out)
             new("ตัดสต็อกสินค้าสิ้นเดือน", SubMenu: 16), // ตัดSTOCKสิ้นเดือน
@@ -129,8 +129,8 @@ public static class OrderMenu
         [
             new("เพิ่มรหัสแม่พิมพ์", Code: "SCR-17-1", Page: "order/molds/new"),
             new("แก้ไขและพิมพ์รหัสแม่พิมพ์", Code: "SCR-17-2", Page: "order/molds"),
-            new("ตัดยอดแม่พิมพ์", Code: "SCR-18"), // ตัดSTOCKแม่พิมพ์
-            new("รายงานยอดแม่พิมพ์", Code: "RPT-15"), // รายงานSTOCKแม่พิมพ์
+            new("ตัดยอดแม่พิมพ์", Code: "SCR-18", Page: "order/molds/cut"), // ตัดSTOCKแม่พิมพ์
+            new("รายงานยอดแม่พิมพ์", Code: "RPT-15", Page: "order/molds/usage-report"), // รายงานSTOCKแม่พิมพ์
             new("รหัสเครื่องจักร", Code: "SCR-19", Page: "order/machines"),
         ]),
         new(15, "QA พิมพ์รายงานการตรวจสอบ", 1, // QA1
