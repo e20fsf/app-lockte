@@ -140,6 +140,8 @@ public static class OrderMenu
         [
             new("ผลผลิต", SubMenu: 14),
             new("แม่พิมพ์", Code: "RPT-20"),
+            new("ชนิดเอกสารใบตรวจ QA และจำนวนสุ่ม", Code: "QA-1", Page: "order/qa/document-types"), // new: the templates of the sheets (#128)
+            new("สเปคตรวจรายรุ่น QA", Code: "QA-2", Page: "order/qa/specs"), // new: the specs of each model (#128)
             new("สินค้าที่ส่งของ", Code: "RPT-07-1", Page: "order/delivery-reports/deliveries"), // สินค้าส่งออก (the same form as เมนู 5 "ส่งออกตามวันที่กำหนด")
         ]),
         new(14, "QA ผลผลิต", 15, // QA

@@ -774,6 +774,319 @@ namespace Lockte.Prod.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "บรรทัดใบรายงานผลผลิต");
                 });
 
+            modelBuilder.Entity("Lockte.Prod.Data.QaDefect", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasAnnotation("Lockte:AuditName", "รายการตำหนิ");
+
+                    b.Property<int>("QaModelSpecId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับ");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QaModelSpecId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("QaDefects", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "รายการตำหนิของสเปค");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.QaDocumentType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttributeRanges")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasAnnotation("Lockte:AuditName", "ช่วงคอลัมน์ตำหนิ");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "รหัสเอกสาร");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DepartmentStep")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasAnnotation("Lockte:AuditName", "แผนก/ขั้นตอน");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อใบตรวจ");
+
+                    b.Property<byte>("PageLayout")
+                        .HasColumnType("tinyint")
+                        .HasAnnotation("Lockte:AuditName", "โครงหน้า");
+
+                    b.Property<string>("Paper")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "ขนาดกระดาษ");
+
+                    b.Property<byte>("ResultColumns")
+                        .HasColumnType("tinyint")
+                        .HasAnnotation("Lockte:AuditName", "ชนิดคอลัมน์ผล");
+
+                    b.Property<string>("Revision")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "ฉบับที่");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SampleUnit")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "หน่วยสุ่ม");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code", "Revision")
+                        .IsUnique()
+                        .HasFilter("[Revision] IS NOT NULL");
+
+                    b.ToTable("QaDocumentTypes", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "ชนิดเอกสารใบตรวจ QA");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.QaMeasurePoint", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasAnnotation("Lockte:AuditName", "ข้อความค่าที่กำหนด");
+
+                    b.Property<string>("PointNo")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "เลขจุดวัด");
+
+                    b.Property<int>("QaModelSpecId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับ");
+
+                    b.Property<string>("Standard")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasAnnotation("Lockte:AuditName", "ค่ามาตรฐาน");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QaModelSpecId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("QaMeasurePoints", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "จุดวัดของสเปค");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.QaModelSpec", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int?>("DocumentSequence")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับเลขเอกสาร");
+
+                    b.Property<int>("DocumentTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImageContentType")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "ชนิดไฟล์รูป");
+
+                    b.Property<byte[]>("ImageData")
+                        .HasColumnType("varbinary(max)")
+                        .HasAnnotation("Lockte:AuditName", "รูปชิ้นงาน");
+
+                    b.Property<string>("Models")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasAnnotation("Lockte:AuditName", "รุ่นที่ใช้ร่วม");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อสเปค");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentTypeId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("QaModelSpecs", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "สเปคตรวจรายรุ่น");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.QaSampleSize", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SampleSize")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนสุ่ม");
+
+                    b.Property<int?>("UpTo")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนดีสูงสุดของช่วง");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("QaSampleSizes", "prod");
+
+                    b.HasAnnotation("Lockte:AuditName", "จำนวนสุ่มตามขนาด Lot");
+                });
+
             modelBuilder.Entity("Lockte.Prod.Data.StockEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -999,6 +1312,39 @@ namespace Lockte.Prod.Data.Migrations
                     b.Navigation("ProductionReport");
                 });
 
+            modelBuilder.Entity("Lockte.Prod.Data.QaDefect", b =>
+                {
+                    b.HasOne("Lockte.Prod.Data.QaModelSpec", "QaModelSpec")
+                        .WithMany("Defects")
+                        .HasForeignKey("QaModelSpecId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("QaModelSpec");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.QaMeasurePoint", b =>
+                {
+                    b.HasOne("Lockte.Prod.Data.QaModelSpec", "QaModelSpec")
+                        .WithMany("Points")
+                        .HasForeignKey("QaModelSpecId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("QaModelSpec");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.QaModelSpec", b =>
+                {
+                    b.HasOne("Lockte.Prod.Data.QaDocumentType", "DocumentType")
+                        .WithMany()
+                        .HasForeignKey("DocumentTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DocumentType");
+                });
+
             modelBuilder.Entity("Lockte.Prod.Data.StockEntry", b =>
                 {
                     b.HasOne("Lockte.Prod.Data.Product", "Product")
@@ -1013,6 +1359,13 @@ namespace Lockte.Prod.Data.Migrations
             modelBuilder.Entity("Lockte.Prod.Data.ProductionReport", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Lockte.Prod.Data.QaModelSpec", b =>
+                {
+                    b.Navigation("Defects");
+
+                    b.Navigation("Points");
                 });
 #pragma warning restore 612, 618
         }

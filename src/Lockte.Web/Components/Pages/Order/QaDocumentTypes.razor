@@ -1,0 +1,227 @@
+@page "/order/qa/document-types"
+@attribute [Authorize]
+@using Lockte.Prod
+@using Lockte.Prod.Data
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* ชนิดเอกสารใบตรวจ QA (#128): the templates of the inspection sheets — the control number (รหัสเอกสาร + ฉบับที่, copied as the sheet prints it), the name, the department and step, the unit
+   sampled, the kind of result columns, the ranges of the defect columns and the page layout. The QA edits them here, and every change is in the history. Below, the table of จำนวนสุ่ม (BR-017). *@
+<PageTitle>ชนิดเอกสารใบตรวจ QA — LOCKTE</PageTitle>
+<h1 class="mb-4">ชนิดเอกสารใบตรวจ QA</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มชนิดเอกสาร" : $"แก้ชนิดเอกสาร {form.Code}")</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.Code" Label="รหัสเอกสาร (เช่น WI-QA022)" MaxLength="QaSpecRegistry.CodeLength" Required="true" RequiredError="กรุณากรอกรหัสเอกสาร" /></MudItem>
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.Revision" Label="ฉบับที่" MaxLength="QaSpecRegistry.CodeLength" /></MudItem>
+        <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.Name" Label="ชื่อใบตรวจ" MaxLength="QaSpecRegistry.TextLength" Required="true" RequiredError="กรุณากรอกชื่อใบตรวจ" /></MudItem>
+        <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.DepartmentStep" Label="แผนก / ขั้นตอน" MaxLength="QaSpecRegistry.TextLength" /></MudItem>
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.SampleUnit" Label="หน่วยสุ่ม (ชิ้น / คู่ / แผ่น)" MaxLength="QaSpecRegistry.CodeLength" /></MudItem>
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.Paper" Label="ขนาดกระดาษ" MaxLength="QaSpecRegistry.CodeLength" /></MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="QaResultColumns" @bind-Value="form.ResultColumns" Label="ชนิดคอลัมน์ผล (Variable)">
+                @foreach (var kind in Enum.GetValues<QaResultColumns>())
+                {
+                    <MudSelectItem T="QaResultColumns" Value="kind">@ResultText(kind)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="QaPageLayout" @bind-Value="form.PageLayout" Label="โครงหน้า">
+                @foreach (var kind in Enum.GetValues<QaPageLayout>())
+                {
+                    <MudSelectItem T="QaPageLayout" Value="kind">@LayoutText(kind)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.AttributeRanges" Label="ช่วงคอลัมน์ตำหนิ (เช่น 1-10,11-20 ; ใช้ ; แยกชุดที่สอง)" MaxLength="QaSpecRegistry.LongTextLength" /></MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการใหม่</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบชนิดเอกสารนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+        <MudText Typo="Typo.h6">รายการชนิดเอกสาร</MudText>
+        <MudTextField @bind-Value="search" Immediate="true" Label="ค้นหา (รหัสหรือชื่อ)" Clearable="true" Margin="Margin.Dense" Style="max-width:18rem" />
+    </MudStack>
+    <MudTable Items="Shown" Dense="true" Hover="true" Loading="types is null" T="QaDocumentTypeDto" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<QaDocumentTypeDto> e) => Edit(e.Item!))">
+        <HeaderContent><MudTh>รหัสเอกสาร</MudTh><MudTh>ฉบับที่</MudTh><MudTh>ชื่อใบตรวจ</MudTh><MudTh>แผนก / ขั้นตอน</MudTh><MudTh>โครงหน้า</MudTh><MudTh Style="text-align:right">สเปค</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Code</MudTd>
+            <MudTd>@context.Revision</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.DepartmentStep</MudTd>
+            <MudTd>@LayoutText(context.PageLayout)</MudTd>
+            <MudTd Style="text-align:right">@context.Specs</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ไม่พบชนิดเอกสาร</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">จำนวนสุ่มตามขนาด Lot (BR-017)</MudText>
+    <MudText Typo="Typo.body2" Class="mb-2">Lot ที่มีจำนวนดีไม่เกินขีดจำกัดของช่วงใช้จำนวนสุ่มของช่วงนั้น · ช่วงสุดท้ายไม่มีขีดจำกัด · จำนวนที่ยอมรับ / ไม่ยอมรับพิมพ์คงที่ 0 / 1 ทุกใบ</MudText>
+    <MudStack Spacing="1">
+        @foreach (var row in sampleRows)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                @if (row == sampleRows[^1])
+                {
+                    <MudText Style="width:12rem">มากกว่าช่วงก่อนหน้า (ไม่จำกัด)</MudText>
+                }
+                else
+                {
+                    <MudNumericField T="int?" @bind-Value="row.UpTo" Label="จำนวนดีไม่เกิน" Min="1" Style="width:12rem" Margin="Margin.Dense" />
+                }
+                <MudNumericField T="int" @bind-Value="row.SampleSize" Label="จำนวนสุ่ม" Min="1" Style="width:10rem" Margin="Margin.Dense" />
+            </MudStack>
+        }
+    </MudStack>
+    <MudButton Variant="Variant.Outlined" Class="mt-3" OnClick="SaveSampleSizesAsync" Disabled="busy">บันทึกจำนวนสุ่ม</MudButton>
+</MudPaper>
+
+<MudButton Href="@OrderMenu.HrefOf(15)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<QaDocumentTypeDto>? types;
+    private TypeForm form = new();
+    private List<SampleRow> sampleRows = [];
+    private string? search;
+    private bool busy;
+
+    private sealed class SampleRow { public int? UpTo { get; set; } public int SampleSize { get; set; } }
+
+    private sealed class TypeForm
+    {
+        public int? Id { get; set; }
+        public string Code { get; set; } = "";
+        public string? Revision { get; set; }
+        public string Name { get; set; } = "";
+        public string? DepartmentStep { get; set; }
+        public string? SampleUnit { get; set; }
+        public string? Paper { get; set; }
+        public QaResultColumns ResultColumns { get; set; }
+        public QaPageLayout PageLayout { get; set; }
+        public string? AttributeRanges { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+
+    private IEnumerable<QaDocumentTypeDto> Shown => (types ?? [])
+        .Where(t => string.IsNullOrWhiteSpace(search) || t.Code.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || t.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private static string ResultText(QaResultColumns kind) => kind switch
+    {
+        QaResultColumns.Pieces8 => "ชิ้นที่ 1–8",
+        QaResultColumns.Pairs10 => "คู่ที่ 1–10",
+        QaResultColumns.Sheets10 => "แผ่นที่ 1–10",
+        _ => "แยกมีเขา / ไม่มีเขา",
+    };
+
+    private static string LayoutText(QaPageLayout kind) => kind switch
+    {
+        QaPageLayout.Full => "เต็ม",
+        QaPageLayout.Short => "ย่อ",
+        QaPageLayout.PackingOneStrip => "บรรจุ 1 แถบ",
+        _ => "บรรจุฟอร์มเปล่า 4 แถบ",
+    };
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        types = await Services.RunAsync<QaSpecDirectory, IReadOnlyList<QaDocumentTypeDto>>(d => d.GetTypesAsync());
+        var sizes = await Services.RunAsync<QaSpecDirectory, IReadOnlyList<QaSampleSizeDto>>(d => d.GetSampleSizesAsync());
+        sampleRows = sizes.Select(s => new SampleRow { UpTo = s.UpTo, SampleSize = s.SampleSize }).ToList();
+    }
+
+    private void New() => form = new TypeForm();
+
+    private void Edit(QaDocumentTypeDto t) => form = new TypeForm
+    {
+        Id = t.Id, Code = t.Code, Revision = t.Revision, Name = t.Name, DepartmentStep = t.DepartmentStep, SampleUnit = t.SampleUnit, Paper = t.Paper,
+        ResultColumns = t.ResultColumns, PageLayout = t.PageLayout, AttributeRanges = t.AttributeRanges, RowVersion = t.RowVersion,
+    };
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new QaDocumentTypeInput(form.Id, form.Code, form.Revision, form.Name, form.DepartmentStep, form.SampleUnit, form.ResultColumns, form.AttributeRanges, form.PageLayout,
+                form.Paper, form.RowVersion);
+            var result = await Services.RunAsync<QaSpecRegistry, ServiceResult>(r => r.SaveTypeAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบชนิดเอกสาร", $"ลบชนิดเอกสาร {form.Code} {form.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var id = form.Id!.Value;
+            var rowVersion = form.RowVersion!;
+            var result = await Services.RunAsync<QaSpecRegistry, ServiceResult>(r => r.DeleteTypeAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task SaveSampleSizesAsync()
+    {
+        busy = true;
+        try
+        {
+            var sizes = sampleRows.Select(r => new QaSampleSizeDto(r == sampleRows[^1] ? null : r.UpTo, r.SampleSize)).ToList();
+            var result = await Services.RunAsync<QaSpecRegistry, ServiceResult>(r => r.SaveSampleSizesAsync(sizes));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกจำนวนสุ่มแล้ว", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+}
