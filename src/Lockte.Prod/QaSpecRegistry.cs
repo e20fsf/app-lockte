@@ -30,6 +30,11 @@ public sealed record QaSpecSummary(int Id, int DocumentTypeId, string DocumentTy
 
 public sealed record QaSampleSizeDto(int? UpTo, int SampleSize);
 
+/// <summary>What the sheet of a spec prints: the document type it is on (code, edition, title), its own sequence, models, points, defects and picture.</summary>
+public sealed record QaSheetSpec(
+    int Id, string Name, string DocumentCode, string? Revision, string DocumentName, int? DocumentSequence, string? Models, IReadOnlyList<QaMeasurePointDto> Points,
+    IReadOnlyList<string> Defects, byte[]? Image, string? ImageContentType);
+
 /// <summary>
 /// ข้อมูลสเปคตรวจคุณภาพ (#128, ข้อตัดสิน #27 #28): the document types (templates) and the specs of each model are master data the QA edits, with the history of every change, so the sheets
 /// of ~290 models need no programmer. Printing the sheets is another ticket. The sample size of a lot (BR-017) is reference data read from <see cref="QaSampleSize"/>.
@@ -42,6 +47,9 @@ public sealed class QaSpecRegistry(ProdDbContext db)
     public const int MaxImageBytes = 2 * 1024 * 1024;
 
     private static string? Clean(string? text) => ProductRegistry.Clean(text);
+
+    /// <summary>The text of a standard as typed: the spaces at its start stay (they line the value up after the number of the point), the ones at its end go.</summary>
+    private static string? CleanEnd(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.TrimEnd();
 
     private static T? Expect<T>(T? row, byte[]? rowVersion) where T : class, IAudited
     {
@@ -112,7 +120,7 @@ public sealed class QaSpecRegistry(ProdDbContext db)
         {
             TooLong(errors, $"เลขจุดวัดที่ {index} ", Clean(point.PointNo), CodeLength);
             TooLong(errors, $"ข้อความค่าที่กำหนดของจุดที่ {index} ", Clean(point.Description), LongTextLength);
-            TooLong(errors, $"ค่ามาตรฐานของจุดที่ {index} ", Clean(point.Standard), LongTextLength);
+            TooLong(errors, $"ค่ามาตรฐานของจุดที่ {index} ", CleanEnd(point.Standard), LongTextLength);
         }
         foreach (var (defect, index) in input.Defects.Select((d, i) => (d, i + 1))) TooLong(errors, $"รายการตำหนิที่ {index} ", Clean(defect), TextLength);
         if (errors.Count > 0) return new ServiceResult(false, errors);
@@ -130,8 +138,8 @@ public sealed class QaSpecRegistry(ProdDbContext db)
         // the points and defects are replaced by the screen's list, in its order
         db.QaMeasurePoints.RemoveRange(row.Points);
         db.QaDefects.RemoveRange(row.Defects);
-        row.Points = input.Points.Where(p => Clean(p.PointNo) is not null || Clean(p.Description) is not null || Clean(p.Standard) is not null)
-            .Select((p, i) => new QaMeasurePoint { Sequence = i + 1, PointNo = Clean(p.PointNo), Description = Clean(p.Description), Standard = Clean(p.Standard) }).ToList();
+        row.Points = input.Points.Where(p => Clean(p.PointNo) is not null || Clean(p.Description) is not null || CleanEnd(p.Standard) is not null)
+            .Select((p, i) => new QaMeasurePoint { Sequence = i + 1, PointNo = Clean(p.PointNo), Description = Clean(p.Description), Standard = CleanEnd(p.Standard) }).ToList();
         row.Defects = input.Defects.Select(Clean).OfType<string>().Select((d, i) => new QaDefect { Sequence = i + 1, Name = d }).ToList();
         await db.SaveChangesAsync();
         return ServiceResult.Ok(row.Id);
@@ -200,6 +208,15 @@ public sealed class QaSpecDirectory(ProdDbContext db)
         return s is null ? null : new QaSpecDto(s.Id, s.DocumentTypeId, s.DocumentType.Code, s.Name, s.Models, s.DocumentSequence, s.ImageData != null,
             s.Points.OrderBy(p => p.Sequence).Select(p => new QaMeasurePointDto(p.Sequence, p.PointNo, p.Description, p.Standard)).ToList(),
             s.Defects.OrderBy(d => d.Sequence).Select(d => d.Name).ToList(), s.RowVersion);
+    }
+
+    /// <summary>The spec with everything its sheet prints, the picture included.</summary>
+    public async Task<QaSheetSpec?> GetSheetAsync(int specId)
+    {
+        var s = await db.QaModelSpecs.AsNoTracking().Include(x => x.DocumentType).Include(x => x.Points).Include(x => x.Defects).FirstOrDefaultAsync(x => x.Id == specId);
+        return s is null ? null : new QaSheetSpec(s.Id, s.Name, s.DocumentType.Code, s.DocumentType.Revision, s.DocumentType.Name, s.DocumentSequence, s.Models,
+            s.Points.OrderBy(p => p.Sequence).Select(p => new QaMeasurePointDto(p.Sequence, p.PointNo, p.Description, p.Standard)).ToList(),
+            s.Defects.OrderBy(d => d.Sequence).Select(d => d.Name).ToList(), s.ImageData, s.ImageContentType);
     }
 
     public async Task<(byte[] Data, string ContentType)?> GetImageAsync(int specId)

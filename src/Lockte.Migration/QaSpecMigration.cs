@@ -174,8 +174,8 @@ public static class QaSheetReader
     private static QaMeasurePointInput PointOf(string caption)
     {
         // "P.1     51.0  mm. / 50.80-51.20 mm." → the number up to the first space, the rest as printed; "ความหนา 3.50 mm. …" → the words up to the first digit
-        var first = Regex.Match(caption, @"^(?<no>(?:P\.|จุดที่\s*)\d+)\s+(?<rest>.*)$");
-        if (first.Success) return new QaMeasurePointInput(first.Groups["no"].Value.Trim(), null, first.Groups["rest"].Value.Trim());
+        var first = Regex.Match(caption, @"^(?<no>(?:P\.|จุดที่\s*)\d+)(?<rest>\s+.*)$");
+        if (first.Success) return new QaMeasurePointInput(first.Groups["no"].Value.Trim(), null, first.Groups["rest"].Value.TrimEnd()); // the spaces after the number stay: the sheet prints the text as typed
         var digit = Digit.Match(caption);
         if (digit.Success && digit.Index > 0) return new QaMeasurePointInput(null, caption[..digit.Index].Trim(), caption[digit.Index..].Trim());
         return new QaMeasurePointInput(null, null, caption);
