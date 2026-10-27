@@ -64,7 +64,7 @@ public sealed class QaSheetTests(ChromiumFixture chromium)
 
     [Fact]
     public void A_group_without_a_template_has_none()
-        => Assert.Null(QaFormTemplates.For("คลัทช์หลังอัดขึ้นรูปA100"));
+        => Assert.Null(QaFormTemplates.For("สินค้าก่อนส่งให้ลูกค้า"));
 
     [Fact] // a family: a page for each line marked, the spec in its places, the fields filled; the blank one when nothing is marked
     public void A_sheet_has_a_page_for_each_marked_line_and_one_blank_when_none()
@@ -123,6 +123,53 @@ public sealed class QaSheetTests(ChromiumFixture chromium)
         Assert.True(Regex.Matches(Svg(pages[0]), @">/</text>").Count > Regex.Matches(Svg(pages[1]), @">/</text>").Count); // 125 reaches more columns than 5
     }
 
+    [Theory] // every packing sheet has the one frame; the blank form is its own
+    [InlineData("คลัทช์บรรจุกล่อง", "S")]
+    [InlineData("ดรัมสกินแพ็ค", "S")]
+    [InlineData("ดิสบรรจุกล่องฟอร์มเปล่า", "Z")]
+    [InlineData("ดรัมสกินแพ็คฟอร์มเปล่า", "Z")]
+    public void The_packing_sheets_share_two_frames(string specName, string key)
+        => Assert.Equal(key, QaFormTemplates.For(specName)?.Key);
+
+    [Fact] // packing: a strip for each product, four to a page; the signatures follow the last strip on its page, or have a page of their own when four strips fill it
+    public void The_packing_sheet_has_a_strip_for_each_line_and_the_signatures_after_the_last()
+    {
+        var template = QaFormTemplates.For("คลัทช์บรรจุกล่อง")!;
+        QaSheetLine Line(int i) => new($"SB{i:00}", $"สินค้า{i}", $"L{i}", new DateOnly(2026, 5, 4), 100 + i, 20);
+        string Signatures(FormPage page) => Svg(page);
+
+        var one = QaSheetForm.Layout(template, Content(), [Line(1)]);
+        var four = QaSheetForm.Layout(template, Content(), Enumerable.Range(1, 4).Select(Line).ToList());
+        var five = QaSheetForm.Layout(template, Content(), Enumerable.Range(1, 5).Select(Line).ToList());
+
+        Assert.Single(one);
+        Assert.Contains("ผู้ตรวจสอบ", Signatures(one[0]));
+        Assert.Contains("SB01", Svg(one[0]));
+        Assert.Equal(2, four.Count); // four strips fill the page: the signatures are on the next
+        Assert.DoesNotContain("ผู้ตรวจสอบ", Svg(four[0]));
+        Assert.Contains("ผู้ตรวจสอบ", Svg(four[1]));
+        Assert.Contains("SB04", Svg(four[0]));
+        Assert.Equal(2, five.Count); // the fifth is on the second page, with the signatures
+        Assert.Contains("SB05", Svg(five[1]));
+        Assert.Contains("ผู้ตรวจสอบ", Svg(five[1]));
+        Assert.DoesNotContain("#Name?", Svg(four[1]));
+        Assert.Contains(ThaiDate.Format(new DateOnly(2026, 5, 4)), Svg(four[1])); // the date boxes under the signatures show the date
+    }
+
+    [Fact] // the blank form: four empty strips, then the signatures on the second page, and no #Name? (D-3)
+    public void The_blank_packing_form_has_four_empty_strips_and_clean_signatures()
+    {
+        var template = QaFormTemplates.For("คลัทช์บรรจุกล่องฟอร์มเปล่า")!;
+
+        var pages = QaSheetForm.Layout(template, Content(), [new("SB01", "สินค้า", "L1", new DateOnly(2026, 5, 4), 100, 20)]);
+
+        Assert.Equal(2, pages.Count);
+        Assert.Equal(4, Regex.Matches(Svg(pages[0]), "รหัสสินค้า").Count); // four strips
+        Assert.DoesNotContain("SB01", Svg(pages[0]));                      // blank: whatever is marked
+        Assert.Contains("ผู้ตรวจสอบ", Svg(pages[1]));
+        Assert.DoesNotContain("#Name?", Svg(pages[1]));
+    }
+
     [Fact] // a page is A4 landscape, and the PDF has TH Sarabun New in it
     public async Task The_sheet_is_a_PDF_of_A4_landscape_pages()
     {
@@ -149,7 +196,7 @@ public sealed class QaSheetTests(ChromiumFixture chromium)
         foreach (var file in Directory.GetFiles(definitions, "*.txt"))
         {
             var name = Path.GetFileNameWithoutExtension(file);
-            if (name.Contains("ฟอร์มเปล่า") || QaSheetReader.Read(name, ReportDefinition.Read(file)) is not { } sheet) continue;
+            if (QaSheetReader.Read(name, ReportDefinition.Read(file)) is not { } sheet) continue;
             if (QaFormTemplates.For(name, sheet.Points.Count, sheet.Defects.Count) is not { } template) continue;
             var content = new QaSheetContent(sheet.Title, QaSheetForm.DocumentNumber(sheet.DocumentCode, sheet.Sequence, sheet.Revision), sheet.Models,
                 sheet.Points.Select(p => QaSheetForm.PointText(new QaMeasurePointDto(0, p.PointNo, p.Description, p.Standard))).ToList(), sheet.Defects, null, null);

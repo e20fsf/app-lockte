@@ -38,37 +38,75 @@ public static class QaSheetForm
     }
 
     public static IReadOnlyList<FormPage> Layout(QaFormTemplate template, QaSheetContent content, IReadOnlyList<QaSheetLine> lines)
-        => (lines.Count == 0 ? [null] : lines.Cast<QaSheetLine?>().ToList()).Select(line => Page(template, content, line)).ToList();
+        => template.Strip is { } strip ? StripLayout(template, strip, content, lines) : (lines.Count == 0 ? [null] : lines.Cast<QaSheetLine?>().ToList()).Select(line => Page(template, content, line)).ToList();
 
     private static FormPage Page(QaFormTemplate t, QaSheetContent content, QaSheetLine? line)
     {
         var page = new FormPage(Paper.A4Landscape);
-        foreach (var r in t.Rules)
-        {
-            if (r.X1 - r.X0 >= r.Y1 - r.Y0) page.Line(r.X0, (r.Y0 + r.Y1) / 2, r.X1, (r.Y0 + r.Y1) / 2, r.Y1 - r.Y0);
-            else page.Line((r.X0 + r.X1) / 2, r.Y0, (r.X0 + r.X1) / 2, r.Y1, r.X1 - r.X0);
-        }
-        foreach (var s in t.Texts)
-        {
-            if (s.LeaderEnd is { } end) page.Leader(s.X, end, s.Base, s.Size);
-            else page.Text(s.X, s.Base, s.Text, s.Size, (TextAnchor)s.Anchor, s.Bold);
-        }
-        Slot(page, t.Title, content.Title);
-        Slot(page, t.DocumentNumber, content.DocumentNumber);
-        if (t.Models is { } models) Slot(page, models, content.Models);
-        for (var i = 0; i < t.Points.Count && i < content.Points.Count; i++) Slot(page, t.Points[i], content.Points[i]);
-        for (var i = 0; i < t.Defects.Count && i < content.Defects.Count; i++) Slot(page, t.Defects[i], content.Defects[i]);
-        if (t.Picture is { } box && content.Image is { Length: > 0 } image) page.Image(box.X, box.Y, box.Width, box.Height, content.ImageContentType ?? "image/png", image);
-        if (line is not null) Fill(page, t, line);
+        Draw(page, t, content, line, 0, _ => true);
         return page;
     }
 
-    private static void Slot(FormPage page, QaTextSlot slot, string? text)
-        => page.Text(slot.X, slot.Base, text, slot.Size, (TextAnchor)slot.Anchor, slot.Bold);
-
-    private static void Fill(FormPage page, QaFormTemplate t, QaSheetLine line)
+    /// <summary>
+    /// Packing: the header, then a strip for each product (four to a page), then the footer with the signatures — on the page of the last strip when there is room for it, on a page of its own when four
+    /// strips have filled the last page. A blank form prints four empty strips. The date boxes under the signatures show the date, not Access's <c>#Name?</c> (D-3).
+    /// </summary>
+    private static IReadOnlyList<FormPage> StripLayout(QaFormTemplate t, QaStrip strip, QaSheetContent content, IReadOnlyList<QaSheetLine> lines)
     {
-        foreach (var f in t.Fields)
+        var records = strip.Blank ? Enumerable.Repeat<QaSheetLine?>(null, strip.PerPage).ToList() : lines.Count == 0 ? [null] : lines.Cast<QaSheetLine?>().ToList();
+        var pages = new List<FormPage>();
+        var inHeader = (double y) => y < strip.Top;
+        var inStrip = (double y) => y >= strip.Top && y < strip.FooterTop;
+        var inFooter = (double y) => y >= strip.FooterTop;
+        var count = 0;
+        for (var first = 0; first < records.Count; first += strip.PerPage)
+        {
+            var page = new FormPage(Paper.A4Landscape);
+            Draw(page, t, content, null, 0, inHeader);
+            var chunk = records.Skip(first).Take(strip.PerPage).ToList();
+            for (var i = 0; i < chunk.Count; i++) Draw(page, t, content, chunk[i], i * strip.Pitch, inStrip);
+            pages.Add(page);
+            count = chunk.Count;
+        }
+        var footerOnLast = count < strip.PerPage;
+        var footerPage = footerOnLast ? pages[^1] : new FormPage(Paper.A4Landscape);
+        if (!footerOnLast)
+        {
+            Draw(footerPage, t, content, null, 0, inHeader);
+            pages.Add(footerPage);
+        }
+        Draw(footerPage, t, content, strip.Blank ? null : records.LastOrDefault(), 0, inFooter);
+        return pages;
+    }
+
+    /// <summary>The part of the template whose place (the baseline, or the top of a rule) is in the zone, moved down by <paramref name="dy"/> mm; the fields are filled when there is a line.</summary>
+    private static void Draw(FormPage page, QaFormTemplate t, QaSheetContent content, QaSheetLine? line, double dy, Func<double, bool> inZone)
+    {
+        foreach (var r in t.Rules.Where(r => inZone(Math.Min(r.Y0, r.Y1))))
+        {
+            if (r.X1 - r.X0 >= r.Y1 - r.Y0) page.Line(r.X0, (r.Y0 + r.Y1) / 2 + dy, r.X1, (r.Y0 + r.Y1) / 2 + dy, r.Y1 - r.Y0);
+            else page.Line((r.X0 + r.X1) / 2, r.Y0 + dy, (r.X0 + r.X1) / 2, r.Y1 + dy, r.X1 - r.X0);
+        }
+        foreach (var s in t.Texts.Where(s => inZone(s.Base)))
+        {
+            if (s.LeaderEnd is { } end) page.Leader(s.X, end, s.Base + dy, s.Size);
+            else page.Text(s.X, s.Base + dy, s.Text, s.Size, (TextAnchor)s.Anchor, s.Bold);
+        }
+        if (inZone(t.Title.Base)) Slot(page, t.Title, content.Title, dy);
+        if (inZone(t.DocumentNumber.Base)) Slot(page, t.DocumentNumber, content.DocumentNumber, dy);
+        if (t.Models is { } models && inZone(models.Base)) Slot(page, models, content.Models, dy);
+        for (var i = 0; i < t.Points.Count && i < content.Points.Count; i++) if (inZone(t.Points[i].Base)) Slot(page, t.Points[i], content.Points[i], dy);
+        for (var i = 0; i < t.Defects.Count && i < content.Defects.Count; i++) if (inZone(t.Defects[i].Base)) Slot(page, t.Defects[i], content.Defects[i], dy);
+        if (t.Picture is { } box && inZone(box.Y) && content.Image is { Length: > 0 } image) page.Image(box.X, box.Y + dy, box.Width, box.Height, content.ImageContentType ?? "image/png", image);
+        if (line is not null) Fill(page, t, line, dy, inZone);
+    }
+
+    private static void Slot(FormPage page, QaTextSlot slot, string? text, double dy = 0)
+        => page.Text(slot.X, slot.Base + dy, text, slot.Size, (TextAnchor)slot.Anchor, slot.Bold);
+
+    private static void Fill(FormPage page, QaFormTemplate t, QaSheetLine line, double dy, Func<double, bool> inZone)
+    {
+        foreach (var f in t.Fields.Where(f => inZone(f.Base)))
         {
             var text = f.Kind switch
             {
@@ -81,7 +119,7 @@ public static class QaSheetForm
                 QaFieldKind.Mark => int.TryParse(f.Near, out var first) && line.SampleSize >= first ? "/" : null,
                 _ => null,
             };
-            page.Text(f.X, f.Base, text, f.Size, (TextAnchor)f.Anchor);
+            page.Text(f.X, f.Base + dy, text, f.Size, (TextAnchor)f.Anchor);
         }
     }
 }
