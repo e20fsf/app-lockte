@@ -140,20 +140,20 @@ public static class OrderMenu
         new(15, "QA พิมพ์รายงานการตรวจสอบ", 1, // QA1
         [
             new("ผลผลิต", SubMenu: 14),
-            new("แม่พิมพ์", Code: "RPT-20"),
+            new("แม่พิมพ์", Code: "RPT-20", Page: "order/qa/mold"),
             new("ชนิดเอกสารใบตรวจ QA และจำนวนสุ่ม", Code: "QA-1", Page: "order/qa/document-types"), // new: the templates of the sheets (#128)
             new("สเปคตรวจรายรุ่น QA", Code: "QA-2", Page: "order/qa/specs"), // new: the specs of each model (#128)
             new("สินค้าที่ส่งของ", Code: "RPT-07-1", Page: "order/delivery-reports/deliveries"), // สินค้าส่งออก (the same form as เมนู 5 "ส่งออกตามวันที่กำหนด")
         ]),
         new(14, "QA ผลผลิต", 15, // QA
         [
-            new("ไดคาสท์", Code: "SCR-12-1"),
-            new("ตกแต่ง", Code: "SCR-12-2"),
-            new("อัดผ้าเบรก", Code: "SCR-12-3"),
-            new("ฝนผ้าเบรก", Code: "SCR-12-4"),
-            new("ประกอบ", Code: "SCR-12-5"),
-            new("ผ้าคลัทช์และดิสเบรก", Code: "SCR-12-6"),
-            new("บรรจุ", Code: "SCR-12-7"),
+            new("ไดคาสท์", Code: "SCR-12-1", Page: "order/qa/production/D"),
+            new("ตกแต่ง", Code: "SCR-12-2", Page: "order/qa/production/T"),
+            new("อัดผ้าเบรก", Code: "SCR-12-3", Page: "order/qa/production/B"),
+            new("ฝนผ้าเบรก", Code: "SCR-12-4", Page: "order/qa/production/G"),
+            new("ประกอบ", Code: "SCR-12-5", Page: "order/qa/production/A"),
+            new("ผ้าคลัทช์และดิสเบรก", Code: "SCR-12-6", Page: "order/qa/production/K"),
+            new("บรรจุ", Code: "SCR-12-7", Page: "order/qa/production/P"),
         ]),
     ]);
 }

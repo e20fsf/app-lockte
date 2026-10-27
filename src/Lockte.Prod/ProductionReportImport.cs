@@ -7,7 +7,7 @@ namespace Lockte.Prod;
 /// <summary>A line of a migrated ใบรายงานผลผลิต (#122): the legacy values after the checks of the migration tool; <see cref="Total"/> is ดี + เสีย.</summary>
 public sealed record ProductionReportLineImport(
     int LineNo, int? ShiftId, decimal? Hours, string? MaterialLot1, string? MaterialLot2, int? ProductId, string ProductName, string? Unit,
-    decimal Good, decimal? Reject, decimal Total, int? EmployeeId, int? MoldId, string? Lot);
+    decimal Good, decimal? Reject, decimal Total, int? EmployeeId, int? MoldId, string? Lot, bool QaSelected = false);
 
 /// <summary>A migrated report. <see cref="Stocked"/> = its lines are in the transferred copy (เข้าสต็อกแล้ว).</summary>
 public sealed record ProductionReportImportRow(
@@ -46,7 +46,7 @@ public sealed class ProductionReportImport(ProdDbContext db, AuditScope audit)
                     {
                         ProductionReport = report, LineNo = l.LineNo, ShiftId = l.ShiftId, Hours = l.Hours, MaterialLot1 = l.MaterialLot1, MaterialLot2 = l.MaterialLot2,
                         ProductId = l.ProductId, ProductName = l.ProductName, Unit = l.Unit, GoodQuantity = l.Good, RejectQuantity = l.Reject, TotalQuantity = l.Total,
-                        EmployeeId = l.EmployeeId, MoldId = l.MoldId, Lot = l.Lot,
+                        EmployeeId = l.EmployeeId, MoldId = l.MoldId, Lot = l.Lot, QaSelected = l.QaSelected,
                     }));
                     return report;
                 }));

@@ -28,6 +28,8 @@ public static class ProdModule
         services.AddScoped<StockWithdrawalDirectory>();
         services.AddScoped<QaSpecRegistry>();
         services.AddScoped<QaSpecDirectory>();
+        services.AddScoped<QaSelectionRegistry>();
+        services.AddScoped<QaSelectionDirectory>();
         services.AddScoped<Lockte.Sales.IProductLookup, SalesProductLookup>();
         return services;
     }

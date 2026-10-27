@@ -63,6 +63,8 @@ internal sealed class ProductionReportLine : IAudited
     public Mold? Mold { get; set; }
     /// <summary>Lot ผลผลิต (LOT): typed by the user.</summary>
     public string? Lot { get; set; }
+    /// <summary>ติดเครื่องหมายสุ่มตรวจ (MARK1 = Y, SCR-12): the line is printed on the inspection sheet the QA chooses; the user clears it by hand.</summary>
+    public bool QaSelected { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

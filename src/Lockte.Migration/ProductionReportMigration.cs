@@ -178,11 +178,13 @@ public sealed class ProductionReportMigration(
                 }
 
                 var reject = Decimal(s, "NG");
+                var qaSelected = string.Equals(s.Text("MARK1"), "y", StringComparison.OrdinalIgnoreCase); // the QA mark (SCR-12): kept as the user left it
+                if (qaSelected) qaMarked++;
                 var good = row.Good;
                 var total = good + (reject ?? 0);
                 if (Decimal(s, "TOTAL") is null || Decimal(s, "TOTAL") != total) totalsFixed++;
                 lines.Add(new ProductionReportLineImport(line, shiftId, Decimal(s, "TT_T"), s.Text("LOT_MTR1"), s.Text("LOT_MTR2"), productId, name, s.Text("U_NAME"), good, reject, total,
-                    employeeId, moldId, s.Text("LOT")));
+                    employeeId, moldId, s.Text("LOT"), qaSelected));
                 tallies[row.Table].Loaded++;
             }
             imports.Add(new ProductionReportImportRow(first.Department, dates.Count == 0 ? null : dates.Min(), number, machineId, stocked, lines));
@@ -194,6 +196,7 @@ public sealed class ProductionReportMigration(
     }
 
     private int totalsFixed;
+    private int qaMarked;
 
     private static string Key(LegacyRow row)
         => string.Join("|", row.Text("REF_NO")?.Trim().ToUpperInvariant(), Int(row, "SUF_NO"), row.Text("PD_C")?.Trim().ToUpperInvariant(), Decimal(row, "QTY"), Decimal(row, "NG"), row.Text("LOT"),
@@ -203,6 +206,7 @@ public sealed class ProductionReportMigration(
     {
         if (severalMachines > 0) report.Notes.Add($"ใบรายงานผลผลิต {severalMachines} ใบมีหลายเครื่องในใบเดียวกัน — ใช้เครื่องที่พบมากสุดเป็นเครื่องของใบ (ผู้ใช้รับทราบ: ไม่เก็บเครื่องระดับบรรทัด กระทบเป้าตามเครื่องของ BR-020 และตัดยอดแม่พิมพ์) — รายการอยู่ใน dq-exceptions.csv");
         if (duplicateKeys > 0) report.Notes.Add($"ใบรายงานผลผลิต {duplicateKeys} แถวมีเลขที่+ลำดับซ้ำกับแถวอื่นของใบเดียวกัน — เก็บไว้ทุกแถว ให้ลำดับถัดไปที่ว่าง (คีย์เดิมไม่ unique)");
+        if (qaMarked > 0) report.Notes.Add($"ใบรายงานผลผลิต {qaMarked} แถวยังติดเครื่องหมายสุ่มตรวจ (MARK1 = Y) ค้างอยู่ — ย้ายตามเดิม ผู้ใช้ QA ลบเครื่องหมายเอง (SCR-12)");
         if (fixedTotals > 0) report.Notes.Add($"ใบรายงานผลผลิต {fixedTotals} แถวที่จำนวนรวมว่างหรือไม่เท่า ดี + เสีย — คำนวณใหม่เป็น ดี + เสีย (AC-21)");
         var unmatchedCopies = copyLeft.Values.Sum();
         report.Notes.Add($"สำเนา P_REP (ถึงสต็อก) {copyRows} แถว: ตรงกับต้นทาง {matched} แถว · ไม่ตรงกับต้นทาง (แก้หลังโอนหรือไม่มีต้นทางตั้งแต่ปี 2568) {unmatchedCopies} แถว · แถวต้นทาง {sourceRows - matched} แถวไม่อยู่ในสำเนา (ยังไม่โอน/แก้หลังโอน)");

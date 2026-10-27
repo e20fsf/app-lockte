@@ -146,6 +146,8 @@ public sealed class ProdDbContext(DbContextOptions<ProdDbContext> options) : Mod
             l.Property(x => x.EmployeeId).HasAuditName("พนักงาน");
             l.Property(x => x.MoldId).HasAuditName("แม่พิมพ์");
             l.Property(x => x.Lot).HasMaxLength(ProductionReportRegistry.TextLength).HasAuditName("Lot ผลผลิต");
+            l.Property(x => x.QaSelected).HasAuditName("ติดเครื่องหมายสุ่มตรวจ");
+            l.HasIndex(x => x.QaSelected).HasFilter("[QaSelected] = 1");
             l.HasIndex(x => new { x.ProductionReportId, x.LineNo }).IsUnique();
             l.HasIndex(x => x.ProductId);
             l.HasIndex(x => x.EmployeeId);

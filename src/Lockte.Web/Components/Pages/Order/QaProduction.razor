@@ -1,0 +1,196 @@
+@page "/order/qa/production/{Dept}"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject ProtectedLocalStorage Storage
+
+@* SCR-12 QA ผลผลิต (BR-017, #130): the QA picks a day, sees the production lines of the department on that day — every number can be corrected, and the total is worked out again — and marks
+   (MARK1 = Y) the lines to be inspected. A button of a model prints its sheet, one page for each marked line. ⚠ Kept as the legacy: the button does not filter by model (Q-58), and the
+   marks stay until the user clears them. The last day chosen is remembered per department in this browser (BR-022). *@
+<PageTitle>QA ผลผลิต @department?.Name — LOCKTE</PageTitle>
+<h1 class="mb-4">QA ผลผลิต แผนก@(department?.Name)</h1>
+
+@if (department is null)
+{
+    <MudAlert Severity="Severity.Warning">ไม่พบแผนก @Dept</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+            <MudDatePicker Editable="true" @bind-Date="date" @bind-Date:after="LoadAsync" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || !Dirty" StartIcon="@Icons.Material.Filled.Save">บันทึก</MudButton>
+            <MudButton OnClick="ClearMarksAsync" Disabled="busy || !rows.Any(r => r.Selected)" StartIcon="@Icons.Material.Filled.ClearAll">ล้างเครื่องหมายทั้งหมด</MudButton>
+        </MudStack>
+        @if (rows.Count == 0)
+        {
+            <MudText Class="mt-3">ไม่มีบรรทัดผลผลิตของวันนี้ — ใบตรวจที่พิมพ์จะเป็นใบว่าง</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Class="mt-3" Style="overflow-x:auto">
+                <thead>
+                    <tr>
+                        <th>เลขที่ใบ</th><th>ที่</th><th>รหัส</th><th>ชื่อสินค้า</th><th>@department.MaterialLot1Label</th><th>@(department.MaterialLot2Label ?? "")</th><th>ชม.</th>
+                        <th>จำนวนดี</th><th>จำนวนเสีย</th><th>จำนวนรวม</th><th>Lot</th><th>พิมพ์</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in rows)
+                    {
+                        <tr>
+                            <td>@row.Source.ReportNo</td>
+                            <td>@row.Source.LineNo</td>
+                            <td>@row.Source.ProductCode</td>
+                            <td>@row.Source.ProductName</td>
+                            <td><MudTextField @bind-Value="row.MaterialLot1" MaxLength="QaSelectionRegistry.TextLength" Margin="Margin.Dense" Style="min-width:7rem" /></td>
+                            <td><MudTextField @bind-Value="row.MaterialLot2" MaxLength="QaSelectionRegistry.TextLength" Margin="Margin.Dense" Style="min-width:7rem" /></td>
+                            <td><MudNumericField T="decimal?" @bind-Value="row.Hours" Min="0" Margin="Margin.Dense" Style="width:5rem" HideSpinButtons="true" /></td>
+                            <td><MudNumericField T="decimal" @bind-Value="row.Good" Min="0" Margin="Margin.Dense" Style="width:7rem" HideSpinButtons="true" /></td>
+                            <td><MudNumericField T="decimal?" @bind-Value="row.Reject" Min="0" Margin="Margin.Dense" Style="width:7rem" HideSpinButtons="true" /></td>
+                            <td style="text-align:right">@((row.Good + (row.Reject ?? 0)).ToString("#,##0.####", ThaiDate.Culture))</td>
+                            <td><MudTextField @bind-Value="row.Lot" MaxLength="QaSelectionRegistry.TextLength" Margin="Margin.Dense" Style="min-width:8rem" /></td>
+                            <td><MudCheckBox T="bool" @bind-Value="row.Selected" aria-label="ติดเครื่องหมายพิมพ์ใบตรวจ" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+            <MudText Typo="Typo.body2" Class="mt-2">แก้ข้อมูลอื่นของใบรายงาน (สินค้า กะ พนักงาน แม่พิมพ์) ที่หน้า <MudLink Href="@OrderMenu.HrefOf(11)">แก้ไขผลผลิต</MudLink></MudText>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-1">พิมพ์ใบตรวจ</MudText>
+        <MudText Typo="Typo.body2" Class="mb-2">กดรุ่นเพื่อพิมพ์ใบตรวจ 1 หน้าต่อบรรทัดที่ติดเครื่องหมาย (บันทึกก่อนพิมพ์) · ปุ่มรุ่นไม่กรองรุ่นของบรรทัด — พิมพ์ทุกบรรทัดที่ติดเครื่องหมายบนแม่แบบของรุ่นที่กด</MudText>
+        @if (specs.Count == 0)
+        {
+            <MudText>ยังไม่มีสเปคตรวจของแผนกนี้ — เพิ่มที่ <MudLink Href="order/qa/specs">สเปคตรวจรายรุ่น QA</MudLink></MudText>
+        }
+        else
+        {
+            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                @foreach (var spec in specs)
+                {
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Href="@SheetUrl(spec.Id)" Target="_blank" Disabled="@Dirty">@ShortName(spec.Name)</MudButton>
+                }
+            </MudStack>
+        }
+    </MudPaper>
+}
+
+<MudButton Href="@OrderMenu.HrefOf(14)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Dept { get; set; } = "";
+
+    private ProductionDepartment? department;
+    private DateTime? date = DateTime.Today;
+    private List<LineRow> rows = [];
+    private IReadOnlyList<QaSpecSummary> specs = [];
+    private bool busy;
+
+    private sealed class LineRow(QaLineRow source)
+    {
+        public QaLineRow Source { get; } = source;
+        public string? MaterialLot1 { get; set; } = source.MaterialLot1;
+        public string? MaterialLot2 { get; set; } = source.MaterialLot2;
+        public decimal? Hours { get; set; } = source.Hours;
+        public decimal Good { get; set; } = source.Good;
+        public decimal? Reject { get; set; } = source.Reject;
+        public string? Lot { get; set; } = source.Lot;
+        public bool Selected { get; set; } = source.Selected;
+
+        public bool Changed => MaterialLot1 != Source.MaterialLot1 || MaterialLot2 != Source.MaterialLot2 || Hours != Source.Hours || Good != Source.Good || Reject != Source.Reject
+            || Lot != Source.Lot || Selected != Source.Selected;
+    }
+
+    private bool Dirty => rows.Any(r => r.Changed);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        department = ProductionDepartments.Find(Dept);
+        if (department is null) return;
+        specs = await Services.RunAsync<QaSelectionDirectory, IReadOnlyList<QaSpecSummary>>(d => d.GetSpecsAsync(department.Code));
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || department is null) return;
+        try
+        {
+            if (await Storage.GetAsync<DateOnly>("order.qa." + department.Code) is { Success: true, Value: var saved } && saved != default)
+            {
+                date = saved.ToDateTime(TimeOnly.MinValue);
+                await LoadAsync();
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // nothing remembered: today
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        if (department is null || date is not { } day) { rows = []; return; }
+        var chosen = DateOnly.FromDateTime(day);
+        var lines = await Services.RunAsync<QaSelectionDirectory, IReadOnlyList<QaLineRow>>(d => d.GetLinesAsync(department.Code, chosen));
+        rows = lines.Select(l => new LineRow(l)).ToList();
+        try { await Storage.SetAsync("order.qa." + department.Code, chosen); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var edits = rows.Where(r => r.Changed).Select(r => new QaLineEdit(r.Source.LineId, r.Source.RowVersion, r.Good, r.Reject, r.Hours, r.Lot, r.MaterialLot1, r.MaterialLot2, r.Selected)).ToList();
+            var result = await Services.RunAsync<QaSelectionRegistry, ServiceResult>(r => r.SaveAsync(edits));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+
+    private async Task ClearMarksAsync()
+    {
+        if (department is null || date is not { } day) return;
+        busy = true;
+        try
+        {
+            var chosen = DateOnly.FromDateTime(day);
+            var cleared = await Services.RunAsync<QaSelectionRegistry, int>(r => r.ClearMarksAsync(department.Code, chosen));
+            Snackbar.Add($"ล้างเครื่องหมาย {cleared} บรรทัด", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+
+    private string SheetUrl(int specId)
+        => $"/reports/order/qa/sheet?spec={specId}&dept={department!.Code}&date={DateOnly.FromDateTime(date ?? DateTime.Today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+
+    private static string ShortName(string name)
+    {
+        var group = QaSpecGroups.GroupOf(name);
+        return group.Length > 0 && name.StartsWith(group, StringComparison.Ordinal) && name.Length > group.Length ? name[group.Length..] : name;
+    }
+}
