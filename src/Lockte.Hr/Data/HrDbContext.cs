@@ -22,6 +22,8 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<PayResult> PayResults => Set<PayResult>();
     internal DbSet<Warning> Warnings => Set<Warning>();
     internal DbSet<SlipSigner> SlipSigners => Set<SlipSigner>();
+    internal DbSet<BonusRun> BonusRuns => Set<BonusRun>();
+    internal DbSet<BonusResult> BonusResults => Set<BonusResult>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -172,6 +174,29 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             r.HasOne(x => x.PayPeriod).WithMany().HasForeignKey(x => x.PayPeriodId).OnDelete(DeleteBehavior.Cascade);
             r.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             r.HasIndex(x => new { x.PayPeriodId, x.EmployeeId }).IsUnique();
+            r.HasIndex(x => x.EmployeeId);
+        });
+
+        // The latest คำนวณโบนัส (BR-030), replaced whole by the next one; BR-035 pays from it.
+        modelBuilder.Entity<BonusRun>(b =>
+        {
+            b.HasAuditName("การคำนวณโบนัส");
+            b.Property(x => x.FromDate).HasAuditName("ตั้งแต่วันที่");
+            b.Property(x => x.ToDate).HasAuditName("ถึงวันที่");
+            b.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            b.Property(x => x.MonthlyMultiplier).HasPrecision(9, 4).HasAuditName("ตัวคูณรายเดือน");
+            b.Property(x => x.DailyMultiplier).HasPrecision(9, 4).HasAuditName("ตัวคูณรายวัน");
+        });
+        modelBuilder.Entity<BonusResult>(r =>
+        {
+            r.HasAuditName("โบนัส");
+            r.Property(x => x.LeaveDays).HasAuditName("วันลา");
+            r.Property(x => x.ServiceYears).HasAuditName("อายุงาน");
+            r.Property(x => x.Percent).HasAuditName("% โบนัส");
+            r.Property(x => x.Amount).HasPrecision(18, 2).HasAuditName("โบนัส");
+            r.HasOne(x => x.BonusRun).WithMany(x => x.Results).HasForeignKey(x => x.BonusRunId).OnDelete(DeleteBehavior.Cascade);
+            r.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            r.HasIndex(x => new { x.BonusRunId, x.EmployeeId }).IsUnique();
             r.HasIndex(x => x.EmployeeId);
         });
 

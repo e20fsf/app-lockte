@@ -153,9 +153,11 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
 
     /// <summary>
     /// RPT-04 สลิปเงินเดือน (BR-034): one slip per employee paid, by รหัส ↑; null until ค่าแรง is calculated here — a
-    /// period moved from the legacy history has no pay parts or เวลาทำงานรวม to print.
+    /// period moved from the legacy history has no pay parts or เวลาทำงานรวม to print. <paramref name="withBonus"/> = RPT-42 สลิปรวมโบนัส
+    /// (BR-035): only the employees of <see cref="Bonus.IsOnSlip"/> with a bonus in the latest คำนวณโบนัส, NET = ค่าแรง + โบนัส; null
+    /// when there is no bonus run.
     /// </summary>
-    public async Task<PaySlipBatch?> GetSlipsAsync(int periodId)
+    public async Task<PaySlipBatch?> GetSlipsAsync(int periodId, bool withBonus = false)
     {
         var period = await GetAsync(periodId);
         if (period is null || period.CompletedStep < PayPeriodStep.PayCalculated || period.PayCalculatedAt is null) return null;
@@ -168,11 +170,21 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
                     new OvertimeParts(r.OvertimePay, r.SundayPay, r.SundayOvertimePay, r.HolidayPay, r.HolidayOvertimePay)),
                 r.EmployeeType,
                 HasTtbAccount = r.Employee.BankAccountTtb != null,
+                r.Employee.HotAllowance,
             })
             .ToListAsync();
+        Dictionary<int, decimal>? bonus = null;
+        if (withBonus)
+        {
+            var run = await db.BonusRuns.AsNoTracking().OrderByDescending(b => b.Id).Select(b => b.Id).FirstOrDefaultAsync();
+            if (run == 0) return null;
+            bonus = await db.BonusResults.AsNoTracking().Where(b => b.BonusRunId == run).ToDictionaryAsync(b => b.EmployeeId, b => b.Amount);
+        }
         var dates = new PayPeriodDates(period.From, period.To, period.PayDate);
         var slips = rows.Where(r => times.ContainsKey(r.Pay.EmployeeId))
-            .Select(r => PaySlips.Build(dates, times[r.Pay.EmployeeId], r.Pay, r.EmployeeType, r.HasTtbAccount))
+            .Where(r => bonus is null || (Bonus.IsOnSlip(r.EmployeeType, r.HotAllowance, r.HasTtbAccount) && bonus.GetValueOrDefault(r.Pay.EmployeeId) > 0))
+            .Select(r => PaySlips.Build(dates, times[r.Pay.EmployeeId], r.Pay, r.EmployeeType, r.HasTtbAccount)
+                with { Bonus = bonus?.GetValueOrDefault(r.Pay.EmployeeId) ?? 0 })
             .OrderBy(s => s.Code, StringComparer.Ordinal).ToList();
         return new PaySlipBatch(period, slips, await ListSlipSignersAsync());
     }

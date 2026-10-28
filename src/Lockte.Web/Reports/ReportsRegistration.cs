@@ -42,6 +42,7 @@ public static class ReportsRegistration
         reports.MapHrAttendanceReports(); // ใบเตือน การลา การมาทำงาน (#59)
         reports.MapHrPayHistoryReports(); // ค่าแรงสิ้นเดือน, สรุปหลายงวด (#56)
         reports.MapHrVacationPayReports(); // ค่าพักร้อน (#63)
+        reports.MapHrBonusReports(); // โบนัส และจ่ายรวมค่าแรงงวด (#62)
         reports.MapHrEvaluationReports(); // ปรับค่าแรง ประเมินผล (#67)
         reports.MapOrderMasterListReports(); // รายชื่อข้อมูลหลักของผลผลิตและORDER (#137)
         reports.MapSaleOrderReports(); // ใบ SALE ORDER (#110)
