@@ -60,11 +60,11 @@ public static class Bonus
         var rows = new List<BankTransferRow>();
         foreach (var p in inputs)
         {
-            if (BankTransfers.Account(p.AccountTtb) is { } ttb) rows.Add(new(BankTransfers.Ttb, ttb, p.PayNormal + p.PayOvertime + p.Hot + p.Bonus, p.Code));
-            if (BankTransfers.Account(p.AccountKbank) is { } kbank) rows.Add(new(BankTransfers.Kbank, kbank, p.PayOvertime + p.Bonus, p.Code));
+            if (BankTransfers.Account(p.AccountTtb) is { } ttb) rows.Add(new(BankTransfers.Ttb, ttb, p.PayNormal + p.PayOvertime + p.Hot + p.Bonus, p.Code, p.Name, p.EnglishTitle, p.EnglishName));
+            if (BankTransfers.Account(p.AccountKbank) is { } kbank) rows.Add(new(BankTransfers.Kbank, kbank, p.PayOvertime + p.Bonus, p.Code, p.Name, p.EnglishTitle, p.EnglishName));
         }
         return rows.GroupBy(r => (r.Bank, r.Account))
-            .Select(g => new BankTransferRow(g.Key.Bank, g.Key.Account, g.Sum(r => r.Amount), g.First().Code))
+            .Select(g => new BankTransferRow(g.Key.Bank, g.Key.Account, g.Sum(r => r.Amount), g.First().Code, g.First().Name, g.First().EnglishTitle, g.First().EnglishName))
             .Where(r => r.Amount > 0)
             .OrderBy(r => r.Bank, StringComparer.Ordinal).ThenBy(r => r.Account, StringComparer.Ordinal).ToList();
     }
@@ -171,10 +171,11 @@ public sealed class BonusDirectory(HrDbContext db, OrgDirectory org)
         var bonus = await db.BonusResults.AsNoTracking().Where(r => r.BonusRunId == run).Select(r => new { r.EmployeeId, r.Amount }).ToDictionaryAsync(r => r.EmployeeId);
         var ids = pay.Keys.Union(bonus.Keys).ToList();
         var inputs = (await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id))
-                .Select(e => new { e.Id, e.Code, e.BankAccountTtb, e.BankAccountKbank }).ToListAsync())
+                .Select(e => new { e.Id, e.Code, e.Name, e.EnglishTitle, e.EnglishName, e.BankAccountTtb, e.BankAccountKbank }).ToListAsync())
             .OrderBy(e => e.Code, StringComparer.Ordinal)
             .Select(e => new BonusPayInput(e.Code, e.BankAccountTtb, e.BankAccountKbank, pay.GetValueOrDefault(e.Id)?.PayNormal ?? 0,
-                pay.GetValueOrDefault(e.Id)?.PayOvertime ?? 0, pay.GetValueOrDefault(e.Id)?.Hot ?? 0, bonus.GetValueOrDefault(e.Id)?.Amount ?? 0));
+                pay.GetValueOrDefault(e.Id)?.PayOvertime ?? 0, pay.GetValueOrDefault(e.Id)?.Hot ?? 0, bonus.GetValueOrDefault(e.Id)?.Amount ?? 0,
+                e.Name, e.EnglishTitle, e.EnglishName));
         var rows = Bonus.Payment(inputs);
         return new BonusPayment(period, (await GetLastInputAsync())!, rows, BankTransfers.Summary(rows));
     }

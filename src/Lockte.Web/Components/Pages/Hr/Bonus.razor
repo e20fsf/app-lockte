@@ -64,6 +64,8 @@
     <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mt-3">
         <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/ttb")" Target="_blank" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.PictureAsPdf">พิมพ์ค่าแรงรวมโบนัสส่งแบงค์ (ทหารไทย)</MudButton>
         <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/kbank")" Target="_blank" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.PictureAsPdf">พิมพ์เงิน OT รวมโบนัสส่งแบงค์ (กสิกร)</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/ttb?format=xlsx")" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.TableView">Excel ทหารไทยรวมโบนัส</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/kbank?format=xlsx")" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.TableView">Excel กสิกรรวมโบนัส</MudButton>
         <MudButton Variant="Variant.Outlined" Href="@Href("slips-with-bonus")" Target="_blank" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.PictureAsPdf">พิมพ์ SLIP รวมโบนัส</MudButton>
     </MudStack>
     @if (!CanPay)

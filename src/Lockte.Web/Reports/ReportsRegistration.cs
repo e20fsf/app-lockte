@@ -89,6 +89,19 @@ public static class ReportsRegistration
             return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
         });
 
+        // SCR-42 ค่าแรงส่งแบงค์ (RPT-05, INT-01/02, #54): the ttb list (PAY_W) or the กสิกร list (PAY_OT) of a งวด, as the PDF or ?format=xlsx for the template
+        // of the bank; either one marks the ส่งแบงค์ step done (a step still locked by the one before it stays as it is).
+        reports.MapGet("/hr/pay-periods/{id:int}/bank/{bank}", async (int id, string bank, string? format, HttpContext http, PayPeriodDirectory periods,
+            PayPeriodRegistry registry, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (await periods.GetAsync(id) is not { PayCalculatedAt: not null, Migrated: false })
+                return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้ในระบบใหม่");
+            if (BankFiles.Of(bank, BankTransfers.Build(await periods.GetBankInputsAsync(id))) is not { } table) return Results.NotFound("ไม่มีรายการนี้");
+            var result = await HrBonusReports.BankFileAsync(http, printer, table, format, cancellationToken);
+            await registry.CompleteStepAsync(id, PayPeriodStep.BankPrinted);
+            return result;
+        });
+
         // RPT-11 สรุปค่าแรงทั้ง 2 ช่วง (มาโคร สรุปค่าแรงช่วง1+2, BR-008, #58): the two ช่วง of the งวดคร่อมปีใหม่ by id; each ช่วง alone is RPT-03.
         reports.MapGet("/hr/two-part-periods/{first:int}/{second:int}/pay-summary", async (int first, int second, HttpContext http,
             PayPeriodDirectory periods, ReportPrinter printer, CancellationToken cancellationToken) =>
@@ -102,11 +115,20 @@ public static class ReportsRegistration
 
         // SCR-47 ค่าแรงส่งแบงค์ทั้ง 2 ช่วง (BR-008 ข้อ 4): the transfer lists with the pay of both ช่วง added; printing it marks the ส่งแบงค์ step of both
         // (a step still locked by the one before it stays as it is). The bank file itself comes with #54.
-        reports.MapGet("/hr/two-part-periods/{first:int}/{second:int}/bank", async (int first, int second, HttpContext http,
+        reports.MapGet("/hr/two-part-periods/{first:int}/{second:int}/bank", async (int first, int second, string? list, string? format, HttpContext http,
             PayPeriodDirectory periods, PayPeriodRegistry registry, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (await periods.GetTwoPartBankAsync(first, second) is not { } bank)
                 return Results.NotFound("สองช่วงนี้ยังไม่ครบ: ต้องกรอกจำนวนวันที่จ่ายทั้งสองช่วง ช่วงที่ 2 เริ่มวันถัดจากช่วงที่ 1 และคำนวณค่าแรงทั้งสองช่วงแล้ว");
+            // ?list=ttb|kbank: that list alone, as the PDF of RPT-05 or ?format=xlsx for the template of the bank (#54).
+            if (list is not null)
+            {
+                if (BankFiles.Of(list, bank.Rows) is not { } table) return Results.NotFound("ไม่มีรายการนี้");
+                var file = await HrBonusReports.BankFileAsync(http, printer, table, format, cancellationToken);
+                await registry.CompleteStepAsync(first, PayPeriodStep.BankPrinted);
+                await registry.CompleteStepAsync(second, PayPeriodStep.BankPrinted);
+                return file;
+            }
             var pdf = await printer.PrintAsync<TwoPartBankView>(TwoPartBankView.Title, Paper.A4Portrait,
                 new() { [nameof(TwoPartBankView.Bank)] = bank }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
             await registry.CompleteStepAsync(first, PayPeriodStep.BankPrinted);

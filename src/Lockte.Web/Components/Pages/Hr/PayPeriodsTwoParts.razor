@@ -56,6 +56,8 @@
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
         <MudButton Href="@TwoPartHref("pay-summary")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="!BothCalculated">พิมพ์สรุปค่าแรงทั้ง 2 ช่วง (PDF)</MudButton>
         <MudButton Href="@TwoPartHref("bank")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="!BothCalculated">พิมพ์ค่าแรงส่งแบงค์ทั้ง 2 ช่วง (PDF)</MudButton>
+        <MudButton Href="@(TwoPartHref("bank") + "?list=ttb&format=xlsx")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.TableView" Disabled="!BothCalculated">Excel ทหารไทย (ค่าแรง)</MudButton>
+        <MudButton Href="@(TwoPartHref("bank") + "?list=kbank&format=xlsx")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.TableView" Disabled="!BothCalculated">Excel กสิกร (OT)</MudButton>
     </MudStack>
     @if (!BothCalculated)
     {

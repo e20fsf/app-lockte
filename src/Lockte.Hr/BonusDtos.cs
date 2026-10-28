@@ -27,7 +27,8 @@ public sealed record BonusLine(string Code, string Name, string? DepartmentName,
 /// What BR-035 reads of one employee: the accounts, the งวด's pay (zero when not paid in the งวด) and the bonus of the latest
 /// <see cref="BonusRegistry.CalculateAsync"/>.
 /// </summary>
-public sealed record BonusPayInput(string Code, string? AccountTtb, string? AccountKbank, decimal PayNormal, decimal PayOvertime, decimal Hot, decimal Bonus);
+public sealed record BonusPayInput(string Code, string? AccountTtb, string? AccountKbank, decimal PayNormal, decimal PayOvertime, decimal Hot, decimal Bonus,
+    string? Name = null, string? EnglishTitle = null, string? EnglishName = null);
 
 /// <summary>
 /// BR-035 ค่าแรงรวมโบนัส (RPT-40 ทหารไทย, RPT-41 กสิกร) of one งวด: <see cref="Rows"/> by list (<see cref="BankTransfers.Ttb"/>,

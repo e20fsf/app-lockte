@@ -1,0 +1,41 @@
+@page "/hr/pay-periods/bank-guide"
+@attribute [Authorize]
+
+@* RPT-06 วิธีทำเงินเดือนส่งแบงค์ ทหารไทย / กสิกร (รายงาน PAYROLL 1 / PAYROLL 2, #54): the steps of INT-01 and INT-02 as text. The legacy report was fixed text
+   in Access; this is the same procedure with the new buttons. The templates of the banks stay outside the program (Q-03). *@
+<PageTitle>วิธีทำไฟล์ส่งธนาคาร — LOCKTE</PageTitle>
+<h1 class="mb-4">วิธีทำไฟล์ส่งธนาคาร</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true" Style="max-width:56rem">
+    <MudText Typo="Typo.h6">เงินเดือนส่งธนาคารทหารไทย (ttb)</MudText>
+    <MudText Typo="Typo.body2" Class="mt-2">
+        <ol>
+            <li>ปิดงวดค่าแรงจนถึงขั้นพิมพ์สรุปค่าแรง แล้วกด <b>Excel ทหารไทย (ค่าแรง)</b> ในขั้นพิมพ์ค่าแรงส่งแบงค์</li>
+            <li>เปิดไฟล์ที่ได้ คัดลอกแถวรายการ (ไม่เอาบรรทัดแรกที่เป็นหัวตารางและบรรทัดสุดท้ายที่เป็นผลรวม)</li>
+            <li>เปิดไฟล์ <b>TMB SAP_EPORTAL V3.1_NOWHT2</b> วางที่ช่อง A4 ใส่วันที่จ่ายที่ช่อง D2 (วันที่ 1 หรือ 16 เท่านั้น)</li>
+            <li>กดปุ่ม <b>CREATE TEXT FILE</b> ได้ไฟล์ชื่อ "เงินเดือนพนักงาน"</li>
+            <li>เข้า TMB BUSINESS CLICK นำเข้าแบบ SAPFORMAT (PAYROLL PA CODE = PA0) ผู้นำเข้าข้อมูลสร้างรายการ ผู้อนุมัติอนุมัติด้วย OTP</li>
+            <li>ตรวจว่าเว็บธนาคารแสดงข้อมูลครบ ถ้าไม่ครบให้กลับไปทำใหม่</li>
+        </ol>
+    </MudText>
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true" Style="max-width:56rem">
+    <MudText Typo="Typo.h6">เงิน OT ส่งธนาคารกสิกรไทย</MudText>
+    <MudText Typo="Typo.body2" Class="mt-2">
+        <ol>
+            <li>กด <b>Excel กสิกร (OT)</b> ในขั้นพิมพ์ค่าแรงส่งแบงค์ของงวดเดียวกัน</li>
+            <li>เปิดไฟล์ที่ได้ คัดลอกแถวรายการ (ไม่เอาบรรทัดแรกและบรรทัดสุดท้าย)</li>
+            <li>เปิดไฟล์ <b>CREATE TEXT VERSION 4.0_IOS FOR PAYROLL</b> วางที่ช่อง A4 ใส่วันที่จ่ายที่ช่อง B2</li>
+            <li>กดปุ่ม <b>EXPORT TEXT FILE</b> ได้ไฟล์ชื่อ "OTกสิกร"</li>
+            <li>เข้า K-BANK BULK GATEWAY เมนู PAYROLL อัปโหลดไฟล์ เลือก K BANK ผู้อนุมัติอนุมัติในเว็บ</li>
+        </ol>
+    </MudText>
+</MudPaper>
+
+<MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4" Style="max-width:56rem">
+    คนที่ไม่มีเลขบัญชีหรือยอดเป็น 0 จะไม่อยู่ในไฟล์โดยไม่มีคำเตือน · โบนัสที่จ่ายรวมกับค่าแรงงวดส่งได้ธนาคารเดียว (ดูหน้าคำนวณโบนัส) ·
+    ตำแหน่งช่องในขั้นตอนข้างบนมาจากคู่มือเดิม ยังไม่ได้ตรวจกับ template ธนาคารจริง
+</MudAlert>
+
+<MudButton Href="@EmployeeMenu.HrefOf(12)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>

@@ -80,7 +80,8 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
     /// <summary>The pay and accounts of every employee paid in the period, by รหัส ↑ — what BR-033's transfer lists are built from.</summary>
     public async Task<IReadOnlyList<BankPayInput>> GetBankInputsAsync(int periodId)
         => await db.PayResults.AsNoTracking().Where(r => r.PayPeriodId == periodId).OrderBy(r => r.Employee.Code)
-            .Select(r => new BankPayInput(r.Employee.Code, r.Employee.BankAccountTtb, r.Employee.BankAccountKbank, r.PayNormal, r.PayOvertime, r.Hot))
+            .Select(r => new BankPayInput(r.Employee.Code, r.Employee.BankAccountTtb, r.Employee.BankAccountKbank, r.PayNormal, r.PayOvertime, r.Hot,
+                r.Employee.Name, r.Employee.EnglishTitle, r.Employee.EnglishName))
             .ToListAsync();
 
     /// <summary>

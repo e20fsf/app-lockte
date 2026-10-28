@@ -1,6 +1,7 @@
 using Lockte.Hr;
 using Lockte.Web.Accounts;
 using Lockte.Web.Reports.Hr;
+using Lockte.Web.Reports.Order;
 using static Lockte.Web.Reports.HrAttendanceReports;
 
 namespace Lockte.Web.Reports;
@@ -33,21 +34,15 @@ public static class HrBonusReports
                 ? Results.NotFound(NoRun)
                 : await PrintAsync<BonusReportView>(http, printer, BonusReportView.Title, Paper.A4Landscape, report, "โบนัส " + Iso(report.Input.From), cancellationToken));
 
-        // RPT-40 / RPT-41: the TTB list (ค่าแรงงวด + โบนัส) or the KBANK list (OT งวด + โบนัส) of a งวด.
-        reports.MapGet("/hr/pay-periods/{id:int}/bonus-bank/{bank}", async (int id, string bank, HttpContext http, PayPeriodDirectory periods,
+        // RPT-40 / RPT-41: the ttb list (ค่าแรงงวด + โบนัส, เงินเดือนส่งแบ็งค์ทหารไทย1) or the กสิกร list (OT งวด + โบนัส, เงินOTรวมโบนัสส่งแบ็งค์กสิกร) of a
+        // งวด, as the PDF of RPT-05 or ?format=xlsx for the template of the bank (#54).
+        reports.MapGet("/hr/pay-periods/{id:int}/bonus-bank/{bank}", async (int id, string bank, string? format, HttpContext http, PayPeriodDirectory periods,
             BonusDirectory bonus, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
-            var key = bank.ToUpperInvariant();
-            if (key is not (BankTransfers.Ttb or BankTransfers.Kbank)) return Results.NotFound("ไม่มีรายการนี้");
             if (await periods.GetAsync(id) is not { } period) return Results.NotFound("ไม่พบงวดค่าแรงนี้");
             if (await bonus.GetPaymentAsync(period) is not { } payment) return Results.NotFound("ยังไม่ได้คำนวณโบนัส หรือยังไม่ได้คำนวณค่าแรงของงวดนี้ในระบบใหม่");
-            var rows = payment.Rows.Where(r => r.Bank == key).ToList();
-            var list = new TwoPartBank(period, rows, BankTransfers.Summary(rows));
-            var title = key == BankTransfers.Ttb ? "ค่าแรงรวมโบนัสส่งแบงค์ (ทหารไทย)" : "เงิน OT รวมโบนัสส่งแบงค์ (กสิกร)";
-            var pdf = await printer.PrintAsync<TwoPartBankView>(title, Paper.A4Portrait,
-                new() { [nameof(TwoPartBankView.Bank)] = list, [nameof(TwoPartBankView.Titles)] = BonusTitles }, AccountClaims.DisplayNameOf(http.User),
-                cancellationToken: cancellationToken);
-            return ReportsRegistration.Pdf(http, pdf, title + " " + Iso(period.From));
+            if (BankFiles.Of(bank, payment.Rows, BonusTtbTitle, BonusKbankTitle) is not { } table) return Results.NotFound("ไม่มีรายการนี้");
+            return await BankFileAsync(http, printer, table, format, cancellationToken);
         });
 
         // RPT-42: the slips with the bonus (BR-035); does not change the งวด's steps.
@@ -64,9 +59,16 @@ public static class HrBonusReports
         return reports;
     }
 
-    private static readonly Dictionary<string, string> BonusTitles = new()
+    public const string BonusTtbTitle = "เงินเดือนส่งแบ็งค์ทหารไทย1";
+    public const string BonusKbankTitle = "เงินOTรวมโบนัสส่งแบ็งค์กสิกร";
+
+    /// <summary>One bank list as the report of RPT-05 (PDF, the default) or as the Excel for the template of the bank (<c>?format=xlsx</c>).</summary>
+    internal static async Task<IResult> BankFileAsync(HttpContext http, ReportPrinter printer, SummaryTable table, string? format, CancellationToken cancellationToken)
     {
-        [BankTransfers.Ttb] = "ทหารไทย (ค่าแรงงวด + โบนัส)",
-        [BankTransfers.Kbank] = "กสิกรไทย (OT งวด + โบนัส)",
-    };
+        if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
+            return Results.File(BankFiles.Excel(table), XlsxWriter.ContentType, table.Title + ".xlsx");
+        var pdf = await printer.PrintAsync<SummaryTableView>(table.Title, Paper.A4Portrait, new() { ["Table"] = table }, AccountClaims.DisplayNameOf(http.User),
+            cancellationToken: cancellationToken);
+        return ReportsRegistration.Pdf(http, pdf, table.Title);
+    }
 }

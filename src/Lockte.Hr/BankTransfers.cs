@@ -1,10 +1,12 @@
 namespace Lockte.Hr;
 
 /// <summary>What the transfer lists of one employee in a period read: the accounts (EMPLO.ACC / ACC2) and the pay (BR-033).</summary>
-public sealed record BankPayInput(string Code, string? AccountTtb, string? AccountKbank, decimal PayNormal, decimal PayOvertime, decimal Hot);
+/// <param name="Name">ชื่อ-นามสกุล (printed on the ttb list), <paramref name="EnglishTitle"/> and <paramref name="EnglishName"/> คำนำหน้า / ชื่ออังกฤษ (the กสิกร list).</param>
+public sealed record BankPayInput(string Code, string? AccountTtb, string? AccountKbank, decimal PayNormal, decimal PayOvertime, decimal Hot,
+    string? Name = null, string? EnglishTitle = null, string? EnglishName = null);
 
 /// <summary>One line of a transfer list: <see cref="Bank"/> is one of <see cref="BankTransfers"/>' constants.</summary>
-public sealed record BankTransferRow(string Bank, string Account, decimal Amount, string Code);
+public sealed record BankTransferRow(string Bank, string Account, decimal Amount, string Code, string? Name = null, string? EnglishTitle = null, string? EnglishName = null);
 
 /// <summary>Items, total and fee of one list (<see cref="BankTransfers.Summary"/>).</summary>
 public sealed record BankTransferSummary(string Bank, int Items, decimal Total, decimal Fee);
@@ -29,10 +31,10 @@ public static class BankTransfers
         {
             if (Account(p.AccountTtb) is { } ttb)
             {
-                if (p.PayNormal > 0) rows.Add(new(Ttb, ttb, p.PayNormal, p.Code));
-                if (p.PayNormal + p.PayOvertime + p.Hot > 0) rows.Add(new(Letter, ttb, p.PayNormal + p.PayOvertime + p.Hot, p.Code));
+                if (p.PayNormal > 0) rows.Add(new(Ttb, ttb, p.PayNormal, p.Code, p.Name, p.EnglishTitle, p.EnglishName));
+                if (p.PayNormal + p.PayOvertime + p.Hot > 0) rows.Add(new(Letter, ttb, p.PayNormal + p.PayOvertime + p.Hot, p.Code, p.Name, p.EnglishTitle, p.EnglishName));
             }
-            if (Account(p.AccountKbank) is { } kbank && p.PayOvertime > 0) rows.Add(new(Kbank, kbank, p.PayOvertime, p.Code));
+            if (Account(p.AccountKbank) is { } kbank && p.PayOvertime > 0) rows.Add(new(Kbank, kbank, p.PayOvertime, p.Code, p.Name, p.EnglishTitle, p.EnglishName));
         }
         return rows.OrderBy(r => r.Bank, StringComparer.Ordinal).ThenBy(r => r.Account, StringComparer.Ordinal).ToList();
     }

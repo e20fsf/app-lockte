@@ -75,15 +75,15 @@ public static class EmployeeMenu
         [
             new("ปิดงวดค่าแรงตามปกติ", SubMenu: 6),
             new("ปิดงวดค่าแรงเป็น 2 ช่วง", SubMenu: 13),
-            new("วิธีการทำเงินเดือนส่งแบงค์ทหารไทย", Code: "RPT-06-TTB"),
-            new("วิธีการทำเงิน OT ส่งแบงค์กสิกรไทย", Code: "RPT-06-KBANK"),
+            new("วิธีการทำเงินเดือนส่งแบงค์ทหารไทย", Code: "RPT-06-TTB", Page: "hr/pay-periods/bank-guide"),
+            new("วิธีการทำเงิน OT ส่งแบงค์กสิกรไทย", Code: "RPT-06-KBANK", Page: "hr/pay-periods/bank-guide"),
         ]),
         new(6, "ปิดงวดค่าแรงตามปกติ", 12,
         [
             new("พิมพ์เวลาทำงาน", Code: "SCR-40", Page: "hr/pay-periods"),
             new("พิมพ์ค่าแรง", Code: "SCR-41"),
             new("พิมพ์สรุปค่าแรง", SubMenu: 9),
-            new("พิมพ์ค่าแรงส่งแบงค์", Code: "SCR-42"),
+            new("พิมพ์ค่าแรงส่งแบงค์", Code: "SCR-42", Page: "hr/pay-periods"),
             new("พิมพ์ SLIP", Code: "RPT-04"),
             new("พิมพ์ค่าแรงสิ้นเดือนและสรุป", Code: "SCR-43", Page: "hr/reports/pay/month-end"),
             new("คำนวณโบนัสและปรับค่าแรง", SubMenu: 10),
