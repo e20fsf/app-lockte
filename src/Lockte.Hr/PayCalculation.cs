@@ -115,6 +115,19 @@ public sealed record EmployeePay(int EmployeeId, string Code, string Name, doubl
 }
 
 /// <summary>
+/// เงินสงเคราะห์ลูกจ้าง (#180): the slip of today prints 0.25% of รวมค่าแรง withheld from the employee and 0.25% the company
+/// adds (photo of lot 4: รวมค่าแรง 4,692 → 12 and 12, เงินได้สุทธิ 4,680). ⚠ ฐานและการปัดเป็นข้อสมมติ — ยังไม่ได้ยืนยันกับ
+/// ฝ่ายบุคคล (รายการ UAT ใน #102): ฐาน = รวมค่าแรง (PAY_W + PAY_OT + HOT), ปัด RND-A เป็นบาทเต็ม, ทั้งสองฝั่งเท่ากัน.
+/// </summary>
+public static class Welfare
+{
+    public const decimal Rate = 0.0025m;
+
+    /// <summary>The contribution of one side on a รวมค่าแรง, whole baht, half away from zero.</summary>
+    public static decimal Contribution(decimal total) => Math.Round(total * Rate, 0, MidpointRounding.AwayFromZero);
+}
+
+/// <summary>
 /// PAY_OT part by part, each RND-A (Expr3–Expr7 of คำนวณค่าแรง2/3/31/4/41, the slip's OT, S_W, OT2, H_W, OT3):
 /// ชั่วโมง O1 × SA_DAY/8 × 1.5, S × 1 or 2, O2 × 3, H × 1 or 2, O3 × 3. Zero for a period moved from the legacy history,
 /// which kept only their sum.

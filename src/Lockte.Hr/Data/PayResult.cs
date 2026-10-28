@@ -45,6 +45,10 @@ internal sealed class PayResult : IAudited
     public decimal SundayOvertimePay { get; set; }
     public decimal HolidayPay { get; set; }
     public decimal HolidayOvertimePay { get; set; }
+    /// <summary>เงินสงเคราะห์ลูกจ้าง (<see cref="Welfare"/>): หักจากลูกจ้าง. 0 on a migrated period (the legacy history had none).</summary>
+    public decimal WelfareEmployee { get; set; }
+    /// <summary>เงินสงเคราะห์ฝั่งบริษัท: บริษัทสมทบ.</summary>
+    public decimal WelfareCompany { get; set; }
     /// <summary>HOT.</summary>
     public decimal Hot { get; set; }
     /// <summary>HOLIDAY: the employee's HOLI.</summary>
