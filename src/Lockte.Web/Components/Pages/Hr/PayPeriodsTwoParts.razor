@@ -1,0 +1,148 @@
+@page "/hr/pay-periods/two-parts"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* ปิดงวดค่าแรงเป็น 2 ช่วง (เมนู 13–15, BR-008, #58): the งวด คร่อมปีใหม่ as two ordinary งวด — ช่วงที่ 1 27–31 ธ.ค., ช่วงที่ 2 1–11 ม.ค. — each with
+   its จำนวนวันที่จ่าย (the days a รายเดือน employee is paid: min(W + L + HOLI + SUN, DAY) × SA_DAY). Each ช่วง is calculated and printed with the
+   reports of an ordinary งวด (เวลาทำงาน, ค่าแรง, สรุป, SLIP); the two together print สรุปค่าแรงทั้ง 2 ช่วง and ค่าแรงส่งแบงค์ทั้ง 2 ช่วง. *@
+<PageTitle>ปิดงวดค่าแรงเป็น 2 ช่วง — LOCKTE</PageTitle>
+<h1 class="mb-4">ปิดงวดค่าแรงเป็น 2 ช่วง (คร่อมปีใหม่)</h1>
+
+<MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudNumericField T="int" Value="year" ValueChanged="YearChangedAsync" Label="ปี ค.ศ. ของช่วงที่ 1 (27–31 ธ.ค.)" Min="2000" Max="2100" Style="max-width:16rem" />
+    <MudText Typo="Typo.body2">ช่วงที่ 1 27–31 ธ.ค. @ThaiDate.Format(new DateOnly(year, 12, 27)) · ช่วงที่ 2 1–11 ม.ค. @ThaiDate.Format(new DateOnly(year + 1, 1, 1))</MudText>
+</MudStack>
+
+@foreach (var part in new[] { 1, 2 })
+{
+    var p = part == 1 ? part1 : part2;
+    var form = part == 1 ? form1 : form2;
+    <MudPaper Outlined="true" Class="pa-4 mb-3">
+        <MudText Typo="Typo.h6">ช่วงที่ @part — @(part == 1 ? "27–31 ธันวาคม" : "1–11 มกราคม")</MudText>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudDatePicker Editable="true" @bind-Date="form.PayDate" Label="วันที่จ่าย" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" ReadOnly="p is { Migrated: true }" />
+            <MudNumericField T="int?" @bind-Value="form.Days" Label="จำนวนวันที่จ่าย (รายเดือน)" Min="1" Max="31" Style="max-width:14rem" ReadOnly="p is { Migrated: true }" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(part))" Disabled="busy || p is { Migrated: true }">@(p is null ? "ตั้งช่วงนี้" : "บันทึก")</MudButton>
+        </MudStack>
+        @if (p is null)
+        {
+            <MudText Typo="Typo.caption">ยังไม่ได้ตั้งช่วงนี้ — กรอกวันที่จ่ายและจำนวนวันแล้วกดตั้งช่วงนี้</MudText>
+        }
+        else
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CalculateTimeAsync(p.Id))" Disabled="busy || p.Migrated" StartIcon="@Icons.Material.Filled.Calculate">คำนวณเวลาทำงาน</MudButton>
+                <MudButton Href="@($"reports/hr/pay-periods/{p.Id}/time")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                           Disabled="p.CompletedStep < PayPeriodStep.TimeCalculated">พิมพ์เวลาทำงาน (PDF)</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => CalculatePayAsync(p.Id))" Disabled="busy || !p.CanDo(PayPeriodStep.PayCalculated)" StartIcon="@Icons.Material.Filled.Calculate">คำนวณค่าแรง</MudButton>
+                <MudButton Href="@($"reports/hr/pay-periods/{p.Id}/pay")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                           Disabled="p.CompletedStep < PayPeriodStep.PayCalculated">พิมพ์ค่าแรง (PDF)</MudButton>
+                <MudButton Href="@($"reports/hr/pay-periods/{p.Id}/pay-summary")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                           Disabled="!p.CanDo(PayPeriodStep.SummaryPrinted)">พิมพ์สรุปค่าแรงช่วงที่ @part (PDF)</MudButton>
+                <MudButton Href="@($"reports/hr/pay-periods/{p.Id}/slips")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                           Disabled="p.CompletedStep < PayPeriodStep.PayCalculated || p.PayCalculatedAt is null">พิมพ์ SLIP ช่วงที่ @part (PDF)</MudButton>
+            </MudStack>
+            <MudText Typo="Typo.caption">ขั้นที่ทำแล้ว: @PayPeriodSteps.Names[p.CompletedStep]@(p.PayCalculatedAt is { } at ? $" · คำนวณค่าแรงล่าสุด {at.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiDate.Culture)}" : "")</MudText>
+        }
+    </MudPaper>
+}
+
+<MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudText Typo="Typo.h6">ทั้ง 2 ช่วง</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+        <MudButton Href="@TwoPartHref("pay-summary")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="!BothCalculated">พิมพ์สรุปค่าแรงทั้ง 2 ช่วง (PDF)</MudButton>
+        <MudButton Href="@TwoPartHref("bank")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf" Disabled="!BothCalculated">พิมพ์ค่าแรงส่งแบงค์ทั้ง 2 ช่วง (PDF)</MudButton>
+    </MudStack>
+    @if (!BothCalculated)
+    {
+        <MudText Typo="Typo.caption">ต้องตั้งและคำนวณค่าแรงทั้งสองช่วงก่อน</MudText>
+    }
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(13)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>
+
+@code {
+    private int year = DateTime.Today.Month <= 2 ? DateTime.Today.Year - 1 : DateTime.Today.Year;
+    private PayPeriodDto? part1, part2;
+    private PartForm form1 = new(), form2 = new();
+    private bool busy;
+
+    private bool BothCalculated => part1 is { PayCalculatedAt: not null, PartDays: not null } && part2 is { PayCalculatedAt: not null, PartDays: not null };
+
+    private string TwoPartHref(string report) => $"reports/hr/two-part-periods/{part1?.Id}/{part2?.Id}/{report}";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task YearChangedAsync(int value)
+    {
+        year = value;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var periods = await Services.RunAsync<PayPeriodDirectory, IReadOnlyList<PayPeriodDto>>(d => d.ListAsync());
+        part1 = periods.FirstOrDefault(p => p.From == new DateOnly(year, 12, 27));
+        part2 = periods.FirstOrDefault(p => p.From == new DateOnly(year + 1, 1, 1));
+        // ช่วงที่ 1 = 5 วัน; ช่วงที่ 2 = 10 วัน so that a รายเดือน employee is paid the 15 days of an ordinary งวด (assumption, #58 — HR types it).
+        form1 = new PartForm { PayDate = Day(part1?.PayDate ?? new DateOnly(year + 1, 1, 16)), Days = part1?.PartDays ?? 5 };
+        form2 = new PartForm { PayDate = Day(part2?.PayDate ?? new DateOnly(year + 1, 1, 16)), Days = part2?.PartDays ?? 10 };
+    }
+
+    private async Task SaveAsync(int part)
+    {
+        var (existing, form) = part == 1 ? (part1, form1) : (part2, form2);
+        var from = part == 1 ? new DateOnly(year, 12, 27) : new DateOnly(year + 1, 1, 1);
+        var to = part == 1 ? new DateOnly(year, 12, 31) : new DateOnly(year + 1, 1, 11);
+        busy = true;
+        try
+        {
+            var input = new PayPeriodInput(existing?.Id, from, to, form.PayDate is { } d ? DateOnly.FromDateTime(d) : null, existing?.RowVersion, form.Days);
+            var result = await Services.RunAsync<PayPeriodRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"บันทึกช่วงที่ {part} แล้ว", Severity.Success);
+            await LoadAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private Task CalculateTimeAsync(int id) => RunAsync(r => r.CalculateTimeAsync(id), "คำนวณเวลาทำงานแล้ว");
+
+    private Task CalculatePayAsync(int id) => RunAsync(r => r.CalculatePayAsync(id), "คำนวณค่าแรงแล้ว");
+
+    private async Task RunAsync(Func<PayPeriodRegistry, Task<ServiceResult>> step, string done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<PayPeriodRegistry, ServiceResult>(step);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"{done} {result.Id} คน", Severity.Success);
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static DateTime Day(DateOnly d) => d.ToDateTime(TimeOnly.MinValue);
+
+    private sealed class PartForm
+    {
+        public DateTime? PayDate { get; set; }
+        public int? Days { get; set; }
+    }
+}

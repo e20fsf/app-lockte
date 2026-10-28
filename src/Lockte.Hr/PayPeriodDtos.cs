@@ -83,7 +83,7 @@ public sealed record PayPeriodDates(DateOnly From, DateOnly To, DateOnly PayDate
 /// <summary>A งวดค่าแรง and how far its close got.</summary>
 public sealed record PayPeriodDto(int Id, DateOnly From, DateOnly To, DateOnly PayDate, PayPeriodStep CompletedStep,
     DateTimeOffset? TimeCalculatedAt, string? TimeCalculatedBy, byte[] RowVersion, DateTimeOffset? PayCalculatedAt = null,
-    string? PayCalculatedBy = null, bool Migrated = false)
+    string? PayCalculatedBy = null, bool Migrated = false, int? PartDays = null)
 {
     public int Days => Dates.Days;
 
@@ -94,7 +94,8 @@ public sealed record PayPeriodDto(int Id, DateOnly From, DateOnly To, DateOnly P
 }
 
 /// <summary>ตั้งงวด (SCR-40) to save. <see cref="Id"/> null = new; editing needs <see cref="RowVersion"/> as loaded.</summary>
-public sealed record PayPeriodInput(int? Id, DateOnly? From, DateOnly? To, DateOnly? PayDate, byte[]? RowVersion);
+/// <param name="PartDays">จำนวนวันที่จ่าย of a ช่วง of the งวดคร่อมปีใหม่ (BR-008, #58); null = an ordinary period.</param>
+public sealed record PayPeriodInput(int? Id, DateOnly? From, DateOnly? To, DateOnly? PayDate, byte[]? RowVersion, int? PartDays = null);
 
 /// <summary>
 /// เวลาทำงานรวมของพนักงานหนึ่งคนในงวด (BR-002): days for W/L, hours for O1/S/O2/H/O3, counts of วันหยุด. Only the
@@ -170,4 +171,26 @@ public sealed record PaySummaryReport(PayPeriodDto Period, int WeeklyHolidays, i
 
     public DepartmentPayTotal Sum => new(null, Lines.Sum(l => l.Employees), Lines.Sum(l => l.PayNormal), Lines.Sum(l => l.PayOvertime),
         Lines.Sum(l => l.Hot));
+}
+
+/// <summary>ค่าแรงส่งแบงค์ทั้ง 2 ช่วง: the lists of BR-033 for the whole งวดคร่อมปีใหม่ (<see cref="Period"/> spans both ช่วง) and their totals.</summary>
+public sealed record TwoPartBank(PayPeriodDto Period, IReadOnlyList<BankTransferRow> Rows, IReadOnlyList<BankTransferSummary> Summary);
+
+/// <summary>สรุปค่าแรงช่วง 1+2 (BR-008 ข้อ 6), without a database.</summary>
+public static class PayCombination
+{
+    /// <summary>
+    /// Per department: each employee once, the pay of the two ช่วง added; the department is the one of the second ช่วง (the later pay),
+    /// else the first. Same order as RPT-03: Thai name order, blank first.
+    /// </summary>
+    public static IReadOnlyList<DepartmentPayTotal> Departments(IEnumerable<PayLine> first, IEnumerable<PayLine> second)
+    {
+        var thai = StringComparer.Create(Lockte.SharedKernel.ThaiDate.Culture, ignoreCase: false);
+        return second.Concat(first).GroupBy(l => l.Pay.Code)
+            .Select(g => (Department: g.First().DepartmentName, PayNormal: g.Sum(l => l.Pay.PayNormal), PayOvertime: g.Sum(l => l.Pay.PayOvertime), Hot: g.Sum(l => l.Pay.Hot)))
+            .Where(l => l.PayNormal + l.PayOvertime > 0)
+            .GroupBy(l => l.Department)
+            .Select(g => new DepartmentPayTotal(g.Key, g.Count(), g.Sum(l => l.PayNormal), g.Sum(l => l.PayOvertime), g.Sum(l => l.Hot)))
+            .OrderBy(l => l.DepartmentName is not null).ThenBy(l => l.DepartmentName, thai).ToList();
+    }
 }
