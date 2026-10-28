@@ -74,7 +74,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         if (program == CompareProgram)
         {
             if (values.GetValueOrDefault("baseline") is null) return (null, "--program compare ต้องระบุ --baseline (โฟลเดอร์จาก tools/baseline/export_baseline.py)");
-            if (!DateOnly.TryParseExact(values.GetValueOrDefault("cut"), "yyyy-MM-dd", out var parsed)) return (null, "--program compare ต้องระบุ --cut YYYY-MM-DD (วันตัดสต็อก/แม่พิมพ์ที่ใช้ตอนส่งออก baseline)");
+            if (!DateOnly.TryParseExact(values.GetValueOrDefault("cut"), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)) return (null, "--program compare ต้องระบุ --cut YYYY-MM-DD (วันตัดสต็อก/แม่พิมพ์ที่ใช้ตอนส่งออก baseline)");
             cut = parsed;
         }
         if (program != CompareProgram && !string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))

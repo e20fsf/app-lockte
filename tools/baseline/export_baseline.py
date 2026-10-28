@@ -89,15 +89,23 @@ def main():
         # AC-09: ยอดคงเหลือปัจจุบัน = Σ QTY ของ P_ST ต่อสินค้า
         _, rows = fetch(db, "SELECT PD_C, Sum(QTY) FROM P_ST WHERE PD_C IS NOT NULL GROUP BY PD_C")
         write(out, "stock-balance.csv", ["PD_C", "QTY"], [[text(r[0]), number(r[1])] for r in rows])
+        # รายการที่ระบบเดิมทำเครื่องหมายยกเลิก (MARK de หรือ REF_NO DE) — เครื่องมือย้ายไม่ย้าย; แสดงยอดแยกให้เห็น
+        _, rows = fetch(db, "SELECT PD_C, Sum(QTY) FROM P_ST WHERE PD_C IS NOT NULL AND (MARK = 'de' OR REF_NO = 'DE') GROUP BY PD_C")
+        write(out, "stock-cancelled.csv", ["PD_C", "QTY"], [[text(r[0]), number(r[1])] for r in rows])
         # RPT-15 / AC-13: ยอดสะสมแม่พิมพ์ที่วันตัด
         _, rows = fetch(db, f"SELECT MOULD_ID, PD_QTY FROM [ตันงวดการใช้งานของพิมพ์0] WHERE [DAY] = {literal(cut)}")
         write(out, "mold-cumulative.csv", ["MOULD_ID", "PD_QTY"], [[text(r[0]), number(r[1])] for r in rows])
         # RPT-16 / AC-18: ผลผลิต 7 แผนก ตั้งแต่ปีที่กำหนด รวมต่อเดือน × สินค้า
         total = []
         for table in DEPARTMENT_TABLES:
-            _, rows = fetch(db, f"SELECT [DATE], PD_C, QTY, NG FROM [{table}] WHERE [DATE] >= {literal(first)} AND PD_C IS NOT NULL")
-            total.extend([day(r[0])[:7], text(r[1]), number(r[2]), number(r[3])] for r in rows)
-        write(out, "yield.csv", ["MONTH", "PD_C", "QTY", "NG"], total)
+            _, rows = fetch(db, f"SELECT REF_NO, SUF_NO, [DATE], PD_C, QTY, NG, LOT FROM [{table}] WHERE [DATE] >= {literal(first)} AND PD_C IS NOT NULL")
+            total.extend([table, text(r[0]), text(r[1]), day(r[2]), text(r[3]), number(r[4]), number(r[5]), text(r[6])] for r in rows)
+        write(out, "yield.csv", ["TABLE", "REF_NO", "SUF_NO", "DATE", "PD_C", "QTY", "NG", "LOT"], total)
+        # RPT-16 อ่านสำเนาที่โอนเข้าสต็อกแล้ว (P_REP, BR-020): ใบที่ยังไม่โอนไม่อยู่ในรายงานผลผลิตของระบบเดิม
+        # (เลขที่ใบรายงานของปีเก่าถูกใช้ซ้ำในปีใหม่ได้ จึงจับคู่ด้วยทั้งแถว: เลขที่ + ลำดับ + สินค้า + จำนวน + ของเสีย + Lot + วันที่ ตรงกับที่เครื่องมือย้ายใช้)
+        _, rows = fetch(db, "SELECT REF_NO, SUF_NO, PD_C, QTY, NG, LOT, [DATE] FROM P_REP WHERE REF_NO IS NOT NULL")
+        write(out, "yield-transferred.csv", ["REF_NO", "SUF_NO", "PD_C", "QTY", "NG", "LOT", "DATE"],
+              [[text(r[0]), text(r[1]), text(r[2]), number(r[3]), number(r[4]), text(r[5]), day(r[6])] for r in rows])
     finally:
         db.Close()
     print(f"เสร็จใน {time.time() - start:.0f} วินาที → {out}")

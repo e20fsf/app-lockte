@@ -71,6 +71,36 @@ public sealed class ComparisonTests(MigrationDbFixture db) : IDisposable
         Assert.True(summed.Passed);
     }
 
+    [Fact] // Access compares text without case; the migration keeps the code as in the register: the keys are compared the same way
+    public void Keys_are_compared_without_case()
+    {
+        var result = Run([Item("Sx023|2025-01-09", 40m)], [Item("SX023|2025-01-09", 40m)]);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact] // an amount the migration drops by rule inside a key that is loaded (the cancelled stock rows) is shown, and the rest must match
+    public void An_amount_dropped_by_rule_is_shown_and_the_rest_must_match()
+    {
+        var baseline = new[] { new CompareItem("P1", [100m], ["P1"], [-30m], "รายการยกเลิก (MARK de) ไม่ย้าย") };
+
+        var result = Run(baseline, [Item("P1", 130m)]);
+        var wrong = Run(baseline, [Item("P1", 100m)]);
+
+        Assert.True(result.Passed);
+        Assert.Equal([-30m], Assert.Single(result.BaselineOnlyExplained).Baseline);
+        Assert.False(wrong.Passed);
+    }
+
+    [Fact] // a difference inside the tolerance of the key (the unit price kept with 4 decimals) is a match
+    public void A_tolerance_of_the_key_is_honoured()
+    {
+        var item = Item("A", 1365m);
+        var result = Comparison.Compare("T", "ทดสอบ", "AC-00", ["มูลค่า"], [item with { Values = [12199.01m] }], [item with { Values = [12199.00m] }], false, _ => null, tolerance: _ => [0.02m]);
+
+        Assert.True(result.Passed);
+    }
+
     [Fact] // the command line: needs the baseline folder and the cut date, and does not ask for --confirm (it only reads)
     public void The_command_line_of_the_comparison_needs_the_baseline_and_the_cut_date()
     {
@@ -127,7 +157,7 @@ public sealed class ComparisonTests(MigrationDbFixture db) : IDisposable
         Baseline("stock-opening.csv", "PD_C,QTY,FML");
         Baseline("stock-balance.csv", "PD_C,QTY");
         Baseline("mold-cumulative.csv", "MOULD_ID,PD_QTY");
-        Baseline("yield.csv", "MONTH,PD_C,QTY,NG");
+        Baseline("yield.csv", "TABLE,REF_NO,SUF_NO,DATE,PD_C,QTY,NG,LOT");
         var folder = Path.Combine(work.FullName, "baseline");
 
         var results = await Comparison.RunAsync(db.Services, options.ConnectionString, folder, new DateOnly(2025, 12, 31));
