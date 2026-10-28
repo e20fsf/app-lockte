@@ -3,7 +3,7 @@
 ใช้: python -I -X utf8 rehearse.py <สำเนา.accdb> <โฟลเดอร์ผลลัพธ์> [--stock-cut YYYY-MM-DD] [--mold-cut ตั้งแต่ ถึง]
 
 - ปฏิเสธถ้าชื่อไฟล์ไม่มีคำว่า rehearsal (กันแก้ไฟล์ใช้งานจริง); แก้เฉพาะไฟล์ที่ส่งให้ ไม่แตะที่อื่น
-- ขั้น A: รัน sql/00–08 (ลบ pd ซ้ำ + ตารางสำรอง + รายงานก่อน/หลัง) พร้อมเวลา
+- ขั้น A: รัน sql/00–08 (ลบ pd ซ้ำเป๊ะ + แถวขอบเขตไม่ชัด + ตารางสำรอง + รายงานก่อน/หลัง) พร้อมเวลา; หยุดถ้าแถวขอบเขตไม่ชัดเกิน 10
 - ขั้น B (ถ้าระบุ --stock-cut): รัน query เดิมของมาโคร `ตัดSTOCK` (ตัดSTOCK1..10) ครั้งเดียวที่วันตัดที่กำหนด แล้วตรวจว่ายอดต่อสินค้าไม่เปลี่ยน
 - ขั้น C (ถ้าระบุ --mold-cut): รัน query เดิมของมาโคร `ตัดพิมพ์` ครั้งเดียว (ตั้งแต่วันแรกหลังตัดล่าสุดถึงวันตัด)
 - ผลลัพธ์ (CSV มีรหัสจริง) เขียนในโฟลเดอร์ผลลัพธ์เท่านั้น — เก็บนอก git; หน้าจอพิมพ์เฉพาะตัวเลขรวม
@@ -72,18 +72,26 @@ def run_year_close(db, out):
     timed("02 หาแถวซ้ำเป๊ะ", lambda: db.Execute(read_statements("02-find-duplicates.sql")[0], FAIL_ON_ERROR))
     timed("03 หาแถวขอบเขตไม่ชัด", lambda: db.Execute(read_statements("03-find-ambiguous.sql")[0], FAIL_ON_ERROR))
     rows_to_delete, units_to_delete = scalar_row(db, read_statements("04-check-before-delete.sql")[0])
-    ambiguous = scalar_row(db, "SELECT Count(*), Sum(QTY) FROM chk_P_ST_ambiguous_2569")
-    print(f"  จะลบ {rows_to_delete} แถว Σ {units_to_delete} หน่วย; ขอบเขตไม่ชัด (ไม่ลบ) {ambiguous[0]} แถว Σ {ambiguous[1]} หน่วย")
-    timed("05 ลบ", lambda: db.Execute(read_statements("05-delete-duplicates.sql")[0], FAIL_ON_ERROR))
+    ambiguous = scalar_row(db, read_statements("04b-check-ambiguous.sql")[0])
+    ambiguous = (ambiguous[0], ambiguous[1] or 0)
+    names, detail = fetch(db, read_statements("04c-ambiguous-detail.sql")[0])
+    write_csv(os.path.join(out, "ambiguous-detail.csv"), names, detail)
+    print(f"  ซ้ำเป๊ะ {rows_to_delete} แถว Σ {units_to_delete} หน่วย; ขอบเขตไม่ชัด (จำนวนต่าง) {ambiguous[0]} แถว Σ {ambiguous[1]} หน่วย (รายละเอียดใน ambiguous-detail.csv)")
+    if ambiguous[0] > 10:
+        print("  หยุด: แถวขอบเขตไม่ชัดมากกว่า 10 แถว — ถามทีมพัฒนาก่อน")
+        return {"stopped": True}
+    timed("05 ลบซ้ำเป๊ะ", lambda: db.Execute(read_statements("05-delete-duplicates.sql")[0], FAIL_ON_ERROR))
+    timed("05b สำรองแถวขอบเขตไม่ชัด", lambda: db.Execute(read_statements("05b-backup-ambiguous.sql")[0], FAIL_ON_ERROR))
+    timed("05c ลบแถวขอบเขตไม่ชัด", lambda: db.Execute(read_statements("05c-delete-ambiguous.sql")[0], FAIL_ON_ERROR))
     timed("06 ยอดหลัง", lambda: db.Execute(read_statements("06-balance-after.sql")[0], FAIL_ON_ERROR))
     names, changed = fetch(db, read_statements("07-changed-products.sql")[0])
     write_csv(os.path.join(out, "changed-products.csv"), names, changed)
     remaining = scalar_row(db, read_statements("08-verify-after.sql")[0])[0]
     total_after = scalar_row(db, "SELECT Count(*), Sum(QTY) FROM P_ST")
-    print(f"  P_ST ก่อน {total_before[0]} แถว Σ {total_before[1]} → หลัง {total_after[0]} แถว Σ {total_after[1]}; สินค้าที่ยอดเปลี่ยน {len(changed)}; ซ้ำเป๊ะที่เหลือ {remaining}")
-    expected = abs((total_before[1] or 0) - (total_after[1] or 0) - (units_to_delete or 0)) < 0.001
-    print("  ผลต่างยอดรวม = Σ ที่ลบ:", "ตรง" if expected else "ไม่ตรง")
-    return {"deleted": rows_to_delete, "units": units_to_delete, "ambiguous": ambiguous[0], "remaining": remaining, "balanced": expected}
+    print(f"  P_ST ก่อน {total_before[0]} แถว Σ {total_before[1]} → หลัง {total_after[0]} แถว Σ {total_after[1]}; สินค้าที่ยอดเปลี่ยน {len(changed)}; ซ้ำที่เหลือ {remaining}")
+    expected = abs((total_before[1] or 0) - (total_after[1] or 0) - (units_to_delete or 0) - ambiguous[1]) < 0.001
+    print("  ผลต่างยอดรวม = Σ ที่ลบ (ซ้ำเป๊ะ + ขอบเขตไม่ชัด):", "ตรง" if expected else "ไม่ตรง")
+    return {"deleted": rows_to_delete, "units": units_to_delete, "ambiguous_deleted": ambiguous[0], "ambiguous_units": ambiguous[1], "remaining": remaining, "balanced": expected}
 
 
 def run_stock_cut(db, cut_date, out):

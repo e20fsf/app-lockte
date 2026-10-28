@@ -82,12 +82,12 @@ public sealed class YearCloseKitTests : IDisposable
     private static void RunKit(OleDbConnection connection)
     {
         foreach (var sql in Statements("00-drop-working-tables.sql")) Execute(connection, sql, ignoreErrors: true);
-        foreach (var file in new[] { "01-balance-before.sql", "02-find-duplicates.sql", "03-find-ambiguous.sql", "05-delete-duplicates.sql", "06-balance-after.sql" })
+        foreach (var file in new[] { "01-balance-before.sql", "02-find-duplicates.sql", "03-find-ambiguous.sql", "05-delete-duplicates.sql", "05b-backup-ambiguous.sql", "05c-delete-ambiguous.sql", "06-balance-after.sql" })
             Execute(connection, Statements(file)[0]);
     }
 
-    [Fact] // only the exact twins in the range go; the backup holds them; the unsure and the others stay
-    public void Only_exact_twins_in_the_range_are_deleted()
+    [Fact] // the exact twins and the row whose quantity differs (decided by the user, 28 Oct 2026) go, each with its backup; the others stay
+    public void The_exact_twins_and_the_row_with_a_different_quantity_in_the_range_are_deleted_with_a_backup()
     {
         var path = BuildCopy();
         using (var connection = Open(path))
@@ -98,8 +98,9 @@ public sealed class YearCloseKitTests : IDisposable
             Assert.Equal(750d, Convert.ToDouble(Scalar(connection, "SELECT SUM(QTY) FROM bak_P_ST_dup_2569")));
             Assert.Equal(1, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM chk_P_ST_ambiguous_2569")));
             Assert.Equal(2024d, Convert.ToDouble(Scalar(connection, "SELECT SUM(QTY) FROM chk_P_ST_ambiguous_2569")));
-            Assert.Equal(6, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM P_ST")));
-            Assert.Equal(["D00004", "D00005", "D00006", "D00007", "D00008", "stock"], Rows(connection, "SELECT REF_NO FROM P_ST ORDER BY REF_NO").Select(r => (string)r[0]!).ToArray());
+            Assert.Equal(1, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM bak_P_ST_ambiguous_2569")));
+            Assert.Equal(5, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM P_ST")));
+            Assert.Equal(["D00005", "D00006", "D00007", "D00008", "stock"], Rows(connection, "SELECT REF_NO FROM P_ST ORDER BY REF_NO").Select(r => (string)r[0]!).ToArray());
             Assert.Equal(0, Convert.ToInt32(Scalar(connection, Statements("08-verify-after.sql")[0])));
         }
     }
@@ -112,8 +113,8 @@ public sealed class YearCloseKitTests : IDisposable
 
         var changed = Rows(connection, Statements("07-changed-products.sql")[0]).Select(r => ((string)r[0]!, Convert.ToDouble(r[1]), Convert.ToDouble(r[2]), Convert.ToDouble(r[3]))).ToArray();
 
-        // G1001: 100 + 250 + 90 − 60 + 500 = 880 before, 100 + 250 gone → 530; G2002: 400 + 2024 → 2024; G3003 untouched
-        Assert.Equal([("G1001", 880d, 530d, -350d), ("G2002", 2424d, 2024d, -400d)], changed);
+        // G1001: 100 + 250 + 90 − 60 + 500 = 880 before, 100 + 250 gone → 530; G2002: 400 + 2024 = 2424 before, both gone → 0; G3003 untouched
+        Assert.Equal([("G1001", 880d, 530d, -350d), ("G2002", 2424d, 0d, -2424d)], changed);
     }
 
     [Fact] // run again (the kit starts by clearing its own work tables): the second run finds nothing more to delete
@@ -125,8 +126,22 @@ public sealed class YearCloseKitTests : IDisposable
         RunKit(connection);
 
         Assert.Equal(0, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM bak_P_ST_dup_2569")));
-        Assert.Equal(6, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM P_ST")));
-        Assert.Equal(1, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM chk_P_ST_ambiguous_2569")));
+        Assert.Equal(5, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM P_ST")));
+        Assert.Equal(0, Convert.ToInt32(Scalar(connection, "SELECT COUNT(*) FROM chk_P_ST_ambiguous_2569")));
+    }
+
+    [Fact] // before the row goes the user sees it: the quantity in P_ST (to delete) beside the quantity in P_ADDST (closed, kept)
+    public void The_row_with_a_different_quantity_is_shown_with_both_quantities_before_it_is_deleted()
+    {
+        using var connection = Open(BuildCopy());
+        foreach (var sql in Statements("00-drop-working-tables.sql")) Execute(connection, sql, ignoreErrors: true);
+        foreach (var file in new[] { "02-find-duplicates.sql", "03-find-ambiguous.sql" }) Execute(connection, Statements(file)[0]);
+
+        var count = Rows(connection, Statements("04b-check-ambiguous.sql")[0]).Single();
+        var detail = Rows(connection, Statements("04c-ambiguous-detail.sql")[0]).Single();
+
+        Assert.Equal((1, 2024d), (Convert.ToInt32(count[0]), Convert.ToDouble(count[1])));
+        Assert.Equal(("D00004", "G2002", 2024d, 224d), ((string)detail[1]!, (string)detail[3]!, Convert.ToDouble(detail[4]), Convert.ToDouble(detail[5])));
     }
 
     private static List<object?[]> Rows(OleDbConnection connection, string sql)
