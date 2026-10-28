@@ -120,11 +120,18 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
                     new OvertimeParts(r.OvertimePay, r.SundayPay, r.SundayOvertimePay, r.HolidayPay, r.HolidayOvertimePay)),
                 r.EmployeeType,
                 HasTtbAccount = r.Employee.BankAccountTtb != null,
+                r.WelfareEmployee,
+                r.WelfareCompany,
             })
             .ToListAsync();
+        // รวมเงินสะสมทั้งหมด: every period up to this one, never reset (assumption — #180, to confirm with HR).
+        var accumulated = await db.PayResults.AsNoTracking().Where(r => r.PayPeriod.FromDate <= period.From)
+            .GroupBy(r => r.EmployeeId).Select(g => new { EmployeeId = g.Key, Sum = g.Sum(r => r.WelfareEmployee) })
+            .ToDictionaryAsync(g => g.EmployeeId, g => g.Sum);
         var dates = new PayPeriodDates(period.From, period.To, period.PayDate);
         var slips = rows.Where(r => times.ContainsKey(r.Pay.EmployeeId))
-            .Select(r => PaySlips.Build(dates, times[r.Pay.EmployeeId], r.Pay, r.EmployeeType, r.HasTtbAccount))
+            .Select(r => PaySlips.Build(dates, times[r.Pay.EmployeeId], r.Pay, r.EmployeeType, r.HasTtbAccount,
+                r.WelfareEmployee, r.WelfareCompany, accumulated.GetValueOrDefault(r.Pay.EmployeeId)))
             .OrderBy(s => s.Code, StringComparer.Ordinal).ToList();
         return new PaySlipBatch(period, slips, await ListSlipSignersAsync());
     }

@@ -70,10 +70,33 @@ public sealed class PaySlipTests
         Assert.Null(monthly.Atm);
     }
 
+    [Theory] // #180: 0.25% of รวมค่าแรง, whole baht, half away from zero (lot 4: 4,692 → 12)
+    [InlineData(4692, 12)]
+    [InlineData(5863, 15)]
+    [InlineData(400, 1)]   // 1.0
+    [InlineData(200, 1)]   // 0.5 → 1
+    [InlineData(199, 0)]   // 0.4975 → 0
+    [InlineData(0, 0)]
+    public void Welfare_is_a_quarter_percent_rounded_to_the_baht(decimal total, decimal expected)
+        => Assert.Equal(expected, Welfare.Contribution(total));
+
+    [Fact] // #180: the employee's share leaves the net, the company's does not; a slip without welfare (a migrated period) keeps net = total
+    public void Employee_welfare_is_deducted_from_the_net()
+    {
+        var s = Slip(Time(w: 14, l: 1, o1: 3.5), new PayEmployee(EmployeeTypes.Daily, 0, 400, null, false, null)) with
+        {
+            WelfareEmployee = 12, WelfareCompany = 12, WelfareAccumulated = 23,
+        };
+
+        Assert.Equal((5863m, 5851m), (s.Total, s.Net));
+        Assert.Equal(s.Total, Slip(Time(w: 14, l: 1, o1: 3.5), new PayEmployee(EmployeeTypes.Daily, 0, 400, null, false, null)).Net);
+    }
+
     private static PaySlipBatch Batch(int count, params SlipSignerDto[] signers)
     {
         var period = new PayPeriodDto(1, Dates.From, Dates.To, Dates.PayDate, PayPeriodStep.PayCalculated, null, null, [], DateTimeOffset.Now, "hr1");
-        var slip = Slip(Time(w: 14, l: 1, o1: 3.5), new PayEmployee(EmployeeTypes.Daily, 0, 400, null, false, null));
+        var slip = Slip(Time(w: 14, l: 1, o1: 3.5), new PayEmployee(EmployeeTypes.Daily, 0, 400, null, false, null))
+            with { WelfareEmployee = 15, WelfareCompany = 15, WelfareAccumulated = 40 };
         return new PaySlipBatch(period, Enumerable.Range(1, count).Select(i => slip with { Code = $"A{i:D3}" }).ToList(), signers);
     }
 
@@ -111,8 +134,14 @@ public sealed class PaySlipTests
         Assert.Equal("400.00", TextAt(page, 159.95, 35.52));
         Assert.Equal(("14.0", "1.0", "3.5"), (TextAt(page, 34.47, 56.49), TextAt(page, 41.84, 56.49), TextAt(page, 72.54, 56.49)));
         Assert.Equal(("5,600", "263"), (TextAt(page, 113.76, 56.49), TextAt(page, 153.94, 56.49)));
-        Assert.Equal(("0", "0", "5,863", "5,863"), (TextAt(page, 122.19, 70.5), TextAt(page, 140.49, 70.5), TextAt(page, 152.82, 70.5), TextAt(page, 175.59, 70.5)));
-        Assert.DoesNotContain(Texts(page), t => Math.Abs(t.Y - 70.5) < 0.01 && t.X < 110); // ATM ประกันสังคม กองทุน ค่าแรงค้าง ภาษี: blank
+        // #180: เงินสงเคราะห์ลูกจ้าง, บริษัท, รวมเงินสะสม, then โบนัส, ค่าพักร้อน, รวมค่าแรง, เงินได้สุทธิ (= 5,863 − 15)
+        Assert.Equal(("15", "15", "40", "0", "0", "5,863", "5,848"),
+            (TextAt(page, 62.5, 70.5), TextAt(page, 83.5, 70.5), TextAt(page, 103, 70.5), TextAt(page, 127.75, 70.5), TextAt(page, 140.5, 70.5),
+                TextAt(page, 156.25, 70.5), TextAt(page, 176.175, 70.5)));
+        Assert.DoesNotContain(Texts(page), t => Math.Abs(t.Y - 70.5) < 0.01 && t.X < 52); // ATM ประกันสังคม: blank
+        Assert.DoesNotContain(Texts(page), t => t.Text is "กองทุนเลี้ยงชีพ" or "ค่าแรงค้างงวดก่อน");
+        Assert.Contains(Texts(page), t => t.Text == "ลูกจ้าง (0.25%)");
+        Assert.Contains(Texts(page), t => t.Text == "บริษัท (0.25%)");
     }
 
     [Theory]
@@ -285,7 +314,8 @@ public sealed class PaySlipDataTests(LocalDbFixture db)
         var batch = (await SlipsAsync(period))!;
 
         var d = Assert.Single(batch.Slips, s => s.Code == daily.Code);
-        Assert.Equal((14.0, 3.5, 5600m, 263m, 5863m, (decimal?)0, 16, 14), (d.Normal, d.Overtime, d.PayNormal, d.Parts.Overtime, d.Net, d.Atm, d.Days, d.WorkingDays));
+        Assert.Equal((14.0, 3.5, 5600m, 263m, 5863m, (decimal?)0, 16, 14), (d.Normal, d.Overtime, d.PayNormal, d.Parts.Overtime, d.Total, d.Atm, d.Days, d.WorkingDays));
+        Assert.Equal((15m, 15m, 15m, 5848m), (d.WelfareEmployee, d.WelfareCompany, d.WelfareAccumulated, d.Net)); // 5,863 × 0.25% = 14.66
         var m = Assert.Single(batch.Slips, s => s.Code == monthly.Code);
         Assert.Equal((8.0, 7500m, 500m, 8000m, (decimal?)null, 15000.0), (m.Sunday, m.PayNormal, m.Parts.Sunday, m.Total, m.Atm, m.Rate));
         Assert.Equal(batch.Slips.Select(s => s.Code).Order(StringComparer.Ordinal), batch.Slips.Select(s => s.Code));

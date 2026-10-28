@@ -168,6 +168,8 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             r.Property(x => x.HolidayPay).HasPrecision(18, 2);
             r.Property(x => x.HolidayOvertimePay).HasPrecision(18, 2);
             r.Property(x => x.Hot).HasPrecision(18, 2);
+            r.Property(x => x.WelfareEmployee).HasPrecision(18, 2);
+            r.Property(x => x.WelfareCompany).HasPrecision(18, 2);
             r.HasOne(x => x.PayPeriod).WithMany().HasForeignKey(x => x.PayPeriodId).OnDelete(DeleteBehavior.Cascade);
             r.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             r.HasIndex(x => new { x.PayPeriodId, x.EmployeeId }).IsUnique();
