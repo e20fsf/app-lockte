@@ -17,7 +17,7 @@ namespace Lockte.Migration;
 /// <c>employee</c>); run it after the employee program's migration on the same database.
 /// </summary>
 public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram, bool RemoveStockDuplicates = false,
-    string? EmployeeFile = null, string? OrderFile = null, string? QaDefinitionsFolder = null)
+    string? EmployeeFile = null, string? OrderFile = null, string? QaDefinitionsFolder = null, string? BaselineFolder = null, DateOnly? CutDate = null)
 {
     public const string EmployeeProgram = "employee";
     public const string OrderProgram = "order";
@@ -26,6 +26,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
     public const string AllProgram = "all";
     /// <summary>Sets the go-live flag on the database: the tool will not run on it again.</summary>
     public const string MarkGoLiveProgram = "mark-go-live";
+    /// <summary>Compares the migrated database with the baseline exported from Access (#140); reads only.</summary>
+    public const string CompareProgram = "compare";
 
     public const string ConnectionVariable = "LOCKTE_MIGRATION_SQL";
 
@@ -34,6 +36,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
                          --confirm <database> --out <folder> [--map <code-map.csv>] [--remove-stock-duplicates yes]
           รันทั้งชุดในคำสั่งเดียว: โปรแกรมพนักงาน → ผลผลิตและORDER → (ถ้าระบุ --qa) สเปคตรวจ QA · ลบแล้วโหลดใหม่ รันซ้ำได้ · รายงานฉบับเดียวใน <folder>/summary.md
           ฐานข้อมูลที่ตั้งธงเปิดใช้งานจริงแล้ว (--program mark-go-live --confirm <database>) จะไม่ยอมให้รัน
+        Lockte.Migration --program compare --baseline <folder ของ export_baseline.py> --cut <YYYY-MM-DD> --connection "<SQL Server connection string>" --out <folder>
+          เทียบข้อมูลที่ย้ายแล้วกับ baseline จาก Access ทีละแถว (อ่านอย่างเดียว ไม่แก้ฐานข้อมูล) → <folder>/compare-summary.md · compare-details.csv (ข้อมูลจริง เก็บนอก git)
         Lockte.Migration --source <พนักงาน.accdb> --connection "<SQL Server connection string>" --confirm <database>
                          --out <folder> [--map <code-map.csv>] [--program employee|order|qa-spec] [--remove-stock-duplicates yes]
           ลบข้อมูลหลักและประวัติในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
@@ -53,9 +57,9 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         }
         var connection = values.GetValueOrDefault("connection") ?? Environment.GetEnvironmentVariable(ConnectionVariable);
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram))
-            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {QaSpecProgram}, {AllProgram} หรือ {MarkGoLiveProgram}");
-        var whole = program is AllProgram or MarkGoLiveProgram;
+        if (program is not (EmployeeProgram or OrderProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram))
+            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram} หรือ {CompareProgram}");
+        var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram;
         if (!whole && values.GetValueOrDefault("source") is null) return (null, "ไม่ได้ระบุ --source");
         var source = values.GetValueOrDefault("source") ?? "";
         if (program == AllProgram && (values.GetValueOrDefault("employee") is null || values.GetValueOrDefault("order") is null)) return (null, "--program all ต้องระบุ --employee และ --order");
@@ -66,10 +70,17 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         try { database = new SqlConnectionStringBuilder(connection).InitialCatalog; }
         catch (ArgumentException e) { return (null, $"connection string ไม่ถูกต้อง: {e.Message}"); }
         if (string.IsNullOrEmpty(database)) return (null, "connection string ต้องระบุ Database");
-        if (!string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
+        DateOnly? cut = null;
+        if (program == CompareProgram)
+        {
+            if (values.GetValueOrDefault("baseline") is null) return (null, "--program compare ต้องระบุ --baseline (โฟลเดอร์จาก tools/baseline/export_baseline.py)");
+            if (!DateOnly.TryParseExact(values.GetValueOrDefault("cut"), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)) return (null, "--program compare ต้องระบุ --cut YYYY-MM-DD (วันตัดสต็อก/แม่พิมพ์ที่ใช้ตอนส่งออก baseline)");
+            cut = parsed;
+        }
+        if (program != CompareProgram && !string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
         return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase),
-            values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa")), null);
+            values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa"), values.GetValueOrDefault("baseline"), cut), null);
     }
 }
 

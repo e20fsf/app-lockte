@@ -50,6 +50,16 @@ if (options.Program == MigrationOptions.QaSpecProgram)
     Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return qaReport.Balanced ? 0 : 1;
 }
+if (options.Program == MigrationOptions.CompareProgram)
+{
+    Console.WriteLine($"เทียบฐานข้อมูลกับ baseline ใน {options.BaselineFolder} (วันตัด {options.CutDate:yyyy-MM-dd}) …");
+    var results = await Comparison.RunAsync(services, options.ConnectionString, options.BaselineFolder!, options.CutDate!.Value);
+    Comparison.WriteReport(options.OutputFolder, results, options.CutDate.Value);
+    foreach (var r in results)
+        Console.WriteLine($"{r.Id,-8} {r.AcceptanceCriteria,-6} {(r.Passed ? "ผ่าน" : "ไม่ผ่าน"),-8} ต้นทาง {r.BaselineKeys,8:N0}  ตรง {r.Matched,8:N0}  ไม่ตรง {r.Different.Count,5:N0}  หักออก {r.BaselineOnlyExplained.Count,6:N0}  หายไม่มีเหตุผล {r.BaselineOnlyUnexplained.Count,5:N0}  เฉพาะฐานข้อมูล {r.NewOnly.Count,5:N0}");
+    Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return results.All(r => r.Passed) ? 0 : 1;
+}
 if (options.Program == MigrationOptions.MarkGoLiveProgram)
 {
     await GoLiveGuard.MarkAsync(options.ConnectionString);
