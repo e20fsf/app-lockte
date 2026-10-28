@@ -17,7 +17,7 @@ namespace Lockte.Migration;
 /// <c>employee</c>); run it after the employee program's migration on the same database.
 /// </summary>
 public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram, bool RemoveStockDuplicates = false,
-    string? EmployeeFile = null, string? OrderFile = null, string? QaDefinitionsFolder = null, string? BaselineFolder = null, DateOnly? CutDate = null)
+    string? EmployeeFile = null, string? OrderFile = null, string? QaDefinitionsFolder = null, string? BaselineFolder = null, DateOnly? CutDate = null, DateOnly? PeriodFrom = null, bool Calculate = false)
 {
     public const string EmployeeProgram = "employee";
     public const string OrderProgram = "order";
@@ -28,6 +28,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
     public const string MarkGoLiveProgram = "mark-go-live";
     /// <summary>Compares the migrated database with the baseline exported from Access (#140); reads only.</summary>
     public const string CompareProgram = "compare";
+    /// <summary>Compares one closed period with Access: เวลารวม, ค่าแรง, ยอดส่งธนาคาร, สลิป (#57).</summary>
+    public const string ComparePeriodProgram = "compare-period";
 
     public const string ConnectionVariable = "LOCKTE_MIGRATION_SQL";
 
@@ -36,6 +38,9 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
                          --confirm <database> --out <folder> [--map <code-map.csv>] [--remove-stock-duplicates yes]
           รันทั้งชุดในคำสั่งเดียว: โปรแกรมพนักงาน → ผลผลิตและORDER → (ถ้าระบุ --qa) สเปคตรวจ QA · ลบแล้วโหลดใหม่ รันซ้ำได้ · รายงานฉบับเดียวใน <folder>/summary.md
           ฐานข้อมูลที่ตั้งธงเปิดใช้งานจริงแล้ว (--program mark-go-live --confirm <database>) จะไม่ยอมให้รัน
+        Lockte.Migration --program compare-period --baseline <folder: inputs.csv pay-history.csv slip.csv bank.csv> --from <YYYY-MM-DD วันเริ่มงวด> [--calculate yes] --connection "<SQL Server connection string>" --out <folder>
+          เทียบงวดที่ปิดแล้วใน Access กับฐานข้อมูล: เวลารวม (AC-02) ค่าแรง (AC-03) ยอดส่งธนาคาร (AC-06) สลิป (AC-07) ในคำสั่งเดียว → <folder>/period-compare-summary.md · period-compare-people.csv · period-compare-details.csv (ข้อมูลจริง เก็บนอก git)
+          ไม่ใส่ --calculate = อ่านอย่างเดียว (งวดต้องคำนวณแล้ว) · --calculate yes = สร้างงวดและคำนวณเวลา/ค่าแรงก่อน (เขียนลงฐานข้อมูล ใช้กับฐานข้อมูลที่ทิ้งได้ ไม่ใช้กับฐานข้อมูลที่เปิดใช้งานจริง)
         Lockte.Migration --program compare --baseline <folder ของ export_baseline.py> --cut <YYYY-MM-DD> --connection "<SQL Server connection string>" --out <folder>
           เทียบข้อมูลที่ย้ายแล้วกับ baseline จาก Access ทีละแถว (อ่านอย่างเดียว ไม่แก้ฐานข้อมูล) → <folder>/compare-summary.md · compare-details.csv (ข้อมูลจริง เก็บนอก git)
         Lockte.Migration --source <พนักงาน.accdb> --connection "<SQL Server connection string>" --confirm <database>
@@ -57,9 +62,9 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         }
         var connection = values.GetValueOrDefault("connection") ?? Environment.GetEnvironmentVariable(ConnectionVariable);
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram))
-            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram} หรือ {CompareProgram}");
-        var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram;
+        if (program is not (EmployeeProgram or OrderProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
+            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
+        var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram;
         if (!whole && values.GetValueOrDefault("source") is null) return (null, "ไม่ได้ระบุ --source");
         var source = values.GetValueOrDefault("source") ?? "";
         if (program == AllProgram && (values.GetValueOrDefault("employee") is null || values.GetValueOrDefault("order") is null)) return (null, "--program all ต้องระบุ --employee และ --order");
@@ -77,10 +82,17 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
             if (!DateOnly.TryParseExact(values.GetValueOrDefault("cut"), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)) return (null, "--program compare ต้องระบุ --cut YYYY-MM-DD (วันตัดสต็อก/แม่พิมพ์ที่ใช้ตอนส่งออก baseline)");
             cut = parsed;
         }
-        if (program != CompareProgram && !string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
+        DateOnly? periodFrom = null;
+        if (program == ComparePeriodProgram)
+        {
+            if (values.GetValueOrDefault("baseline") is null) return (null, "--program compare-period ต้องระบุ --baseline (โฟลเดอร์ที่มี inputs.csv, pay-history.csv, slip.csv, bank.csv)");
+            if (!DateOnly.TryParseExact(values.GetValueOrDefault("from"), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var from)) return (null, "--program compare-period ต้องระบุ --from YYYY-MM-DD (วันเริ่มงวด)");
+            periodFrom = from;
+        }
+        if (program is not (CompareProgram or ComparePeriodProgram) && !string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
         return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase),
-            values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa"), values.GetValueOrDefault("baseline"), cut), null);
+            values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa"), values.GetValueOrDefault("baseline"), cut, periodFrom, string.Equals(values.GetValueOrDefault("calculate"), "yes", StringComparison.OrdinalIgnoreCase)), null);
     }
 }
 
