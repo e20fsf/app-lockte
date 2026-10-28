@@ -12,7 +12,7 @@
    → SLIP (RPT-04, #55). A step opens once the one before it is done; doing a calculation again reopens the steps after it (Q-22).
    คำเตือนก่อนคำนวณ (วันที่ยังไม่บันทึกเวลา / มาสาย) are shown and asked about, never blocking. A period migrated from the
    legacy (#51) shows its reports only: no calculating and no new dates. Steps after
-   พิมพ์เวลาทำงาน come with their own tickets (#53 on). *@
+   พิมพ์เวลาทำงาน come with their own tickets (#53 on; ส่งแบงค์ #54). *@
 <PageTitle>ปิดงวดค่าแรงตามปกติ — LOCKTE</PageTitle>
 <h1 class="mb-4">ปิดงวดค่าแรงตามปกติ</h1>
 
@@ -120,14 +120,23 @@
         </MudStack>
     </MudPaper>
 
-    @* 5: its ticket adds the work; the order and the lock are here already *@
-    @foreach (var step in LaterSteps)
-    {
-        <MudPaper Outlined="true" Class="pa-4 mb-3">
-            @StepTitle(step)
-            <MudText Typo="Typo.body2" Class="mt-1">ยังไม่เปิดใช้ในระบบใหม่</MudText>
-        </MudPaper>
-    }
+    @* 5 พิมพ์ค่าแรงส่งแบงค์ (SCR-42, RPT-05, #54): the ttb list (PAY_W) and the กสิกร list (PAY_OT) as the report or as the Excel pasted into the template of
+       the bank (INT-01/02, RPT-06 the guide); either one marks the step done *@
+    <MudPaper Outlined="true" Class="pa-4 mb-3">
+        @StepTitle(PayPeriodStep.BankPrinted)
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/bank/ttb")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       OnClick="BankOpenedAsync" Disabled="!BankReady">พิมพ์ทหารไทย (PDF)</MudButton>
+            <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/bank/ttb?format=xlsx")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.TableView"
+                       OnClick="BankOpenedAsync" Disabled="!BankReady">Excel ทหารไทย (ค่าแรง)</MudButton>
+            <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/bank/kbank")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       OnClick="BankOpenedAsync" Disabled="!BankReady">พิมพ์กสิกร (PDF)</MudButton>
+            <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/bank/kbank?format=xlsx")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.TableView"
+                       OnClick="BankOpenedAsync" Disabled="!BankReady">Excel กสิกร (OT)</MudButton>
+            <MudButton Href="hr/pay-periods/bank-guide" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.MenuBook">วิธีทำไฟล์ส่งธนาคาร</MudButton>
+        </MudStack>
+        <MudText Typo="Typo.caption">ยอดทหารไทยคือค่าแรง ยอดกสิกรคือค่าล่วงเวลา เฉพาะคนที่มีเลขบัญชีและยอดมากกว่า 0 · ยังไม่ได้เทียบกับ template ธนาคารจริง</MudText>
+    </MudPaper>
 
     @* 6 พิมพ์ SLIP (RPT-04): the slips print once ค่าแรง is calculated here; printing marks the step done when step 5 is *@
     <MudPaper Outlined="true" Class="pa-4 mb-3">
@@ -148,9 +157,6 @@
 <MudButton Href="@EmployeeMenu.HrefOf(12)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>
 
 @code {
-    private static readonly PayPeriodStep[] LaterSteps =
-        [PayPeriodStep.BankPrinted];
-
     private IReadOnlyList<PayPeriodDto> periods = [];
     private PayPeriodDto? period;
     private PayPeriodCheck? check;
@@ -283,6 +289,17 @@
 
     /// <summary>The PDF opens in a new tab and marks the step done there; show it here a moment later.</summary>
     private async Task SummaryOpenedAsync()
+    {
+        if (period is null) return;
+        var id = period.Id;
+        await Task.Delay(TimeSpan.FromSeconds(8));
+        await LoadPeriodsAsync();
+        await SelectAsync(id);
+    }
+
+    private bool BankReady => period is { PayCalculatedAt: not null, Migrated: false } && period.CompletedStep >= PayPeriodStep.PayCalculated;
+
+    private async Task BankOpenedAsync()
     {
         if (period is null) return;
         var id = period.Id;
