@@ -147,6 +147,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             p.Property(x => x.FromDate).HasAuditName("จากวันที่");
             p.Property(x => x.ToDate).HasAuditName("ถึงวันที่");
             p.Property(x => x.PayDate).HasAuditName("วันที่จ่าย");
+            p.Property(x => x.PartDays).HasAuditName("จำนวนวันที่จ่าย (ช่วงคร่อมปีใหม่)");
             p.Property(x => x.CompletedStep).HasAuditName("ขั้นที่ทำแล้ว");
             p.Property(x => x.TimeCalculatedAt).HasAuditName("คำนวณเวลาเมื่อ");
             p.Property(x => x.TimeCalculatedBy).HasMaxLength(ModelBuilderExtensions.UserNameLength).HasAuditName("คำนวณเวลาโดย");

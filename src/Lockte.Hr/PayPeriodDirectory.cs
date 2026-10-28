@@ -83,6 +83,48 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
             .Select(r => new BankPayInput(r.Employee.Code, r.Employee.BankAccountTtb, r.Employee.BankAccountKbank, r.PayNormal, r.PayOvertime, r.Hot))
             .ToListAsync();
 
+    /// <summary>
+    /// The two ช่วง of a งวดคร่อมปีใหม่ (BR-008, #58) when they are: both set with จำนวนวัน, the second starting the day after the
+    /// first ends, both paid in this system (ค่าแรง calculated here); null otherwise.
+    /// </summary>
+    private async Task<(PayPeriodDto Part1, PayPeriodDto Part2, PayPeriodDto Whole)?> TwoPartsAsync(int part1Id, int part2Id)
+    {
+        if (await GetAsync(part1Id) is not { } a || await GetAsync(part2Id) is not { } b) return null;
+        if (a.PartDays is null || b.PartDays is null || b.From != a.To.AddDays(1)) return null;
+        if (a.CompletedStep < PayPeriodStep.PayCalculated || b.CompletedStep < PayPeriodStep.PayCalculated) return null;
+        if (a.PayCalculatedAt is null || b.PayCalculatedAt is null) return null;
+        return (a, b, b with { From = a.From });
+    }
+
+    /// <summary>
+    /// สรุปค่าแรงทั้ง 2 ช่วง (RPT-11, มาโคร สรุปค่าแรงช่วง1+2): per department, an employee counted once with the pay of both ช่วง; the header
+    /// spans the two. Null unless <see cref="TwoPartsAsync"/>.
+    /// </summary>
+    public async Task<PaySummaryReport?> GetTwoPartSummaryAsync(int part1Id, int part2Id)
+    {
+        if (await TwoPartsAsync(part1Id, part2Id) is not var (_, _, whole)) return null;
+        var first = await PayLinesAsync(part1Id);
+        var second = await PayLinesAsync(part2Id);
+        var weekly = await db.WeeklyHolidays.CountAsync(h => h.Date >= whole.From && h.Date <= whole.To);
+        var holidays = await db.PublicHolidays.CountAsync(h => h.Date >= whole.From && h.Date <= whole.To);
+        return new PaySummaryReport(whole, weekly, holidays, PayCombination.Departments(first, second));
+    }
+
+    /// <summary>
+    /// ค่าแรงส่งแบงค์ทั้ง 2 ช่วง (SCR-47, BR-008 ข้อ 4): the transfer lists of BR-033 on the pay of both ช่วง added up per employee. Null
+    /// unless <see cref="TwoPartsAsync"/>.
+    /// </summary>
+    public async Task<TwoPartBank?> GetTwoPartBankAsync(int part1Id, int part2Id)
+    {
+        if (await TwoPartsAsync(part1Id, part2Id) is not var (_, _, whole)) return null;
+        var inputs = (await GetBankInputsAsync(part1Id)).Concat(await GetBankInputsAsync(part2Id))
+            .GroupBy(i => i.Code)
+            .Select(g => g.First() with { PayNormal = g.Sum(i => i.PayNormal), PayOvertime = g.Sum(i => i.PayOvertime), Hot = g.Sum(i => i.Hot) })
+            .OrderBy(i => i.Code, StringComparer.Ordinal).ToList();
+        var rows = BankTransfers.Build(inputs);
+        return new TwoPartBank(whole, rows, BankTransfers.Summary(rows));
+    }
+
     /// <summary>RPT-02 for one department (null = ทุกแผนก); null until the period's ค่าแรง is calculated.</summary>
     public async Task<PayReport?> GetPayReportAsync(int periodId, int? departmentId)
     {
@@ -162,5 +204,5 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
 
     private static readonly System.Linq.Expressions.Expression<Func<PayPeriod, PayPeriodDto>> ToDto = p =>
         new PayPeriodDto(p.Id, p.FromDate, p.ToDate, p.PayDate, p.CompletedStep, p.TimeCalculatedAt, p.TimeCalculatedBy, p.RowVersion,
-            p.PayCalculatedAt, p.PayCalculatedBy, p.Migrated);
+            p.PayCalculatedAt, p.PayCalculatedBy, p.Migrated, p.PartDays);
 }

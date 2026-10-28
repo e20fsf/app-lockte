@@ -88,6 +88,31 @@ public static class ReportsRegistration
             return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
         });
 
+        // RPT-11 สรุปค่าแรงทั้ง 2 ช่วง (มาโคร สรุปค่าแรงช่วง1+2, BR-008, #58): the two ช่วง of the งวดคร่อมปีใหม่ by id; each ช่วง alone is RPT-03.
+        reports.MapGet("/hr/two-part-periods/{first:int}/{second:int}/pay-summary", async (int first, int second, HttpContext http,
+            PayPeriodDirectory periods, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (await periods.GetTwoPartSummaryAsync(first, second) is not { } report)
+                return Results.NotFound("สองช่วงนี้ยังไม่ครบ: ต้องกรอกจำนวนวันที่จ่ายทั้งสองช่วง ช่วงที่ 2 เริ่มวันถัดจากช่วงที่ 1 และคำนวณค่าแรงทั้งสองช่วงแล้ว");
+            var pdf = await printer.PrintAsync<PaySummaryView>(PaySummaryView.Title + " ทั้ง 2 ช่วง", Paper.A4Portrait,
+                new() { [nameof(PaySummaryView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            return Pdf(http, pdf, "สรุปค่าแรง 2 ช่วง " + Iso(report.Period.From));
+        });
+
+        // SCR-47 ค่าแรงส่งแบงค์ทั้ง 2 ช่วง (BR-008 ข้อ 4): the transfer lists with the pay of both ช่วง added; printing it marks the ส่งแบงค์ step of both
+        // (a step still locked by the one before it stays as it is). The bank file itself comes with #54.
+        reports.MapGet("/hr/two-part-periods/{first:int}/{second:int}/bank", async (int first, int second, HttpContext http,
+            PayPeriodDirectory periods, PayPeriodRegistry registry, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (await periods.GetTwoPartBankAsync(first, second) is not { } bank)
+                return Results.NotFound("สองช่วงนี้ยังไม่ครบ: ต้องกรอกจำนวนวันที่จ่ายทั้งสองช่วง ช่วงที่ 2 เริ่มวันถัดจากช่วงที่ 1 และคำนวณค่าแรงทั้งสองช่วงแล้ว");
+            var pdf = await printer.PrintAsync<TwoPartBankView>(TwoPartBankView.Title, Paper.A4Portrait,
+                new() { [nameof(TwoPartBankView.Bank)] = bank }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            await registry.CompleteStepAsync(first, PayPeriodStep.BankPrinted);
+            await registry.CompleteStepAsync(second, PayPeriodStep.BankPrinted);
+            return Pdf(http, pdf, "ส่งแบงค์ 2 ช่วง " + Iso(bank.Period.From));
+        });
+
         // RPT-58 สรุปค่าแรงงานรับจ้างตามลูกค้า (SCR-44 "พิมพ์", รายงาน สรุปค่าแรง1): A4 ตั้ง, ?from=&to= ISO and ?customer= รหัสลูกค้า.
         // Calculated for the print only: no งวดค่าแรง step, nothing stored (ContractLaborDirectory).
         reports.MapGet("/hr/pay/contract-labor", async (DateOnly? from, DateOnly? to, string? customer, HttpContext http,

@@ -431,6 +431,10 @@ namespace Lockte.Hr.Data.Migrations
                         .HasColumnType("bit")
                         .HasAnnotation("Lockte:AuditName", "ย้ายมาจากระบบเดิม");
 
+                    b.Property<int?>("PartDays")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนวันที่จ่าย (ช่วงคร่อมปีใหม่)");
+
                     b.Property<DateTimeOffset?>("PayCalculatedAt")
                         .HasColumnType("datetimeoffset")
                         .HasAnnotation("Lockte:AuditName", "คำนวณค่าแรงเมื่อ");

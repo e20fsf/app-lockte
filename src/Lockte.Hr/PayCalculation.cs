@@ -41,7 +41,9 @@ public static class PayCalculation
             case EmployeeTypes.Monthly: // คำนวณค่าแรง2
                 sundayFactor = 1;
                 holidayFactor = 1;
-                payNormal = employee.FixedPay is { } monthlyFixed ? monthlyFixed
+                // คำนวณค่าแรง2ช่วง (#58, BR-008): a ช่วง of the งวดคร่อมปีใหม่ pays min(W + L + HOLI + SUN, DAY) days; no POINT_1, no resignation.
+                payNormal = period.PartDays is { } partDays ? Math.Min(expr1 + holi + sun, partDays) * saDay
+                    : employee.FixedPay is { } monthlyFixed ? monthlyFixed
                     : resign is null ? (expr1 + holi >= days - sun ? employee.Salary / 2 : (15 - unpaid) * saDay)
                     : expr1 == 0 ? 0
                     : resign == dates.To.AddDays(1) ? employee.Salary / 2
@@ -91,7 +93,7 @@ public static class PayCalculation
 /// What the pay formulas read of the period besides each employee's totals: D from the dates, the วันหยุดประจำสัปดาห์
 /// in it (ค่าแรง.SUNDAY) and DAT, the first วันหยุดประเพณี in it (คิวรี คำนวณค่าแรง: Min(HOLIDAY.DATE), blank if none).
 /// </summary>
-public sealed record PayPeriodFacts(PayPeriodDates Dates, int WeeklyHolidays, DateOnly? FirstPublicHoliday);
+public sealed record PayPeriodFacts(PayPeriodDates Dates, int WeeklyHolidays, DateOnly? FirstPublicHoliday, int? PartDays = null);
 
 /// <summary>
 /// What the pay formulas read of an employee (T-EMPLO): CLAS, SALARY, SA_DAY, POINT_1 (⚠ Q-09: a score used as a set
