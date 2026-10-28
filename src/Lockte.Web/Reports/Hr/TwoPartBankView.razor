@@ -40,7 +40,10 @@ else
 
     [Parameter, EditorRequired] public TwoPartBank Bank { get; set; } = default!;
 
-    private static string NameOf(string bank) => bank switch
+    /// <summary>The names of the lists when they are not the ones of BR-033 (the lists with the bonus, BR-035).</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? Titles { get; set; }
+
+    private string NameOf(string bank) => Titles?.GetValueOrDefault(bank) ?? bank switch
     {
         BankTransfers.Ttb => "ทหารไทย (ค่าแรง PAY_W)",
         BankTransfers.Kbank => "กสิกรไทย (ค่าล่วงเวลา PAY_OT)",
