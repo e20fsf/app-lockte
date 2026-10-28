@@ -1,11 +1,11 @@
 @page "/history"
-@attribute [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
+@attribute [Authorize(Policy = AuthPolicies.Admin)]
 @using System.Globalization
 @using Lockte.SharedKernel.Persistence
 @using Lockte.Web.Audit
 @inject ScopedServices Services
 
-@* หน้าค้นประวัติ (#39, #43): one page for every user, admin included.
+@* หน้าค้นประวัติ (#39, #43): admin only (the ประวัติการแก้ไข button is hidden from everyone else).
    Read-only — history cannot be deleted. *@
 <PageTitle>ประวัติการแก้ไข — LOCKTE</PageTitle>
 <h1 class="mb-4">ประวัติการแก้ไข</h1>
