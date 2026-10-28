@@ -39,7 +39,8 @@ public sealed class ComparisonTests(MigrationDbFixture db) : IDisposable
 
         Assert.False(result.Passed);
         var detail = Assert.Single(result.Different);
-        Assert.Equal(([10m], [11m]), (detail.Baseline, detail.New));
+        Assert.Equal([10m], detail.Baseline);
+        Assert.Equal([11m], detail.New);
     }
 
     [Fact] // not loaded for a reason of the redesign: set aside with the reason and the totals; any other loss, or a row only in the database, fails
