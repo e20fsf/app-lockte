@@ -1,0 +1,49 @@
+@using Lockte.Hr
+@* ค่าแรงส่งแบงค์ทั้ง 2 ช่วง (SCR-47, BR-008 ข้อ 4, BR-033): the totals of the three lists and the lines of each, by เลขบัญชี. ระดับ C — the
+   legacy printed the bank's own reports (เงินเดือนส่งแบ็งค์ทหารไทย, เงินOTส่งแบ็งค์กสิกร); this is the check list before the bank file (#54). *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Bank.Period.From)&emsp;ถึงวันที่ @ReportText.Date(Bank.Period.To)&emsp;วันที่จ่าย @ReportText.Date(Bank.Period.PayDate)</p>
+@if (Bank.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>รายการ</th><th class="num">จำนวนรายการ</th><th class="num">ยอดรวม</th><th class="num">ค่าธรรมเนียม</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Bank.Summary)
+            {
+                <tr><td>@NameOf(s.Bank)</td><td class="num">@s.Items</td><td class="num">@ReportText.Baht(s.Total)</td><td class="num">@ReportText.Baht(s.Fee)</td></tr>
+            }
+        </tbody>
+    </table>
+    @foreach (var s in Bank.Summary)
+    {
+        <h3 style="margin-top:14pt">@NameOf(s.Bank)</h3>
+        <table>
+            <thead><tr><th>เลขบัญชี</th><th>รหัส</th><th class="num">ยอด</th></tr></thead>
+            <tbody>
+                @foreach (var row in Bank.Rows.Where(r => r.Bank == s.Bank))
+                {
+                    <tr><td>@row.Account</td><td>@row.Code</td><td class="num">@ReportText.Baht(row.Amount)</td></tr>
+                }
+                <tr class="total"><td>รวม</td><td></td><td class="num">@ReportText.Baht(s.Total)</td></tr>
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    public const string Title = "ค่าแรงส่งแบงค์ ทั้ง 2 ช่วง";
+
+    [Parameter, EditorRequired] public TwoPartBank Bank { get; set; } = default!;
+
+    private static string NameOf(string bank) => bank switch
+    {
+        BankTransfers.Ttb => "ทหารไทย (ค่าแรง PAY_W)",
+        BankTransfers.Kbank => "กสิกรไทย (ค่าล่วงเวลา PAY_OT)",
+        _ => "หนังสือนำส่งข้อมูล (ค่าแรง + ค่าล่วงเวลา + HOT)",
+    };
+}

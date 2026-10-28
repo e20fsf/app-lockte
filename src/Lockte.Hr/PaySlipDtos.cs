@@ -20,14 +20,14 @@ public sealed record PaySlip(string Code, string Name, int Days, int WeeklyHolid
     /// <summary>W_D: TT_D − HOLI − SUN.</summary>
     public int WorkingDays => Days - PublicHolidays - WeeklyHolidays;
 
-    /// <summary>N โบนัส: 0 on the slip of a period (only the slip รวมโบนัส, RPT-42, fills it).</summary>
-    public decimal Bonus => 0;
+    /// <summary>N โบนัส: 0 on the slip of a period; the slip รวมโบนัส (RPT-42, BR-035) fills it.</summary>
+    public decimal Bonus { get; init; }
 
     /// <summary>TT รวมค่าแรง: SALA + OT + S_W + OT2 + H_W + OT3 + HOT.</summary>
     public decimal Total => PayNormal + Parts.Total + Hot;
 
-    /// <summary>NET เงินได้สุทธิ = TT − เงินสงเคราะห์ลูกจ้าง (4,692 − 12 = 4,680 on the slip of lot 4); ประกันสังคมและภาษีไม่หัก (Q-02).</summary>
-    public decimal Net => Total - WelfareEmployee;
+    /// <summary>NET เงินได้สุทธิ = TT + โบนัส − เงินสงเคราะห์ลูกจ้าง (4,692 − 12 = 4,680 on the slip of lot 4); ประกันสังคมและภาษีไม่หัก (Q-02).</summary>
+    public decimal Net => Total + Bonus - WelfareEmployee;
 }
 
 /// <summary>The slips of one period, by รหัส ↑, with the signers printed on every slip.</summary>

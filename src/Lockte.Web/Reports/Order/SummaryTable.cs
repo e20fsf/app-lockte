@@ -76,9 +76,13 @@ public static class XlsxWriter
         var xml = new StringBuilder("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>""");
         var row = 1;
         void Text(string text, int r) => xml.Append($"""<row r="{r}"><c r="A{r}" t="inlineStr" s="1"><is><t>{SecurityElement.Escape(text)}</t></is></c></row>""");
-        Text(table.Title, row++);
-        if (table.Filter is { } filter) Text(filter, row++);
-        row++;
+        // An empty title is a plain table from the first row (the bank files, whose template is pasted from row 2: header, items, total).
+        if (table.Title.Length > 0)
+        {
+            Text(table.Title, row++);
+            if (table.Filter is { } filter) Text(filter, row++);
+            row++;
+        }
         xml.Append($"<row r=\"{row}\">");
         for (var c = 0; c < table.Columns.Count; c++)
             xml.Append($"""<c r="{Ref(c, row)}" t="inlineStr" s="1"><is><t>{SecurityElement.Escape(table.Columns[c].Header)}</t></is></c>""");

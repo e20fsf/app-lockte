@@ -81,6 +81,130 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "ไม่มาทำงาน");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.BonusResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasAnnotation("Lockte:AuditName", "โบนัส");
+
+                    b.Property<int>("BonusRunId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<double>("LeaveDays")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "วันลา");
+
+                    b.Property<double>("Percent")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "% โบนัส");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<double?>("ServiceYears")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "อายุงาน");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("BonusRunId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("BonusResults", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "โบนัส");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.BonusRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal>("DailyMultiplier")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasAnnotation("Lockte:AuditName", "ตัวคูณรายวัน");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
+
+                    b.Property<DateOnly>("FromDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "ตั้งแต่วันที่");
+
+                    b.Property<decimal>("MonthlyMultiplier")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasAnnotation("Lockte:AuditName", "ตัวคูณรายเดือน");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateOnly>("ToDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "ถึงวันที่");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BonusRuns", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "การคำนวณโบนัส");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.Employee", b =>
                 {
                     b.Property<int>("Id")
@@ -430,6 +554,10 @@ namespace Lockte.Hr.Data.Migrations
                     b.Property<bool>("Migrated")
                         .HasColumnType("bit")
                         .HasAnnotation("Lockte:AuditName", "ย้ายมาจากระบบเดิม");
+
+                    b.Property<int?>("PartDays")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนวันที่จ่าย (ช่วงคร่อมปีใหม่)");
 
                     b.Property<DateTimeOffset?>("PayCalculatedAt")
                         .HasColumnType("datetimeoffset")
@@ -1050,6 +1178,25 @@ namespace Lockte.Hr.Data.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.BonusResult", b =>
+                {
+                    b.HasOne("Lockte.Hr.Data.BonusRun", "BonusRun")
+                        .WithMany("Results")
+                        .HasForeignKey("BonusRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Lockte.Hr.Data.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BonusRun");
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.Leave", b =>
                 {
                     b.HasOne("Lockte.Hr.Data.Employee", "Employee")
@@ -1119,6 +1266,11 @@ namespace Lockte.Hr.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.BonusRun", b =>
+                {
+                    b.Navigation("Results");
                 });
 #pragma warning restore 612, 618
         }

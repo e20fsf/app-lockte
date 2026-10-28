@@ -77,6 +77,55 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
     public async Task<IReadOnlyList<EmployeePay>> GetPayAsync(int periodId)
         => (await PayLinesAsync(periodId)).Select(l => l.Pay).ToList();
 
+    /// <summary>The pay and accounts of every employee paid in the period, by รหัส ↑ — what BR-033's transfer lists are built from.</summary>
+    public async Task<IReadOnlyList<BankPayInput>> GetBankInputsAsync(int periodId)
+        => await db.PayResults.AsNoTracking().Where(r => r.PayPeriodId == periodId).OrderBy(r => r.Employee.Code)
+            .Select(r => new BankPayInput(r.Employee.Code, r.Employee.BankAccountTtb, r.Employee.BankAccountKbank, r.PayNormal, r.PayOvertime, r.Hot,
+                r.Employee.Name, r.Employee.EnglishTitle, r.Employee.EnglishName))
+            .ToListAsync();
+
+    /// <summary>
+    /// The two ช่วง of a งวดคร่อมปีใหม่ (BR-008, #58) when they are: both set with จำนวนวัน, the second starting the day after the
+    /// first ends, both paid in this system (ค่าแรง calculated here); null otherwise.
+    /// </summary>
+    private async Task<(PayPeriodDto Part1, PayPeriodDto Part2, PayPeriodDto Whole)?> TwoPartsAsync(int part1Id, int part2Id)
+    {
+        if (await GetAsync(part1Id) is not { } a || await GetAsync(part2Id) is not { } b) return null;
+        if (a.PartDays is null || b.PartDays is null || b.From != a.To.AddDays(1)) return null;
+        if (a.CompletedStep < PayPeriodStep.PayCalculated || b.CompletedStep < PayPeriodStep.PayCalculated) return null;
+        if (a.PayCalculatedAt is null || b.PayCalculatedAt is null) return null;
+        return (a, b, b with { From = a.From });
+    }
+
+    /// <summary>
+    /// สรุปค่าแรงทั้ง 2 ช่วง (RPT-11, มาโคร สรุปค่าแรงช่วง1+2): per department, an employee counted once with the pay of both ช่วง; the header
+    /// spans the two. Null unless <see cref="TwoPartsAsync"/>.
+    /// </summary>
+    public async Task<PaySummaryReport?> GetTwoPartSummaryAsync(int part1Id, int part2Id)
+    {
+        if (await TwoPartsAsync(part1Id, part2Id) is not var (_, _, whole)) return null;
+        var first = await PayLinesAsync(part1Id);
+        var second = await PayLinesAsync(part2Id);
+        var weekly = await db.WeeklyHolidays.CountAsync(h => h.Date >= whole.From && h.Date <= whole.To);
+        var holidays = await db.PublicHolidays.CountAsync(h => h.Date >= whole.From && h.Date <= whole.To);
+        return new PaySummaryReport(whole, weekly, holidays, PayCombination.Departments(first, second));
+    }
+
+    /// <summary>
+    /// ค่าแรงส่งแบงค์ทั้ง 2 ช่วง (SCR-47, BR-008 ข้อ 4): the transfer lists of BR-033 on the pay of both ช่วง added up per employee. Null
+    /// unless <see cref="TwoPartsAsync"/>.
+    /// </summary>
+    public async Task<TwoPartBank?> GetTwoPartBankAsync(int part1Id, int part2Id)
+    {
+        if (await TwoPartsAsync(part1Id, part2Id) is not var (_, _, whole)) return null;
+        var inputs = (await GetBankInputsAsync(part1Id)).Concat(await GetBankInputsAsync(part2Id))
+            .GroupBy(i => i.Code)
+            .Select(g => g.First() with { PayNormal = g.Sum(i => i.PayNormal), PayOvertime = g.Sum(i => i.PayOvertime), Hot = g.Sum(i => i.Hot) })
+            .OrderBy(i => i.Code, StringComparer.Ordinal).ToList();
+        var rows = BankTransfers.Build(inputs);
+        return new TwoPartBank(whole, rows, BankTransfers.Summary(rows));
+    }
+
     /// <summary>RPT-02 for one department (null = ทุกแผนก); null until the period's ค่าแรง is calculated.</summary>
     public async Task<PayReport?> GetPayReportAsync(int periodId, int? departmentId)
     {
@@ -105,9 +154,11 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
 
     /// <summary>
     /// RPT-04 สลิปเงินเดือน (BR-034): one slip per employee paid, by รหัส ↑; null until ค่าแรง is calculated here — a
-    /// period moved from the legacy history has no pay parts or เวลาทำงานรวม to print.
+    /// period moved from the legacy history has no pay parts or เวลาทำงานรวม to print. <paramref name="withBonus"/> = RPT-42 สลิปรวมโบนัส
+    /// (BR-035): only the employees of <see cref="Bonus.IsOnSlip"/> with a bonus in the latest คำนวณโบนัส, NET = ค่าแรง + โบนัส; null
+    /// when there is no bonus run.
     /// </summary>
-    public async Task<PaySlipBatch?> GetSlipsAsync(int periodId)
+    public async Task<PaySlipBatch?> GetSlipsAsync(int periodId, bool withBonus = false)
     {
         var period = await GetAsync(periodId);
         if (period is null || period.CompletedStep < PayPeriodStep.PayCalculated || period.PayCalculatedAt is null) return null;
@@ -120,18 +171,28 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
                     new OvertimeParts(r.OvertimePay, r.SundayPay, r.SundayOvertimePay, r.HolidayPay, r.HolidayOvertimePay)),
                 r.EmployeeType,
                 HasTtbAccount = r.Employee.BankAccountTtb != null,
+                r.Employee.HotAllowance,
                 r.WelfareEmployee,
                 r.WelfareCompany,
             })
             .ToListAsync();
-        // รวมเงินสะสมทั้งหมด: every period up to this one, never reset (assumption — #180, to confirm with HR).
+        Dictionary<int, decimal>? bonus = null;
+        if (withBonus)
+        {
+            var run = await db.BonusRuns.AsNoTracking().OrderByDescending(b => b.Id).Select(b => b.Id).FirstOrDefaultAsync();
+            if (run == 0) return null;
+            bonus = await db.BonusResults.AsNoTracking().Where(b => b.BonusRunId == run).ToDictionaryAsync(b => b.EmployeeId, b => b.Amount);
+        }
+        // รวมเงินสะสมทั้งหมด: every period up to this one, never reset (assumption - #180, to confirm with HR).
         var accumulated = await db.PayResults.AsNoTracking().Where(r => r.PayPeriod.FromDate <= period.From)
             .GroupBy(r => r.EmployeeId).Select(g => new { EmployeeId = g.Key, Sum = g.Sum(r => r.WelfareEmployee) })
             .ToDictionaryAsync(g => g.EmployeeId, g => g.Sum);
         var dates = new PayPeriodDates(period.From, period.To, period.PayDate);
         var slips = rows.Where(r => times.ContainsKey(r.Pay.EmployeeId))
+            .Where(r => bonus is null || (Bonus.IsOnSlip(r.EmployeeType, r.HotAllowance, r.HasTtbAccount) && bonus.GetValueOrDefault(r.Pay.EmployeeId) > 0))
             .Select(r => PaySlips.Build(dates, times[r.Pay.EmployeeId], r.Pay, r.EmployeeType, r.HasTtbAccount,
-                r.WelfareEmployee, r.WelfareCompany, accumulated.GetValueOrDefault(r.Pay.EmployeeId)))
+                r.WelfareEmployee, r.WelfareCompany, accumulated.GetValueOrDefault(r.Pay.EmployeeId))
+                with { Bonus = bonus?.GetValueOrDefault(r.Pay.EmployeeId) ?? 0 })
             .OrderBy(s => s.Code, StringComparer.Ordinal).ToList();
         return new PaySlipBatch(period, slips, await ListSlipSignersAsync());
     }
@@ -163,5 +224,5 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
 
     private static readonly System.Linq.Expressions.Expression<Func<PayPeriod, PayPeriodDto>> ToDto = p =>
         new PayPeriodDto(p.Id, p.FromDate, p.ToDate, p.PayDate, p.CompletedStep, p.TimeCalculatedAt, p.TimeCalculatedBy, p.RowVersion,
-            p.PayCalculatedAt, p.PayCalculatedBy, p.Migrated);
+            p.PayCalculatedAt, p.PayCalculatedBy, p.Migrated, p.PartDays);
 }

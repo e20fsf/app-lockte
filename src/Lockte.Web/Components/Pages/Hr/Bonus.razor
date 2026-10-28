@@ -1,0 +1,134 @@
+@page "/hr/bonus"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* SCR-50 คำนวณโบนัส (ฟอร์ม คำนวณโบนัส, เมนู 10, BR-030): ตั้งแต่ / ถึงวันที่, แผนก (ว่าง = ทุกแผนก), ตัวคูณรายเดือน (PAY_M) และรายวัน (PAY_D);
+   "พิมพ์" calculates (replacing the last run, as the legacy replaced EMPLOYEEโบนัส) and opens RPT-35 in a new tab. Below: จ่ายรวมกับค่าแรงงวด
+   (BR-035, RPT-40/41/42) for a งวด whose ค่าแรง is calculated. DATE_H of the legacy form is not kept (🔍 only a header date). *@
+<PageTitle>คำนวณโบนัส — LOCKTE</PageTitle>
+<h1 class="mb-4">คำนวณโบนัส</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true" Style="max-width:52rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+            <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทุกแผนก)" Clearable="true" Style="max-width:22rem">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudNumericField T="decimal?" @bind-Value="monthly" Label="ตัวคูณรายเดือน (× เงินเดือน)" Min="0" Style="max-width:14rem" />
+            <MudNumericField T="decimal?" @bind-Value="daily" Label="ตัวคูณรายวัน (× ค่าแรง/วัน)" Min="0" Style="max-width:14rem" />
+        </MudStack>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            วันลา = ทุกประเภท (รวมลาอุบัติเหตุในงาน) ที่ลาภายในช่วงนี้ทั้งใบ · ลา 25 วันขึ้นไปหรืออายุงานไม่ถึง 6 เดือนไม่ได้โบนัส · ไม่รวมพนักงานที่ลาออกและรหัส LT
+            · กดพิมพ์ทุกครั้งคือคำนวณใหม่ และผลครั้งล่าสุดเท่านั้นที่ใช้จ่ายรวมกับค่าแรงงวดด้านล่าง
+        </MudText>
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl" Target="_blank" Disabled="@(Problem is not null)" OnClick="PrintedAsync" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="reports/hr/bonus/last" Target="_blank" Disabled="@(last is null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์ผลครั้งล่าสุดอีกครั้ง</MudButton>
+    </MudStack>
+    @if (last is not null)
+    {
+        <MudText Typo="Typo.caption" Class="mt-2">ผลครั้งล่าสุด: @ThaiDate.Format(last.From) – @ThaiDate.Format(last.To)</MudText>
+    }
+</MudPaper>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true" Style="max-width:52rem">
+    <MudText Typo="Typo.h6">จ่ายโบนัสรวมกับค่าแรงงวด</MudText>
+    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+        <b>ส่งธนาคารได้ธนาคารเดียว:</b> พนักงานส่วนใหญ่มีทั้งบัญชีทหารไทยและกสิกร โบนัสของคนเดียวกันอยู่ในรายการทั้งสองธนาคาร
+        ถ้าส่งทั้งสองรายการ โบนัสจะถูกโอนซ้ำ — เลือกส่งรายการเดียว (ยังไม่ยืนยันว่าที่ผ่านมาใช้ธนาคารไหน)
+    </MudAlert>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-3">
+        <MudSelect T="int" @bind-Value="periodId" Label="งวดค่าแรง" Style="max-width:24rem" Disabled="periods.Count == 0">
+            @foreach (var p in periods)
+            {
+                <MudSelectItem T="int" Value="p.Id">@ThaiDate.Format(p.From) – @ThaiDate.Format(p.To) (จ่าย @ThaiDate.Format(p.PayDate))</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+    <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mt-3">
+        <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/ttb")" Target="_blank" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.PictureAsPdf">พิมพ์ค่าแรงรวมโบนัสส่งแบงค์ (ทหารไทย)</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/kbank")" Target="_blank" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.PictureAsPdf">พิมพ์เงิน OT รวมโบนัสส่งแบงค์ (กสิกร)</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/ttb?format=xlsx")" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.TableView">Excel ทหารไทยรวมโบนัส</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@Href("bonus-bank/kbank?format=xlsx")" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.TableView">Excel กสิกรรวมโบนัส</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@Href("slips-with-bonus")" Target="_blank" Disabled="@(!CanPay)" StartIcon="@Icons.Material.Filled.PictureAsPdf">พิมพ์ SLIP รวมโบนัส</MudButton>
+    </MudStack>
+    @if (!CanPay)
+    {
+        <MudText Typo="Typo.caption">ต้องคำนวณโบนัสและคำนวณค่าแรงของงวด (ในระบบใหม่) ก่อน</MudText>
+    }
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(10)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from = new(DateTime.Today.Year, 1, 1);
+    private DateTime? to = DateTime.Today;
+    private int? departmentId;
+    private decimal? monthly = BonusInput.DefaultMonthly;
+    private decimal? daily = BonusInput.DefaultDaily;
+    private BonusInput? last;
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private IReadOnlyList<PayPeriodDto> periods = [];
+    private int periodId;
+
+    private bool CanPay => last is not null && periods.FirstOrDefault(p => p.Id == periodId) is { Migrated: false, PayCalculatedAt: not null };
+
+    private string Href(string report) => $"reports/hr/pay-periods/{periodId}/{report}";
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกวันที่"
+            : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : monthly is null || daily is null ? "กรุณากรอกตัวคูณ"
+            : null;
+
+    private string PdfUrl
+    {
+        get
+        {
+            if (Problem is not null) return "";
+            static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return $"reports/hr/bonus?from={Iso(from)}&to={Iso(to)}"
+                + (departmentId is { } d ? $"&department={d}" : "")
+                + $"&monthly={monthly!.Value.ToString(CultureInfo.InvariantCulture)}&daily={daily!.Value.ToString(CultureInfo.InvariantCulture)}";
+        }
+    }
+
+    /// <summary>The PDF opens in a new tab and calculates there; show the new "ผลครั้งล่าสุด" here a moment later.</summary>
+    private async Task PrintedAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(6));
+        last = await Services.RunAsync<BonusDirectory, BonusInput?>(b => b.GetLastInputAsync());
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+        periods = await Services.RunAsync<PayPeriodDirectory, IReadOnlyList<PayPeriodDto>>(d => d.ListAsync());
+        if (periods.Count > 0) periodId = periods[0].Id;
+        last = await Services.RunAsync<BonusDirectory, BonusInput?>(b => b.GetLastInputAsync());
+        if (last is not null)
+        {
+            from = last.From.ToDateTime(TimeOnly.MinValue);
+            to = last.To.ToDateTime(TimeOnly.MinValue);
+            departmentId = last.DepartmentId;
+            monthly = last.MonthlyMultiplier;
+            daily = last.DailyMultiplier;
+        }
+    }
+}
