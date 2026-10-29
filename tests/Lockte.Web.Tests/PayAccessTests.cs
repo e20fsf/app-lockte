@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
+using Lockte.Purch;
 using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
@@ -65,6 +66,7 @@ public sealed class PayAccessTests
         builder.Services.AddHrModule(cs);
         builder.Services.AddSalesModule(cs);
         builder.Services.AddProdModule(cs);
+        builder.Services.AddPurchModule(cs);
         builder.Services.AddReportData(cs);
         builder.Services.AddReportPrinting(builder.Configuration);
         builder.Services.AddScoped<ICurrentUser, SystemUser>();
