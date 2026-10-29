@@ -53,7 +53,7 @@ public sealed class CalibModuleTests(LocalDbFixture db)
         await using (var scope = db.Scope()) first = await scope.Get<CalibSettingsDirectory>().GetAsync();
 
         await using (var scope = db.Scope())
-            Assert.True((await scope.Get<CalibSettingsRegistry>().SaveAsync(new(first.StickerWidthCm, first.StickerHeightCm, first.RowVersion))).Succeeded);
+            Assert.True((await scope.Get<CalibSettingsRegistry>().SaveAsync(new(first.StickerWidthCm == 3.5m ? 3.6m : 3.5m, first.StickerHeightCm, first.RowVersion))).Succeeded);
         await using (var scope = db.Scope())
             await Assert.ThrowsAsync<ConcurrencyConflictException>(() => scope.Get<CalibSettingsRegistry>().SaveAsync(new(first.StickerWidthCm, first.StickerHeightCm, first.RowVersion)));
 
