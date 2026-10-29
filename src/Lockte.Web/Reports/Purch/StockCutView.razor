@@ -1,0 +1,30 @@
+@using Lockte.Purch
+@* RPT-26 รายงานการตัด STOCK วันที่ …, ระดับ B on A4 ตั้ง: ที่, รหัส, ชื่อวัตถุดิบ, จำนวน+หน่วย, ราคา (the register's latest, on the day of printing), จำนวนเงิน (จำนวน × ราคา; an overdrawn balance gives a negative value) — "รวม N รายการ" and the total. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">วันที่ตัด @ReportText.Date(Report.CutDate)</p>
+    <table>
+        <colgroup><col style="width:6%" /><col style="width:12%" /><col style="width:36%" /><col style="width:16%" /><col style="width:12%" /><col style="width:18%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อวัตถุดิบ</th><th class="num">จำนวน</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@r.Code</td><td>@r.Name</td><td class="num">@ReportText.Decimal2(r.Quantity) @r.Unit</td>
+                    <td class="num">@r.Price.ToString("#,##0.00##", System.Globalization.CultureInfo.InvariantCulture)</td><td class="num">@ReportText.Decimal2(r.Amount)</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="3"><b>รวม @Report.Rows.Count รายการ</b></td><td colspan="2"></td><td class="num"><b>@ReportText.Decimal2(Report.Total)</b></td></tr>
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public StockCutReport Report { get; set; } = null!;
+}
