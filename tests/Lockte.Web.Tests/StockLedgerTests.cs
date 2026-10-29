@@ -79,7 +79,7 @@ public sealed class StockLedgerTests(LocalDbFixture db)
         await using (var scope = db.Scope())
         {
             var history = await scope.Get<HistoryService>().SearchAsync(new(Table: "สมุดสต็อกวัตถุดิบ"));
-            Assert.Contains(history, h => h is { Action: HistoryActions.Modified, Column: "จำนวน", OldValue: "50", NewValue: "80", UserName: "store1" });
+            Assert.Contains(history, h => h is { Action: HistoryActions.Modified, Column: "จำนวน", UserName: "store1" } && decimal.Parse(h.OldValue!, System.Globalization.CultureInfo.InvariantCulture) == 50m && decimal.Parse(h.NewValue!, System.Globalization.CultureInfo.InvariantCulture) == 80m);
         }
 
         var fresh = (await AsStoreAsync(s => s.Get<StockDirectory>().GetAsync(id)))!;
