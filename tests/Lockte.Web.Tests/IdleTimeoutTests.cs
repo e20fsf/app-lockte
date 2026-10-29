@@ -24,11 +24,11 @@ public sealed class IdleTimeoutTests
     }
 
     [Fact]
-    public void Idle_for_30_minutes_by_default_means_login_again()
+    public void Idle_for_120_minutes_by_default_means_login_again()
     {
         var cookie = LoginCookie();
 
-        Assert.Equal(TimeSpan.FromMinutes(30), cookie.ExpireTimeSpan);
+        Assert.Equal(TimeSpan.FromMinutes(120), cookie.ExpireTimeSpan);
         Assert.True(cookie.SlidingExpiration);
         Assert.Null(cookie.Cookie.MaxAge); // not kept after the browser closes
     }
