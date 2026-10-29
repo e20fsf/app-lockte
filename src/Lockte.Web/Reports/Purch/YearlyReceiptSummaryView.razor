@@ -1,0 +1,60 @@
+@using System.Globalization
+@* RPT-21 สรุปการรับวัตถุดิบ / RPT-24 สรุปการรับวัตถุดิบหลัก (รายเดือนทั้งปี), ระดับ B on A4 ตั้ง: one row per month of the year — ที่, เดือน, [จำนวนใบอนุมัติสั่งซื้อ, จำนวนใบสั่งซื้อ | จำนวน], จำนวนเงิน — and "รวมทั้งหมด".
+   Computed from the receipts each time, so printing a month again gives the same amount and a new year does not mix with the old (D-14). *@
+@if (Report.Months.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ปี @(Report.Year + 543)</p>
+    <table>
+        @if (Report.MainOnly)
+        {
+            <colgroup><col style="width:8%" /><col style="width:32%" /><col style="width:26%" /><col style="width:34%" /></colgroup>
+            <thead><tr><th class="num">ที่</th><th>เดือน</th><th class="num">จำนวน</th><th class="num">จำนวนเงิน</th></tr></thead>
+        }
+        else
+        {
+            <colgroup><col style="width:8%" /><col style="width:26%" /><col style="width:20%" /><col style="width:20%" /><col style="width:26%" /></colgroup>
+            <thead><tr><th class="num">ที่</th><th>เดือน</th><th class="num">จำนวนใบอนุมัติสั่งซื้อ</th><th class="num">จำนวนใบสั่งซื้อ</th><th class="num">จำนวนเงิน</th></tr></thead>
+        }
+        <tbody>
+            @for (var i = 0; i < Report.Months.Count; i++)
+            {
+                var m = Report.Months[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@MonthName(m.Month)</td>
+                    @if (Report.MainOnly)
+                    {
+                        <td class="num">@ReportText.Decimal2(m.Quantity)</td>
+                    }
+                    else
+                    {
+                        <td class="num">@m.RequestCount</td><td class="num">@m.OrderCount</td>
+                    }
+                    <td class="num">@ReportText.Decimal2(m.Amount)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="2"><b>รวมทั้งหมด</b></td>
+                @if (Report.MainOnly)
+                {
+                    <td class="num"><b>@ReportText.Decimal2(Report.TotalQuantity)</b></td>
+                }
+                else
+                {
+                    <td class="num"><b>@Report.TotalRequests</b></td><td class="num"><b>@Report.TotalOrders</b></td>
+                }
+                <td class="num"><b>@ReportText.Decimal2(Report.TotalAmount)</b></td>
+            </tr>
+            <tr><td colspan="@(Report.MainOnly ? 4 : 5)" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public YearlyReceiptSummary Report { get; set; } = null!;
+
+    private string MonthName(int month) => new DateTime(Report.Year, month, 1).ToString("MMMM yyyy", CultureInfo.GetCultureInfo("th-TH"));
+}

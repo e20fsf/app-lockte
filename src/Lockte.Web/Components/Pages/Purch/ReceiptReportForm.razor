@@ -15,10 +15,22 @@
 
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
     <MudStack Spacing="2">
+        @if (Kind == "yearly")
+        {
+            <MudSelect T="int" @bind-Value="year" @bind-Value:after="RememberAsync" Label="ปี (พ.ศ.)" Style="max-width:12rem">
+                @foreach (var y in Years)
+                {
+                    <MudSelectItem T="int" Value="y">@(y + 543)</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        else
+        {
         <MudStack Row="true" Spacing="2">
             <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
             <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
         </MudStack>
+        }
         @if (Kind == "department")
         {
             <MudSelect T="int?" @bind-Value="departmentId" @bind-Value:after="RememberAsync" Label="แผนก" Style="max-width:28rem">
@@ -32,7 +44,7 @@
         {
             <MaterialPicker Value="material" ValueChanged="@(async (MaterialDto? m) => { material = m; await RememberAsync(); })" Label="วัตถุดิบ (รหัสหรือชื่อ)" />
         }
-        else
+        else if (Kind == "supplier")
         {
             <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (ว่าง = ทุกราย)" />
         }
@@ -42,10 +54,14 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
     }
     <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url(false)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
-        @if (Kind != "material")
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url(false)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">@(Kind is "summary" or "yearly" ? "พิมพ์สรุปทั้งหมด" : "พิมพ์")</MudButton>
+        @if (Kind is "department" or "supplier")
         {
             <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(DatesProblem is not null)" StartIcon="@Icons.Material.Filled.Summarize">พิมพ์สรุป</MudButton>
+        }
+        else if (Kind is "summary" or "yearly")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์เฉพาะวัตถุดิบหลัก</MudButton>
         }
     </MudStack>
 </MudPaper>
@@ -61,21 +77,30 @@
     private int? departmentId;
     private MaterialDto? material;
     private SupplierDto? supplier;
+    private int year;
     private bool loadedMemory;
+
+    private IEnumerable<int> Years => Enumerable.Range(Clock.GetLocalNow().Year - 8, 9).Reverse();
 
     private string Title => Kind switch
     {
         "material" => "พิมพ์รายงานการรับวัตถุดิบตามชื่อ",
         "supplier" => "พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย",
+        "summary" => "พิมพ์สรุปการรับวัตถุดิบ",
+        "yearly" => "พิมพ์สรุปการรับวัตถุดิบรายเดือนทั้งปี",
+        "department-purchases" => "พิมพ์การซื้อวัตถุดิบแยกแผนก",
         _ => "พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก",
     };
 
-    private string? DatesProblem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+    private string? DatesProblem => Kind == "yearly" ? null : from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
 
     private string? Problem => DatesProblem ?? (Kind == "department" && departmentId is null ? "กรุณาเลือกแผนก" : Kind == "material" && material is null ? "กรุณาเลือกวัตถุดิบ" : null);
 
     private string Url(bool summary)
     {
+        if (Kind == "yearly") return $"/reports/purch/receipts/yearly?year={year}" + (summary ? "&main=true" : "");
+        if (Kind is "summary") return $"/reports/purch/receipts/summary?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}" + (summary ? "&main=true" : "");
+        if (Kind == "department-purchases") return $"/reports/purch/receipts/department-purchases?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
         var url = $"/reports/purch/receipts/{Kind}?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
         if (Kind == "department" && departmentId is { } d) url += "&department=" + d;
         if (Kind == "material" && material is not null) url += "&material=" + material.Id;
@@ -87,6 +112,7 @@
     {
         var today = Clock.GetLocalNow().DateTime.Date;
         (from, to) = (new DateTime(today.Year, today.Month, 1), new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1));
+        year = today.Year;
         (departmentId, material, supplier, loadedMemory) = (null, null, null, false);
         if (Kind == "department") departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
     }
@@ -102,6 +128,7 @@
                 from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
                 to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
                 departmentId = saved.DepartmentId;
+                year = saved.Year ?? year;
                 if (saved.MaterialId is { } m) material = await Services.RunAsync<MaterialDirectory, MaterialDto?>(d => d.GetAsync(m));
                 if (saved.SupplierId is { } s) supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(s));
                 StateHasChanged();
@@ -117,7 +144,7 @@
     {
         try
         {
-            await Storage.SetAsync("purch.receipts." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, departmentId, material?.Id, supplier?.Id));
+            await Storage.SetAsync("purch.receipts." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, departmentId, material?.Id, supplier?.Id, year));
         }
         catch (Exception)
         {
@@ -125,5 +152,5 @@
         }
     }
 
-    private sealed record Remembered(DateOnly? From, DateOnly? To, int? DepartmentId, int? MaterialId, int? SupplierId);
+    private sealed record Remembered(DateOnly? From, DateOnly? To, int? DepartmentId, int? MaterialId, int? SupplierId, int? Year = null);
 }

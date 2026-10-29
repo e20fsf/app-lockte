@@ -64,7 +64,9 @@ public static class PurchMenu
             new("พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก", Code: "RPT-12", Page: "purch/reports/receipts/department"),
             new("พิมพ์รายงานการรับวัตถุดิบตามชื่อ", Code: "RPT-15", Page: "purch/reports/receipts/material"),
             new("พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย", Code: "RPT-18", Page: "purch/reports/receipts/supplier"),
-            new("พิมพ์สรุปการรับวัตถุดิบ", Code: "RPT-20"),
+            new("พิมพ์สรุปการรับวัตถุดิบ", Code: "RPT-20", Page: "purch/reports/receipts/summary"), // RPT-23 หลักอยู่หน้าเดียวกัน
+            new("พิมพ์สรุปการรับวัตถุดิบรายเดือนทั้งปี", Code: "RPT-21", Page: "purch/reports/receipts/yearly"), // RPT-24 หลักอยู่หน้าเดียวกัน
+            new("พิมพ์การซื้อวัตถุดิบแยกแผนก", Code: "RPT-22", Page: "purch/reports/receipts/department-purchases"),
         ]),
         new(7, "บันทึกการรับวัตถุดิบ, แบบการประเมินผู้ขายและสรุป", 2,
         [

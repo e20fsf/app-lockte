@@ -1,0 +1,35 @@
+@using Lockte.Purch
+@* RPT-20 สรุปการรับวัตถุดิบเดือน / RPT-23 สรุปการรับวัตถุดิบหลักเดือน, ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ …; ที่, ชื่อวัตถุดิบ, จำนวน, หน่วย, ราคา/หน่วย (Σเงิน ÷ Σจำนวน), จำนวนเงิน by จำนวนเงิน ↓,
+   then "รวมทั้งหมด". RPT-20 says how many ใบขออนุมัติซื้อ / ใบสั่งซื้อ the receipts came from and leaves out the failed ones; RPT-23 has no such counts and does not cut the failed. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    @if (!Report.MainOnly)
+    {
+        <p class="sub">ใบขออนุมัติซื้อ @Report.RequestCount ใบ&emsp;ใบสั่งซื้อ @Report.OrderCount ใบ</p>
+    }
+    <table>
+        <colgroup><col style="width:6%" /><col style="width:36%" /><col style="width:14%" /><col style="width:8%" /><col style="width:16%" /><col style="width:20%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>ชื่อวัตถุดิบ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@r.Name</td><td class="num">@ReportText.Decimal2(r.Quantity)</td><td>@r.Unit</td>
+                    <td class="num">@(r.AveragePrice is { } p ? ReportText.Decimal2(p) : "")</td><td class="num">@ReportText.Decimal2(r.Amount)</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="5"><b>รวมทั้งหมด</b></td><td class="num"><b>@ReportText.Decimal2(Report.TotalAmount)</b></td></tr>
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MonthlyReceiptSummary Report { get; set; } = null!;
+}
