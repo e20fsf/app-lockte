@@ -1,0 +1,149 @@
+@page "/purch/requests/entry/{DepartmentId:int}"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject TimeProvider Clock
+
+@* กรอกใบขอซื้อ (SCR-04, BR-011, BR-014): the head and as many items as needed. Picking a material fills its name, unit and latest price (the
+   name and unit stay editable); an item with no quantity is not kept, and a request with no item is not created. "บันทึกและกลับเมนูเดิม" is the
+   legacy's กลับเมนูเดิม (the request waits for its purchase order); "บันทึกและออกใบถัดไป" starts the next one of the แผนก.
+   The printed form (RPT-01) comes with #220. *@
+<PageTitle>ใบขออนุมัติสั่งซื้อ — LOCKTE</PageTitle>
+<h1 class="mb-4">ใบขออนุมัติสั่งซื้อ@(departmentName is null ? "" : " — " + departmentName)</h1>
+
+@if (reasons is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="head.No" Label="เลขที่ใบขออนุมัติสั่งซื้อ" MaxLength="PurchaseRequestRegistry.NumberLength" Required="true" RequiredError="กรุณากรอกเลขที่" /></MudItem>
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="head.Date" Label="วันที่ขอซื้อ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="head.Desired" Label="วันที่ต้องการ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" @bind-Value="head.Location" Label="ผู้จัดซื้อ">
+                    @foreach (var l in locations)
+                    {
+                        <MudSelectItem T="string" Value="l.Code">@l.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6"><MudAutocomplete T="string" @bind-Value="head.Reason" SearchFunc="@(Suggest(reasons))" Label="เหตุผลในการขอซื้อ (เลือกหรือพิมพ์)" CoerceText="true" CoerceValue="true" Clearable="true" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="6"><MudAutocomplete T="string" @bind-Value="head.Note" SearchFunc="@(Suggest(notes))" Label="หมายเหตุ (เลือกหรือพิมพ์)" CoerceText="true" CoerceValue="true" Clearable="true" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">รายการ</MudText>
+        @foreach (var line in lines)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+                <MudNumericField T="int?" @bind-Value="line.LineNo" Label="ลำดับ" Margin="Margin.Dense" Style="width:5rem" />
+                <div style="width:22rem"><MaterialPicker Value="line.Material" ValueChanged="@(m => PickAsync(line, m))" Dense="true" Label="รหัสวัตถุดิบ" /></div>
+                <MudTextField @bind-Value="line.Name" Label="ชื่อวัตถุดิบ" Margin="Margin.Dense" MaxLength="MaterialRegistry.NameLength" Style="width:20rem" />
+                <MudNumericField T="decimal?" @bind-Value="line.Quantity" Label="จำนวน" Min="0" Margin="Margin.Dense" Style="width:8rem" />
+                <MudTextField @bind-Value="line.Unit" Label="หน่วย" Margin="Margin.Dense" MaxLength="MaterialRegistry.UnitLength" Style="width:6rem" />
+                <MudNumericField T="decimal?" @bind-Value="line.TankWeight" Label="นน.ถัง" Min="0" Margin="Margin.Dense" Style="width:7rem" />
+                <MudText Style="min-width:9rem">ราคา @line.Price.ToString("N2") = @line.Net.ToString("N2")</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => lines.Remove(line))" aria-label="ลบรายการ" />
+            </MudStack>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddLine">เพิ่มรายการ</MudButton>
+    </MudPaper>
+
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(next: true))" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">บันทึกและออกใบถัดไป</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => SaveAsync(next: false))" Disabled="busy">บันทึกและกลับเมนูเดิม</MudButton>
+    </MudStack>
+}
+
+<MudButton Href="purch/requests/new" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">เลือกแผนกใหม่</MudButton>
+
+@code {
+    [Parameter] public int DepartmentId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "no")] public string? No { get; set; }
+
+    private string? departmentName;
+    private IReadOnlyList<PurchasingLocationDto> locations = [];
+    private IReadOnlyList<string>? reasons;
+    private IReadOnlyList<string> notes = [];
+    private Head head = new();
+    private List<Line> lines = [new()];
+    private bool busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        departmentName = (await Services.RunAsync<OrgDirectory, DepartmentDto?>(o => o.GetDepartmentAsync(DepartmentId)))?.Name;
+        locations = await Services.RunAsync<RequestSetupDirectory, IReadOnlyList<PurchasingLocationDto>>(d => d.GetLocationsAsync());
+        notes = await Services.RunAsync<RequestSetupDirectory, IReadOnlyList<string>>(d => d.GetNotesAsync());
+        reasons = await Services.RunAsync<RequestSetupDirectory, IReadOnlyList<string>>(d => d.GetReasonsAsync());
+        head = new Head { No = No ?? "", Date = Clock.GetLocalNow().DateTime.Date, Location = locations.FirstOrDefault(l => l.Code == "F")?.Code ?? locations.FirstOrDefault()?.Code };
+        lines = [new()];
+    }
+
+    private static Func<string?, CancellationToken, Task<IEnumerable<string>>> Suggest(IReadOnlyList<string> source)
+        => (text, _) => Task.FromResult<IEnumerable<string>>(source.Where(s => string.IsNullOrWhiteSpace(text) || s.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)).Take(30).ToList());
+
+    private void AddLine() => lines.Add(new Line());
+
+    private Task PickAsync(Line line, MaterialDto? material)
+    {
+        line.Material = material;
+        line.Name = material?.Name;
+        line.Unit = material?.Unit;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync(bool next)
+    {
+        busy = true;
+        try
+        {
+            var input = new PurchaseRequestInput(head.No, DateOnly.FromDateTime(head.Date ?? Clock.GetLocalNow().DateTime), DepartmentId,
+                head.Desired is { } d ? DateOnly.FromDateTime(d) : null, head.Location ?? "", head.Reason, head.Note,
+                lines.Where(l => l.Material is not null).Select(l => new PurchaseRequestLineInput(l.Material!.Id, l.Quantity, l.LineNo, l.Name, l.Unit, null, l.TankWeight)).ToList());
+            var result = await Services.RunAsync<PurchaseRequestRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(result.Id is null ? "ไม่มีรายการ จึงไม่ได้สร้างใบขอซื้อ" : $"บันทึกใบขอซื้อ {head.No} แล้ว", result.Id is null ? Severity.Info : Severity.Success);
+            if (!next) { Navigation.NavigateTo(PurchMenu.HrefOf(3)); return; }
+
+            var today = DateOnly.FromDateTime(Clock.GetLocalNow().DateTime);
+            var number = await Services.RunAsync<PurchaseRequestRegistry, string?>(r => r.ReserveNumberAsync(DepartmentId, today));
+            Navigation.NavigateTo($"purch/requests/entry/{DepartmentId}" + (number is null ? "" : $"?no={Uri.EscapeDataString(number)}"));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class Head
+    {
+        public string No { get; set; } = "";
+        public DateTime? Date { get; set; }
+        public DateTime? Desired { get; set; }
+        public string? Location { get; set; }
+        public string? Reason { get; set; }
+        public string? Note { get; set; }
+    }
+
+    private sealed class Line
+    {
+        public int? LineNo { get; set; }
+        public MaterialDto? Material { get; set; }
+        public string? Name { get; set; }
+        public decimal? Quantity { get; set; }
+        public string? Unit { get; set; }
+        public decimal? TankWeight { get; set; }
+        public decimal Price => Material?.Cost ?? 0;
+        public decimal Net => (decimal)((double)Price * (double)(Quantity ?? 0));
+    }
+}

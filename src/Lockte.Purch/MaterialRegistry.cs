@@ -140,6 +140,16 @@ public sealed class MaterialDirectory(PurchDbContext db)
             .Select(ToDto).ToList();
     }
 
+    /// <summary>วัตถุดิบ whose code or name contains <paramref name="text"/> (ignoring case), by ชื่อ, at most <paramref name="max"/> — what the item pickers search.</summary>
+    public async Task<IReadOnlyList<MaterialDto>> SearchAsync(string? text, int max = 50)
+    {
+        var term = text?.Trim();
+        return (await db.Materials.AsNoTracking().Include(m => m.LatestSupplier)
+                .Where(m => string.IsNullOrEmpty(term) || m.Code.Contains(term) || m.Name.Contains(term))
+                .OrderBy(m => m.Name).ThenBy(m => m.Code).Take(max).ToListAsync())
+            .Select(ToDto).ToList();
+    }
+
     public async Task<MaterialDto?> GetAsync(int id)
         => await db.Materials.AsNoTracking().Include(m => m.LatestSupplier).FirstOrDefaultAsync(m => m.Id == id) is { } m ? ToDto(m) : null;
 

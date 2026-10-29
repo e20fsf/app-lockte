@@ -238,3 +238,70 @@ internal sealed class RequestNote : IAudited
 
     string IHasBusinessKey.BusinessKey => Text;
 }
+
+/// <summary>
+/// ตัวนับเลขเอกสาร: the last number issued for a series (<c>PR:B69</c> = ใบขอซื้อ ของ prefix B ปี 69). Not audited — a system counter;
+/// moved only by <see cref="DocumentNumbers"/> under a lock, so two users never get the same number (AC-34).
+/// </summary>
+internal sealed class DocumentCounter
+{
+    public int Id { get; set; }
+    public string Key { get; set; } = "";
+    public int Last { get; set; }
+}
+
+/// <summary>ใบขออนุมัติสั่งซื้อ (หัวใบ, SCR-04): หนึ่งแผนก หนึ่งเลขที่ หลายรายการ.</summary>
+internal sealed class PurchaseRequest : IAudited
+{
+    public int Id { get; set; }
+    /// <summary>เลขที่ใบขอซื้อ <c>&lt;prefix&gt;&lt;YY&gt;-&lt;NNNN&gt;</c>, unique.</summary>
+    public string RequestNo { get; set; } = "";
+    public DateOnly RequestDate { get; set; }
+    /// <summary>แผนกที่ขอซื้อ of module องค์กร (checked on save; no database key across modules).</summary>
+    public int DepartmentId { get; set; }
+    /// <summary>วันที่ต้องการ (DELI_D).</summary>
+    public DateOnly? DesiredDate { get; set; }
+    /// <summary>ผู้จัดซื้อ (F/O).</summary>
+    public string? PurchasingLocation { get; set; }
+    /// <summary>เหตุผลในการขอซื้อ (pick or free text).</summary>
+    public string? Reason { get; set; }
+    public string? Note { get; set; }
+    public List<PurchaseRequestLine> Lines { get; set; } = [];
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => RequestNo;
+}
+
+/// <summary>รายการของใบขอซื้อ. Name and unit are the document's own text, copied from the register but editable (DQ-04).</summary>
+internal sealed class PurchaseRequestLine : IAudited
+{
+    public int Id { get; set; }
+    public int PurchaseRequestId { get; set; }
+    public PurchaseRequest? PurchaseRequest { get; set; }
+    /// <summary>ลำดับรายการ.</summary>
+    public int LineNo { get; set; }
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    public string MaterialName { get; set; } = "";
+    public string? Unit { get; set; }
+    public decimal Quantity { get; set; }
+    /// <summary>ราคาต่อหน่วย (ราคาล่าสุดในทะเบียนตอนขอซื้อ).</summary>
+    public decimal UnitPrice { get; set; }
+    /// <summary>จำนวนเงินรายการ = ราคา × จำนวน (BR-022 ข้อ 1, RND-B).</summary>
+    public decimal NetAmount { get; set; }
+    /// <summary>นน.ถัง (WEIGHT): aluminium work (BR-060).</summary>
+    public decimal? TankWeight { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => PurchaseRequest?.RequestNo ?? "";
+}
