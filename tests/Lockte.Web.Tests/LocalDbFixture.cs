@@ -2,6 +2,7 @@ using Lockte.Hr;
 using Lockte.Migration;
 using Lockte.Org;
 using Lockte.Prod;
+using Lockte.Purch;
 using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
@@ -44,6 +45,7 @@ public class LocalDbFixture : IAsyncLifetime
         collection.Replace(ServiceDescriptor.Scoped<IPayAccess>(sp => sp.GetRequiredService<TestPayAccess>()));
         collection.AddSalesModule(AccountsRegistration.ConnectionString(config));
         collection.AddProdModule(AccountsRegistration.ConnectionString(config));
+        collection.AddPurchModule(AccountsRegistration.ConnectionString(config));
         collection.AddReportData(AccountsRegistration.ConnectionString(config));
         collection.AddMasterDataMigration();
         collection.AddModuleDbContext<WidgetDbContext>(AccountsRegistration.ConnectionString(config), WidgetDbContext.Schema);

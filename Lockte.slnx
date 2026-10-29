@@ -4,6 +4,7 @@
     <Project Path="src/Lockte.Migration/Lockte.Migration.csproj" />
     <Project Path="src/Lockte.Org/Lockte.Org.csproj" />
     <Project Path="src/Lockte.Prod/Lockte.Prod.csproj" />
+    <Project Path="src/Lockte.Purch/Lockte.Purch.csproj" />
     <Project Path="src/Lockte.Sales/Lockte.Sales.csproj" />
     <Project Path="src/Lockte.SharedKernel/Lockte.SharedKernel.csproj" />
     <Project Path="src/Lockte.Web/Lockte.Web.csproj" />

@@ -1,0 +1,115 @@
+@page "/purch/settings"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* ตั้งค่าจัดซื้อ (#212): the values the legacy hard-coded in its queries and reports (data-model "ค่าที่ hard-code").
+   Until saved, the legacy values apply. The approver of a small purchase order is left blank on purpose. *@
+<PageTitle>ตั้งค่าจัดซื้อ — LOCKTE</PageTitle>
+<h1 class="mb-4">ตั้งค่าจัดซื้อ</h1>
+
+@if (form is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:48rem">
+        <MudStack Spacing="2">
+            <MudNumericField T="decimal" @bind-Value="form.VatPercent" Label="อัตรา VAT (%)" Min="0" Max="100" Style="max-width:16rem" />
+            <MudNumericField T="decimal" @bind-Value="form.SmallOrderLimit" Label="เกณฑ์ใบสั่งซื้อเล็ก (บาท) — ต่ำกว่านี้พิมพ์ใน RPT-11" Min="0" Style="max-width:24rem" />
+            <MudTextField @bind-Value="form.SmallOrderApprover" Label="ผู้อนุมัติใบสั่งซื้อเล็ก (ว่างได้)" MaxLength="PurchSettingsRegistry.NameLength" Style="max-width:24rem" />
+            <MudTextField @bind-Value="form.NoCarryPrefixes" Label="รหัสขึ้นต้นที่ไม่ยกยอดตอนตัดสต็อก (คั่นด้วย , เช่น sp)" MaxLength="PurchSettingsRegistry.PrefixListLength" />
+            <MudStack Row="true" Spacing="2">
+                <MudNumericField T="decimal" @bind-Value="form.GradeA" Label="เกรด A ตั้งแต่ (%)" Min="0" Max="100" />
+                <MudNumericField T="decimal" @bind-Value="form.GradeB" Label="เกรด B ตั้งแต่ (%)" Min="0" Max="100" />
+                <MudNumericField T="decimal" @bind-Value="form.GradeC" Label="เกรด C ตั้งแต่ (%)" Min="0" Max="100" />
+            </MudStack>
+            <MudText Typo="Typo.caption">ต่ำกว่าเกรด C เป็นเกรด D</MudText>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:48rem">
+        <MudText Typo="Typo.h6">กลุ่มสินค้าซื้อมาขาย (รายงาน RPT-25)</MudText>
+        <MudText Typo="Typo.caption">รหัสขึ้นต้นไม่สนตัวพิมพ์เล็ก/ใหญ่ — เรียงตามลำดับที่พิมพ์ในรายงาน</MudText>
+        @foreach (var group in form.Groups)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-1">
+                <MudTextField @bind-Value="group.Prefix" Label="รหัสขึ้นต้น" MaxLength="PurchSettingsRegistry.PrefixLength" Style="max-width:10rem" />
+                <MudTextField @bind-Value="group.Name" Label="ชื่อกลุ่ม" MaxLength="PurchSettingsRegistry.NameLength" Style="max-width:20rem" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => form.Groups.Remove(group))" aria-label="ลบกลุ่ม" />
+            </MudStack>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => form.Groups.Add(new GroupRow()))" Class="mt-2">เพิ่มกลุ่ม</MudButton>
+    </MudPaper>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+}
+
+<MudButton Href="@PurchMenu.HrefOf(ProgramMenu.Main)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private SettingsForm? form;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var s = await Services.RunAsync<PurchSettingsDirectory, PurchSettingsDto>(d => d.GetAsync());
+        form = new SettingsForm
+        {
+            VatPercent = s.VatRate * 100, SmallOrderLimit = s.SmallOrderLimit, SmallOrderApprover = s.SmallOrderApprover,
+            NoCarryPrefixes = string.Join(", ", s.NoCarryPrefixes), GradeA = s.GradeA, GradeB = s.GradeB, GradeC = s.GradeC,
+            RowVersion = s.RowVersion,
+            Groups = s.ResaleGroups.Select(g => new GroupRow { Prefix = g.Prefix, Name = g.Name }).ToList(),
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        if (form is null) return;
+        busy = true;
+        try
+        {
+            var input = new PurchSettingsInput(form.VatPercent / 100, form.SmallOrderLimit, form.SmallOrderApprover, form.NoCarryPrefixes,
+                form.GradeA, form.GradeB, form.GradeC, form.Groups.Select(g => new ResaleGroupDto(g.Prefix ?? "", g.Name ?? "")).ToList(), form.RowVersion);
+            var result = await Services.RunAsync<PurchSettingsRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกค่าตั้งค่าแล้ว", Severity.Success);
+            await LoadAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class SettingsForm
+    {
+        public decimal VatPercent { get; set; }
+        public decimal SmallOrderLimit { get; set; }
+        public string? SmallOrderApprover { get; set; }
+        public string NoCarryPrefixes { get; set; } = "";
+        public decimal GradeA { get; set; }
+        public decimal GradeB { get; set; }
+        public decimal GradeC { get; set; }
+        public byte[]? RowVersion { get; set; }
+        public List<GroupRow> Groups { get; set; } = [];
+    }
+
+    private sealed class GroupRow
+    {
+        public string? Prefix { get; set; }
+        public string? Name { get; set; }
+    }
+}
