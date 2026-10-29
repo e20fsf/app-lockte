@@ -4,7 +4,7 @@
 @inject ScopedServices Services
 @inject NavigationManager Navigation
 
-@* Where a staff user lands after login: the program they last worked in, or the program chooser the first time. *@
+@* Where a staff user lands after login: always the program chooser (UAT-1, #275). *@
 <PageTitle>LOCKTE</PageTitle>
 
 @code {
@@ -13,8 +13,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var userId = (await AuthState).User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var last = userId is null ? null : await Services.RunAsync<LastProgramService, string?>(s => s.GetAsync(userId));
-        Navigation.NavigateTo(ProgramMenus.Find(last)?.Root ?? ProgramMenus.ChooserHref, replace: true);
+        // UAT-1 (#275): after login everyone starts at หน้าเลือกโปรแกรม, not at the program worked in last.
+        Navigation.NavigateTo(ProgramMenus.ChooserHref, replace: true);
     }
 }

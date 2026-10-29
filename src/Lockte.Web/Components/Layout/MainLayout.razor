@@ -16,7 +16,7 @@
         <AuthorizeView Policy="@AuthPolicies.Admin">
             <MudButton Href="history" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" Class="mr-2">ประวัติการแก้ไข</MudButton>
         </AuthorizeView>
-        <AuthorizeView>
+        <AuthorizeView Policy="@AuthPolicies.SignedIn"> @* not the default policy (Staff): the admin and a temporary password need the log out button too (UAT-2, #276) *@
             <Authorized>
                 <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
                 <span class="user-name">@AccountClaims.DisplayNameOf(context.User)</span>
