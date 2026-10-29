@@ -1,6 +1,7 @@
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
+using Lockte.Purch;
 using Lockte.Sales;
 using Lockte.Web.Accounts;
 using Lockte.Web.Audit;
@@ -25,5 +26,6 @@ public static class LockteDatabase
         await HrModule.MigrateAsync(services); // after org: its foreign keys point there
         await SalesModule.MigrateAsync(services);
         await ProdModule.MigrateAsync(services);
+        await PurchModule.MigrateAsync(services);
     }
 }

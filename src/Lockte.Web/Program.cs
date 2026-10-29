@@ -1,6 +1,7 @@
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
+using Lockte.Purch;
 using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web;
@@ -36,6 +37,7 @@ builder.Services.AddHrModule(connectionString);
 builder.Services.Replace(ServiceDescriptor.Scoped<IPayAccess, UserPayAccess>()); // #277
 builder.Services.AddSalesModule(connectionString);
 builder.Services.AddProdModule(connectionString);
+builder.Services.AddPurchModule(connectionString);
 builder.Services.AddReportData(connectionString);
 builder.Services.AddReportPrinting(builder.Configuration);
 builder.Services.AddScoped<Lockte.Web.Reports.Hr.FormPrinter>();

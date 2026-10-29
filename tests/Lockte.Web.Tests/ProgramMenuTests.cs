@@ -59,4 +59,29 @@ public sealed class ProgramMenuTests
         Assert.Equal("order/menu/17", OrderMenu.HrefOf(17));
         Assert.Equal("order", OrderMenu.HrefOf(ProgramMenu.Main));
     }
+
+    [Fact]
+    public void Purch_main_menu_matches_the_legacy_switchboard_without_the_left_out_items()
+    {
+        var main = PurchMenu.Menu.Find(ProgramMenu.Main)!;
+        Assert.Equal(
+            [("ข้อมูลผู้ขาย", 9), ("ข้อมูลวัตถุดิบ", 10), ("พิมพ์ใบขออนุมัติสั่งซื้อและใบสั่งซื้อ", 3), ("รับวัตถุดิบและรายงาน", 8), ("สต็อกวัตถุดิบ", 11)],
+            main.Items.Where(i => i.SubMenu is not null).Select(i => (i.Text, i.SubMenu!.Value)));
+        Assert.Equal(9, PurchMenu.Menu.Pages.Count);
+
+        var all = PurchMenu.Menu.Pages.SelectMany(p => p.Items).Select(i => i.Text).ToList();
+        Assert.DoesNotContain(all, t => t.Contains("ลบข้อมูลปีที่แล้ว") || t.Contains("จบโปรแกรม"));
+        Assert.DoesNotContain(PurchMenu.Menu.Pages.SelectMany(p => p.Items.Select(i => i.Text).Append(p.Title)), t => t.Contains("ค้างส่ง") || t.Contains("STOCK"));
+    }
+
+    [Fact]
+    public void Purch_menus_return_to_the_legacy_parents_and_open_their_own_placeholders()
+    {
+        Assert.Equal(8, PurchMenu.Menu.Find(5)!.Back); // รับวัตถุดิบ → รับวัตถุดิบและรายงาน
+        Assert.Equal(2, PurchMenu.Menu.Find(7)!.Back); // บันทึก/ประเมิน → รายงาน
+        Assert.Equal("purch/SCR-02-1", PurchMenu.Menu.HrefOf(PurchMenu.Menu.FindItem("SCR-02-1")!.Value.Item));
+        Assert.Equal("purch/menu/9", PurchMenu.HrefOf(9));
+        Assert.Same(PurchMenu.Menu, ProgramMenus.Of("purch/menu/5"));
+        Assert.Same(PurchMenu.Menu, ProgramMenus.Of("purch/settings"));
+    }
 }
