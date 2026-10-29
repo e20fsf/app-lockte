@@ -1,0 +1,28 @@
+@using Lockte.Purch
+@* RPT-25 รายงานการรับสินค้าซื้อมาขายไป, ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ …; the groups in a fixed order — ชื่อสินค้า, จำนวน, จำนวนเงิน (whole numbers) — even a group with no receipt, left blank, and "รวมทั้งหมด". *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    <table>
+        <colgroup><col style="width:50%" /><col style="width:20%" /><col style="width:30%" /></colgroup>
+        <thead><tr><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @foreach (var r in Report.Rows)
+            {
+                <tr><td>@r.Name</td><td class="num">@Whole(r.Quantity)</td><td class="num">@Whole(r.Amount)</td></tr>
+            }
+            <tr class="total"><td><b>รวมทั้งหมด</b></td><td class="num"><b>@Whole(Report.TotalQuantity)</b></td><td class="num"><b>@Whole(Report.TotalAmount)</b></td></tr>
+            <tr><td colspan="3" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ResaleReport Report { get; set; } = null!;
+
+    private static string Whole(decimal? value) => value is { } v ? v.ToString("#,##0", System.Globalization.CultureInfo.InvariantCulture) : "";
+}

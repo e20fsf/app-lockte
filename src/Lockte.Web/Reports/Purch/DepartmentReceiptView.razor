@@ -1,0 +1,30 @@
+@* RPT-12 รายงานการรับวัตถุดิบแผนก…, ระดับ B on A4 ตั้ง: ช่วงวันที่; the materials the แผนก received (not the ones that failed), by จำนวนเงิน ↓ — รหัส, ชื่อ, จำนวน+หน่วย, ราคา/หน่วย, จำนวนเงิน — and at
+   the end จำนวนใบขออนุมัติซื้อ and Σ จำนวนเงิน. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">แผนก @Report.DepartmentName&emsp;ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    <table>
+        <colgroup><col style="width:5%" /><col style="width:12%" /><col style="width:35%" /><col style="width:14%" /><col style="width:6%" /><col style="width:13%" /><col style="width:15%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อวัตถุดิบ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@r.Code</td><td>@r.Name</td><td class="num">@ReportText.Decimal2(r.Quantity)</td><td>@r.Unit</td>
+                    <td class="num">@(r.AveragePrice is { } p ? ReportText.Decimal2(p) : "")</td><td class="num">@ReportText.Decimal2(r.Amount)</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="5"><b>ใบขออนุมัติซื้อ @Report.RequestCount ใบ</b></td><td><b>รวมจำนวนเงิน</b></td><td class="num"><b>@ReportText.Decimal2(Report.Total)</b></td></tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public DepartmentReceiptReport Report { get; set; } = null!;
+}

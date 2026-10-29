@@ -1,0 +1,26 @@
+@* RPT-13 สรุปรายงานรับวัตถุดิบตามแผนกเดือน…, ระดับ B on A4 ตั้ง: the amount of each แผนก in the period (not the failed deliveries), then "รวมทั้งหมด". The legacy named the month of the end
+   date in the head even when the period was longer (D-5); here the head says the period itself. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    <table>
+        <colgroup><col style="width:8%" /><col style="width:60%" /><col style="width:32%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>แผนก</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                <tr><td class="num">@(i + 1)</td><td>@Report.Rows[i].Department</td><td class="num">@ReportText.Decimal2(Report.Rows[i].Amount)</td></tr>
+            }
+            <tr class="total"><td colspan="2"><b>รวมทั้งหมด</b></td><td class="num"><b>@ReportText.Decimal2(Report.Total)</b></td></tr>
+            <tr><td colspan="3" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public DepartmentSummaryReport Report { get; set; } = null!;
+}

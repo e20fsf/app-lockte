@@ -1,0 +1,61 @@
+@using System.Globalization
+@* RPT-16 / RPT-17 การซื้อวัตถุดิบปี …, ระดับ B on A4 นอน: ที่, รหัส, ชื่อ, [หน่วย (RPT-17)], มกราคม … ธันวาคม, รวม — the biggest year total first, whole numbers; "รวมทั้งหมด" per month and for the year. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ปี @(Report.Year + 543)</p>
+    <table style="font-size:.78em">
+        <thead>
+            <tr>
+                <th class="num">ที่</th><th>รหัส</th><th>ชื่อ</th>
+                @if (Report.Units)
+                {
+                    <th>หน่วย</th>
+                }
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <th class="num">@MonthName(m)</th>
+                }
+                <th class="num">รวม</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@r.Code</td><td>@r.Name</td>
+                    @if (Report.Units)
+                    {
+                        <td>@r.Unit</td>
+                    }
+                    @foreach (var v in r.Months)
+                    {
+                        <td class="num">@Whole(v)</td>
+                    }
+                    <td class="num"><b>@Whole(r.Total)</b></td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="@(Report.Units ? 4 : 3)"><b>รวมทั้งหมด</b></td>
+                @for (var m = 0; m < 12; m++)
+                {
+                    <td class="num"><b>@Whole(Report.MonthTotal(m))</b></td>
+                }
+                <td class="num"><b>@Whole(Report.Total)</b></td>
+            </tr>
+            <tr><td colspan="@(Report.Units ? 17 : 16)" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MaterialYearReport Report { get; set; } = null!;
+
+    private static string MonthName(int month) => CultureInfo.GetCultureInfo("th-TH").DateTimeFormat.GetMonthName(month);
+
+    private static string Whole(decimal value) => value.ToString("#,##0", CultureInfo.InvariantCulture);
+}

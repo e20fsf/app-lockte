@@ -1,0 +1,29 @@
+@using Lockte.Purch
+@* RPT-19 รายงานการรับวัตถุดิบ (สรุป), ระดับ B on A4 ตั้ง: each supplier's Σ จำนวนเงิน, the biggest first — ลำดับ, รหัสผู้ขาย, ชื่อผู้ขาย, จำนวนเงิน — then "รวม". *@
+@if (Report.Suppliers.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    <table>
+        <colgroup><col style="width:8%" /><col style="width:16%" /><col style="width:48%" /><col style="width:28%" /></colgroup>
+        <thead><tr><th class="num">ลำดับ</th><th>รหัสผู้ขาย</th><th>ชื่อผู้ขาย</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @{
+                var ranked = Report.Suppliers.OrderByDescending(s => s.Amount).ThenBy(s => s.Code, StringComparer.Ordinal).ToList();
+            }
+            @for (var i = 0; i < ranked.Count; i++)
+            {
+                <tr><td class="num">@(i + 1)</td><td>@ranked[i].Code</td><td>@ranked[i].Name</td><td class="num">@ReportText.Decimal2(ranked[i].Amount)</td></tr>
+            }
+            <tr class="total"><td colspan="3"><b>รวม</b></td><td class="num"><b>@ReportText.Decimal2(Report.TotalAmount)</b></td></tr>
+            <tr><td colspan="4" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public SupplierReceiptReport Report { get; set; } = null!;
+}

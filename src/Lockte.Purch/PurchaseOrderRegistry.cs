@@ -129,6 +129,9 @@ public sealed record PurchaseOrderUpdate(
     string? Note,
     IReadOnlyList<PurchaseOrderLineUpdate> Lines);
 
+/// <summary>A line of RPT-11: a line of an order whose total is within the small-order limit — its amount with VAT (TAX) and who the order is from.</summary>
+public sealed record SmallOrderLine(DateOnly OrderDate, string OrderNo, int LineNo, string MaterialName, decimal Quantity, string? Unit, decimal AmountWithTax, string SupplierName);
+
 /// <summary>An order in a search list (SCR-07/09).</summary>
 public sealed record PurchaseOrderSummary(int Id, string OrderNo, DateOnly OrderDate, string SupplierName, int LineCount, decimal Total);
 
@@ -391,6 +394,17 @@ public sealed class PurchaseOrderDirectory(PurchDbContext db)
             .Select(x => new OutstandingRequestLine(x.Line.Id, x.Request.RequestNo, x.Request.RequestDate, x.Line.LineNo, x.Line.MaterialId, x.Line.Material!.Code, x.Line.MaterialName, x.Line.Unit,
                 x.Line.Quantity, x.Ordered, x.Line.Quantity - x.Ordered, x.Line.Material.Cost, x.Line.Material.LatestSupplierId, x.Request.DesiredDate, x.Request.DepartmentId, x.Request.Reason,
                 x.Request.Note, x.Request.PurchasingLocation)).ToList();
+    }
+
+    /// <summary>
+    /// RPT-11 / BR-063: the lines of every order dated within the period whose total (with VAT) is at most <paramref name="limit"/> — 5,000.00 exactly is in — by date → number → line.
+    /// The legacy kept a work table fed from "outstanding" and "history" so as to show each line once; here an order simply appears once, whatever has been received of it.
+    /// </summary>
+    public async Task<IReadOnlyList<SmallOrderLine>> GetSmallOrderLinesAsync(DateOnly from, DateOnly to, decimal limit)
+    {
+        var rows = await db.PurchaseOrders.AsNoTracking().Where(o => o.OrderDate >= from && o.OrderDate <= to && o.Total <= limit)
+            .SelectMany(o => o.Lines.Select(l => new SmallOrderLine(o.OrderDate, o.OrderNo, l.LineNo, l.MaterialName, l.Quantity, l.Unit, l.TaxIncludedAmount, o.SupplierName))).ToListAsync();
+        return rows.OrderBy(r => r.OrderDate).ThenBy(r => r.OrderNo, StringComparer.Ordinal).ThenBy(r => r.LineNo).ToList();
     }
 
     /// <summary>How much of a request line has been ordered, over all orders.</summary>

@@ -1,0 +1,31 @@
+@using Lockte.Purch
+@* RPT-11 สรุปใบสั่งซื้อยอดเงินต่ำกว่า 5,000 บาท, ระดับ B on A4 นอน: ตั้งแต่วันที่ … ถึงวันที่ …; ลำดับ, วัน/เดือน/ปี, เลขที่ใบสั่งซื้อ, รายละเอียดของซื้อสินค้า, จำนวน+หน่วย, จำนวนเงิน (รวมภาษี), ชื่อเจ้าหนี้,
+   ผู้อนุมัติใบสั่งซื้อ (typed on the form) — then "รวมทั้งหมด … รายการ เป็นเงิน …". *@
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    <table>
+        <colgroup><col style="width:5%" /><col style="width:10%" /><col style="width:10%" /><col style="width:25%" /><col style="width:12%" /><col style="width:12%" /><col style="width:14%" /><col style="width:12%" /></colgroup>
+        <thead><tr><th class="num">ลำดับ</th><th>วัน/เดือน/ปี</th><th>เลขที่ใบสั่งซื้อ</th><th>รายละเอียดของซื้อสินค้า</th><th class="num">จำนวนที่ซื้อ</th><th class="num">จำนวนเงิน (รวมภาษี)</th><th>ชื่อเจ้าหนี้</th><th>ผู้อนุมัติใบสั่งซื้อ</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var l = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@ReportText.Date(l.OrderDate)</td><td>@l.OrderNo</td><td>@l.MaterialName</td>
+                    <td class="num">@ReportText.Decimal2(l.Quantity) @l.Unit</td><td class="num">@ReportText.Decimal2(l.AmountWithTax)</td><td>@l.SupplierName</td><td>@Report.Approver</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="8"><b>รวมทั้งหมด @Report.Lines.Count รายการ เป็นเงิน @ReportText.Decimal2(Report.Total) บาท</b></td></tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public SmallOrderReport Report { get; set; } = null!;
+}

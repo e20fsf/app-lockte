@@ -56,6 +56,29 @@ public sealed record IncomingRow(
     bool OnTime,
     string? QaNote);
 
+/// <summary>
+/// A delivery as the receipt reports sum it (RPT-12…24): the amount is the one on the receipt (price × quantity), the department the one that asked, the material by id with
+/// the name the document shows. <see cref="Failed"/> deliveries are in the list; each report decides whether to count them (BR-061).
+/// </summary>
+public sealed record ReceivedLine(
+    int ReceiptId,
+    DateOnly ReceiveDate,
+    string OrderNo,
+    string RequestNo,
+    int DepartmentId,
+    int MaterialId,
+    string MaterialCode,
+    string MaterialName,
+    string? Unit,
+    bool MaterialIsMain,
+    decimal Quantity,
+    decimal UnitPrice,
+    decimal Amount,
+    int SupplierId,
+    string SupplierCode,
+    string SupplierName,
+    bool Failed);
+
 /// <summary>A delivery received. <see cref="OnTime"/> is ส่งทัน (BR-030); <see cref="OutstandingAfter"/> is ยอดค้างรับ after it (negative when over-received).</summary>
 public sealed record GoodsReceiptDto(
     int Id,
@@ -361,6 +384,17 @@ public sealed class GoodsReceiptDirectory(PurchDbContext db)
             .OrderBy(r => r.ReceiveDate).ThenBy(r => r.PurchaseOrderLine!.PurchaseOrder!.OrderNo.Length).ThenBy(r => r.PurchaseOrderLine!.PurchaseOrder!.OrderNo, StringComparer.Ordinal).ThenBy(r => r.Id)
             .Select(r => new IncomingRow(r.ReceiveDate, r.PurchaseOrderLine!.PurchaseOrder!.OrderNo, r.Material!.Code, r.MaterialName, r.Quantity, r.Unit, r.SupplierId, r.Supplier!.Name,
                 r.PurchaseOrderLine.DesiredDate, r.Lot!, r.Failed, r.HasCertificate, GoodsReceiptMath.OnTime(r.PurchaseOrderLine.DesiredDate, r.ReceiveDate), r.QaNote)).ToList();
+
+    /// <summary>ทุกการรับในช่วงวันที่รับ (both ends included), by วันที่รับ → เลขที่ใบสั่งซื้อ: the data the receipt summaries (RPT-12…24) group.</summary>
+    public async Task<IReadOnlyList<ReceivedLine>> GetReceivedLinesAsync(DateOnly from, DateOnly to)
+        => (await db.GoodsReceipts.AsNoTracking().Include(r => r.Supplier).Include(r => r.Material)
+                .Include(r => r.PurchaseOrderLine).ThenInclude(l => l!.PurchaseOrder)
+                .Include(r => r.PurchaseOrderLine).ThenInclude(l => l!.PurchaseRequestLine).ThenInclude(q => q!.PurchaseRequest)
+                .Where(r => r.ReceiveDate >= from && r.ReceiveDate <= to).ToListAsync())
+            .OrderBy(r => r.ReceiveDate).ThenBy(r => r.PurchaseOrderLine!.PurchaseOrder!.OrderNo.Length).ThenBy(r => r.PurchaseOrderLine!.PurchaseOrder!.OrderNo, StringComparer.Ordinal).ThenBy(r => r.Id)
+            .Select(r => new ReceivedLine(r.Id, r.ReceiveDate, r.PurchaseOrderLine!.PurchaseOrder!.OrderNo, r.PurchaseOrderLine.PurchaseRequestLine!.PurchaseRequest!.RequestNo,
+                r.PurchaseOrderLine.DepartmentId, r.MaterialId, r.Material!.Code, r.MaterialName, r.Unit, r.Material.IsMain, r.Quantity, r.UnitPrice, r.NetAmount, r.SupplierId, r.Supplier!.Code,
+                r.Supplier.Name, r.Failed)).ToList();
 
     /// <summary>The lines of an order that are still waited for.</summary>
     public async Task<IReadOnlyList<ReceivableLine>> GetReceivableLinesAsync(int orderId)

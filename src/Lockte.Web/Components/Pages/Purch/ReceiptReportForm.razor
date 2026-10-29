@@ -1,0 +1,173 @@
+@page "/purch/reports/receipts/{Kind}"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+@inject TimeProvider Clock
+
+@* พิมพ์รายงานการรับวัตถุดิบ (SCR-20, #258): ตามแผนก (RPT-12, สรุป RPT-13), ตามชื่อวัตถุดิบ (RPT-15), ตามผู้ขาย (RPT-18, สรุป RPT-19). The period and the choice of the
+   report; what was typed last is remembered in this browser, per screen (BR-081). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
+    <MudStack Spacing="2">
+        @if (Kind is "yearly" or "yearly-materials")
+        {
+            <MudSelect T="int" @bind-Value="year" @bind-Value:after="RememberAsync" Label="ปี (พ.ศ.)" Style="max-width:12rem">
+                @foreach (var y in Years)
+                {
+                    <MudSelectItem T="int" Value="y">@(y + 543)</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        else
+        {
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        </MudStack>
+        }
+        @if (Kind == "department")
+        {
+            <MudSelect T="int?" @bind-Value="departmentId" @bind-Value:after="RememberAsync" Label="แผนก" Style="max-width:28rem">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)d.Id)">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        else if (Kind == "material")
+        {
+            <MaterialPicker Value="material" ValueChanged="@(async (MaterialDto? m) => { material = m; await RememberAsync(); })" Label="วัตถุดิบ (รหัสหรือชื่อ)" />
+        }
+        else if (Kind == "small-orders")
+        {
+            <MudTextField @bind-Value="approver" @bind-Value:after="RememberAsync" Label="ผู้อนุมัติใบสั่งซื้อ" MaxLength="100" Immediate="true" Style="max-width:28rem" />
+        }
+        else if (Kind == "supplier")
+        {
+            <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (ว่าง = ทุกราย)" />
+        }
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url(false)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">@(Kind is "summary" or "yearly" ? "พิมพ์สรุปทั้งหมด" : Kind == "yearly-materials" ? "พิมพ์จำนวนเงิน" : "พิมพ์")</MudButton>
+        @if (Kind is "department" or "supplier")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(DatesProblem is not null)" StartIcon="@Icons.Material.Filled.Summarize">พิมพ์สรุป</MudButton>
+        }
+        else if (Kind == "yearly-materials")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์จำนวนหน่วย</MudButton>
+        }
+        else if (Kind is "summary" or "yearly")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์เฉพาะวัตถุดิบหลัก</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Kind { get; set; } = "department";
+
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private DateTime? from;
+    private DateTime? to;
+    private int? departmentId;
+    private MaterialDto? material;
+    private SupplierDto? supplier;
+    private int year;
+    private string? approver;
+    private bool loadedMemory;
+
+    private IEnumerable<int> Years => Enumerable.Range(Clock.GetLocalNow().Year - 8, 9).Reverse();
+
+    private string Title => Kind switch
+    {
+        "material" => "พิมพ์รายงานการรับวัตถุดิบตามชื่อ",
+        "supplier" => "พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย",
+        "summary" => "พิมพ์สรุปการรับวัตถุดิบ",
+        "yearly" => "พิมพ์สรุปการรับวัตถุดิบรายเดือนทั้งปี",
+        "yearly-materials" => "พิมพ์การซื้อวัตถุดิบรายปีตามชื่อ",
+        "resale" => "พิมพ์รายงานการรับสินค้าซื้อมาขายไป",
+        "small-orders" => "พิมพ์ใบสั่งซื้อต่ำกว่า 5000 บาท",
+        "department-purchases" => "พิมพ์การซื้อวัตถุดิบแยกแผนก",
+        _ => "พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก",
+    };
+
+    private string? DatesProblem => Kind is "yearly" or "yearly-materials" ? null : from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    private string? Problem => DatesProblem ?? (Kind == "department" && departmentId is null ? "กรุณาเลือกแผนก" : Kind == "material" && material is null ? "กรุณาเลือกวัตถุดิบ" : null);
+
+    private string Url(bool summary)
+    {
+        if (Kind == "resale") return $"/reports/purch/receipts/resale?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        if (Kind == "small-orders") return $"/reports/purch/small-orders?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&approver={Uri.EscapeDataString(approver ?? "")}";
+        if (Kind == "yearly-materials") return $"/reports/purch/receipts/yearly-materials?year={year}" + (summary ? "&units=true" : "");
+        if (Kind == "yearly") return $"/reports/purch/receipts/yearly?year={year}" + (summary ? "&main=true" : "");
+        if (Kind is "summary") return $"/reports/purch/receipts/summary?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}" + (summary ? "&main=true" : "");
+        if (Kind == "department-purchases") return $"/reports/purch/receipts/department-purchases?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        var url = $"/reports/purch/receipts/{Kind}?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        if (Kind == "department" && departmentId is { } d) url += "&department=" + d;
+        if (Kind == "material" && material is not null) url += "&material=" + material.Id;
+        if (Kind == "supplier" && supplier is not null) url += "&supplier=" + supplier.Id;
+        return summary ? url + "&summary=true" : url;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var today = Clock.GetLocalNow().DateTime.Date;
+        (from, to) = (new DateTime(today.Year, today.Month, 1), new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1));
+        year = today.Year;
+        approver = Kind == "small-orders" ? (await Services.RunAsync<PurchSettingsDirectory, PurchSettingsDto>(d => d.GetAsync())).SmallOrderApprover : null;
+        (departmentId, material, supplier, loadedMemory) = (null, null, null, false);
+        if (Kind == "department") departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("purch.receipts." + Kind) is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                departmentId = saved.DepartmentId;
+                year = saved.Year ?? year;
+                approver = saved.Approver ?? approver;
+                if (saved.MaterialId is { } m) material = await Services.RunAsync<MaterialDirectory, MaterialDto?>(d => d.GetAsync(m));
+                if (saved.SupplierId is { } s) supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(s));
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the defaults.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try
+        {
+            await Storage.SetAsync("purch.receipts." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, departmentId, material?.Id, supplier?.Id, year, approver));
+        }
+        catch (Exception)
+        {
+            // remembering is a convenience only
+        }
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To, int? DepartmentId, int? MaterialId, int? SupplierId, int? Year = null, string? Approver = null);
+}
