@@ -1,0 +1,82 @@
+@page "/purch/departments"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* รายชื่อแผนก (SCR-10, #216): there is no register of departments in this program (D-04) — they are the แผนก of องค์กร. This page sets the prefix of
+   each แผนก's purchase request numbers (B, DM, QA … a letter prefix, not a search pattern). The head shown is the one องค์กร holds.
+   A department that is missing is added on its own page. *@
+<PageTitle>prefix เลขที่ใบขอซื้อของแผนก — LOCKTE</PageTitle>
+<h1 class="mb-4">แผนกที่ขอซื้อ และ prefix เลขที่ใบขอซื้อ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudTable Items="rows" Dense="true" Hover="true" Loading="rows is null" T="Row" Breakpoint="Breakpoint.None">
+        <HeaderContent><MudTh>แผนก</MudTh><MudTh>หัวหน้าแผนก</MudTh><MudTh>prefix เลขที่ใบขอซื้อ</MudTh><MudTh></MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Department.DepartmentName</MudTd>
+            <MudTd>@context.HeadName</MudTd>
+            <MudTd><MudTextField @bind-Value="context.Prefix" MaxLength="RequestSetupRegistry.PrefixLength" Margin="Margin.Dense" Style="max-width:8rem" /></MudTd>
+            <MudTd><MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(context))" Disabled="busy">บันทึก</MudButton></MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ยังไม่มีแผนกใน module องค์กร</MudText></NoRecordsContent>
+    </MudTable>
+    <MudText Typo="Typo.caption" Class="mt-2">เลขที่ใบขอซื้อรูปแบบ prefix + ปี (พ.ศ. 2 หลัก) + - + ลำดับ เช่น B69-0087 · ปล่อยว่าง = ยังไม่ตั้ง · แก้ prefix ไม่เปลี่ยนเลขที่ออกไปแล้ว</MudText>
+    <MudButton Href="org/departments" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" Class="mt-2">เพิ่ม/แก้แผนก (องค์กร)</MudButton>
+</MudPaper>
+
+<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Variant="Variant.Outlined" Href="purch/request-options" StartIcon="@Icons.Material.Filled.Tune">แก้ผู้จัดซื้อ เหตุผล และหมายเหตุที่เลือกได้</MudButton>
+</MudStack>
+
+<MudButton Href="@PurchMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private List<Row>? rows;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var departments = await Services.RunAsync<RequestSetupDirectory, IReadOnlyList<DepartmentPrefixDto>>(d => d.GetDepartmentsAsync());
+        var list = new List<Row>();
+        foreach (var d in departments)
+        {
+            string? head = null;
+            if (d.HeadEmployeeId is { } id) head = (await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(e => e.GetAsync(id)))?.Name;
+            list.Add(new Row(d, head) { Prefix = d.Prefix });
+        }
+        rows = list;
+    }
+
+    private async Task SaveAsync(Row row)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<RequestSetupRegistry, ServiceResult>(r => r.SetPrefixAsync(row.Department.DepartmentId, row.Prefix, row.Department.RowVersion));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"บันทึก prefix ของ{row.Department.DepartmentName}แล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+
+    private sealed class Row(DepartmentPrefixDto department, string? headName)
+    {
+        public DepartmentPrefixDto Department { get; } = department;
+        public string? HeadName { get; } = headName;
+        public string? Prefix { get; set; }
+    }
+}

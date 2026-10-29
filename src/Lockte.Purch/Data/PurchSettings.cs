@@ -172,3 +172,69 @@ internal sealed class MaterialGroup : IAudited
 
     string IHasBusinessKey.BusinessKey => Prefix;
 }
+
+/// <summary>
+/// prefix เลขที่ใบขอซื้อของแผนก (T-รายชื่อแผนก.CODE, SCR-10). The แผนก itself is the register of module องค์กร, so only its id is kept
+/// (checked on save; no database key across modules); the prefix is data (<c>B</c>, <c>DM</c>…), not a search pattern (Q-17).
+/// </summary>
+internal sealed class DepartmentPrefix : IAudited
+{
+    public int Id { get; set; }
+    public int DepartmentId { get; set; }
+    /// <summary>Upper case, unique across departments.</summary>
+    public string Prefix { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Prefix;
+}
+
+/// <summary>ผู้จัดซื้อ (T-PURC): the place that issues purchase orders — a code (<c>F</c>, <c>O</c>) and a name (โรงงาน, สำนักงานสีลม).</summary>
+internal sealed class PurchasingLocation : IAudited
+{
+    public int Id { get; set; }
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Code;
+}
+
+/// <summary>ข้อความเหตุผลในการขอซื้อที่เลือกได้ (T-เหตุผลในการขอซื้อ); the form also takes free text.</summary>
+internal sealed class RequestReason : IAudited
+{
+    public int Id { get; set; }
+    public string Text { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Text;
+}
+
+/// <summary>ข้อความหมายเหตุที่เลือกได้ (T-หมายเหตุ); the form also takes free text.</summary>
+internal sealed class RequestNote : IAudited
+{
+    public int Id { get; set; }
+    public string Text { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Text;
+}

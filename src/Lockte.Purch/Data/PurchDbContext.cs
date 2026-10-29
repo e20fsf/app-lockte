@@ -18,6 +18,10 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
     internal DbSet<SupplierBusinessType> SupplierBusinessTypes => Set<SupplierBusinessType>();
     internal DbSet<Material> Materials => Set<Material>();
     internal DbSet<MaterialGroup> MaterialGroups => Set<MaterialGroup>();
+    internal DbSet<DepartmentPrefix> DepartmentPrefixes => Set<DepartmentPrefix>();
+    internal DbSet<PurchasingLocation> PurchasingLocations => Set<PurchasingLocation>();
+    internal DbSet<RequestReason> RequestReasons => Set<RequestReason>();
+    internal DbSet<RequestNote> RequestNotes => Set<RequestNote>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -100,6 +104,37 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             g.Property(x => x.Prefix).HasMaxLength(MaterialRegistry.CodeLength).HasAuditName("รหัสขึ้นต้น");
             g.Property(x => x.Name).HasMaxLength(MaterialRegistry.NameLength).HasAuditName("ชื่อกลุ่ม");
             g.HasIndex(x => x.Prefix).IsUnique();
+        });
+
+        modelBuilder.Entity<DepartmentPrefix>(d =>
+        {
+            d.HasAuditName("prefix เลขที่ใบขอซื้อของแผนก");
+            d.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            d.Property(x => x.Prefix).HasMaxLength(RequestSetupRegistry.PrefixLength).HasAuditName("prefix เลขที่ใบขอซื้อ");
+            d.HasIndex(x => x.DepartmentId).IsUnique();
+            d.HasIndex(x => x.Prefix).IsUnique();
+        });
+
+        modelBuilder.Entity<PurchasingLocation>(l =>
+        {
+            l.HasAuditName("ผู้จัดซื้อ");
+            l.Property(x => x.Code).HasMaxLength(RequestSetupRegistry.PrefixLength).HasAuditName("รหัสผู้จัดซื้อ");
+            l.Property(x => x.Name).HasMaxLength(RequestSetupRegistry.NameLength).HasAuditName("ชื่อผู้จัดซื้อ");
+            l.HasIndex(x => x.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<RequestReason>(r =>
+        {
+            r.HasAuditName("เหตุผลในการขอซื้อ");
+            r.Property(x => x.Text).HasMaxLength(RequestSetupRegistry.TextLength).HasAuditName("ข้อความเหตุผล");
+            r.HasIndex(x => x.Text).IsUnique();
+        });
+
+        modelBuilder.Entity<RequestNote>(r =>
+        {
+            r.HasAuditName("หมายเหตุใบขอซื้อ");
+            r.Property(x => x.Text).HasMaxLength(RequestSetupRegistry.TextLength).HasAuditName("ข้อความหมายเหตุ");
+            r.HasIndex(x => x.Text).IsUnique();
         });
     }
 }
