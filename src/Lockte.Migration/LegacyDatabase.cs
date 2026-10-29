@@ -84,6 +84,9 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     public static IReadOnlyList<string> PurchMasterDataTables { get; } =
         ["SP", "MTR_NAME", "รายชื่อแผนก", "PURC", "CREDIT", "ประเภทธุรกิจ", "เหตุผลในการขอซื้อ", "หมายเหตุ", "รหัสตัวแรกของวัตถุดิบ"];
 
+    /// <summary>The history tables of <c>วัตถุดิบ.accdb</c> that the migration reads (#268, and the ones the tickets after it add).</summary>
+    public static IReadOnlyList<string> PurchHistoryTables { get; } = ["ประเมินผู้ขาย"];
+
     /// <summary>ประวัติ ORDER and ประวัติการส่ง are moved from 1 Jan 2025 (#112, ข้อตัดสิน #17); ORDER ค้างส่ง (ODD) all.</summary>
     public static readonly DateOnly OrderHistoryFrom = new(2025, 1, 1);
 
@@ -150,6 +153,15 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         => ReadCopy(accdbPath, (connection, tables, counts) =>
         {
             foreach (var table in PurchMasterDataTables)
+                tables[table] = Read(connection, table, null);
+        });
+
+    /// <summary>The history tables of <c>วัตถุดิบ.accdb</c> (#268…), read from a copy the same way.</summary>
+    [SupportedOSPlatform("windows")]
+    public static LegacyDatabase ReadPurchHistoryFile(string accdbPath)
+        => ReadCopy(accdbPath, (connection, tables, counts) =>
+        {
+            foreach (var table in PurchHistoryTables)
                 tables[table] = Read(connection, table, null);
         });
 
