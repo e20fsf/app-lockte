@@ -22,6 +22,18 @@ public static class PurchModule
         services.AddScoped<DocumentNumbers>();
         services.AddScoped<PurchaseRequestRegistry>();
         services.AddScoped<PurchaseRequestDirectory>();
+        services.AddScoped<PurchaseOrderRegistry>();
+        services.AddScoped<PurchaseOrderDirectory>();
+        services.AddScoped<StockLedger>();
+        services.AddScoped<StockDirectory>();
+        services.AddScoped<StockIssueRegistry>();
+        services.AddScoped<StockIssueDirectory>();
+        services.AddScoped<GoodsReceiptRegistry>();
+        services.AddScoped<GoodsReceiptDirectory>();
+        services.AddScoped<StockClosingRegistry>();
+        services.AddScoped<StockClosingDirectory>();
+        services.AddScoped<SupplierEvaluationRegistry>();
+        services.AddScoped<SupplierEvaluationDirectory>();
         services.AddScoped<PurchaseOrderCalculator>();
         return services;
     }

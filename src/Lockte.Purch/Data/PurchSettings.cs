@@ -296,6 +296,10 @@ internal sealed class PurchaseRequestLine : IAudited
     public decimal NetAmount { get; set; }
     /// <summary>นน.ถัง (WEIGHT): aluminium work (BR-060).</summary>
     public decimal? TankWeight { get; set; }
+    /// <summary>
+    /// จำนวนที่เคยสั่งซื้อแต่ใบสั่งซื้อถูกลบ: still counts as ordered, so a deleted order does not hand the line back to be ordered (BR-025 ⚠ — a new request is needed).
+    /// </summary>
+    public decimal AbandonedQuantity { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
@@ -304,4 +308,232 @@ internal sealed class PurchaseRequestLine : IAudited
     public byte[] RowVersion { get; set; } = [];
 
     string IHasBusinessKey.BusinessKey => PurchaseRequest?.RequestNo ?? "";
+}
+
+/// <summary>
+/// ใบสั่งซื้อ (หัวใบ, SCR-05): one supplier, VAT at the head. The supplier's name, address, phone, fax and credit are the document's own copy
+/// (filled from the register, editable); <see cref="Subtotal"/>, <see cref="Tax"/> and <see cref="Total"/> are BR-022 as printed.
+/// </summary>
+internal sealed class PurchaseOrder : IAudited
+{
+    public int Id { get; set; }
+    /// <summary>เลขที่ใบสั่งซื้อ <c>&lt;YY พ.ศ.&gt;&lt;NNNN&gt;</c> (e.g. 690988), unique.</summary>
+    public string OrderNo { get; set; } = "";
+    public DateOnly OrderDate { get; set; }
+    public int SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    public string SupplierName { get; set; } = "";
+    public string? SupplierAddress1 { get; set; }
+    public string? SupplierAddress2 { get; set; }
+    public string? SupplierTel { get; set; }
+    public string? SupplierFax { get; set; }
+    /// <summary>เครดิตเป็นจำนวนวัน (เงินสด = 0).</summary>
+    public int? CreditDays { get; set; }
+    /// <summary>คิด VAT (VAT ไม่ใช่ NO).</summary>
+    public bool ChargesVat { get; set; }
+    /// <summary>ผู้จัดซื้อ (F/O).</summary>
+    public string? PurchasingLocation { get; set; }
+    public string? Reason { get; set; }
+    public string? Note { get; set; }
+    /// <summary>ยอดก่อนภาษี.</summary>
+    public decimal Subtotal { get; set; }
+    /// <summary>ภาษีมูลค่าเพิ่ม (TA).</summary>
+    public decimal Tax { get; set; }
+    /// <summary>ยอดรวมทั้งสิ้น (TO).</summary>
+    public decimal Total { get; set; }
+    public List<PurchaseOrderLine> Lines { get; set; } = [];
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => OrderNo;
+}
+
+/// <summary>รายการของใบสั่งซื้อ: points at the request line it orders from (one request line can be ordered many times, from many suppliers).</summary>
+internal sealed class PurchaseOrderLine : IAudited
+{
+    public int Id { get; set; }
+    public int PurchaseOrderId { get; set; }
+    public PurchaseOrder? PurchaseOrder { get; set; }
+    public int LineNo { get; set; }
+    public int PurchaseRequestLineId { get; set; }
+    public PurchaseRequestLine? PurchaseRequestLine { get; set; }
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    public string MaterialName { get; set; } = "";
+    public string? Unit { get; set; }
+    /// <summary>จำนวนที่ขอ (PR_QTY) ตอนออกใบ.</summary>
+    public decimal RequestedQuantity { get; set; }
+    /// <summary>จำนวนสั่งซื้อ (PO_QTY).</summary>
+    public decimal Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    /// <summary>จำนวนเงินรายการ = ราคา × จำนวนสั่ง.</summary>
+    public decimal NetAmount { get; set; }
+    /// <summary>ยอดรายการรวม VAT (TAX, BR-022 ข้อ 6).</summary>
+    public decimal TaxIncludedAmount { get; set; }
+    /// <summary>วันที่ต้องการของ (DELI_D) จากใบขอซื้อ.</summary>
+    public DateOnly? DesiredDate { get; set; }
+    /// <summary>แผนกที่ขอซื้อ (of องค์กร).</summary>
+    public int DepartmentId { get; set; }
+    /// <summary>
+    /// ผู้ขายยกเลิกการส่ง (BR-033): the line is no longer waited for — it leaves ยอดค้างรับ — but stays on the order, whose number is untouched (AC-37).
+    /// </summary>
+    public bool ReceivingCancelled { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => PurchaseOrder?.OrderNo ?? "";
+}
+
+/// <summary>
+/// สมุดสต็อกวัตถุดิบ (T-Stock, BR-041): one row per movement of a material — the one source of the balance that receiving, issuing and ตัดสต็อก share.
+/// Balance of a material = Σ <see cref="Quantity"/> of the rows not yet closed. Internal to the module: others read through <see cref="StockDirectory"/>.
+/// </summary>
+internal sealed class StockEntry : IAudited
+{
+    public int Id { get; set; }
+    public DateOnly EntryDate { get; set; }
+    /// <summary>เลขที่เอกสาร: เลขที่ใบเบิก for an issue; blank for a receipt.</summary>
+    public string? DocumentNo { get; set; }
+    /// <summary>ลำดับรายการในเอกสาร.</summary>
+    public string? DocumentLineNo { get; set; }
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    /// <summary>จำนวน: + in, − out; may take the balance below zero (ข้อสมมติ ข).</summary>
+    public decimal Quantity { get; set; }
+    public StockEntryKind Kind { get; set; }
+    /// <summary>ผู้ขาย of a receipt (T-Stock.EMP_ID of a receipt row).</summary>
+    public int? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    /// <summary>พนักงานผู้เบิก of module พนักงาน (checked on save; no database key across modules).</summary>
+    public int? EmployeeId { get; set; }
+    /// <summary>ราคาต่อหน่วยตอนรับ (receipts only).</summary>
+    public decimal? UnitPrice { get; set; }
+    /// <summary>หมายเหตุ: what the user types.</summary>
+    public string? Note { get; set; }
+    /// <summary>ปิดงวดแล้ว: set by ตัดสต็อก (BR-042); a closed row no longer counts in the balance and cannot be edited.</summary>
+    public bool IsClosed { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Material?.Code ?? MaterialId.ToString();
+}
+
+/// <summary>
+/// การรับของ (BR-030, BR-031): a row of its own for each delivery of a purchase order line — a line can be received in several parts. Whether it was on time (ส่งทัน)
+/// is not stored: it is the line's วันที่ต้องการ against <see cref="ReceiveDate"/>, so it follows whichever of the two dates is edited (DQ-11).
+/// </summary>
+internal sealed class GoodsReceipt : IAudited
+{
+    public int Id { get; set; }
+    public int PurchaseOrderLineId { get; set; }
+    public PurchaseOrderLine? PurchaseOrderLine { get; set; }
+    /// <summary>วันที่รับ (RE_DATE).</summary>
+    public DateOnly ReceiveDate { get; set; }
+    /// <summary>จำนวนรับ (RE_QTY).</summary>
+    public decimal Quantity { get; set; }
+    /// <summary>เลขที่ใบส่งสินค้า and its ลำดับ.</summary>
+    public string? InvoiceNo { get; set; }
+    public string? InvoiceLineNo { get; set; }
+    public decimal UnitPrice { get; set; }
+    /// <summary>จำนวนเงิน = ราคา × จำนวนรับ (RND-B).</summary>
+    public decimal NetAmount { get; set; }
+    /// <summary>ผู้ขายที่ส่ง (the order's by default).</summary>
+    public int SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    /// <summary>อื่น ๆ (ส่งคืน): CREM.</summary>
+    public string? ReturnNote { get; set; }
+    /// <summary>วัตถุดิบที่รับ (the order line's, or the one the history was corrected to) with the name and unit as the document shows them (DQ-04).</summary>
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    public string MaterialName { get; set; } = "";
+    public string? Unit { get; set; }
+    /// <summary>
+    /// ผลตรวจ ไม่ผ่าน (BR-032): kept as evidence for the supplier's evaluation, not counted as received — the order stays waiting for the full quantity — and never goes into the stock.
+    /// </summary>
+    public bool Failed { get; set; }
+    /// <summary>LOT # that QA writes after the receipt (BR-035); the supplier evaluation counts only receipts that have one (BR-050).</summary>
+    public string? Lot { get; set; }
+    /// <summary>ใบรับรอง มี/ไม่มี (NOPASS); null = not filled in yet.</summary>
+    public bool? HasCertificate { get; set; }
+    /// <summary>หมายเหตุผลตรวจ QA (RESULT).</summary>
+    public string? QaNote { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => PurchaseOrderLine?.PurchaseOrder?.OrderNo ?? PurchaseOrderLineId.ToString();
+}
+
+/// <summary>
+/// ยอดยกมารายวัตถุดิบต่อวันตัดสต็อก (T-ต้นงวดP_ST, BR-042 ขั้น 8): what ตัดสต็อก carried forward on <see cref="CutDate"/>, kept for the report of that cut (RPT-26).
+/// A cut of the same date replaces the ones of that date.
+/// </summary>
+internal sealed class StockPeriodBalance : IAudited
+{
+    public int Id { get; set; }
+    public DateOnly CutDate { get; set; }
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    public decimal Quantity { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => CutDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+/// <summary>
+/// ผลนับประเมินผู้ขาย (T-ประเมินผู้ขาย, BR-050): the counts of one supplier over one period of evaluation, with the two service points the user gave. The supplier is
+/// referred to by id, not by name (Q-47). The scores and the grade are not stored — they are worked out from these (see <see cref="SupplierScore"/>).
+/// </summary>
+internal sealed class SupplierEvaluation : IAudited
+{
+    public int Id { get; set; }
+    public int SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    public DateOnly FromDate { get; set; }
+    public DateOnly ToDate { get; set; }
+    /// <summary>ไตรมาส 1–4 (the summary of a quarter, RPT-09, picks by it — AC-44).</summary>
+    public int Quarter { get; set; }
+    /// <summary>จำนวนรายการรับที่ผ่าน (EXPR1).</summary>
+    public int Passed { get; set; }
+    /// <summary>ไม่ผ่าน = ใบ NCR (EXPR2).</summary>
+    public int Failed { get; set; }
+    /// <summary>มีใบรับรอง (EXPR3).</summary>
+    public int WithCertificate { get; set; }
+    /// <summary>ไม่มีใบรับรอง (EXPR4).</summary>
+    public int WithoutCertificate { get; set; }
+    /// <summary>ส่งทัน (EXPR5).</summary>
+    public int OnTime { get; set; }
+    /// <summary>ส่งไม่ทัน (EXPR6).</summary>
+    public int Late { get; set; }
+    /// <summary>คะแนนบริการ 1 (ฟัง-ตอบปัญหา) and 2 (ตอบสนองข้อร้องเรียน), 1–5.</summary>
+    public int Point1 { get; set; }
+    public int Point2 { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => SupplierId + ":" + FromDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 }

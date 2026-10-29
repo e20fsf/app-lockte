@@ -37,10 +37,10 @@ public static class PurchMenu
         [
             new("พิมพ์ใบขออนุมัติสั่งซื้อ", Code: "SCR-03", Page: "purch/requests/new"),
             new("เพิ่ม, แก้ไขและลบใบขออนุมัติสั่งซื้อ", Code: "SCR-06", Page: "purch/requests"),
-            new("พิมพ์ใบสั่งซื้อ", Code: "SCR-05"),
-            new("แก้ไขและลบใบสั่งซื้อ", Code: "SCR-07"),
+            new("พิมพ์ใบสั่งซื้อ", Code: "SCR-05", Page: "purch/orders/new"),
+            new("แก้ไขและลบใบสั่งซื้อ", Code: "SCR-07", Page: "purch/orders"),
             new("เพิ่มหรือแก้ไขเลขที่ใบขออนุมัติสั่งซื้อ", Code: "SCR-08", Page: "purch/requests"),
-            new("เพิ่มหรือแก้ไขเลขที่ใบสั่งซื้อ", Code: "SCR-09"),
+            new("เพิ่มหรือแก้ไขเลขที่ใบสั่งซื้อ", Code: "SCR-09", Page: "purch/orders"),
             new("เพิ่ม, แก้ไขและลบรายชื่อแผนก", Code: "SCR-10", Page: "purch/departments"),
         ]),
         new(8, "รับวัตถุดิบและรายงาน", 1,
@@ -52,9 +52,9 @@ public static class PurchMenu
         ]),
         new(5, "รับวัตถุดิบ", 8,
         [
-            new("จัดซื้อรับวัตถุดิบ", Code: "SCR-11"),
-            new("แก้ไขและลบการรับวัตถุดิบ", Code: "SCR-12"),
-            new("QA รับวัตถุดิบ", Code: "SCR-13"),
+            new("จัดซื้อรับวัตถุดิบ", Code: "SCR-11", Page: "purch/receipts/new"),
+            new("แก้ไขและลบการรับวัตถุดิบ", Code: "SCR-12", Page: "purch/receipts"),
+            new("QA รับวัตถุดิบ", Code: "SCR-13", Page: "purch/receipts/qa"),
         ]),
         new(2, "รายงานการรับวัตถุดิบ", 8,
         [
@@ -78,10 +78,10 @@ public static class PurchMenu
         ]),
         new(11, "สต็อกวัตถุดิบ", 1, // STOCK วัตถุดิบ
         [
-            new("เบิกและแก้ไขใบเบิกวัตถุดิบ", Code: "SCR-14"),
+            new("เบิกและแก้ไขใบเบิกวัตถุดิบ", Code: "SCR-14", Page: "purch/stock/issue"),
             new("พิมพ์สต็อกการ์ดวัตถุดิบ", Code: "RPT-14"), // STOCK CARD
-            new("ตัดสต็อกวัตถุดิบ", Code: "SCR-18"), // ตัด STOCK วัตถุดิบ
-            new("แก้ไขหรือเพิ่มสต็อกวัตถุดิบ", Code: "SCR-16"), // แก้ไขหรือเพิ่ม STOCK วัตถุดิบ
+            new("ตัดสต็อกวัตถุดิบ", Code: "SCR-18", Page: "purch/stock/close"), // ตัด STOCK วัตถุดิบ
+            new("แก้ไขหรือเพิ่มสต็อกวัตถุดิบ", Code: "SCR-16", Page: "purch/stock/entries"), // แก้ไขหรือเพิ่ม STOCK วัตถุดิบ
         ]),
     ]);
 }

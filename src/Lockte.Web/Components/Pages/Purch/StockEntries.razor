@@ -1,0 +1,190 @@
+@page "/purch/stock/entries"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* แก้ไขหรือเพิ่ม STOCK วัตถุดิบ (SCR-16, BR-041, BR-043): pick a material to see its open rows with their sum — the balance —, edit or delete a row, or add one (kind ปรับ,
+   the sign as typed: −20 lowers the balance by 20 and stays −20). A new row must be of a material in the register. Nothing checks that the balance is enough. A row
+   closed by ตัดสต็อก is no longer here. *@
+<PageTitle>แก้ไขหรือเพิ่มสต็อกวัตถุดิบ — LOCKTE</PageTitle>
+<h1 class="mb-4">แก้ไขหรือเพิ่มสต็อกวัตถุดิบ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <div style="width:30rem"><MaterialPicker Value="material" ValueChanged="PickAsync" Label="เลือกรหัสที่ต้องการแก้ไข (รหัสหรือชื่อ)" /></div>
+        @if (material is not null)
+        {
+            <MudText Typo="Typo.h6" Color="@(balance < 0 ? Color.Error : Color.Default)">ยอดคงเหลือ @balance.ToString("#,0.####") @material.Unit</MudText>
+        }
+    </MudStack>
+    @if (inStock.Count > 0)
+    {
+        <MudText Typo="Typo.caption" Class="mt-2">รหัสที่มีรายการในสต็อก: @inStock.Count รหัส</MudText>
+    }
+</MudPaper>
+
+@if (material is not null)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มรายการ" : "แก้รายการ")</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="form.Date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.DocumentNo" Label="เลขที่" MaxLength="StockLedger.TextLength" /></MudItem>
+            <MudItem xs="12" sm="2"><MudTextField @bind-Value="form.LineNo" Label="ลำดับ" MaxLength="StockLedger.TextLength" /></MudItem>
+            <MudItem xs="12" sm="4"><MudNumericField T="decimal?" @bind-Value="form.Quantity" Label="จำนวน (บวก = เข้า, ลบ = ออก)" /></MudItem>
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.EmployeeCode" Label="รหัสพนักงาน (ถ้ามี)" /></MudItem>
+            <MudItem xs="12" sm="9"><MudTextField @bind-Value="form.Note" Label="หมายเหตุ" MaxLength="StockLedger.TextLength" /></MudItem>
+        </MudGrid>
+        <MudStack Row="true" Spacing="2" Class="mt-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+            <MudButton OnClick="NewRow" StartIcon="@Icons.Material.Filled.Add">เพิ่มรายการใหม่</MudButton>
+            @if (form.Id is not null)
+            {
+                <MudSpacer />
+                <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบรายการนี้</MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudTable Items="entries" Dense="true" Hover="true" T="StockEntryDto" Breakpoint="Breakpoint.None" OnRowClick="@((TableRowClickEventArgs<StockEntryDto> e) => Edit(e.Item!))">
+            <HeaderContent><MudTh>วันที่</MudTh><MudTh>เลขที่</MudTh><MudTh>ลำดับ</MudTh><MudTh>ชนิด</MudTh><MudTh Style="text-align:right">จำนวน</MudTh><MudTh>พนักงาน</MudTh><MudTh>หมายเหตุ</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@ThaiDate.Format(context.EntryDate)</MudTd>
+                <MudTd>@context.DocumentNo</MudTd>
+                <MudTd>@context.DocumentLineNo</MudTd>
+                <MudTd>@KindText(context.Kind)</MudTd>
+                <MudTd Style="text-align:right">@context.Quantity.ToString("#,0.####")</MudTd>
+                <MudTd>@(context.EmployeeId is { } id ? employeeCodes.GetValueOrDefault(id) : null)</MudTd>
+                <MudTd>@context.Note</MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTd colspan="4"><b>รวม (ยอดคงเหลือ)</b></MudTd>
+                <MudTd Style="text-align:right"><b>@balance.ToString("#,0.####")</b></MudTd>
+                <MudTd colspan="2"></MudTd>
+            </FooterContent>
+            <NoRecordsContent><MudText>ยังไม่มีรายการสต็อกของรหัสนี้</MudText></NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+
+<MudButton Href="@PurchMenu.HrefOf(11)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private MaterialDto? material;
+    private IReadOnlyList<StockEntryDto> entries = [];
+    private IReadOnlyList<StockBalanceDto> inStock = [];
+    private Dictionary<int, string> employeeCodes = [];
+    private decimal balance;
+    private RowForm form = new();
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+        => inStock = await Services.RunAsync<StockDirectory, IReadOnlyList<StockBalanceDto>>(d => d.GetBalancesAsync());
+
+    private static string KindText(StockEntryKind kind) => kind switch
+    {
+        StockEntryKind.Receipt => "รับ", StockEntryKind.Issue => "เบิก", StockEntryKind.Adjustment => "ปรับ", _ => "ยกมา",
+    };
+
+    private async Task PickAsync(MaterialDto? picked)
+    {
+        material = picked;
+        form = new RowForm();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (material is not { } m) { entries = []; balance = 0; return; }
+        entries = await Services.RunAsync<StockDirectory, IReadOnlyList<StockEntryDto>>(d => d.GetEntriesAsync(m.Id));
+        balance = await Services.RunAsync<StockDirectory, decimal>(d => d.GetBalanceAsync(m.Id));
+        employeeCodes = [];
+        foreach (var id in entries.Where(e => e.EmployeeId is not null).Select(e => e.EmployeeId!.Value).Distinct())
+            if (await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(id)) is { } e) employeeCodes[id] = e.Code;
+    }
+
+    private void NewRow() => form = new RowForm();
+
+    private void Edit(StockEntryDto e) => form = new RowForm
+    {
+        Id = e.Id, Date = e.EntryDate.ToDateTime(TimeOnly.MinValue), DocumentNo = e.DocumentNo, LineNo = e.DocumentLineNo, Quantity = e.Quantity,
+        EmployeeCode = e.EmployeeId is { } id ? employeeCodes.GetValueOrDefault(id) : null, Note = e.Note, RowVersion = e.RowVersion,
+    };
+
+    private async Task SaveAsync()
+    {
+        if (material is not { } m) return;
+        busy = true;
+        try
+        {
+            int? employeeId = null;
+            if (!string.IsNullOrWhiteSpace(form.EmployeeCode))
+            {
+                var code = form.EmployeeCode.Trim();
+                employeeId = (await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.FindByCodeAsync(code)))?.Id;
+                if (employeeId is null) { Snackbar.Add($"ไม่พบรหัสพนักงาน {code}", Severity.Error); return; }
+            }
+            var input = new StockEntryInput(form.Id, DateOnly.FromDateTime(form.Date ?? DateTime.Today), m.Id, form.Quantity ?? 0, form.RowVersion, form.DocumentNo, form.LineNo, employeeId, form.Note);
+            var result = await Services.RunAsync<StockLedger, ServiceResult>(l => l.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            NewRow();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            NewRow();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+            inStock = await Services.RunAsync<StockDirectory, IReadOnlyList<StockBalanceDto>>(d => d.GetBalancesAsync());
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบรายการสต็อก", $"ลบรายการ {form.DocumentNo} จำนวน {form.Quantity:#,0.####}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (form.Id!.Value, form.RowVersion!);
+            var result = await Services.RunAsync<StockLedger, ServiceResult>(l => l.DeleteAsync(id, rowVersion));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            NewRow();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            NewRow();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class RowForm
+    {
+        public int? Id { get; set; }
+        public DateTime? Date { get; set; } = DateTime.Today;
+        public string? DocumentNo { get; set; }
+        public string? LineNo { get; set; }
+        public decimal? Quantity { get; set; }
+        public string? EmployeeCode { get; set; }
+        public string? Note { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

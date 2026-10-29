@@ -1,0 +1,21 @@
+@using Lockte.Purch
+@inject ScopedServices Services
+
+@* ช่องเลือกผู้ขาย (#212): searches the register by code or name and lists รหัส ชื่อ ที่อยู่ โทร เครดิต VAT; used by the order screens. *@
+<MudAutocomplete T="SupplierDto" Value="Value" ValueChanged="ValueChanged" SearchFunc="SearchAsync" Label="@Label" Dense="Dense" Margin="Margin.Dense"
+                 ToStringFunc="@(s => s is null ? "" : $"{s.Code}  {s.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" CoerceText="false">
+    <ItemTemplate Context="s">
+        <span>@s.Code  @s.Name</span>
+        <span class="mud-text-secondary"> · @s.Address1 @s.Address2 · @s.Tel1 · เครดิต @(s.CreditText == "" ? "-" : s.CreditText) · VAT @(s.Vat ? "YES" : "NO")</span>
+    </ItemTemplate>
+</MudAutocomplete>
+
+@code {
+    [Parameter] public SupplierDto? Value { get; set; }
+    [Parameter] public EventCallback<SupplierDto?> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "ผู้ขาย (รหัสหรือชื่อ)";
+    [Parameter] public bool Dense { get; set; }
+
+    private Task<IEnumerable<SupplierDto>> SearchAsync(string? text, CancellationToken token)
+        => Services.RunAsync<SupplierDirectory, IEnumerable<SupplierDto>>(async d => await d.SearchAsync(text));
+}

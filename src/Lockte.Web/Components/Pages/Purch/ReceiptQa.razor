@@ -1,0 +1,116 @@
+@page "/purch/receipts/qa"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject TimeProvider Clock
+
+@* QA รับวัตถุดิบ (SCR-13, BR-035): pick a date to see everything received that day — every material, main or not — and write the LOT, the result (ผ่าน/ไม่ผ่าน), the
+   certificate (มี/ไม่มี) and the note of each. The name of the material and the supplier on the document can be corrected. These feed บันทึก INCOMING (RPT-06) and the supplier
+   evaluation (BR-050 counts the receipts that have a LOT). Marking one ไม่ผ่าน after it went into the stock does not change the stock — correct it on แก้ไขหรือเพิ่ม STOCK (AC-39). *@
+<PageTitle>QA รับวัตถุดิบ — LOCKTE</PageTitle>
+<h1 class="mb-4">QA รับวัตถุดิบ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudDatePicker Editable="true" @bind-Date="date" @bind-Date:after="LoadAsync" Label="ระบุวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
+</MudPaper>
+
+@if (date is not null && rows.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">ไม่มีรายการที่รับในวันนี้</MudAlert>
+}
+
+@foreach (var row in rows)
+{
+    <MudPaper Class="pa-3 mt-3" Outlined="true">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+            <MudText Style="width:7rem">@row.Source.OrderNo</MudText>
+            <MudText Style="width:9rem">@ThaiDate.Format(row.Source.ReceiveDate)</MudText>
+            <MudText Style="width:8rem">@row.Source.Quantity.ToString("#,0.####") @row.Source.Unit</MudText>
+            <div style="width:26rem"><MaterialPicker Value="row.Material" ValueChanged="@(m => PickMaterial(row, m))" Dense="true" Label="ชื่อวัตถุดิบ" /></div>
+            <div style="width:22rem"><SupplierPicker Value="row.Supplier" ValueChanged="@(s => row.Supplier = s)" Dense="true" Label="ผู้ขาย" /></div>
+        </MudStack>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <MudTextField @bind-Value="row.Lot" Label="LOT #" Margin="Margin.Dense" Style="width:10rem" MaxLength="StockLedger.TextLength" />
+            <MudSelect T="bool" @bind-Value="row.Failed" Label="ผลการตรวจ" Margin="Margin.Dense" Style="width:9rem">
+                <MudSelectItem T="bool" Value="false">ผ่าน</MudSelectItem>
+                <MudSelectItem T="bool" Value="true">ไม่ผ่าน</MudSelectItem>
+            </MudSelect>
+            <MudSelect T="bool?" @bind-Value="row.HasCertificate" Label="ใบรับรอง" Margin="Margin.Dense" Style="width:9rem" Clearable="true">
+                <MudSelectItem T="bool?" Value="true">มี</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">ไม่มี</MudSelectItem>
+            </MudSelect>
+            <MudTextField @bind-Value="row.Note" Label="หมายเหตุ" Margin="Margin.Dense" Style="width:20rem" MaxLength="StockLedger.TextLength" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(row))" Disabled="busy">บันทึก</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@PurchMenu.HrefOf(5)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? date;
+    private List<Row> rows = [];
+    private bool busy;
+
+    protected override void OnInitialized() => date = Clock.GetLocalNow().DateTime.Date;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        rows = [];
+        if (date is not { } d) return;
+        var receipts = await Services.RunAsync<GoodsReceiptDirectory, IReadOnlyList<GoodsReceiptDto>>(g => g.GetByDateAsync(DateOnly.FromDateTime(d)));
+        foreach (var r in receipts)
+        {
+            var material = await Services.RunAsync<MaterialDirectory, MaterialDto?>(m => m.GetAsync(r.MaterialId));
+            var supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(s => s.GetAsync(r.SupplierId));
+            rows.Add(new Row { Source = r, Material = material, Supplier = supplier, Lot = r.Lot, Failed = r.Failed, HasCertificate = r.HasCertificate, Note = r.QaNote, MaterialName = r.MaterialName, Unit = r.Unit });
+        }
+    }
+
+    private static void PickMaterial(Row row, MaterialDto? material)
+    {
+        row.Material = material;
+        row.MaterialName = material?.Name;
+        row.Unit = material?.Unit;
+    }
+
+    private async Task SaveAsync(Row row)
+    {
+        busy = true;
+        try
+        {
+            var input = new GoodsReceiptQaUpdate(row.Source.Id, row.Source.RowVersion, row.Lot, row.Failed, row.HasCertificate, row.Note, row.Material?.Id, row.MaterialName, row.Unit, row.Supplier?.Id);
+            var result = await Services.RunAsync<GoodsReceiptRegistry, ServiceResult>(r => r.SaveQaAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(row.Failed && !row.Source.Failed ? "บันทึกแล้ว — ผลตรวจไม่ผ่าน สต็อกไม่ถูกปรับ ไปปรับที่แก้ไข STOCK" : "บันทึกแล้ว", row.Failed && !row.Source.Failed ? Severity.Warning : Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+
+    private sealed class Row
+    {
+        public required GoodsReceiptDto Source { get; init; }
+        public MaterialDto? Material { get; set; }
+        public string? MaterialName { get; set; }
+        public string? Unit { get; set; }
+        public SupplierDto? Supplier { get; set; }
+        public string? Lot { get; set; }
+        public bool Failed { get; set; }
+        public bool? HasCertificate { get; set; }
+        public string? Note { get; set; }
+    }
+}

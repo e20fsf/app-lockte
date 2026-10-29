@@ -141,3 +141,13 @@ internal sealed class ProductionEmployeeLookup(EmployeeDirectory employees) : Lo
     public async Task<IReadOnlyList<Lockte.Prod.ProductionEmployeeRef>> SearchAsync(string? text, int take)
         => (await employees.SearchAsync(text)).Where(e => e.IsWorking).Take(take).Select(e => new Lockte.Prod.ProductionEmployeeRef(e.Id, e.Code, e.Name)).ToList();
 }
+
+/// <summary>The employee register as module จัดซื้อและวัตถุดิบ reads it for พนักงานผู้เบิก of the stock ledger (<see cref="Lockte.Purch.IPurchEmployeeLookup"/>).</summary>
+internal sealed class PurchEmployeeLookup(EmployeeDirectory employees) : Lockte.Purch.IPurchEmployeeLookup
+{
+    public async Task<Lockte.Purch.PurchEmployeeRef?> FindAsync(int employeeId)
+        => await employees.GetAsync(employeeId) is { } e ? new Lockte.Purch.PurchEmployeeRef(e.Id, e.Code, e.Name) : null;
+
+    public async Task<Lockte.Purch.PurchEmployeeRef?> FindByCodeAsync(string code)
+        => await employees.FindByCodeAsync(code) is { } e ? new Lockte.Purch.PurchEmployeeRef(e.Id, e.Code, e.Name) : null;
+}

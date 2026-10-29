@@ -66,10 +66,15 @@ public static class DocumentKeys
     /// <summary>RPT-10 ใบรายงานผลผลิตประจำวัน / ใบโอนสินค้าระหว่างแผนก (#139).</summary>
     public const string ProductionSlip = "RPT-10";
 
+    /// <summary>RPT-01 ใบขออนุมัติสั่งซื้อ of วัตถุดิบ (#220).</summary>
+    public const string PurchRequest = "RPT-01-P";
+    /// <summary>RPT-02 ใบสั่งซื้อ of วัตถุดิบ (#224).</summary>
+    public const string PurchaseOrder = "RPT-02-P";
+
     public static IReadOnlyList<string> All { get; } =
     [
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
         InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2, MoldRegister, SaleOrder,
-        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield,
+        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield, PurchRequest, PurchaseOrder,
     ];
 }

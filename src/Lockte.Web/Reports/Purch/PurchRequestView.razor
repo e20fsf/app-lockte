@@ -1,0 +1,57 @@
+@* RPT-01 ใบขออนุมัติสั่งซื้อ (พิมพ์ใบขออนุมัติสั่งซื้อ1…10, PC-PU002-1/2547 ฉบับที่ 1), ระดับ B on A4 ตั้ง. One layout for any number of items (the legacy had ten, by item
+   count, Q-15): the table grows and goes on to the next page. Head: เอกสารเลขที่, วันที่สั่งซื้อ, แผนกที่ขอซื้อ, ผู้จัดซื้อ; the table has ราคาต่อหน่วย and
+   จำนวนเงิน columns left blank to write by hand; then "รวมรายการ n รายการ", เหตุผลในการซื้อ, หมายเหตุ, วันที่ต้องการของ and the sign boxes. The name and unit are the
+   ones typed on the request, not the register's (DQ-04). *@
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="border:0;margin-bottom:3mm">
+        <tr>
+            <td style="border:0;width:55%">เอกสารเลขที่&ensp;<b>@Report.RequestNo</b></td>
+            <td style="border:0">วันที่สั่งซื้อ&ensp;<b>@ReportText.Date(Report.RequestDate)</b></td>
+        </tr>
+        <tr>
+            <td style="border:0">แผนกที่ขอซื้อ&ensp;<b>@Report.DepartmentName</b></td>
+            <td style="border:0">ผู้จัดซื้อ&ensp;<b>@Report.PurchasingLocation</b></td>
+        </tr>
+    </table>
+    <table>
+        <colgroup>
+            <col style="width:6%" /><col style="width:12%" /><col style="width:38%" /><col style="width:10%" /><col style="width:8%" /><col style="width:13%" /><col style="width:13%" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ลำดับ</th><th>รหัส</th><th>รายการ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคาต่อหน่วย</th><th class="num">จำนวนเงิน</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in Report.Lines)
+            {
+                <tr>
+                    <td class="num">@line.LineNo</td>
+                    <td>@line.Code</td>
+                    <td>@line.Name</td>
+                    <td class="num">@ReportText.Decimal2(line.Quantity)</td>
+                    <td>@line.Unit</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            }
+            <tr class="total"><td colspan="7"><b>รวมรายการ @Report.Lines.Count รายการ</b></td></tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+    <table style="margin-top:3mm">
+        <tr><td style="height:12mm;vertical-align:top"><b>เหตุผลในการซื้อ</b>&ensp;@Report.Reason</td></tr>
+        <tr><td style="height:12mm;vertical-align:top"><b>หมายเหตุ</b>&ensp;@Report.Note</td></tr>
+        <tr><td>วันที่ต้องการของ&ensp;<b>@(Report.DesiredDate is { } d ? ReportText.Date(d) : "")</b></td></tr>
+    </table>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["ผู้สั่งซื้อ", "ผู้อนุมัติ (ผู้จัดการฝ่าย)", "ผู้อนุมัติ (ผู้จัดการโรงงาน)"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public PurchRequestPrint Report { get; set; } = null!;
+}

@@ -1,0 +1,149 @@
+@page "/purch/receipts"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* แก้ไขและลบการรับวัตถุดิบ (SCR-12, BR-034): pick an order from the history of receipts, correct the date, quantity, price, material, supplier, result or return note of a delivery
+   (the amount is recomputed as in BR-030), or delete it. As before, **the stock is not adjusted** and the order does not go back to ยอดค้างรับ — correct the stock on
+   "แก้ไขหรือเพิ่ม STOCK วัตถุดิบ" (AC-38). A delivery that failed the inspection is kept as evidence for the supplier's evaluation. *@
+<PageTitle>แก้ไขและลบการรับวัตถุดิบ — LOCKTE</PageTitle>
+<h1 class="mb-4">แก้ไขและลบการรับวัตถุดิบ</h1>
+
+<MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">การแก้หรือลบประวัติรับของ <b>ไม่ปรับสต็อก</b> และไม่ทำให้ใบสั่งซื้อกลับไปค้างรับ — ไปปรับที่ "แก้ไขหรือเพิ่ม STOCK วัตถุดิบ" (<MudLink Href="purch/stock/entries">เปิด</MudLink>)</MudAlert>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudSelect T="int?" @bind-Value="orderId" @bind-Value:after="LoadAsync" Label="เลือกเลขที่ใบสั่งซื้อที่ต้องการแก้ไข" Style="max-width:30rem">
+        @foreach (var o in orders)
+        {
+            <MudSelectItem T="int?" Value="@((int?)o.OrderId)">@o.OrderNo — @o.SupplierName</MudSelectItem>
+        }
+    </MudSelect>
+</MudPaper>
+
+@foreach (var row in rows)
+{
+    <MudPaper Class="pa-3 mt-3" Outlined="true">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+            <MudDatePicker Editable="true" @bind-Date="row.Date" Label="วันที่รับ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Margin="Margin.Dense" Style="width:11rem" />
+            <MudNumericField T="decimal" @bind-Value="row.Quantity" Label="จำนวนรับ" Min="0" Margin="Margin.Dense" Style="width:9rem" />
+            <MudTextField @bind-Value="row.InvoiceNo" Label="เลขที่ใบส่งสินค้า" Margin="Margin.Dense" Style="width:10rem" MaxLength="StockLedger.TextLength" />
+            <MudTextField @bind-Value="row.InvoiceLineNo" Label="ลำดับ" Margin="Margin.Dense" Style="width:5rem" MaxLength="StockLedger.TextLength" />
+            <MudNumericField T="decimal" @bind-Value="row.Price" Label="ราคา/หน่วย" Min="0" Margin="Margin.Dense" Style="width:9rem" />
+            <MudText Style="width:9rem">= @PurchaseOrderMath.LineNet(row.Price, row.Quantity).ToString("N2")</MudText>
+            <MudText Style="width:12rem">@(row.Source.OnTime ? "ส่งทัน" : "ส่งไม่ทัน") · ค้างรับ @row.Source.OutstandingAfter.ToString("#,0.####")</MudText>
+        </MudStack>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+            <div style="width:26rem"><MaterialPicker Value="row.Material" ValueChanged="@(m => PickMaterial(row, m))" Dense="true" Label="รหัสวัตถุดิบ" /></div>
+            <MudTextField @bind-Value="row.MaterialName" Label="ชื่อวัตถุดิบ" Margin="Margin.Dense" Style="width:18rem" MaxLength="MaterialRegistry.NameLength" />
+            <MudTextField @bind-Value="row.Unit" Label="หน่วย" Margin="Margin.Dense" Style="width:6rem" MaxLength="MaterialRegistry.UnitLength" />
+            <div style="width:22rem"><SupplierPicker Value="row.Supplier" ValueChanged="@(s => row.Supplier = s)" Dense="true" Label="ผู้ขาย" /></div>
+            <MudTextField @bind-Value="row.ReturnNote" Label="อื่น ๆ (ส่งคืน)" Margin="Margin.Dense" Style="width:12rem" MaxLength="StockLedger.TextLength" />
+            <MudCheckBox T="bool" @bind-Value="row.Failed" Label="ผลตรวจไม่ผ่าน" Color="Color.Error" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(row))" Disabled="busy">บันทึก</MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteAsync(row))" aria-label="ลบรายการนี้" />
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@PurchMenu.HrefOf(5)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<ReceivableOrder> orders = [];
+    private int? orderId;
+    private List<Row> rows = [];
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+        => orders = await Services.RunAsync<GoodsReceiptDirectory, IReadOnlyList<ReceivableOrder>>(d => d.GetHistoryOrdersAsync());
+
+    private async Task LoadAsync()
+    {
+        rows = [];
+        if (orderId is not { } id) return;
+        var receipts = await Services.RunAsync<GoodsReceiptDirectory, IReadOnlyList<GoodsReceiptDto>>(d => d.GetOrderReceiptsAsync(id));
+        foreach (var r in receipts)
+        {
+            var material = await Services.RunAsync<MaterialDirectory, MaterialDto?>(d => d.GetAsync(r.MaterialId));
+            var supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(r.SupplierId));
+            rows.Add(new Row
+            {
+                Source = r, Date = r.ReceiveDate.ToDateTime(TimeOnly.MinValue), Quantity = r.Quantity, InvoiceNo = r.InvoiceNo, InvoiceLineNo = r.InvoiceLineNo, Price = r.UnitPrice, Material = material,
+                MaterialName = r.MaterialName, Unit = r.Unit, Supplier = supplier, ReturnNote = r.ReturnNote, Failed = r.Failed,
+            });
+        }
+    }
+
+    private static void PickMaterial(Row row, MaterialDto? material)
+    {
+        row.Material = material;
+        row.MaterialName = material?.Name;
+        row.Unit = material?.Unit;
+    }
+
+    private async Task SaveAsync(Row row)
+    {
+        if (row.Material is null || row.Supplier is null) { Snackbar.Add("กรุณาเลือกวัตถุดิบและผู้ขาย", Severity.Error); return; }
+        busy = true;
+        try
+        {
+            var input = new GoodsReceiptUpdate(row.Source.Id, row.Source.RowVersion, DateOnly.FromDateTime(row.Date ?? DateTime.Today), row.Quantity, row.InvoiceNo, row.InvoiceLineNo, row.Price,
+                row.Supplier.Id, row.Material.Id, row.MaterialName, row.Unit, row.Failed, row.ReturnNote);
+            var result = await Services.RunAsync<GoodsReceiptRegistry, ServiceResult>(r => r.UpdateAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกแล้ว — สต็อกไม่ถูกปรับ ไปปรับที่แก้ไข STOCK", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(Row row)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบรายการรับของ",
+            $"ลบการรับ {row.Source.MaterialCode} จำนวน {row.Quantity:#,0.####} ของใบสั่งซื้อ {row.Source.OrderNo}? สต็อกจะไม่ถูกหักคืน และใบสั่งซื้อจะไม่กลับไปค้างรับ", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (row.Source.Id, row.Source.RowVersion);
+            var result = await Services.RunAsync<GoodsReceiptRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("ลบแล้ว — สต็อกไม่ถูกปรับ ไปปรับที่แก้ไข STOCK", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+
+    private sealed class Row
+    {
+        public required GoodsReceiptDto Source { get; init; }
+        public DateTime? Date { get; set; }
+        public decimal Quantity { get; set; }
+        public string? InvoiceNo { get; set; }
+        public string? InvoiceLineNo { get; set; }
+        public decimal Price { get; set; }
+        public MaterialDto? Material { get; set; }
+        public string? MaterialName { get; set; }
+        public string? Unit { get; set; }
+        public SupplierDto? Supplier { get; set; }
+        public string? ReturnNote { get; set; }
+        public bool Failed { get; set; }
+    }
+}
