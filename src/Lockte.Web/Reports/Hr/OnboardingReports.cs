@@ -22,7 +22,9 @@ public static class OnboardingReports
     public static string ProbationApprovalHref(int employeeId, ProbationApprovalInput input)
         => $"{Base}/{employeeId}/probation-approval?section={Uri.EscapeDataString(input.Section ?? "")}&due={Iso(input.DueOn)}&return={Iso(input.ReturnBy)}";
 
-    public static string RosterHref(int? departmentId, int? shiftId) => $"{Base}/roster?department={departmentId}&shift={shiftId}";
+    // An empty "department=" does not bind to int? (400), so "all" leaves the parameter out.
+    public static string RosterHref(int? departmentId, int? shiftId)
+        => $"{Base}/roster?" + string.Join('&', new[] { departmentId is { } d ? $"department={d}" : null, shiftId is { } s ? $"shift={s}" : null }.OfType<string>());
 
     private static string Iso(DateOnly? date) => date?.ToString(DateFormat, System.Globalization.CultureInfo.InvariantCulture) ?? "";
 
