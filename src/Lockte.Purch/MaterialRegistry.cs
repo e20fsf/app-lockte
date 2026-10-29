@@ -36,7 +36,8 @@ public sealed record MaterialInput(
     decimal Cost = 0,
     bool IsMain = false,
     decimal BuyBackPrice = 0,
-    int? ProductId = null);
+    int? ProductId = null,
+    int? LatestSupplierId = null);
 
 /// <summary>
 /// เพิ่ม/แก้/ลบ ทะเบียนวัตถุดิบ (SCR-17, BR-001). The code cannot repeat or be blank and the name cannot be blank, instead of deleting
@@ -79,6 +80,7 @@ public sealed class MaterialRegistry(PurchDbContext db, ProductDirectory product
         material.IsMain = input.IsMain;
         material.BuyBackPrice = input.BuyBackPrice;
         material.ProductId = input.ProductId;
+        if (input.LatestSupplierId is { } latestSupplierId) material.LatestSupplierId = latestSupplierId; // the screen leaves it to the goods receipt; only the migration gives it
         await db.SaveChangesAsync();
         return ServiceResult.Ok(material.Id);
     }

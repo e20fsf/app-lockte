@@ -2,6 +2,7 @@ using Lockte.Hr;
 using Lockte.Migration;
 using Lockte.Org;
 using Lockte.Prod;
+using Lockte.Purch;
 using Lockte.Sales;
 using Lockte.SharedKernel.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,12 +29,13 @@ var services = new ServiceCollection()
     .AddHrModule(options.ConnectionString)
     .AddSalesModule(options.ConnectionString)
     .AddProdModule(options.ConnectionString)
+    .AddPurchModule(options.ConnectionString)
     .AddMasterDataMigration()
     .BuildServiceProvider(validateScopes: true);
 
 // The web app creates and migrates the database (LockteDatabase.MigrateAsync); this tool only fills it.
 if (!await OrgModule.IsUpToDateAsync(services) || !await HrModule.IsUpToDateAsync(services) || !await SalesModule.IsUpToDateAsync(services)
-    || !await ProdModule.IsUpToDateAsync(services))
+    || !await ProdModule.IsUpToDateAsync(services) || !await PurchModule.IsUpToDateAsync(services))
 {
     Console.Error.WriteLine("ฐานข้อมูลยังไม่เป็นรุ่นล่าสุด — เปิดเว็บแอปกับฐานข้อมูลนี้หนึ่งครั้งก่อน");
     return 1;
@@ -90,6 +92,15 @@ if (options.Program == MigrationOptions.AllProgram)
     return steps.All(s => s.Report.Balanced) ? 0 : 1;
 }
 Console.WriteLine($"อ่านสำเนาของ {options.SourceFile} …");
+if (options.Program == MigrationOptions.PurchMasterProgram)
+{
+    var purchReport = await PurchMigrationTool.RunAsync(services, options.SourceFile, options.CodeMapFile, options.OutputFolder);
+    foreach (var table in purchReport.Tables)
+        Console.WriteLine($"{table.LegacyTable,-22} → {table.NewTable,-28} ต้นทาง {table.SourceRows,5}  โหลด {table.Loaded,5}  DQ {table.Rejected,4}  ไม่ย้าย {table.Excluded,4}  ในฐานข้อมูล {table.InDatabase,5}  {(table.Balanced ? "ตรง" : "ไม่ตรง")}");
+    foreach (var note in purchReport.Notes) Console.WriteLine(note);
+    Console.WriteLine($"ข้อยกเว้น DQ {purchReport.Exceptions.Count} รายการ — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return purchReport.Balanced ? 0 : 1;
+}
 if (options.Program == MigrationOptions.OrderProgram)
 {
     var orderReport = await OrderMigrationTool.RunAsync(services, options.SourceFile, options.CodeMapFile, options.OutputFolder, options.RemoveStockDuplicates);
