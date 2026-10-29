@@ -17,7 +17,8 @@
     <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มสเปค" : $"แก้สเปค {form.Name}")</MudText>
     <MudGrid Spacing="2">
         <MudItem xs="12" sm="5">
-            <MudSelect T="int?" @bind-Value="form.DocumentTypeId" Label="ชนิดเอกสาร" Required="true" RequiredError="กรุณาเลือกชนิดเอกสาร">
+            <MudSelect T="int?" @bind-Value="form.DocumentTypeId" Label="ชนิดเอกสาร" Required="true" RequiredError="กรุณาเลือกชนิดเอกสาร"
+                       HelperText="@(types.Count == 0 ? "ยังไม่มีชนิดเอกสาร — เพิ่มที่ 'ชนิดเอกสารใบตรวจ QA' ก่อน (order/qa/document-types)" : null)" HelperTextOnFocus="false">
                 @foreach (var t in types)
                 {
                     <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Code @t.Revision — @t.Name</MudSelectItem>
