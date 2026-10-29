@@ -1,0 +1,22 @@
+@* RPT-33 หนังสือแสดงความมุ่งมั่นของผู้ส่งมอบหรือผู้รับเหมาช่วง, ระดับ B on A4 ตั้ง แบบจดหมาย, 1 หน้า: the supplier's name, the date (long form), the blanks for the signer's name and position, the three
+   promises as the legacy form worded them (the old form's spelling "กฏหมาย" is written กฎหมาย), the line saying who the letter is given to, and the place to sign. *@
+<p style="font-weight:bold;text-decoration:underline;text-align:center;font-size:1.15em">@SupplierDocumentReports.CommitmentTitle</p>
+<p style="text-align:center"><b>@Report.SupplierName</b></p>
+<p style="text-align:right">วันที่ @Report.LongDate</p>
+<p>ข้าพเจ้า ............................................................................... ตำแหน่ง ...........................................</p>
+<p>ขอให้การรับรองว่า บริษัทฯ มีความยินดีและมุ่งมั่นที่จะดำเนินการดังต่อไปนี้</p>
+<ol style="line-height:1.7">
+    <li>ปฏิบัติตามกฎหมายแรงงานและข้อกำหนด มรท. 8001 ที่บริษัทฯ เกี่ยวข้องให้เทียบเท่าหรือดีกว่า</li>
+    <li>แจ้งให้สถานประกอบกิจการของท่านทราบ ในกรณีที่ผู้ส่งมอบหรือผู้รับเหมาช่วงบริษัทฯ ไปมีความสัมพันธ์ทางธุรกิจกับผู้ส่งมอบหรือผู้รับเหมาช่วงรายอื่นๆ</li>
+    <li>ให้ความร่วมมือกับสถานประกอบกิจการของท่านในกิจกรรมเฝ้าตรวจติดตามทั้งที่ประกาศและไม่ประกาศ เพื่อทวนสอบว่ามีการปฏิบัติตามข้อกำหนดของกฎหมายและ มรท. 8001 และจะปฏิบัติการแก้ไขและแก้ไขชดเชยโดยทันทีที่พบสิ่งที่ไม่เป็นไปตามข้อกำหนด</li>
+</ol>
+<p>หนังสือรับรองฉบับนี้ ออกให้แก่ บริษัท ล็อคเต้ จำกัด<br />ซึ่งเป็นบริษัทคู่สัญญากับ <u>@Report.SupplierName</u></p>
+<div style="margin-top:3rem;margin-left:50%">
+    <p>ลงชื่อ ......................................................</p>
+    <p>ตำแหน่ง ....................................................</p>
+    <p>@Report.SupplierName</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Lockte.Web.Reports.Purch.SupplierCommitmentLetter Report { get; set; } = null!;
+}

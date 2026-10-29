@@ -66,6 +66,7 @@ public static class ReportsRegistration
         reports.MapPurchBacklogReports(); // ยอดค้างสั่ง/ค้างรับ (วัตถุดิบ #256)
         reports.MapIncomingReports(); // บันทึกการรับของ และ INCOMING INSPECTION (วัตถุดิบ #257)
         reports.MapReceiptReports(); // รายงานการรับวัตถุดิบตามแผนก/ชื่อ/ผู้ขาย (วัตถุดิบ #258)
+        reports.MapSupplierDocumentReports(); // ทะเบียนผู้ขาย ASL และหนังสือมุ่งมั่น (วัตถุดิบ #264)
         reports.MapListReports(); // รายชื่อวัตถุดิบและผู้ขาย (วัตถุดิบ #263)
         reports.MapMaterialStockReports(); // STOCK CARD และรายงานการตัด STOCK (วัตถุดิบ #262)
         reports.MapResaleAndSmallOrderReports(); // ซื้อมาขายไป และใบสั่งซื้อต่ำกว่าเกณฑ์ (วัตถุดิบ #261)

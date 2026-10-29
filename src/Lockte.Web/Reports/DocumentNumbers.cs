@@ -78,11 +78,13 @@ public static class DocumentKeys
     public const string IncomingRecord = "RPT-05-P";
     /// <summary>RPT-06 บันทึกการทำ INCOMING INSPECTION (#257).</summary>
     public const string IncomingInspection = "RPT-06-P";
+    /// <summary>RPT-32 ทะเบียนผู้ขาย (Approved Supplier List) (#264).</summary>
+    public const string ApprovedSupplierList = "RPT-32-P";
 
     public static IReadOnlyList<string> All { get; } =
     [
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
         InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2, MoldRegister, SaleOrder,
-        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield, PurchRequest, PurchaseOrder, SupplierEvaluation, SupplierAnnualEvaluation, IncomingRecord, IncomingInspection,
+        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield, PurchRequest, PurchaseOrder, SupplierEvaluation, SupplierAnnualEvaluation, IncomingRecord, IncomingInspection, ApprovedSupplierList,
     ];
 }
