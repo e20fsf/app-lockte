@@ -24,6 +24,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
     public const string OrderProgram = "order";
     /// <summary>The master data of <c>วัตถุดิบ.accdb</c> (#217): ผู้ขาย, วัตถุดิบ, the lists, the prefix of each แผนก.</summary>
     public const string PurchMasterProgram = "purch-master";
+    /// <summary>The history of <c>วัตถุดิบ.accdb</c> (#268 ผลประเมินผู้ขาย; documents and stock book in #266, #267), run after <see cref="PurchMasterProgram"/>.</summary>
+    public const string PurchHistoryProgram = "purch-history";
     public const string QaSpecProgram = "qa-spec";
     /// <summary>Both programs (and the QA specs) in one run, with one report.</summary>
     public const string AllProgram = "all";
@@ -51,6 +53,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
           ลบข้อมูลหลักและประวัติในฐานข้อมูล <database> แล้วโหลดใหม่จากสำเนาของไฟล์ต้นทาง (ไฟล์ต้นทางไม่ถูกแก้)
           --program qa-spec = สกัดสเปคตรวจ QA จากโฟลเดอร์นิยามรายงานที่กู้ไว้ (--source เป็นโฟลเดอร์ reports_decompiled; ผลอยู่ในฐานข้อมูลและ <folder> เท่านั้น ห้าม commit)
           --program order = ย้ายข้อมูลหลักของ ผลผลิตและORDER.accdb (รันหลังย้ายข้อมูลโปรแกรมพนักงานลงฐานข้อมูลเดียวกัน)
+          --program purch-history = ย้ายประวัติของ วัตถุดิบ.accdb (ผลประเมินผู้ขาย) หลัง purch-master บนฐานข้อมูลเดียวกัน; จับคู่ชื่อผู้ขาย→รหัสด้วยชื่อ หรือ kind supplier-name ในตารางจับคู่ (ตารางนี้มีชื่อจริง เก็บนอก git)
           --program purch-master = ย้ายข้อมูลหลักของ วัตถุดิบ.accdb: ผู้ขาย วัตถุดิบ ตัวเลือก และ prefix เลขที่ใบขอซื้อของแผนก (รันหลังโปรแกรมพนักงาน/ORDER; ฐานข้อมูลต้องยังไม่มีเอกสารจัดซื้อ; ใช้กับฐานข้อมูลทดสอบแยกชื่อเท่านั้น)
           --remove-stock-duplicates yes = ตัดผลผลิตที่นับซ้ำใน P_ST ตาม Q-47 (ค่าเริ่มต้น: ไม่ตัด รายงานจำนวนอย่างเดียว)
           --connection ใช้ env LOCKTE_MIGRATION_SQL แทนได้ · รายงานเขียนลง <folder>
@@ -66,8 +69,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         }
         var connection = values.GetValueOrDefault("connection") ?? Environment.GetEnvironmentVariable(ConnectionVariable);
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
-            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
+        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or PurchHistoryProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
+            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {PurchHistoryProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
         var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram;
         if (!whole && values.GetValueOrDefault("source") is null) return (null, "ไม่ได้ระบุ --source");
         var source = values.GetValueOrDefault("source") ?? "";
@@ -112,7 +115,7 @@ public static class MigrationTool
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
             .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>().AddScoped<QaSpecImport>().AddScoped<QaSpecMigration>()
-            .AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>()
+            .AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -171,6 +174,24 @@ public static class PurchMigrationTool
         var legacy = LegacyDatabase.ReadPurchFile(sourceFile);
         await using var scope = services.CreateAsyncScope();
         var report = await scope.ServiceProvider.GetRequiredService<PurchMasterDataMigration>().RunAsync(legacy, map);
+        report.WriteTo(outputFolder);
+        return report;
+    }
+}
+
+public static class PurchHistoryTool
+{
+    /// <summary>
+    /// The history run of วัตถุดิบ (#268…): reads a copy of <paramref name="sourceFile"/> and loads ผลประเมินผู้ขาย (and, in the tickets after it, the stock book and the documents) into a database that
+    /// already holds the master data of #217. The reports go into <paramref name="outputFolder"/> (real data: kept outside git).
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static async Task<MigrationReport> RunAsync(IServiceProvider services, string sourceFile, string? codeMapFile, string outputFolder)
+    {
+        var map = codeMapFile is null ? CodeMap.Empty : CodeMap.Read(codeMapFile);
+        var legacy = LegacyDatabase.ReadPurchHistoryFile(sourceFile);
+        await using var scope = services.CreateAsyncScope();
+        var report = await scope.ServiceProvider.GetRequiredService<PurchHistoryMigration>().RunAsync(legacy, map);
         report.WriteTo(outputFolder);
         return report;
     }
