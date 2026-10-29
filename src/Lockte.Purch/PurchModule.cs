@@ -32,6 +32,8 @@ public static class PurchModule
         services.AddScoped<GoodsReceiptDirectory>();
         services.AddScoped<StockClosingRegistry>();
         services.AddScoped<StockClosingDirectory>();
+        services.AddScoped<SupplierEvaluationRegistry>();
+        services.AddScoped<SupplierEvaluationDirectory>();
         services.AddScoped<PurchaseOrderCalculator>();
         return services;
     }

@@ -30,6 +30,7 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
     internal DbSet<StockEntry> StockEntries => Set<StockEntry>();
     internal DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
     internal DbSet<StockPeriodBalance> StockPeriodBalances => Set<StockPeriodBalance>();
+    internal DbSet<SupplierEvaluation> SupplierEvaluations => Set<SupplierEvaluation>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -287,6 +288,26 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             b.Property(x => x.Quantity).HasPrecision(18, 4).HasAuditName("ยอดยกมา");
             b.HasIndex(x => new { x.CutDate, x.MaterialId }).IsUnique();
             b.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SupplierEvaluation>(e =>
+        {
+            e.HasAuditName("ผลประเมินผู้ขาย");
+            e.Property(x => x.SupplierId).HasAuditName("ผู้ขาย");
+            e.Property(x => x.FromDate).HasAuditName("ตั้งแต่วันที่");
+            e.Property(x => x.ToDate).HasAuditName("ถึงวันที่");
+            e.Property(x => x.Quarter).HasAuditName("ไตรมาส");
+            e.Property(x => x.Passed).HasAuditName("ผ่าน");
+            e.Property(x => x.Failed).HasAuditName("ไม่ผ่าน");
+            e.Property(x => x.WithCertificate).HasAuditName("มีใบรับรอง");
+            e.Property(x => x.WithoutCertificate).HasAuditName("ไม่มีใบรับรอง");
+            e.Property(x => x.OnTime).HasAuditName("ส่งทัน");
+            e.Property(x => x.Late).HasAuditName("ส่งไม่ทัน");
+            e.Property(x => x.Point1).HasAuditName("คะแนนบริการ 1");
+            e.Property(x => x.Point2).HasAuditName("คะแนนบริการ 2");
+            e.HasIndex(x => new { x.SupplierId, x.FromDate, x.ToDate }).IsUnique();
+            e.HasIndex(x => new { x.Quarter, x.FromDate });
+            e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

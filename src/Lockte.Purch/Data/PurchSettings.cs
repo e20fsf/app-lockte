@@ -499,3 +499,41 @@ internal sealed class StockPeriodBalance : IAudited
 
     string IHasBusinessKey.BusinessKey => CutDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 }
+
+/// <summary>
+/// ผลนับประเมินผู้ขาย (T-ประเมินผู้ขาย, BR-050): the counts of one supplier over one period of evaluation, with the two service points the user gave. The supplier is
+/// referred to by id, not by name (Q-47). The scores and the grade are not stored — they are worked out from these (see <see cref="SupplierScore"/>).
+/// </summary>
+internal sealed class SupplierEvaluation : IAudited
+{
+    public int Id { get; set; }
+    public int SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    public DateOnly FromDate { get; set; }
+    public DateOnly ToDate { get; set; }
+    /// <summary>ไตรมาส 1–4 (the summary of a quarter, RPT-09, picks by it — AC-44).</summary>
+    public int Quarter { get; set; }
+    /// <summary>จำนวนรายการรับที่ผ่าน (EXPR1).</summary>
+    public int Passed { get; set; }
+    /// <summary>ไม่ผ่าน = ใบ NCR (EXPR2).</summary>
+    public int Failed { get; set; }
+    /// <summary>มีใบรับรอง (EXPR3).</summary>
+    public int WithCertificate { get; set; }
+    /// <summary>ไม่มีใบรับรอง (EXPR4).</summary>
+    public int WithoutCertificate { get; set; }
+    /// <summary>ส่งทัน (EXPR5).</summary>
+    public int OnTime { get; set; }
+    /// <summary>ส่งไม่ทัน (EXPR6).</summary>
+    public int Late { get; set; }
+    /// <summary>คะแนนบริการ 1 (ฟัง-ตอบปัญหา) and 2 (ตอบสนองข้อร้องเรียน), 1–5.</summary>
+    public int Point1 { get; set; }
+    public int Point2 { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => SupplierId + ":" + FromDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+}
