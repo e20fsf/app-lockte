@@ -1,0 +1,86 @@
+@page "/purch/reports/incoming/{Kind}"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+@inject TimeProvider Clock
+
+@* พิมพ์บันทึกการรับของ (RPT-05) และบันทึกการทำ INCOMING INSPECTION (RPT-06), SCR-20: the period and the supplier (blank = ทุกราย). Only the receipts QA gave a LOT are listed.
+   What was typed last is remembered in this browser, per screen (BR-081). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        </MudStack>
+        <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (ว่าง = ทุกราย)" />
+        <MudCheckBox T="bool" @bind-Value="mainOnly" @bind-Value:after="RememberAsync" Label="เฉพาะวัตถุดิบหลัก" />
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print" Class="mt-4">พิมพ์</MudButton>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Kind { get; set; } = "record";
+
+    private DateTime? from;
+    private DateTime? to;
+    private SupplierDto? supplier;
+    private bool mainOnly;
+    private bool loadedMemory;
+
+    private string Title => Kind == "inspection" ? "พิมพ์บันทึกการทำ INCOMING INSPECTION" : "พิมพ์บันทึกการรับของ";
+
+    private string? Problem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    private string Url => $"/reports/purch/incoming/{(Kind == "inspection" ? "inspection" : "record")}?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}"
+        + (supplier is null ? "" : $"&supplier={supplier.Id}") + (mainOnly ? "&mainOnly=true" : "");
+
+    protected override void OnParametersSet()
+    {
+        var today = Clock.GetLocalNow().DateTime.Date;
+        (from, to) = (new DateTime(today.Year, today.Month, 1), new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1));
+        supplier = null;
+        mainOnly = false;
+        loadedMemory = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("purch.incoming." + Kind) is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                mainOnly = saved.MainOnly;
+                if (saved.SupplierId is { } id) supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(id));
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the defaults.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("purch.incoming." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, supplier?.Id, mainOnly)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To, int? SupplierId, bool MainOnly);
+}

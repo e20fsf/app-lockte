@@ -1,0 +1,65 @@
+@page "/purch/reports/evaluation-summary"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage Storage
+@inject TimeProvider Clock
+
+@* พิมพ์สรุปการประเมินผู้ขาย (SCR-20 → RPT-09, BR-052, AC-44): pick the quarter and the year — no period to type to the day. Every supplier used in production is listed; the ones
+   not evaluated show "ไม่มีการสั่งซื้อ". Remembered per screen (BR-081). *@
+<PageTitle>พิมพ์สรุปการประเมินผู้ขาย — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์สรุปการประเมินผู้ขาย</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudStack Row="true" Spacing="2">
+        <MudSelect T="int" @bind-Value="quarter" @bind-Value:after="RememberAsync" Label="ไตรมาสที่" Style="max-width:10rem">
+            @for (var q = 1; q <= 4; q++)
+            {
+                <MudSelectItem T="int" Value="q">@q</MudSelectItem>
+            }
+        </MudSelect>
+        <MudNumericField T="int" @bind-Value="year" @bind-Value:after="RememberAsync" Label="ปี (ค.ศ.)" Min="2000" Max="2100" Style="max-width:10rem" />
+    </MudStack>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url" Target="_blank" StartIcon="@Icons.Material.Filled.Print" Class="mt-4">พิมพ์</MudButton>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private int quarter = 1;
+    private int year = DateTime.Today.Year;
+    private bool loadedMemory;
+
+    private string Url => $"/reports/purch/evaluation-summary?year={year}&quarter={quarter}";
+
+    protected override void OnInitialized()
+    {
+        var today = Clock.GetLocalNow().DateTime;
+        (year, quarter) = (today.Year, (today.Month - 1) / 3 + 1);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("purch.evaluation-summary") is { Success: true, Value: { } saved })
+            {
+                (year, quarter) = (saved.Year is >= 2000 and <= 2100 ? saved.Year : year, saved.Quarter is >= 1 and <= 4 ? saved.Quarter : quarter);
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the defaults.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("purch.evaluation-summary", new Remembered(year, quarter)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private sealed record Remembered(int Year, int Quarter);
+}

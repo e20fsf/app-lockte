@@ -1,0 +1,41 @@
+@using Lockte.Purch
+@* RPT-05 บันทึกการรับของ (PC-PU002-3/2547 ฉบับที่ 2), ระดับ B on A4 ตั้ง: the receipts of the period that have a LOT, by วันที่รับ — ที่, ชื่อวัตถุดิบ, จำนวน, วันที่ต้องการของ, วันที่รับของ,
+   ใบ Certificate, ผลการตรวจสอบ, ผลการส่ง — and under them the totals and the sign boxes. No sample of this form exists, so the layout follows reports.md (the user looks at it). *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    var t = Report.Totals;
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)&emsp;ชื่อผู้ขาย: @(Report.SupplierName ?? "ทั้งหมด")</p>
+    <table>
+        <colgroup><col style="width:5%" /><col style="width:33%" /><col style="width:12%" /><col style="width:12%" /><col style="width:12%" /><col style="width:9%" /><col style="width:8%" /><col style="width:9%" /></colgroup>
+        <thead>
+            <tr><th class="num">ที่</th><th>ชื่อวัตถุดิบ</th><th class="num">จำนวน</th><th>วันที่ต้องการของ</th><th>วันที่รับของ</th><th>ใบ Certificate</th><th>ผลการตรวจสอบ</th><th>ผลการส่ง</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@r.MaterialName</td>
+                    <td class="num">@ReportText.Decimal2(r.Quantity) @r.Unit</td>
+                    <td>@(r.DesiredDate is { } d ? ReportText.Date(d) : null)</td>
+                    <td>@ReportText.Date(r.ReceiveDate)</td>
+                    <td>@(r.HasCertificate is { } c ? (c ? "มี" : "ไม่มี") : null)</td>
+                    <td>@(r.Failed ? "ไม่ผ่าน" : "ผ่าน")</td>
+                    <td>@(r.OnTime ? "ทัน" : "ไม่ทัน")</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="8"><b>รวมทั้งหมด @t.Count รายการ</b> · ใบรับรอง มี @t.WithCertificate / ไม่มี @t.WithoutCertificate · ส่งทัน @t.OnTime / ไม่ทัน @t.Late · ผ่าน @t.Passed / ไม่ผ่าน @t.Failed</td></tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public IncomingReport Report { get; set; } = null!;
+}

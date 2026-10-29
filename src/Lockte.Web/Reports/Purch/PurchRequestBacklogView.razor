@@ -1,0 +1,35 @@
+@using Lockte.Purch
+@* RPT-03 ใบขออนุมัติที่ยังไม่พิมพ์ใบสั่งซื้อ, ระดับ B: the request lines that still have ยอดค้างสั่ง (ขอ − สั่งไปแล้ว), by วันที่ขอซื้อ → เลขที่ → ลำดับ. The quantity is what is left to order. *@
+@if (Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:12%" /><col style="width:14%" /><col style="width:6%" /><col style="width:11%" /><col style="width:31%" /><col style="width:10%" /><col style="width:7%" /><col style="width:9%" /></colgroup>
+        <thead>
+            <tr><th>วันที่ขอซื้อ</th><th>เลขที่ใบขอซื้อ</th><th class="num">ลำดับ</th><th>รหัส</th><th>ชื่อวัตถุดิบ</th><th class="num">ยอดค้างสั่ง</th><th>หน่วย</th><th>วันที่ต้องการ</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var line in Lines)
+            {
+                <tr>
+                    <td>@ReportText.Date(line.RequestDate)</td>
+                    <td>@line.RequestNo</td>
+                    <td class="num">@line.LineNo</td>
+                    <td>@line.MaterialCode</td>
+                    <td>@line.MaterialName</td>
+                    <td class="num">@ReportText.Decimal2(line.Outstanding)</td>
+                    <td>@line.Unit</td>
+                    <td>@(line.DesiredDate is { } d ? ReportText.Date(d) : null)</td>
+                </tr>
+            }
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<OutstandingRequestLine> Lines { get; set; } = [];
+}

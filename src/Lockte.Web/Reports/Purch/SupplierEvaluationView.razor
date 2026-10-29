@@ -1,0 +1,49 @@
+@using Lockte.Purch
+@* RPT-07 แบบผลการประเมินติดตามผู้ขายประจำไตรมาส (PC-PU001-5/2547 ฉบับที่ 2), ระดับ B on A4 ตั้ง, one page: "วันที่ประเมิน … ไตรมาสที่ … ตั้งแต่วันที่ … ถึงวันที่ …",
+   1. รายละเอียดผู้จำหน่าย (รหัส ชื่อ ที่อยู่ โทร ประเภทผลิตภัณฑ์ ประเภทธุรกิจ ใบรับรองคุณภาพ), 2. the topics with the counts and the points, the total of 25, the percentage
+   (2 decimals), the grade and what it says, the grade key and the sign boxes. The counts are those of the receipts that have a LOT. *@
+@if (Report is null)
+{
+    <NoData />
+}
+else
+{
+    var s = Report.Supplier;
+    var sc = Report.Score;
+    <p class="sub"><u>วันที่ประเมิน @ReportText.Date(Report.EvaluationDate)&emsp;ไตรมาสที่ @Report.Quarter&emsp;ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</u></p>
+    <p><b>1. รายละเอียดผู้จำหน่ายปัจจัยการผลิต</b></p>
+    <table>
+        <colgroup><col style="width:30%" /><col style="width:70%" /></colgroup>
+        <tbody>
+            <tr><td>รหัส</td><td>@s.Code</td></tr>
+            <tr><td>ชื่อ</td><td>@s.Name</td></tr>
+            <tr><td>ที่อยู่</td><td>@s.Address1 @s.Address2</td></tr>
+            <tr><td>เบอร์โทรติดต่อ</td><td>@s.Tel1</td></tr>
+            <tr><td>ประเภทผลิตภัณฑ์</td><td>@s.ProductType</td></tr>
+            <tr><td>ประเภทธุรกิจ</td><td>@s.BusinessType</td></tr>
+            <tr><td>ใบรับรองคุณภาพ</td><td>@(s.Certificate ? "มี" : "ไม่มี")</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:4mm"><b>2. หัวเรื่องการประเมิน</b></p>
+    <table>
+        <colgroup><col style="width:20%" /><col style="width:45%" /><col style="width:35%" /></colgroup>
+        <thead><tr><th>ระบบคุณภาพ</th><th>รายละเอียดการประเมิน</th><th>ผลการประเมิน</th></tr></thead>
+        <tbody>
+            <tr><td rowspan="2">การควบคุมคุณภาพ</td><td>1. รายละเอียดสินค้าตรงตามความต้องการ (ดูจากใบ NCR)</td><td>มีใบ (NCR) @Report.Counts.Failed ใบ คะแนนเต็ม 5 ได้ @sc.Quality คะแนน</td></tr>
+            <tr><td>2. การรับรองคุณภาพ (ดูจากใบ Certificate)</td><td>ไม่มีใบรับรองมา @Report.Counts.WithoutCertificate ครั้ง คะแนนเต็ม 5 ได้ @sc.Certificate คะแนน</td></tr>
+            <tr><td>การจัดส่ง</td><td>ความรวดเร็ว (ดูจากวันที่ส่ง)</td><td>ล้าช้า @Report.Counts.Late ครั้ง คะแนนเต็ม 5 ได้ @sc.Delivery คะแนน</td></tr>
+            <tr><td rowspan="2">การบริการ</td><td>1. การรับฟัง-ตอบปัญหา</td><td>@sc.Service1 คะแนน — @SupplierScore.Service1Text(sc.Service1)</td></tr>
+            <tr><td>2. การตอบสนองข้อร้องเรียน</td><td>@sc.Service2 คะแนน — @SupplierScore.Service2Text(sc.Service2)</td></tr>
+            <tr class="total"><td colspan="2"><b>คะแนนที่ได้รับรวม (เต็ม @SupplierScore.Maximum)</b></td><td><b>@sc.Total คะแนน</b></td></tr>
+            <tr class="total"><td colspan="2"><b>คิดเป็นเปอร์เซ็นต์</b></td><td><b>@ReportText.Decimal2(sc.Percent) %</b></td></tr>
+            <tr class="total"><td colspan="2"><b>ผลการประเมิน</b></td><td><b>เกรด @sc.Grade — @sc.Result</b></td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:4mm"><b>Comments</b></p>
+    <p>เกรด A (80% ขึ้นไป) ผู้ขายชั้นดี · B (70–79%) ควรสอบถามข้อมูลให้แน่ชัดก่อนสั่งซื้อ · C (60–69%) ระมัดระวังในการสั่งซื้อ สั่งซื้อเท่าที่จำเป็น · D ห้ามสั่งซื้อ นอกจากได้รับคำสั่งจาก ผจก.จัดซื้อ</p>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" />
+}
+
+@code {
+    [Parameter] public SupplierEvaluationPrint? Report { get; set; }
+}

@@ -1,0 +1,99 @@
+@using Lockte.Purch
+@* RPT-08 แบบประเมินผู้ขายประจำปี (PC-PU001-4/2547 ฉบับที่ 1), ระดับ B on A4 ตั้ง: one page per supplier used in production that had receipts in the period. Only the details of the
+   supplier are filled in; the 21 questions and the scores are printed to be written by hand (nothing is kept — BR-051). *@
+@if (Suppliers.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    @for (var page = 0; page < Suppliers.Count; page++)
+    {
+        var s = Suppliers[page];
+        <section style="@(page < Suppliers.Count - 1 ? "break-after:page" : "")">
+            <p class="sub">วันที่ทำการประเมิน @Date.ToString("d MMMM yyyy", Lockte.SharedKernel.ThaiDate.Culture)&emsp;ประจำปี @(Year + 543)&emsp;ครั้งที่ 1</p>
+            <p>ประเภทของการประเมิน&emsp;☐ การประเมินประจำปีปกติ&emsp;☐ การประเมินซ้ำ</p>
+            <p><b>1. รายละเอียดผู้จำหน่ายปัจจัยการผลิต</b></p>
+            <table>
+                <colgroup><col style="width:30%" /><col style="width:70%" /></colgroup>
+                <tbody>
+                    <tr><td>รหัสผู้จำหน่ายปัจจัยการผลิต</td><td>@s.Code</td></tr>
+                    <tr><td>ชื่อผู้จำหน่ายปัจจัยการผลิต</td><td>@s.Name</td></tr>
+                    <tr><td>ที่อยู่</td><td>@s.Address1 @s.Address2</td></tr>
+                    <tr><td>ประเภทผลิตภัณฑ์</td><td>@s.ProductType</td></tr>
+                    <tr><td>ประเภทธุรกิจ</td><td>@s.BusinessType</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:3mm"><b>2. หัวเรื่องการประเมิน</b></p>
+            <table>
+                <colgroup><col style="width:80%" /><col style="width:20%" /></colgroup>
+                <thead><tr><th>ระบบคุณภาพ</th><th class="num">คะแนนประเมิน</th></tr></thead>
+                <tbody>
+                    <tr><td>1. มีใบรับรอง ISO/TS16949:2002 หรือใบรับรอง ISO 9001:2000 หรือไม่ ถ้ามีไม่ต้องทำข้อ 2-11</td><td class="num">มี 50 / ไม่มี 0</td></tr>
+                    @foreach (var (no, text) in Quality)
+                    {
+                        <tr><td>@no. @text</td><td class="num">5 4 3 2 1 0</td></tr>
+                    }
+                    <tr class="total"><td><b>(A) คะแนนรวม 1-11</b></td><td></td></tr>
+                    <tr><th colspan="2">ระบบควบคุม</th></tr>
+                    @foreach (var (no, text) in Control)
+                    {
+                        <tr><td>@no. @text</td><td class="num">5 4 3 2 1 0</td></tr>
+                    }
+                    <tr class="total"><td><b>(B) คะแนนรวม 12-15</b></td><td></td></tr>
+                    <tr><th colspan="2">อื่นๆ</th></tr>
+                    @foreach (var (no, text) in Other)
+                    {
+                        <tr><td>@no. @text</td><td class="num">5 4 3 2 1 0</td></tr>
+                    }
+                    <tr class="total"><td><b>(C) คะแนนรวม 16-21</b></td><td></td></tr>
+                    <tr class="total"><td><b>(D) คะแนนรวม (A)+(B)+(C)</b></td><td></td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:3mm"><b>3. ข้อยกเว้นในการประเมินผู้จำหน่ายปัจจัยการผลิต</b> — การประเมินที่เกิดขึ้นจริง (จำนวนครั้ง)</p>
+            <table>
+                <colgroup><col style="width:80%" /><col style="width:20%" /></colgroup>
+                <tbody>
+                    <tr><td>3.1 กรณีส่งคืนสินค้า/ของ : รุนแรง = 5, ปานกลาง = 3, น้อย = 1</td><td></td></tr>
+                    <tr><td>3.2 ความล่าช้าในการจัดส่ง : รุนแรง = 5, ปานกลาง = 3, น้อย = 1</td><td></td></tr>
+                    <tr class="total"><td><b>(E) คะแนนรวม (3.1)+(3.2)</b></td><td></td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:3mm"><b>รวมคะแนนการประเมินทั้งหมด = (D) − (E) =</b> ________&emsp;ผลการประเมิน ☐ ผ่าน ☐ ไม่ผ่าน</p>
+            <p>เกณฑ์การประเมิน ผ่าน = ได้รับคะแนนรวมตั้งแต่ 80 คะแนนขึ้นไป · ไม่ผ่าน = ได้รับคะแนนรวมตั้งแต่ 79 คะแนนลงไป</p>
+            <p>ข้อเสนอแนะ ____________________________________________</p>
+            <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["PREPARED BY", "REVIEWED BY", "APPROVED BY"])" />
+        </section>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SupplierDto> Suppliers { get; set; } = [];
+    [Parameter] public int Year { get; set; }
+    [Parameter] public DateOnly Date { get; set; }
+
+    // the printed questions of the form, as the sample prints them
+    private static readonly (int, string)[] Quality =
+    [
+        (2, "มีการกำหนดตัวแทนบริหารด้านคุณภาพหรือไม่"), (3, "มีการควบคุมด้านเอกสารหรือไม่"), (4, "มีการกำหนดขั้นตอนการส่งคืนสินค้า/ของหรือไม่"),
+        (5, "มีการฝึกอบรมในด้านการปฏิบัติงานของพนักงานหรือไม่"),
+        (6, "มีการบำรุงรักษาและตรวจเช็คอุปกรณ์และเครื่องมือที่ใช้ในการผลิตหรือไม่ (ถ้าเป็นร้านค้าประเภทบริการหรือผู้แทนจำหน่าย ไม่ต้องทำข้อ 6)"),
+        (7, "มีการบ่งบอกประเภทของชิ้นส่วน (วัตถุดิบ) ในกระบวนการผลิตหรือไม่ เช่น Work in Process/finishing goods (ถ้าเป็นร้านค้าประเภทบริการหรือผู้แทนจำหน่าย ไม่ต้องทำข้อ 7)"),
+        (8, "มีการบ่งบอกประเภทของวัตถุดิบที่ใช้ขณะทำการผลิตหรือไม่ (ถ้าเป็นร้านค้าประเภทบริการหรือผู้แทนจำหน่าย ไม่ต้องทำข้อ 8)"),
+        (9, "มีการควบคุมการเก็บรักษาเครื่องมือวัดและอุปกรณ์การทดสอบหรือไม่ (ถ้าเป็นร้านค้าประเภทบริการหรือผู้แทนจำหน่าย ไม่ต้องทำข้อ 9)"),
+        (10, "มีการบันทึกการเก็บรักษาสินค้าและระยะเวลาในการเก็บผลบันทึกหรือไม่"),
+        (11, "มีการวางแผนและพร้อมที่จะนำไปปฏิบัติในด้านการตรวจสอบคุณภาพภายในหรือไม่"),
+    ];
+
+    private static readonly (int, string)[] Control =
+    [
+        (12, "มีกิจกรรม 5 ส. หรือไม่"), (13, "มีการแนะนำด้านเทคนิคโดยช่างเทคนิคหรือไม่"),
+        (14, "มีการจัดวางตำแหน่งของเครื่องจักร,สถานที่หรือบุคคลเกี่ยวกับการผลิตหรือไม่"), (15, "มีผู้รับผิดชอบควบคุมการจัดส่งหรือไม่"),
+    ];
+
+    private static readonly (int, string)[] Other =
+    [
+        (16, "มีความร่วมมือหรือพยายามที่จะทำให้การจัดส่งมีระยะเวลาสั้นหรือไม่"), (17, "ราคาสินค้าเป็นที่น่าพอใจหรือไม่"), (18, "มีความร่วมมือที่จะทำให้ราคาต่ำลงหรือไม่"),
+        (19, "มีการแก้ไขในเรื่องของที่รับคืนมาหรือไม่"), (20, "มีการบริการด้านเครื่องจักรและการซ่อมบำรุงหรือไม่"), (21, "คุณภาพในการส่งสินค้าเป็นที่น่าพอใจหรือไม่"),
+    ];
+}

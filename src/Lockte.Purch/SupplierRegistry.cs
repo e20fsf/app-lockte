@@ -167,11 +167,20 @@ public sealed class SupplierDirectory(PurchDbContext db)
             .Select(ToDto).ToList();
 
     /// <summary>ผู้ขายที่รหัสหรือชื่อมี <paramref name="text"/> (ไม่สนตัวพิมพ์), by ชื่อ, at most <paramref name="max"/> — what the supplier pickers search.</summary>
-    public async Task<IReadOnlyList<SupplierDto>> SearchAsync(string? text, int max = 50)
+    public async Task<IReadOnlyList<SupplierDto>> SearchAsync(string? text, int max = 50, bool productionOnly = false)
     {
         var term = text?.Trim();
-        return (await db.Suppliers.AsNoTracking().Where(s => string.IsNullOrEmpty(term) || s.Code.Contains(term) || s.Name.Contains(term))
+        return (await db.Suppliers.AsNoTracking().Where(s => !productionOnly || s.UsedInProduction).Where(s => string.IsNullOrEmpty(term) || s.Code.Contains(term) || s.Name.Contains(term))
             .OrderBy(s => s.Name).ThenBy(s => s.Code).Take(max).ToListAsync()).Select(ToDto).ToList();
+    }
+
+    /// <summary>
+    /// ผู้ขายที่ใช้ในการผลิตและมีรับของ (นับทั้งรายการที่ไม่ผ่านด้วย) ในช่วงวันที่, by รหัส — what the yearly evaluation form (RPT-08, BR-051) prints a page for.
+    /// </summary>
+    public async Task<IReadOnlyList<SupplierDto>> GetProductionSuppliersWithReceiptsAsync(DateOnly from, DateOnly to)
+    {
+        var ids = await db.GoodsReceipts.AsNoTracking().Where(r => r.ReceiveDate >= from && r.ReceiveDate <= to).Select(r => r.SupplierId).Distinct().ToListAsync();
+        return (await db.Suppliers.AsNoTracking().Where(s => s.UsedInProduction && ids.Contains(s.Id)).OrderBy(s => s.Code).ToListAsync()).Select(ToDto).ToList();
     }
 
     public async Task<SupplierDto?> GetAsync(int id)

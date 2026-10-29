@@ -378,6 +378,21 @@ public sealed class PurchaseOrderDirectory(PurchDbContext db)
             .Select(o => new PurchaseOrderSummary(o.Id, o.OrderNo, o.OrderDate, o.SupplierName, o.Lines.Count, o.Total)).ToListAsync();
     }
 
+    /// <summary>
+    /// ทุกรายการขอซื้อที่ยังมียอดค้างสั่ง (RPT-03): by วันที่ขอซื้อ → เลขที่ใบขอซื้อ → ลำดับ. Computed live from the requests and the orders — no work table.
+    /// </summary>
+    public async Task<IReadOnlyList<OutstandingRequestLine>> GetAllOutstandingLinesAsync()
+    {
+        var requests = await db.PurchaseRequests.AsNoTracking().Include(r => r.Lines).ThenInclude(l => l.Material).ToListAsync();
+        var ordered = await OrderedByRequestLineAsync(requests.SelectMany(r => r.Lines.Select(l => l.Id)).ToList());
+        return requests.OrderBy(r => r.RequestDate).ThenBy(r => r.RequestNo, StringComparer.Ordinal)
+            .SelectMany(r => r.Lines.OrderBy(l => l.LineNo).ThenBy(l => l.Id).Select(l => (Request: r, Line: l, Ordered: ordered.GetValueOrDefault(l.Id) + l.AbandonedQuantity)))
+            .Where(x => x.Line.Quantity - x.Ordered > 0)
+            .Select(x => new OutstandingRequestLine(x.Line.Id, x.Request.RequestNo, x.Request.RequestDate, x.Line.LineNo, x.Line.MaterialId, x.Line.Material!.Code, x.Line.MaterialName, x.Line.Unit,
+                x.Line.Quantity, x.Ordered, x.Line.Quantity - x.Ordered, x.Line.Material.Cost, x.Line.Material.LatestSupplierId, x.Request.DesiredDate, x.Request.DepartmentId, x.Request.Reason,
+                x.Request.Note, x.Request.PurchasingLocation)).ToList();
+    }
+
     /// <summary>How much of a request line has been ordered, over all orders.</summary>
     public async Task<decimal> OrderedQuantityAsync(int requestLineId)
         => await db.PurchaseOrderLines.AsNoTracking().Where(l => l.PurchaseRequestLineId == requestLineId).SumAsync(l => (decimal?)l.Quantity) ?? 0;

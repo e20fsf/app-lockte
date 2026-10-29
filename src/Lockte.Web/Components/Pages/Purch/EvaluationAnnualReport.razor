@@ -1,0 +1,67 @@
+@page "/purch/reports/evaluation-annual"
+@attribute [Authorize]
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage Storage
+@inject TimeProvider Clock
+
+@* พิมพ์แบบผลการประเมินผู้ขายประจำปี (SCR-20 → RPT-08, BR-051): the period; one blank form per supplier used in production that had receipts in it. Remembered per screen (BR-081). *@
+<PageTitle>พิมพ์แบบผลการประเมินผู้ขายประจำปี — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์แบบผลการประเมินผู้ขายประจำปี</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudStack Row="true" Spacing="2">
+        <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print" Class="mt-4">พิมพ์</MudButton>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from;
+    private DateTime? to;
+    private bool loadedMemory;
+
+    private string? Problem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    private string Url => $"/reports/purch/evaluation-annual?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+
+    protected override void OnInitialized()
+    {
+        var year = Clock.GetLocalNow().Year;
+        (from, to) = (new DateTime(year, 1, 1), new DateTime(year, 12, 31));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("purch.evaluation-annual") is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the defaults.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("purch.evaluation-annual", new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To);
+}
