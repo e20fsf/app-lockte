@@ -16,6 +16,9 @@
     [Parameter] public string Label { get; set; } = "ผู้ขาย (รหัสหรือชื่อ)";
     [Parameter] public bool Dense { get; set; }
 
+    /// <summary>Only the suppliers marked ใช้ในการผลิต (the ones that are evaluated).</summary>
+    [Parameter] public bool ProductionOnly { get; set; }
+
     private Task<IEnumerable<SupplierDto>> SearchAsync(string? text, CancellationToken token)
-        => Services.RunAsync<SupplierDirectory, IEnumerable<SupplierDto>>(async d => await d.SearchAsync(text));
+        => Services.RunAsync<SupplierDirectory, IEnumerable<SupplierDto>>(async d => await d.SearchAsync(text, 50, ProductionOnly));
 }

@@ -32,6 +32,12 @@ public sealed record SupplierScore(int Quality, int Certificate, int Delivery, i
         _ => "ห้ามสั่งซื้อ นอกจากได้รับคำสั่งจาก ผจก.จัดซื้อ",
     };
 
+    /// <summary>คำอธิบายคะแนนการบริการ 1 (การรับฟัง-ตอบปัญหา): 5 สม่ำเสมอและแก้ไขปัญหา, 4 สม่ำเสมอ, 3 บางครั้ง, 2 น้อยครั้ง, อื่น ไม่สามารถ.</summary>
+    public static string Service1Text(int point) => point switch { 5 => "สม่ำเสมอและแก้ไขปัญหา", 4 => "สม่ำเสมอ", 3 => "บางครั้ง", 2 => "น้อยครั้ง", _ => "ไม่สามารถ" };
+
+    /// <summary>คำอธิบายคะแนนการบริการ 2 (การตอบสนองข้อร้องเรียน): 5 ดีมาก, 4 ดี, 3 ปานกลาง, 2 พอใช้, อื่น น้อย.</summary>
+    public static string Service2Text(int point) => point switch { 5 => "ดีมาก", 4 => "ดี", 3 => "ปานกลาง", 2 => "พอใช้", _ => "น้อย" };
+
     public static SupplierScore Calculate(SupplierCounts counts, bool supplierHasCertificate, int point1, int point2, PurchSettingsDto settings)
     {
         var quality = Points(counts.Failed);

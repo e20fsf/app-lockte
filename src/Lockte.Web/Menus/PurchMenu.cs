@@ -70,7 +70,7 @@ public static class PurchMenu
         [
             new("พิมพ์บันทึกการรับของ", Code: "RPT-05"),
             new("พิมพ์บันทึกการทำ INCOMING INSPECTION", Code: "RPT-06"),
-            new("พิมพ์แบบผลการประเมินติดตามผู้ขายประจำไตรมาส", Code: "RPT-07"),
+            new("พิมพ์แบบผลการประเมินติดตามผู้ขายประจำไตรมาส", Code: "RPT-07", Page: "purch/reports/evaluation"),
             new("พิมพ์แบบผลการประเมินผู้ขายประจำปี", Code: "RPT-08"),
             new("พิมพ์สรุปการประเมินผู้ขาย", Code: "RPT-09"),
             new("พิมพ์บันทึกการส่งอลูมิเนียมไปหลอม", Code: "RPT-10"),
