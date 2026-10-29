@@ -1,0 +1,61 @@
+@page "/purch/requests/new"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Purch
+@inject ScopedServices Services
+@inject NavigationManager Navigation
+@inject TimeProvider Clock
+
+@* เลือกแผนกเพื่อออกใบขอซื้อ (SCR-03, BR-010): pick the แผนก, "พิมพ์" takes the next number of its prefix and opens the request form (SCR-04).
+   The head shown is the one module องค์กร holds (Q-08). *@
+<PageTitle>พิมพ์ใบขออนุมัติสั่งซื้อ — LOCKTE</PageTitle>
+<h1 class="mb-4">เลือกแผนกที่ขอซื้อ</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudSelect T="int?" @bind-Value="departmentId" @bind-Value:after="LoadHeadAsync" Label="แผนก" Style="max-width:28rem">
+        @foreach (var d in departments)
+        {
+            <MudSelectItem T="int?" Value="@((int?)d.DepartmentId)">@(d.Prefix is null ? "" : d.Prefix + "  ")@d.DepartmentName</MudSelectItem>
+        }
+    </MudSelect>
+    <MudText Class="mt-2">หัวหน้าแผนก: @(HeadName ?? "—")</MudText>
+    @if (Selected is { Prefix: null })
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">แผนกนี้ยังไม่ได้ตั้ง prefix เลขที่ใบขอซื้อ — พิมพ์เลขที่เองในหน้าถัดไป หรือตั้งที่ <MudLink Href="purch/departments">หน้าแผนก</MudLink></MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextAsync" Disabled="@(departmentId is null || busy)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<DepartmentPrefixDto> departments = [];
+    private int? departmentId;
+    private string? headName;
+    private bool busy;
+
+    private DepartmentPrefixDto? Selected => departments.FirstOrDefault(d => d.DepartmentId == departmentId);
+
+    private string? HeadName => Selected is null ? null : headName;
+
+    protected override async Task OnInitializedAsync()
+        => departments = await Services.RunAsync<RequestSetupDirectory, IReadOnlyList<DepartmentPrefixDto>>(d => d.GetDepartmentsAsync());
+
+    private async Task LoadHeadAsync()
+    {
+        headName = null;
+        if (Selected?.HeadEmployeeId is { } id)
+            headName = (await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(e => e.GetAsync(id)))?.Name;
+    }
+
+    private async Task NextAsync()
+    {
+        busy = true;
+        var id = departmentId!.Value;
+        var today = DateOnly.FromDateTime(Clock.GetLocalNow().DateTime);
+        var no = await Services.RunAsync<PurchaseRequestRegistry, string?>(r => r.ReserveNumberAsync(id, today));
+        Navigation.NavigateTo($"purch/requests/entry/{id}" + (no is null ? "" : $"?no={Uri.EscapeDataString(no)}"));
+    }
+}

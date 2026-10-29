@@ -1,0 +1,21 @@
+@using Lockte.Purch
+@inject ScopedServices Services
+
+@* ช่องเลือกวัตถุดิบ (#212): searches the register by code or name and lists รหัส ชื่อ หน่วย ราคา ผู้ขายล่าสุด; used by the request and order screens. *@
+<MudAutocomplete T="MaterialDto" Value="Value" ValueChanged="ValueChanged" SearchFunc="SearchAsync" Label="@Label" Dense="Dense" Margin="Margin.Dense"
+                 ToStringFunc="@(m => m is null ? "" : $"{m.Code}  {m.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" CoerceText="false">
+    <ItemTemplate Context="m">
+        <span>@m.Code  @m.Name</span>
+        <span class="mud-text-secondary"> · @m.Unit · @m.Cost.ToString("N2")@(m.LatestSupplierName is null ? "" : " · " + m.LatestSupplierName)</span>
+    </ItemTemplate>
+</MudAutocomplete>
+
+@code {
+    [Parameter] public MaterialDto? Value { get; set; }
+    [Parameter] public EventCallback<MaterialDto?> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "วัตถุดิบ (รหัสหรือชื่อ)";
+    [Parameter] public bool Dense { get; set; }
+
+    private Task<IEnumerable<MaterialDto>> SearchAsync(string? text, CancellationToken token)
+        => Services.RunAsync<MaterialDirectory, IEnumerable<MaterialDto>>(async d => await d.SearchAsync(text));
+}

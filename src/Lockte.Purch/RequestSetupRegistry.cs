@@ -38,6 +38,9 @@ public sealed class RequestSetupRegistry(PurchDbContext db, OrgDirectory org)
         if (row is not null) row.ExpectRowVersion(loadedRowVersion ?? throw new ArgumentException("Editing needs the rowversion the screen loaded.", nameof(loadedRowVersion)));
         if (value is null)
         {
+            // The แผนก's requests were numbered with it: it can be changed to another prefix, not removed (#216).
+            if (row is not null && await db.PurchaseRequests.AnyAsync(r => r.DepartmentId == departmentId))
+                return ServiceResult.Fail("แผนกนี้มีใบขอซื้อแล้ว ลบ prefix ไม่ได้ (เปลี่ยนเป็น prefix อื่นได้)");
             if (row is not null) db.DepartmentPrefixes.Remove(row);
         }
         else
