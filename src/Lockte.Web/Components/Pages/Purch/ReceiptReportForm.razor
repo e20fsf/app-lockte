@@ -15,7 +15,7 @@
 
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
     <MudStack Spacing="2">
-        @if (Kind == "yearly")
+        @if (Kind is "yearly" or "yearly-materials")
         {
             <MudSelect T="int" @bind-Value="year" @bind-Value:after="RememberAsync" Label="ปี (พ.ศ.)" Style="max-width:12rem">
                 @foreach (var y in Years)
@@ -54,10 +54,14 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
     }
     <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url(false)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">@(Kind is "summary" or "yearly" ? "พิมพ์สรุปทั้งหมด" : "พิมพ์")</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url(false)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">@(Kind is "summary" or "yearly" ? "พิมพ์สรุปทั้งหมด" : Kind == "yearly-materials" ? "พิมพ์จำนวนเงิน" : "พิมพ์")</MudButton>
         @if (Kind is "department" or "supplier")
         {
             <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(DatesProblem is not null)" StartIcon="@Icons.Material.Filled.Summarize">พิมพ์สรุป</MudButton>
+        }
+        else if (Kind == "yearly-materials")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์จำนวนหน่วย</MudButton>
         }
         else if (Kind is "summary" or "yearly")
         {
@@ -88,16 +92,18 @@
         "supplier" => "พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย",
         "summary" => "พิมพ์สรุปการรับวัตถุดิบ",
         "yearly" => "พิมพ์สรุปการรับวัตถุดิบรายเดือนทั้งปี",
+        "yearly-materials" => "พิมพ์การซื้อวัตถุดิบรายปีตามชื่อ",
         "department-purchases" => "พิมพ์การซื้อวัตถุดิบแยกแผนก",
         _ => "พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก",
     };
 
-    private string? DatesProblem => Kind == "yearly" ? null : from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+    private string? DatesProblem => Kind is "yearly" or "yearly-materials" ? null : from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
 
     private string? Problem => DatesProblem ?? (Kind == "department" && departmentId is null ? "กรุณาเลือกแผนก" : Kind == "material" && material is null ? "กรุณาเลือกวัตถุดิบ" : null);
 
     private string Url(bool summary)
     {
+        if (Kind == "yearly-materials") return $"/reports/purch/receipts/yearly-materials?year={year}" + (summary ? "&units=true" : "");
         if (Kind == "yearly") return $"/reports/purch/receipts/yearly?year={year}" + (summary ? "&main=true" : "");
         if (Kind is "summary") return $"/reports/purch/receipts/summary?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}" + (summary ? "&main=true" : "");
         if (Kind == "department-purchases") return $"/reports/purch/receipts/department-purchases?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
