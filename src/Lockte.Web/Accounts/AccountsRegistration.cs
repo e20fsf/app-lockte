@@ -10,8 +10,8 @@ public sealed class AuthOptions
 {
     public const string Section = "Auth";
 
-    /// <summary>ไม่ใช้งานเกินนี้ → ต้อง login ใหม่ (#39: 30 นาที).</summary>
-    public int IdleTimeoutMinutes { get; set; } = 30;
+    /// <summary>ไม่ใช้งานเกินนี้ → ต้อง login ใหม่ (#39: เดิม 30 นาที; 28 ต.ค. 2569 ผู้ใช้สั่งเป็น 120 นาที, ตั้งทับได้ที่ Auth:IdleTimeoutMinutes ในไฟล์ตั้งค่าบน server).</summary>
+    public int IdleTimeoutMinutes { get; set; } = 120;
 }
 
 public static class AccountsRegistration

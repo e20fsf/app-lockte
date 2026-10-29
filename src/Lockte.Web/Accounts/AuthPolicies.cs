@@ -6,7 +6,7 @@ namespace Lockte.Web.Accounts;
 /// No roles (#39). Four gates only:
 /// <see cref="Staff"/> (default for every page) — signed in, not admin, password not temporary;
 /// <see cref="Admin"/> — the admin account, which sees only user management;
-/// <see cref="StaffOrAdmin"/> — staff or admin with a password of their own (ประวัติการแก้ไข: ทุก user ดูได้);
+/// <see cref="StaffOrAdmin"/> — staff or admin with a password of their own (the trail under the app bar);
 /// <see cref="SignedIn"/> — any signed-in user, even with a temporary password (change password, log out).
 /// </summary>
 public static class AuthPolicies

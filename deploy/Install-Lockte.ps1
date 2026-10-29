@@ -139,7 +139,9 @@ ALTER ROLE db_owner ADD MEMBER [$poolUser];');
     }
 
     Step '5. Copy the app'
-    robocopy (Join-Path $PSScriptRoot 'app') $appDir /MIR /NFL /NDL /NJH /NJS /NP /XF appsettings.Production.json | Out-Null
+    # An app-only package (Build-Package.ps1 -AppOnly) has no browser: keep the one already installed.
+    $keep = @(); if (-not (Test-Path (Join-Path $PSScriptRoot 'app\ms-playwright'))) { $keep = @('/XD', 'ms-playwright') }
+    robocopy (Join-Path $PSScriptRoot 'app') $appDir /MIR /NFL /NDL /NJH /NJS /NP /XF appsettings.Production.json @keep | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "copy failed (robocopy $LASTEXITCODE)" }
     $appSettings = Join-Path $appDir 'appsettings.Production.json'
     Copy-Item $settingsFile $appSettings -Force

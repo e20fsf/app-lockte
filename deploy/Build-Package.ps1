@@ -1,15 +1,18 @@
 # Run on a dev PC (.NET 10 SDK + internet). Builds lockte-<version>.zip for the server: the published web app with
 # Chromium headless shell inside it, so the server needs no internet, no SDK and no Playwright CLI (#21).
-#   .\deploy\Build-Package.ps1 [-HostingBundle <path to dotnet-hosting-10.x-win.exe>]
+#   .\deploy\Build-Package.ps1 [-HostingBundle <path to dotnet-hosting-10.x-win.exe>] [-AppOnly]
+# -AppOnly leaves Chromium out (a few MB instead of ~170): for updating a server that already runs Lockte (Install-Lockte.ps1 keeps its browser).
 # -HostingBundle puts the ASP.NET Core Hosting Bundle in the zip (prereqs\) so Install-Lockte.ps1 can install it offline.
 param(
     [string]$Out = (Join-Path $PSScriptRoot '..\out\deploy'),
-    [string]$HostingBundle
+    [string]$HostingBundle,
+    [switch]$AppOnly
 )
 $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..')
 $version = '{0}-{1}' -f (Get-Date -Format 'yyyyMMdd'), (git -C $repo rev-parse --short HEAD)
 if (git -C $repo status --porcelain --untracked-files=no) { $version += '-dirty' }
+if ($AppOnly) { $version += '-app-only' }
 
 Remove-Item $Out -Recurse -Force -ErrorAction SilentlyContinue
 $app = Join-Path $Out 'app'
@@ -19,9 +22,11 @@ if ($LASTEXITCODE) { throw 'dotnet publish failed' }
 Remove-Item (Join-Path $app 'appsettings.Development.json') -ErrorAction SilentlyContinue
 
 # Chromium into the app folder; the installer points Reports:BrowsersPath there (the app pool has no usable profile).
-$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $app 'ms-playwright'
-& (Join-Path $app 'playwright.ps1') install --only-shell chromium
-if ($LASTEXITCODE) { throw 'playwright install failed' }
+if (-not $AppOnly) {
+    $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $app 'ms-playwright'
+    & (Join-Path $app 'playwright.ps1') install --only-shell chromium
+    if ($LASTEXITCODE) { throw 'playwright install failed' }
+}
 
 Copy-Item (Join-Path $PSScriptRoot 'Install-Lockte.ps1'), (Join-Path $PSScriptRoot 'Remove-Lockte.ps1'), (Join-Path $PSScriptRoot 'README.md') $Out
 if ($HostingBundle) {

@@ -13,7 +13,7 @@
         </a>
         <MudSpacer />
         <AuthorizeView Policy="@AuthPolicies.Staff"><ProgramSwitcher /></AuthorizeView>
-        <AuthorizeView Policy="@AuthPolicies.StaffOrAdmin">
+        <AuthorizeView Policy="@AuthPolicies.Admin">
             <MudButton Href="history" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.History" Class="mr-2">ประวัติการแก้ไข</MudButton>
         </AuthorizeView>
         <AuthorizeView>
@@ -49,8 +49,12 @@
 
     private string HomeHref = "";
 
+    // The logo of a normal user goes to หน้าเลือกโปรแกรม; admin and a user with a temporary password keep their one allowed page.
     protected override async Task OnParametersSetAsync()
-        => HomeHref = AccountClaims.HomeHref((await AuthState).User);
+    {
+        var home = AccountClaims.HomeHref((await AuthState).User);
+        HomeHref = home.Length == 0 ? "programs" : home;
+    }
 
     private static MudTheme Theme => LockteTheme.Theme;
 }

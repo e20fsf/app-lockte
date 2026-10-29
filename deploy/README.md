@@ -85,6 +85,10 @@
 
 **สำรองฐานข้อมูลก่อนอัปเดตทุกครั้ง**
 
+**แพ็กเกจเฉพาะแอป (เล็ก):** ถ้าเซิร์ฟเวอร์ติดตั้งแล้ว ให้สร้างด้วย `.\deploy\Build-Package.ps1 -AppOnly` ได้ zip ที่ไม่มี Chromium (ไม่ถึง 100 MB แทนประมาณ 170 MB) แล้วรัน `.\Install-Lockte.ps1` เหมือนเดิม สคริปต์เก็บ Chromium ที่ติดตั้งไว้ให้ ใช้เฉพาะเมื่อไม่ได้เปลี่ยนเวอร์ชัน Chromium
+
+**แก้เฉพาะค่าตั้งค่า (ไม่ต้องสร้างแพ็กเกจ):** แก้ `C:\Lockte\configppsettings.Production.json` แล้วรัน `.\Install-Lockte.ps1` อีกครั้ง หรือคัดลอกไฟล์ไป `C:\Locktepp\` แล้ว `Restart-WebAppPool Lockte` เช่นเวลาหมดอายุเมื่อไม่ใช้งาน ตั้งที่ `"Auth": { "IdleTimeoutMinutes": 120 }` (นาที)
+
 ## 6. สำรองข้อมูล
 
 ตั้ง SQL Server Agent job (หรือ Maintenance Plan) ให้ backup ฐานข้อมูล `Lockte` แบบ full ทุกคืน และเก็บสำเนาไว้นอก VM ด้วย ไฟล์อื่นที่ควรสำรองมีแค่ `C:\Lockte\config\`
