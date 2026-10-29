@@ -25,8 +25,7 @@ public static class EmployeeMenu
             new("ปิดงวดค่าแรง", SubMenu: 12),
             new("พิมพ์ใบลางาน, ใบลาออกและทะเบียนผู้ประกันสังคม", SubMenu: 18),
             new("การประเมินผลพนักงาน", SubMenu: 11),
-            // New (#52): the legacy typed the numbers into each report; ข้อมูลหลักเลขเอกสารควบคุม has no legacy menu item.
-            new("เลขเอกสารควบคุม", Page: "document-numbers"),
+            // เลขเอกสารควบคุม (#52) is no longer a menu item (UAT-6, #282): the legacy had none; the page /document-numbers stays by its URL.
         ]),
         new(2, "ข้อมูลพนักงาน", 1,
         [
