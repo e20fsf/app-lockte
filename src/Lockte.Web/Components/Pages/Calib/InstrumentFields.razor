@@ -83,7 +83,14 @@
                              ToStringFunc="@(e => e is null ? "" : string.IsNullOrEmpty(e.Code) ? e.Name : $"{e.Code}  {e.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
         </MudItem>
     }
-    <MudItem xs="12" sm="@(Info.Internal ? 6 : 12)"><MudTextField @bind-Value="Form.Note" Label="หมายเหตุ" MaxLength="InstrumentRegistry.TextLength" /></MudItem>
+    else
+    {
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="CalibrationProviderDto" @bind-Value="Form.Provider" Label="ผู้สอบเทียบ (บริษัทที่สอบเทียบ)" SearchFunc="SearchProvidersAsync"
+                             ToStringFunc="@(p => p?.Name ?? "")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+        </MudItem>
+    }
+    <MudItem xs="12" sm="6"><MudTextField @bind-Value="Form.Note" Label="หมายเหตุ" MaxLength="InstrumentRegistry.TextLength" /></MudItem>
 </MudGrid>
 
 @code {
@@ -113,6 +120,10 @@
 
     private static Task<IEnumerable<string>> Filter(IReadOnlyList<string> values, string? text)
         => Task.FromResult(values.Where(v => string.IsNullOrEmpty(text) || v.Contains(text, StringComparison.OrdinalIgnoreCase)));
+
+    private async Task<IEnumerable<CalibrationProviderDto>> SearchProvidersAsync(string? text, CancellationToken token)
+        => (await Services.RunAsync<CalibrationProviderDirectory, IReadOnlyList<CalibrationProviderDto>>(d => d.ListAsync()))
+            .Where(p => string.IsNullOrEmpty(text) || p.Name.Contains(text, StringComparison.OrdinalIgnoreCase));
 
     private Task<IEnumerable<CalibEmployeeRef>> SearchCalibratorsAsync(string? text, CancellationToken token)
         => Services.RunAsync<InstrumentDirectory, IEnumerable<CalibEmployeeRef>>(async d => await d.SearchCalibratorsAsync(text));
