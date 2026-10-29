@@ -66,6 +66,7 @@ public static class PurchMenu
             new("พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย", Code: "RPT-18", Page: "purch/reports/receipts/supplier"),
             new("พิมพ์สรุปการรับวัตถุดิบ", Code: "RPT-20", Page: "purch/reports/receipts/summary"), // RPT-23 หลักอยู่หน้าเดียวกัน
             new("พิมพ์สรุปการรับวัตถุดิบรายเดือนทั้งปี", Code: "RPT-21", Page: "purch/reports/receipts/yearly"), // RPT-24 หลักอยู่หน้าเดียวกัน
+            new("พิมพ์รายงานการรับสินค้าซื้อมาขายไป", Code: "RPT-25", Page: "purch/reports/receipts/resale"),
             new("พิมพ์การซื้อวัตถุดิบรายปีตามชื่อ", Code: "RPT-16", Page: "purch/reports/receipts/yearly-materials"), // RPT-17 จำนวนหน่วยอยู่หน้าเดียวกัน
             new("พิมพ์การซื้อวัตถุดิบแยกแผนก", Code: "RPT-22", Page: "purch/reports/receipts/department-purchases"),
         ]),
@@ -77,7 +78,7 @@ public static class PurchMenu
             new("พิมพ์แบบผลการประเมินผู้ขายประจำปี", Code: "RPT-08", Page: "purch/reports/evaluation-annual"),
             new("พิมพ์สรุปการประเมินผู้ขาย", Code: "RPT-09", Page: "purch/reports/evaluation-summary"),
             new("พิมพ์บันทึกการส่งอลูมิเนียมไปหลอม", Code: "RPT-10"),
-            new("พิมพ์ใบสั่งซื้อต่ำกว่า 5000 บาท", Code: "RPT-11"),
+            new("พิมพ์ใบสั่งซื้อต่ำกว่า 5000 บาท", Code: "RPT-11", Page: "purch/reports/receipts/small-orders"),
         ]),
         new(11, "สต็อกวัตถุดิบ", 1, // STOCK วัตถุดิบ
         [

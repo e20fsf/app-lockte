@@ -44,6 +44,10 @@
         {
             <MaterialPicker Value="material" ValueChanged="@(async (MaterialDto? m) => { material = m; await RememberAsync(); })" Label="วัตถุดิบ (รหัสหรือชื่อ)" />
         }
+        else if (Kind == "small-orders")
+        {
+            <MudTextField @bind-Value="approver" @bind-Value:after="RememberAsync" Label="ผู้อนุมัติใบสั่งซื้อ" MaxLength="100" Immediate="true" Style="max-width:28rem" />
+        }
         else if (Kind == "supplier")
         {
             <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (ว่าง = ทุกราย)" />
@@ -82,6 +86,7 @@
     private MaterialDto? material;
     private SupplierDto? supplier;
     private int year;
+    private string? approver;
     private bool loadedMemory;
 
     private IEnumerable<int> Years => Enumerable.Range(Clock.GetLocalNow().Year - 8, 9).Reverse();
@@ -93,6 +98,8 @@
         "summary" => "พิมพ์สรุปการรับวัตถุดิบ",
         "yearly" => "พิมพ์สรุปการรับวัตถุดิบรายเดือนทั้งปี",
         "yearly-materials" => "พิมพ์การซื้อวัตถุดิบรายปีตามชื่อ",
+        "resale" => "พิมพ์รายงานการรับสินค้าซื้อมาขายไป",
+        "small-orders" => "พิมพ์ใบสั่งซื้อต่ำกว่า 5000 บาท",
         "department-purchases" => "พิมพ์การซื้อวัตถุดิบแยกแผนก",
         _ => "พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก",
     };
@@ -103,6 +110,8 @@
 
     private string Url(bool summary)
     {
+        if (Kind == "resale") return $"/reports/purch/receipts/resale?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        if (Kind == "small-orders") return $"/reports/purch/small-orders?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&approver={Uri.EscapeDataString(approver ?? "")}";
         if (Kind == "yearly-materials") return $"/reports/purch/receipts/yearly-materials?year={year}" + (summary ? "&units=true" : "");
         if (Kind == "yearly") return $"/reports/purch/receipts/yearly?year={year}" + (summary ? "&main=true" : "");
         if (Kind is "summary") return $"/reports/purch/receipts/summary?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}" + (summary ? "&main=true" : "");
@@ -119,6 +128,7 @@
         var today = Clock.GetLocalNow().DateTime.Date;
         (from, to) = (new DateTime(today.Year, today.Month, 1), new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1));
         year = today.Year;
+        approver = Kind == "small-orders" ? (await Services.RunAsync<PurchSettingsDirectory, PurchSettingsDto>(d => d.GetAsync())).SmallOrderApprover : null;
         (departmentId, material, supplier, loadedMemory) = (null, null, null, false);
         if (Kind == "department") departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
     }
@@ -135,6 +145,7 @@
                 to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
                 departmentId = saved.DepartmentId;
                 year = saved.Year ?? year;
+                approver = saved.Approver ?? approver;
                 if (saved.MaterialId is { } m) material = await Services.RunAsync<MaterialDirectory, MaterialDto?>(d => d.GetAsync(m));
                 if (saved.SupplierId is { } s) supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(s));
                 StateHasChanged();
@@ -150,7 +161,7 @@
     {
         try
         {
-            await Storage.SetAsync("purch.receipts." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, departmentId, material?.Id, supplier?.Id, year));
+            await Storage.SetAsync("purch.receipts." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, departmentId, material?.Id, supplier?.Id, year, approver));
         }
         catch (Exception)
         {
@@ -158,5 +169,5 @@
         }
     }
 
-    private sealed record Remembered(DateOnly? From, DateOnly? To, int? DepartmentId, int? MaterialId, int? SupplierId, int? Year = null);
+    private sealed record Remembered(DateOnly? From, DateOnly? To, int? DepartmentId, int? MaterialId, int? SupplierId, int? Year = null, string? Approver = null);
 }
