@@ -25,6 +25,7 @@ public static class ReportsRegistration
     {
         services.Configure<ReportOptions>(configuration.GetSection(ReportOptions.Section));
         services.Configure<EmployerOptions>(configuration.GetSection(EmployerOptions.Section));
+        services.Configure<PurchLetterheadOptions>(configuration.GetSection(PurchLetterheadOptions.Section));
         services.AddSingleton<ReportPdfRenderer>();
         services.AddHostedService<ReportWarmUp>();
         services.AddScoped<ReportPrinter>();
@@ -59,6 +60,7 @@ public static class ReportsRegistration
         reports.MapDeliveryReports(); // เอกสาร ISO การส่งของ (#136)
         reports.MapOrderReports(); // ORDER ค้างส่ง และสรุปการรับ ORDER (#113)
         reports.MapPurchRequestReports(); // ใบขออนุมัติสั่งซื้อ (วัตถุดิบ #220)
+        reports.MapPurchaseOrderReports(); // ใบสั่งซื้อ (วัตถุดิบ #224)
 
         // RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13): A4 ตั้ง, no document number.
         reports.MapGet("/hr/pay-periods/{id:int}/time", async (int id, HttpContext http, PayPeriodDirectory periods, ReportPrinter printer,

@@ -2,6 +2,7 @@ using Lockte.Org;
 using Lockte.Purch;
 using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
+using Lockte.Web.Reports.Purch;
 
 namespace Lockte.Web.Tests;
 
@@ -115,5 +116,24 @@ public sealed class PurchaseOrderEditTests(LocalDbFixture db)
         Assert.Null(await AsBuyerAsync(s => s.Get<PurchaseOrderDirectory>().FindByNoAsync(order.OrderNo)));
         Assert.True((await AsBuyerAsync(s => registry(s).DeleteLineAsync(first.Id, first.RowVersion))).Succeeded); // already gone: fine
         Assert.Empty(await AsBuyerAsync(s => s.Get<PurchaseOrderDirectory>().GetOutstandingLinesAsync(request.Id)));
+    }
+
+    [Fact]
+    public async Task The_print_of_picked_lines_has_their_own_totals_and_words_AC_06_AC_36()
+    {
+        var (order, request) = await NewOrderAsync(await SupplierAsync());
+        var picked = order.Lines.Where(l => l.UnitPrice is 950m or 5430m).Select(l => l.Id).ToList();
+        var print = (await AsBuyerAsync(s => PurchaseOrderReports.BuildAsync(s.Get<PurchaseOrderDirectory>(), s.Get<OrgDirectory>(), s.Get<PurchSettingsDirectory>(), order.Id, picked)))!;
+
+        Assert.Equal((6380.00m, 446.60m, 6826.60m), (print.Subtotal, print.Tax, print.Total));
+        Assert.Equal("หกพันแปดร้อยยี่สิบหกบาทหกสิบสตางค์", print.TotalInWords);
+        Assert.Equal(2, print.Lines.Count);
+        Assert.All(print.Lines, l => Assert.Equal(request.RequestNo, l.RequestNo));
+        Assert.Equal(30, print.CreditDays);
+
+        var all = (await AsBuyerAsync(s => PurchaseOrderReports.BuildAsync(s.Get<PurchaseOrderDirectory>(), s.Get<OrgDirectory>(), s.Get<PurchSettingsDirectory>(), order.Id)))!;
+        Assert.Equal(3, all.Lines.Count);
+        Assert.Equal(order.Total, all.Total);
+        Assert.Null(await AsBuyerAsync(s => PurchaseOrderReports.BuildAsync(s.Get<PurchaseOrderDirectory>(), s.Get<OrgDirectory>(), s.Get<PurchSettingsDirectory>(), int.MaxValue)));
     }
 }

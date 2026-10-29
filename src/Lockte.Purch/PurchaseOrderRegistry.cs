@@ -31,6 +31,7 @@ public sealed record PurchaseOrderLineDto(
     int Id,
     int LineNo,
     int PurchaseRequestLineId,
+    string RequestNo,
     int MaterialId,
     string MaterialCode,
     string MaterialName,
@@ -393,13 +394,15 @@ public sealed class PurchaseOrderDirectory(PurchDbContext db)
         => await db.PurchaseOrderLines.AsNoTracking().Where(l => requestLineIds.Contains(l.PurchaseRequestLineId))
             .GroupBy(l => l.PurchaseRequestLineId).Select(g => new { g.Key, Total = g.Sum(l => l.Quantity) }).ToDictionaryAsync(g => g.Key, g => g.Total);
 
-    private IQueryable<PurchaseOrder> Query() => db.PurchaseOrders.AsNoTracking().Include(o => o.Lines).ThenInclude(l => l.Material);
+    private IQueryable<PurchaseOrder> Query()
+        => db.PurchaseOrders.AsNoTracking().Include(o => o.Lines).ThenInclude(l => l.Material)
+            .Include(o => o.Lines).ThenInclude(l => l.PurchaseRequestLine).ThenInclude(r => r!.PurchaseRequest);
 
     private static PurchaseOrderDto ToDto(PurchaseOrder o) => new(
         o.Id, o.OrderNo, o.OrderDate, o.SupplierId, o.SupplierName, o.SupplierAddress1, o.SupplierAddress2, o.SupplierTel, o.SupplierFax, o.CreditDays, o.ChargesVat,
         o.PurchasingLocation, o.Reason, o.Note, o.Subtotal, o.Tax, o.Total, PurchaseOrderMath.InWords(o.Total),
         o.Lines.OrderBy(l => l.LineNo).ThenBy(l => l.Id).Select(l => new PurchaseOrderLineDto(
-            l.Id, l.LineNo, l.PurchaseRequestLineId, l.MaterialId, l.Material!.Code, l.MaterialName, l.Unit, l.RequestedQuantity, l.Quantity, l.UnitPrice, l.NetAmount,
+            l.Id, l.LineNo, l.PurchaseRequestLineId, l.PurchaseRequestLine!.PurchaseRequest!.RequestNo, l.MaterialId, l.Material!.Code, l.MaterialName, l.Unit, l.RequestedQuantity, l.Quantity, l.UnitPrice, l.NetAmount,
             l.TaxIncludedAmount, l.DesiredDate, l.DepartmentId, l.RowVersion)).ToList(),
         o.RowVersion);
 }
