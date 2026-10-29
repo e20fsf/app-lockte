@@ -19,6 +19,7 @@ public static class PurchModule
         services.AddScoped<MaterialRegistry>();
         services.AddScoped<RequestSetupDirectory>();
         services.AddScoped<RequestSetupRegistry>();
+        services.AddScoped<PurchaseOrderCalculator>();
         return services;
     }
 
