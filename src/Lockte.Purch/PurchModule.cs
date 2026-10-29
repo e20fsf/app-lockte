@@ -13,6 +13,8 @@ public static class PurchModule
         services.AddModuleDbContext<PurchDbContext>(connectionString, PurchDbContext.Schema);
         services.AddScoped<PurchSettingsDirectory>();
         services.AddScoped<PurchSettingsRegistry>();
+        services.AddScoped<SupplierDirectory>();
+        services.AddScoped<SupplierRegistry>();
         return services;
     }
 

@@ -79,7 +79,8 @@ public sealed class ProgramMenuTests
     {
         Assert.Equal(8, PurchMenu.Menu.Find(5)!.Back); // รับวัตถุดิบ → รับวัตถุดิบและรายงาน
         Assert.Equal(2, PurchMenu.Menu.Find(7)!.Back); // บันทึก/ประเมิน → รายงาน
-        Assert.Equal("purch/SCR-02-1", PurchMenu.Menu.HrefOf(PurchMenu.Menu.FindItem("SCR-02-1")!.Value.Item));
+        Assert.Equal("purch/SCR-17-1", PurchMenu.Menu.HrefOf(PurchMenu.Menu.FindItem("SCR-17-1")!.Value.Item));
+        Assert.Equal("purch/suppliers", PurchMenu.Menu.HrefOf(PurchMenu.Menu.FindItem("SCR-02-2")!.Value.Item)); // built (#214)
         Assert.Equal("purch/menu/9", PurchMenu.HrefOf(9));
         Assert.Same(PurchMenu.Menu, ProgramMenus.Of("purch/menu/5"));
         Assert.Same(PurchMenu.Menu, ProgramMenus.Of("purch/settings"));
