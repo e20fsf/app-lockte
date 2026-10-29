@@ -26,6 +26,8 @@ public static class PurchModule
         services.AddScoped<PurchaseOrderDirectory>();
         services.AddScoped<StockLedger>();
         services.AddScoped<StockDirectory>();
+        services.AddScoped<StockIssueRegistry>();
+        services.AddScoped<StockIssueDirectory>();
         services.AddScoped<PurchaseOrderCalculator>();
         return services;
     }

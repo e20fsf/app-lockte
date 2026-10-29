@@ -1,0 +1,188 @@
+@page "/purch/stock/issue"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject TimeProvider Clock
+
+@* เบิกวัตถุดิบ (SCR-14, BR-040) และแก้ไขใบเบิก (SCR-15): the head (date, slip number typed by hand, the employee's code) and as many lines as needed; a quantity typed
+   positive or negative is saved as an issue (negative). The balance and "is it a วัตถุดิบหลัก" are not checked — a warning shows instead. "ใบต่อไป" leaves the blank line
+   and opens a new slip. The second tab edits the lines of a saved slip. *@
+<PageTitle>เบิกและแก้ไขใบเบิกวัตถุดิบ — LOCKTE</PageTitle>
+<h1 class="mb-4">เบิกและแก้ไขใบเบิกวัตถุดิบ</h1>
+
+<MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pt-4">
+    <MudTabPanel Text="เบิกวัตถุดิบ">
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="head.Date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+                <MudItem xs="12" sm="3"><MudTextField @bind-Value="head.DocumentNo" Label="เลขที่ใบเบิก (เช่น 002/0098)" MaxLength="StockLedger.TextLength" /></MudItem>
+                <MudItem xs="12" sm="3"><MudTextField @bind-Value="head.EmployeeCode" Label="รหัสพนักงานผู้เบิก" /></MudItem>
+            </MudGrid>
+            <MudText Typo="Typo.subtitle1" Class="mt-3 mb-1">รายการ</MudText>
+            @foreach (var line in lines)
+            {
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+                    <MudTextField @bind-Value="line.LineNo" Label="ลำดับ" Margin="Margin.Dense" Style="width:5rem" MaxLength="StockLedger.TextLength" />
+                    <div style="width:30rem"><MaterialPicker Value="line.Material" ValueChanged="@(m => line.Material = m)" Dense="true" Label="รหัสวัตถุดิบ" /></div>
+                    <MudNumericField T="decimal?" @bind-Value="line.Quantity" Label="จำนวน" Margin="Margin.Dense" Style="width:9rem" />
+                    <MudText>@line.Material?.Unit</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" OnClick="@(() => lines.Remove(line))" aria-label="ลบบรรทัด" />
+                </MudStack>
+            }
+            <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => lines.Add(new Line()))">เพิ่มบรรทัด</MudButton>
+            <MudStack Row="true" Spacing="2" Class="mt-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SaveAsync(next: true))" Disabled="busy">ใบต่อไป</MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="@(() => SaveAsync(next: false))" Disabled="busy">บันทึก</MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudTabPanel>
+
+    <MudTabPanel Text="แก้ไขใบเบิก" OnClick="LoadDocumentsAsync">
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudSelect T="string" @bind-Value="selectedDocument" @bind-Value:after="OpenDocumentAsync" Label="เลือกเลขที่เอกสาร" Style="max-width:24rem">
+                @foreach (var d in documents)
+                {
+                    <MudSelectItem T="string" Value="d">@d</MudSelectItem>
+                }
+            </MudSelect>
+            @foreach (var row in rows)
+            {
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
+                    <MudDatePicker Editable="true" @bind-Date="row.Date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Margin="Margin.Dense" Style="width:11rem" />
+                    <MudTextField @bind-Value="row.LineNo" Label="ลำดับ" Margin="Margin.Dense" Style="width:5rem" />
+                    <MudText Style="width:20rem">@row.Source.MaterialCode  @row.Source.MaterialName</MudText>
+                    <MudNumericField T="decimal" @bind-Value="row.Quantity" Label="จำนวนที่เบิก" Min="0" Margin="Margin.Dense" Style="width:9rem" />
+                    <MudTextField @bind-Value="row.EmployeeCode" Label="รหัสพนักงาน" Margin="Margin.Dense" Style="width:8rem" />
+                    <MudTextField @bind-Value="row.Note" Label="หมายเหตุ" Margin="Margin.Dense" Style="width:14rem" MaxLength="StockLedger.TextLength" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => UpdateAsync(row))" Disabled="busy">บันทึก</MudButton>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteAsync(row))" aria-label="ลบบรรทัด" />
+                </MudStack>
+            }
+        </MudPaper>
+    </MudTabPanel>
+</MudTabs>
+
+<MudButton Href="@PurchMenu.HrefOf(11)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private Head head = new();
+    private List<Line> lines = [new()];
+    private IReadOnlyList<string> documents = [];
+    private string? selectedDocument;
+    private List<Row> rows = [];
+    private bool busy;
+
+    protected override void OnInitialized() => head = NewHead();
+
+    private Head NewHead() => new() { Date = Clock.GetLocalNow().DateTime.Date };
+
+    private async Task SaveAsync(bool next)
+    {
+        busy = true;
+        try
+        {
+            var input = new StockIssueInput(head.DocumentNo ?? "", DateOnly.FromDateTime(head.Date ?? Clock.GetLocalNow().DateTime), head.EmployeeCode,
+                lines.Where(l => l.Material is not null).Select(l => new StockIssueLineInput(l.Material!.Id, l.Quantity, l.LineNo)).ToList());
+            var result = await Services.RunAsync<StockIssueRegistry, StockIssueResult>(r => r.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            foreach (var w in result.Warnings) Snackbar.Add(w, Severity.Warning);
+            Snackbar.Add(result.Saved == 0 ? "ไม่มีรายการที่มีจำนวน จึงไม่ได้บันทึกใบเบิก" : $"บันทึกใบเบิก {head.DocumentNo} {result.Saved} รายการแล้ว", result.Saved == 0 ? Severity.Info : Severity.Success);
+            head = NewHead();
+            lines = [new()];
+            _ = next; // both buttons leave a fresh slip: the legacy "ใบต่อไป" opens it, "กลับเมนูเดิม" is the link below
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task LoadDocumentsAsync() => documents = await Services.RunAsync<StockIssueDirectory, IReadOnlyList<string>>(d => d.GetDocumentsAsync());
+
+    private async Task OpenDocumentAsync()
+    {
+        rows = [];
+        if (selectedDocument is not { } no) return;
+        var found = await Services.RunAsync<StockIssueDirectory, IReadOnlyList<StockEntryDto>>(d => d.GetDocumentAsync(no));
+        foreach (var e in found)
+        {
+            var employee = e.EmployeeId is { } id ? await Services.RunAsync<EmployeeDirectory, EmployeeDto?>(d => d.GetAsync(id)) : null;
+            rows.Add(new Row { Source = e, Date = e.EntryDate.ToDateTime(TimeOnly.MinValue), LineNo = e.DocumentLineNo, Quantity = Math.Abs(e.Quantity), EmployeeCode = employee?.Code, Note = e.Note });
+        }
+    }
+
+    private async Task UpdateAsync(Row row)
+    {
+        busy = true;
+        try
+        {
+            var input = new StockIssueLineUpdate(row.Source.Id, row.Source.RowVersion, DateOnly.FromDateTime(row.Date ?? DateTime.Today), row.LineNo, row.Quantity, row.EmployeeCode, row.Note);
+            var result = await Services.RunAsync<StockIssueRegistry, ServiceResult>(r => r.UpdateLineAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await OpenDocumentAsync();
+        }
+    }
+
+    private async Task DeleteAsync(Row row)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบบรรทัดใบเบิก", $"ลบ {row.Source.MaterialCode} จำนวน {row.Quantity:#,0.####} ออกจากใบเบิก {row.Source.DocumentNo}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (row.Source.Id, row.Source.RowVersion);
+            var result = await Services.RunAsync<StockLedger, ServiceResult>(l => l.DeleteAsync(id, rowVersion));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("ลบแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await OpenDocumentAsync();
+            await LoadDocumentsAsync();
+        }
+    }
+
+    private sealed class Head
+    {
+        public DateTime? Date { get; set; }
+        public string? DocumentNo { get; set; }
+        public string? EmployeeCode { get; set; }
+    }
+
+    private sealed class Line
+    {
+        public string? LineNo { get; set; }
+        public MaterialDto? Material { get; set; }
+        public decimal? Quantity { get; set; }
+    }
+
+    private sealed class Row
+    {
+        public required StockEntryDto Source { get; init; }
+        public DateTime? Date { get; set; }
+        public string? LineNo { get; set; }
+        public decimal Quantity { get; set; }
+        public string? EmployeeCode { get; set; }
+        public string? Note { get; set; }
+    }
+}
