@@ -174,6 +174,15 @@ public sealed class SupplierDirectory(PurchDbContext db)
             .OrderBy(s => s.Name).ThenBy(s => s.Code).Take(max).ToListAsync()).Select(ToDto).ToList();
     }
 
+    /// <summary>
+    /// ผู้ขายที่ใช้ในการผลิตและมีรับของ (นับทั้งรายการที่ไม่ผ่านด้วย) ในช่วงวันที่, by รหัส — what the yearly evaluation form (RPT-08, BR-051) prints a page for.
+    /// </summary>
+    public async Task<IReadOnlyList<SupplierDto>> GetProductionSuppliersWithReceiptsAsync(DateOnly from, DateOnly to)
+    {
+        var ids = await db.GoodsReceipts.AsNoTracking().Where(r => r.ReceiveDate >= from && r.ReceiveDate <= to).Select(r => r.SupplierId).Distinct().ToListAsync();
+        return (await db.Suppliers.AsNoTracking().Where(s => s.UsedInProduction && ids.Contains(s.Id)).OrderBy(s => s.Code).ToListAsync()).Select(ToDto).ToList();
+    }
+
     public async Task<SupplierDto?> GetAsync(int id)
         => await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id) is { } s ? ToDto(s) : null;
 

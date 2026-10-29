@@ -1,0 +1,59 @@
+@using Lockte.Purch
+@* RPT-09 สรุปผลการประเมินติดตามผู้ขายประจำไตรมาส, ระดับ B on A4 นอน: every supplier used in production, grouped by its certificate; the ones evaluated show the counts, the points,
+   the total, the percentage and the grade; the others "ไม่มีการสั่งซื้อ". At the end "รวมทั้งหมด n ราย" and the sign boxes. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)&emsp;ไตรมาสที่ @Report.Quarter</p>
+    <table>
+        <thead>
+            <tr>
+                <th rowspan="2" class="num">ที่</th><th rowspan="2">รหัส</th><th rowspan="2">ชื่อผู้ขาย</th><th rowspan="2">ใบรับรอง</th><th rowspan="2" class="num">จำนวนสั่งซื้อทั้งหมด</th>
+                <th colspan="11">ผลการประเมิน</th><th rowspan="2">หมายเหตุ</th>
+            </tr>
+            <tr>
+                <th class="num">มีใบ (NCR)</th><th class="num">คะแนน</th><th class="num">ไม่มีใบรับรอง</th><th class="num">คะแนน</th><th class="num">ล่าช้า</th><th class="num">คะแนน</th>
+                <th class="num">บริการ 1</th><th class="num">บริการ 2</th><th class="num">รวมคะแนน</th><th class="num">%</th><th>เกรด</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var row = Report.Rows[i];
+                var e = row.Evaluation;
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@row.Supplier.Code</td>
+                    <td>@row.Supplier.Name</td>
+                    <td>@(row.Supplier.Certificate ? "มี" : "ไม่มี")</td>
+                    <td class="num">@row.OrderCount</td>
+                    @if (e is null)
+                    {
+                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                        <td>ไม่มีการสั่งซื้อ</td>
+                    }
+                    else
+                    {
+                        <td class="num">@e.Counts.Failed</td><td class="num">@e.Score.Quality</td>
+                        <td class="num">@e.Counts.WithoutCertificate</td><td class="num">@e.Score.Certificate</td>
+                        <td class="num">@e.Counts.Late</td><td class="num">@e.Score.Delivery</td>
+                        <td class="num">@e.Score.Service1</td><td class="num">@e.Score.Service2</td>
+                        <td class="num">@e.Score.Total</td><td class="num">@ReportText.Decimal2(e.Score.Percent)</td><td>@e.Score.Grade</td>
+                        <td></td>
+                    }
+                </tr>
+            }
+            <tr class="total"><td colspan="17"><b>รวมทั้งหมด @Report.Rows.Count ราย</b></td></tr>
+            <tr><td colspan="17" class="end"></td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:3mm">เกรด A (80% ขึ้นไป) ผู้ขายชั้นดี · B (70–79%) ควรสอบถามข้อมูลให้แน่ชัดก่อนสั่งซื้อ · C (60–69%) ระมัดระวังในการสั่งซื้อ สั่งซื้อเท่าที่จำเป็น · D ห้ามสั่งซื้อ นอกจากได้รับคำสั่งจาก ผจก.จัดซื้อ</p>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public EvaluationSummary Report { get; set; } = null!;
+}
