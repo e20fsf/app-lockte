@@ -42,6 +42,7 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             i.Property(x => x.Unit).HasMaxLength(InstrumentRegistry.ShortTextLength).HasAuditName("หน่วย");
             i.Property(x => x.StandardUsed).HasMaxLength(InstrumentRegistry.TextLength).HasAuditName("หมายเลขเครื่องมือที่ใช้");
             i.Property(x => x.CalibratorEmployeeId).HasAuditName("ผู้สอบเทียบ");
+            i.Property(x => x.ProviderSupplierId).HasAuditName("บริษัทที่สอบเทียบ");
             i.Property(x => x.Axis).HasMaxLength(InstrumentRegistry.TextLength).HasAuditName("แกน (mm)");
             i.Property(x => x.ManualNo).HasMaxLength(InstrumentRegistry.ShortTextLength).HasAuditName("คู่มือวิธีการที่ใช้เลขที่");
             i.Property(x => x.Note).HasMaxLength(InstrumentRegistry.TextLength).HasAuditName("หมายเหตุ");

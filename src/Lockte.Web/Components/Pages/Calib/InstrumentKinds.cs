@@ -61,6 +61,7 @@ public sealed class InstrumentFormModel
     public string? Unit { get; set; }
     public string? StandardUsed { get; set; }
     public CalibEmployeeRef? Calibrator { get; set; }
+    public CalibrationProviderDto? Provider { get; set; }
     public string? Axis { get; set; }
     public string? ManualNo { get; set; }
     public string? Note { get; set; }
@@ -71,16 +72,17 @@ public sealed class InstrumentFormModel
         Id = i.Id, Code = i.Code, Name = i.Name, RegisteredOn = i.RegisteredOn?.ToDateTime(TimeOnly.MinValue), Maker = i.Maker, DepartmentId = i.DepartmentId,
         MachineIds = i.MachineIds.ToHashSet(), Range = i.Range, Resolution = i.Resolution, Limit = i.Limit, Unit = i.Unit, StandardUsed = i.StandardUsed,
         Calibrator = i.CalibratorEmployeeId is { } id ? new CalibEmployeeRef(id, "", i.CalibratorName ?? "") : null,
+        Provider = i.ProviderSupplierId is { } p ? new CalibrationProviderDto(p, "", i.ProviderName ?? "") : null,
         Axis = i.Axis, ManualNo = i.ManualNo, Note = i.Note, RowVersion = i.RowVersion,
     };
 
     public InstrumentInput ToInput(InstrumentKind kind) => new(Id, kind, Code, RowVersion, Name,
         RegisteredOn is { } d ? DateOnly.FromDateTime(d) : null, Maker, DepartmentId, MachineIds.ToList(), Range, Resolution, Limit, Unit,
-        StandardUsed, Calibrator?.Id, Axis, ManualNo, Note);
+        StandardUsed, Calibrator?.Id, Provider?.SupplierId, Axis, ManualNo, Note);
 
     /// <summary>Whether the user typed anything: an untouched form needs no save when leaving.</summary>
     public bool IsEmpty => string.IsNullOrWhiteSpace(Code) && string.IsNullOrWhiteSpace(Name) && RegisteredOn is null && string.IsNullOrWhiteSpace(Maker)
         && DepartmentId is null && MachineIds.Count == 0 && string.IsNullOrWhiteSpace(Range) && string.IsNullOrWhiteSpace(Resolution)
-        && string.IsNullOrWhiteSpace(Limit) && string.IsNullOrWhiteSpace(Unit) && string.IsNullOrWhiteSpace(StandardUsed) && Calibrator is null
+        && string.IsNullOrWhiteSpace(Limit) && string.IsNullOrWhiteSpace(Unit) && string.IsNullOrWhiteSpace(StandardUsed) && Calibrator is null && Provider is null
         && string.IsNullOrWhiteSpace(Axis) && string.IsNullOrWhiteSpace(ManualNo) && string.IsNullOrWhiteSpace(Note);
 }

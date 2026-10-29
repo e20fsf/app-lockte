@@ -180,4 +180,11 @@ public sealed class ProgramMenuTests
     [Fact]
     public void The_calibration_company_screen_is_opened_from_the_external_menu() // built (#197)
         => Assert.Equal("calib/providers", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-06")!.Value.Item));
+
+    [Fact]
+    public void External_instrument_screens_are_opened_by_their_menu_items() // built (#198)
+    {
+        Assert.Equal("calib/instruments/ext/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-ext")!.Value.Item));
+        Assert.Equal("calib/instruments/ext", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-03-ext")!.Value.Item));
+    }
 }

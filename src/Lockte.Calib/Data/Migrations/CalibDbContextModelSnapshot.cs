@@ -186,6 +186,10 @@ namespace Lockte.Calib.Data.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasAnnotation("Lockte:AuditName", "หมายเหตุ");
 
+                    b.Property<int?>("ProviderSupplierId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "บริษัทที่สอบเทียบ");
+
                     b.Property<string>("Range")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")

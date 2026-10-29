@@ -55,6 +55,8 @@ public sealed record InstrumentDto(
     string? StandardUsed,
     int? CalibratorEmployeeId,
     string? CalibratorName,
+    int? ProviderSupplierId,
+    string? ProviderName,
     string? Axis,
     string? ManualNo,
     string? Note,
@@ -82,6 +84,7 @@ public sealed record InstrumentInput(
     string? Unit = null,
     string? StandardUsed = null,
     int? CalibratorEmployeeId = null,
+    int? ProviderSupplierId = null,
     string? Axis = null,
     string? ManualNo = null,
     string? Note = null);
@@ -101,7 +104,7 @@ public sealed record InstrumentChoices(
 /// (#17, Q-22), where the legacy silently deleted code-less rows; a delete is a button with a confirmation. A newer save by
 /// someone else throws <see cref="ConcurrencyConflictException"/>.
 /// </summary>
-public sealed class InstrumentRegistry(CalibDbContext db, OrgDirectory org, ICalibEmployeeLookup employees)
+public sealed class InstrumentRegistry(CalibDbContext db, OrgDirectory org, ICalibEmployeeLookup employees, CalibrationProviderDirectory providers)
 {
     public const int CodeLength = 100;
     public const int TextLength = 255;
@@ -143,6 +146,7 @@ public sealed class InstrumentRegistry(CalibDbContext db, OrgDirectory org, ICal
         }
         else if (machineIds.Count > 0) errors.Add("เลือกเครื่องจักรได้เมื่อเลือกแผนกแล้ว");
         if (input.CalibratorEmployeeId is { } employeeId && await employees.FindAsync(employeeId) is null) errors.Add("ไม่พบผู้สอบเทียบที่เลือกในทะเบียนพนักงาน");
+        if (input.ProviderSupplierId is { } providerId && await providers.GetAsync(providerId) is null) errors.Add("ไม่พบบริษัทที่สอบเทียบที่เลือก");
         if (errors.Count > 0) return new ServiceResult(false, errors);
 
         var instrument = await LoadAsync(input.Id, input.RowVersion);
@@ -160,6 +164,7 @@ public sealed class InstrumentRegistry(CalibDbContext db, OrgDirectory org, ICal
         instrument.Unit = Clean(input.Unit);
         instrument.StandardUsed = Clean(input.StandardUsed);
         instrument.CalibratorEmployeeId = input.CalibratorEmployeeId;
+        instrument.ProviderSupplierId = input.ProviderSupplierId;
         instrument.Axis = Clean(input.Axis);
         instrument.ManualNo = Clean(input.ManualNo);
         instrument.Note = Clean(input.Note);
@@ -207,7 +212,7 @@ public sealed class InstrumentRegistry(CalibDbContext db, OrgDirectory org, ICal
 }
 
 /// <summary>The public, read-only face of ทะเบียนเครื่องมือวัด (ADR 0002). Writes go through <see cref="InstrumentRegistry"/>.</summary>
-public sealed class InstrumentDirectory(CalibDbContext db, OrgDirectory org, ICalibEmployeeLookup employees)
+public sealed class InstrumentDirectory(CalibDbContext db, OrgDirectory org, ICalibEmployeeLookup employees, CalibrationProviderDirectory providers)
 {
     /// <summary>ชื่อของชนิด as the menus and headings spell it.</summary>
     public static string KindName(InstrumentKind kind) => InstrumentRegistry.KindName(kind);
@@ -260,6 +265,7 @@ public sealed class InstrumentDirectory(CalibDbContext db, OrgDirectory org, ICa
         if (rows.Count == 0) return [];
         var departments = (await org.GetDepartmentsAsync()).ToDictionary(d => d.Id);
         var machines = (await org.GetMachinesAsync()).ToDictionary(m => m.Id);
+        var providerNames = (await providers.ListAsync()).ToDictionary(p => p.SupplierId, p => p.Name);
         var names = new Dictionary<int, string>();
         foreach (var id in rows.Select(r => r.CalibratorEmployeeId).OfType<int>().Distinct())
             if (await employees.FindAsync(id) is { } e) names[id] = e.Name;
@@ -269,7 +275,8 @@ public sealed class InstrumentDirectory(CalibDbContext db, OrgDirectory org, ICa
             var machineRows = i.Machines.Select(m => machines.GetValueOrDefault(m.MachineId)).OfType<MachineDto>().OrderBy(m => m.Code, StringComparer.CurrentCulture).ToList();
             return new InstrumentDto(i.Id, i.Kind, i.Code, i.Name, i.RegisteredOn, i.Maker, i.DepartmentId, department?.Code, department?.Name,
                 machineRows.Select(m => m.Id).ToList(), machineRows.Select(m => m.Code).ToList(), i.Range, i.Resolution, i.Limit, i.Unit, i.StandardUsed,
-                i.CalibratorEmployeeId, i.CalibratorEmployeeId is { } e ? names.GetValueOrDefault(e) : null, i.Axis, i.ManualNo, i.Note, i.RowVersion);
+                i.CalibratorEmployeeId, i.CalibratorEmployeeId is { } e ? names.GetValueOrDefault(e) : null,
+                i.ProviderSupplierId, i.ProviderSupplierId is { } p ? providerNames.GetValueOrDefault(p) : null, i.Axis, i.ManualNo, i.Note, i.RowVersion);
         }).ToList();
     }
 }
