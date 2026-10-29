@@ -166,6 +166,14 @@ public sealed class SupplierDirectory(PurchDbContext db)
         => (await db.Suppliers.AsNoTracking().Where(s => !usedInProductionOnly || s.UsedInProduction).OrderBy(s => s.Code).ToListAsync())
             .Select(ToDto).ToList();
 
+    /// <summary>ผู้ขายที่รหัสหรือชื่อมี <paramref name="text"/> (ไม่สนตัวพิมพ์), by ชื่อ, at most <paramref name="max"/> — what the supplier pickers search.</summary>
+    public async Task<IReadOnlyList<SupplierDto>> SearchAsync(string? text, int max = 50)
+    {
+        var term = text?.Trim();
+        return (await db.Suppliers.AsNoTracking().Where(s => string.IsNullOrEmpty(term) || s.Code.Contains(term) || s.Name.Contains(term))
+            .OrderBy(s => s.Name).ThenBy(s => s.Code).Take(max).ToListAsync()).Select(ToDto).ToList();
+    }
+
     public async Task<SupplierDto?> GetAsync(int id)
         => await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id) is { } s ? ToDto(s) : null;
 

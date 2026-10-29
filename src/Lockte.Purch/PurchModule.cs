@@ -22,6 +22,8 @@ public static class PurchModule
         services.AddScoped<DocumentNumbers>();
         services.AddScoped<PurchaseRequestRegistry>();
         services.AddScoped<PurchaseRequestDirectory>();
+        services.AddScoped<PurchaseOrderRegistry>();
+        services.AddScoped<PurchaseOrderDirectory>();
         services.AddScoped<PurchaseOrderCalculator>();
         return services;
     }

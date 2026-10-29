@@ -25,6 +25,8 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
     internal DbSet<DocumentCounter> DocumentCounters => Set<DocumentCounter>();
     internal DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
     internal DbSet<PurchaseRequestLine> PurchaseRequestLines => Set<PurchaseRequestLine>();
+    internal DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    internal DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -174,6 +176,53 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             l.Property(x => x.TankWeight).HasPrecision(18, 4).HasAuditName("นน.ถัง");
             l.HasIndex(x => x.MaterialId);
             // A material that a request uses cannot be deleted (ข้อสมมติ ง).
+            l.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PurchaseOrder>(o =>
+        {
+            o.HasAuditName("ใบสั่งซื้อ");
+            o.Property(x => x.OrderNo).HasMaxLength(PurchaseOrderRegistry.NumberLength).HasAuditName("เลขที่ใบสั่งซื้อ");
+            o.Property(x => x.OrderDate).HasAuditName("วันที่สั่งซื้อ");
+            o.Property(x => x.SupplierId).HasAuditName("ผู้ขาย");
+            o.Property(x => x.SupplierName).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ชื่อผู้ขาย");
+            o.Property(x => x.SupplierAddress1).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ที่อยู่ผู้ขาย");
+            o.Property(x => x.SupplierAddress2).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("เขต(อำเภอ)และจังหวัดผู้ขาย");
+            o.Property(x => x.SupplierTel).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("โทรศัพท์ผู้ขาย");
+            o.Property(x => x.SupplierFax).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("แฟกซ์ผู้ขาย");
+            o.Property(x => x.CreditDays).HasAuditName("เครดิต (วัน)");
+            o.Property(x => x.ChargesVat).HasAuditName("คิด VAT");
+            o.Property(x => x.PurchasingLocation).HasMaxLength(RequestSetupRegistry.PrefixLength).HasAuditName("ผู้จัดซื้อ");
+            o.Property(x => x.Reason).HasMaxLength(RequestSetupRegistry.TextLength).HasAuditName("เหตุผลในการซื้อ");
+            o.Property(x => x.Note).HasMaxLength(RequestSetupRegistry.TextLength).HasAuditName("หมายเหตุ");
+            o.Property(x => x.Subtotal).HasPrecision(18, 2).HasAuditName("ยอดก่อนภาษี");
+            o.Property(x => x.Tax).HasPrecision(18, 2).HasAuditName("ภาษีมูลค่าเพิ่ม");
+            o.Property(x => x.Total).HasPrecision(18, 2).HasAuditName("ยอดรวมทั้งสิ้น");
+            o.HasIndex(x => x.OrderNo).IsUnique();
+            o.HasIndex(x => x.SupplierId);
+            o.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+            o.HasMany(x => x.Lines).WithOne(x => x.PurchaseOrder).HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PurchaseOrderLine>(l =>
+        {
+            l.HasAuditName("รายการใบสั่งซื้อ");
+            l.Property(x => x.LineNo).HasAuditName("ลำดับ");
+            l.Property(x => x.PurchaseRequestLineId).HasAuditName("รายการใบขอซื้อ");
+            l.Property(x => x.MaterialId).HasAuditName("วัตถุดิบ");
+            l.Property(x => x.MaterialName).HasMaxLength(MaterialRegistry.NameLength).HasAuditName("ชื่อวัตถุดิบ");
+            l.Property(x => x.Unit).HasMaxLength(MaterialRegistry.UnitLength).HasAuditName("หน่วย");
+            l.Property(x => x.RequestedQuantity).HasPrecision(18, 4).HasAuditName("จำนวนที่ขอ");
+            l.Property(x => x.Quantity).HasPrecision(18, 4).HasAuditName("จำนวนสั่งซื้อ");
+            l.Property(x => x.UnitPrice).HasPrecision(18, 4).HasAuditName("ราคา");
+            l.Property(x => x.NetAmount).HasPrecision(18, 4).HasAuditName("จำนวนเงิน");
+            l.Property(x => x.TaxIncludedAmount).HasPrecision(18, 2).HasAuditName("ยอดรวม VAT");
+            l.Property(x => x.DesiredDate).HasAuditName("วันที่ต้องการ");
+            l.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            l.HasIndex(x => x.PurchaseRequestLineId);
+            l.HasIndex(x => x.MaterialId);
+            // A request line, or a material, that an order uses cannot be deleted (ข้อสมมติ ง).
+            l.HasOne(x => x.PurchaseRequestLine).WithMany().HasForeignKey(x => x.PurchaseRequestLineId).OnDelete(DeleteBehavior.Restrict);
             l.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
         });
     }

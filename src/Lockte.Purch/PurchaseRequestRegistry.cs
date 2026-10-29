@@ -218,6 +218,12 @@ public sealed class PurchaseRequestRegistry(PurchDbContext db, OrgDirectory org,
         if (edits.Any(l => l.Id is { } id && !existing.ContainsKey(id))) errors.Add("ไม่พบรายการที่แก้ (อาจถูกลบไปแล้ว)");
         if (edits.Any(l => l.Id is not null && l.Quantity is not > 0)) errors.Add("จำนวนของรายการต้องมากกว่า 0 (ถ้าไม่ต้องการรายการนี้ ใช้ปุ่มลบรายการ)");
         if (edits.Any(l => l.UnitPrice < 0 || l.TankWeight < 0)) errors.Add("ราคาและนน.ถังต้องไม่ติดลบ");
+        // ข้อสมมติ ง: what was ordered cannot be taken back by lowering the request below it
+        var editedIds = edits.Where(l => l.Id is not null && existing.ContainsKey(l.Id.Value)).Select(l => l.Id!.Value).ToList();
+        var orderedByLine = await db.PurchaseOrderLines.AsNoTracking().Where(o => editedIds.Contains(o.PurchaseRequestLineId))
+            .GroupBy(o => o.PurchaseRequestLineId).Select(g => new { g.Key, Total = g.Sum(o => o.Quantity) }).ToDictionaryAsync(g => g.Key, g => g.Total);
+        foreach (var edit in edits.Where(l => l.Id is not null && l.Quantity > 0 && orderedByLine.TryGetValue(l.Id.Value, out var total) && l.Quantity < total))
+            errors.Add($"รายการ {existing[edit.Id!.Value].LineNo} ออกใบสั่งซื้อไปแล้ว {orderedByLine[edit.Id!.Value]:0.####} จำนวนขอซื้อต้องไม่ต่ำกว่านี้");
         var materialIds = edits.Select(l => l.MaterialId).Distinct().ToList();
         var materials = await db.Materials.AsNoTracking().Where(m => materialIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id);
         if (edits.Any(l => !materials.ContainsKey(l.MaterialId))) errors.Add("ไม่พบวัตถุดิบที่เลือก");
@@ -268,6 +274,8 @@ public sealed class PurchaseRequestRegistry(PurchDbContext db, OrgDirectory org,
         var line = await db.PurchaseRequestLines.Include(l => l.PurchaseRequest).ThenInclude(r => r!.Lines).FirstOrDefaultAsync(l => l.Id == lineId);
         if (line is null) return ServiceResult.Ok();
         line.ExpectRowVersion(loadedRowVersion);
+        if (await db.PurchaseOrderLines.AnyAsync(o => o.PurchaseRequestLineId == lineId))
+            return ServiceResult.Fail("รายการนี้ออกใบสั่งซื้อแล้ว ลบไม่ได้");
         var request = line.PurchaseRequest!;
         if (request.Lines.Count == 1) db.PurchaseRequests.Remove(request); // the lines go with it
         else db.PurchaseRequestLines.Remove(line);

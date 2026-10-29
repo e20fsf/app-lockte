@@ -37,7 +37,7 @@ public static class PurchMenu
         [
             new("พิมพ์ใบขออนุมัติสั่งซื้อ", Code: "SCR-03", Page: "purch/requests/new"),
             new("เพิ่ม, แก้ไขและลบใบขออนุมัติสั่งซื้อ", Code: "SCR-06", Page: "purch/requests"),
-            new("พิมพ์ใบสั่งซื้อ", Code: "SCR-05"),
+            new("พิมพ์ใบสั่งซื้อ", Code: "SCR-05", Page: "purch/orders/new"),
             new("แก้ไขและลบใบสั่งซื้อ", Code: "SCR-07"),
             new("เพิ่มหรือแก้ไขเลขที่ใบขออนุมัติสั่งซื้อ", Code: "SCR-08", Page: "purch/requests"),
             new("เพิ่มหรือแก้ไขเลขที่ใบสั่งซื้อ", Code: "SCR-09"),

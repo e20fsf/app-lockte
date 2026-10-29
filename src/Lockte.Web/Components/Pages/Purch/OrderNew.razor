@@ -1,0 +1,189 @@
+@page "/purch/orders/new"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject TimeProvider Clock
+
+@* ออกใบสั่งซื้อ (SCR-05, BR-020…BR-023): pick a purchase request, tick the items to order, give the quantity and price, and choose the supplier — one order is one
+   supplier, VAT at the head. The items left unordered stay as the request's ยอดค้างสั่ง; a request line can be ordered again, from another supplier too.
+   The number is proposed (the highest of the year + 1) and can be changed; one that is taken is refused. The printed order (RPT-02) comes with #224. *@
+<PageTitle>ออกใบสั่งซื้อ — LOCKTE</PageTitle>
+<h1 class="mb-4">ออกใบสั่งซื้อ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudSelect T="int?" @bind-Value="requestId" @bind-Value:after="LoadLinesAsync" Label="เลือกเลขที่ใบขอซื้อที่ต้องการ" Style="max-width:24rem">
+            @foreach (var r in requests)
+            {
+                <MudSelectItem T="int?" Value="@((int?)r.Id)">@r.RequestNo (ค้างสั่ง @r.LineCount รายการ)</MudSelectItem>
+            }
+        </MudSelect>
+        <MudText>เลขที่ใบสั่งซื้อสูงสุดในทะเบียน: @(highest ?? "—")</MudText>
+    </MudStack>
+</MudPaper>
+
+@if (lines.Count > 0)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="head.No" Label="เลขที่ใบสั่งซื้อ" MaxLength="PurchaseOrderRegistry.NumberLength" Required="true" RequiredError="กรุณากรอกเลขที่" /></MudItem>
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="head.Date" Label="วันที่สั่งซื้อ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" @bind-Value="head.Location" Label="ผู้จัดซื้อ">
+                    @foreach (var l in locations)
+                    {
+                        <MudSelectItem T="string" Value="l.Code">@l.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="bool" @bind-Value="head.Vat" Label="@($"ภาษีมูลค่าเพิ่ม {settings.VatRate * 100:0.##}%")">
+                    <MudSelectItem T="bool" Value="true">YES</MudSelectItem>
+                    <MudSelectItem T="bool" Value="false">NO</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6"><SupplierPicker Value="supplier" ValueChanged="PickSupplier" Label="รหัสผู้ขาย" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField @bind-Value="head.SupplierName" Label="ชื่อผู้ขาย (ในใบสั่งซื้อ)" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="head.Address1" Label="ที่อยู่" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="head.Address2" Label="เขต(อำเภอ)และจังหวัด" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="2"><MudTextField @bind-Value="head.Tel" Label="โทรศัพท์" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="2"><MudTextField @bind-Value="head.Fax" Label="แฟกซ์" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="3"><MudNumericField T="int?" @bind-Value="head.Credit" Label="เครดิต (วัน, เงินสด = 0)" Min="0" /></MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="head.Reason" Label="เหตุผลในการซื้อ" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="5"><MudTextField @bind-Value="head.Note" Label="หมายเหตุ" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">รายการของใบขอซื้อ @lines[0].Source.RequestNo ที่ยังค้างสั่ง</MudText>
+        @foreach (var line in lines)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+                <MudCheckBox T="bool" @bind-Value="line.Selected" aria-label="สั่งซื้อรายการนี้" Style="margin-right:-0.5rem" />
+                <MudText Style="width:3rem">@line.Source.LineNo</MudText>
+                <MudText Style="width:24rem">@line.Source.MaterialCode  @line.Source.MaterialName (@line.Source.Unit)</MudText>
+                <MudText Style="width:9rem">ขอ @line.Source.Requested.ToString("#,0.####") ค้างสั่ง @line.Source.Outstanding.ToString("#,0.####")</MudText>
+                <MudNumericField T="decimal?" @bind-Value="line.Quantity" Label="จำนวนสั่ง" Min="0" Margin="Margin.Dense" Style="width:9rem" />
+                <MudNumericField T="decimal?" @bind-Value="line.Price" Label="ราคา/หน่วย" Min="0" Margin="Margin.Dense" Style="width:9rem" />
+                <MudText Style="width:10rem">= @line.Net.ToString("N2") · ยอดค้างสั่งหลังสั่ง @((line.Source.Requested - line.Source.Ordered - (line.Quantity ?? 0)).ToString("#,0.####"))</MudText>
+            </MudStack>
+        }
+        <MudDivider Class="my-3" />
+        <MudText>ยอดก่อนภาษี @totals.Subtotal.ToString("N2") · ภาษี @totals.Tax.ToString("N2") · <b>รวมทั้งสิ้น @totals.Total.ToString("N2")</b></MudText>
+        <MudText Typo="Typo.caption">(@totals.TotalInWords)</MudText>
+        <MudStack Row="true" Spacing="2" Class="mt-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="IssueAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">บันทึกใบสั่งซื้อ</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+else if (requestId is not null)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">ใบขอซื้อนี้ไม่มีรายการที่ค้างสั่งแล้ว</MudAlert>
+}
+
+<MudButton Href="@PurchMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<PurchaseRequestSummary> requests = [];
+    private IReadOnlyList<PurchasingLocationDto> locations = [];
+    private PurchSettingsDto settings = new(PurchSettingsDefaults.VatRate, 0, null, [], 0, 0, 0, [], null);
+    private int? requestId;
+    private string? highest;
+    private SupplierDto? supplier;
+    private List<Line> lines = [];
+    private Head head = new();
+    private bool busy;
+
+    private PurchaseOrderTotals totals => PurchaseOrderMath.Calculate(lines.Where(l => l.Selected && l.Quantity is > 0).Select(l => l.Net).ToList(), head.Vat, settings.VatRate);
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = await Services.RunAsync<PurchSettingsDirectory, PurchSettingsDto>(d => d.GetAsync());
+        locations = await Services.RunAsync<RequestSetupDirectory, IReadOnlyList<PurchasingLocationDto>>(d => d.GetLocationsAsync());
+        requests = await Services.RunAsync<PurchaseOrderDirectory, IReadOnlyList<PurchaseRequestSummary>>(d => d.GetRequestsWithOutstandingAsync());
+        var today = DateOnly.FromDateTime(Clock.GetLocalNow().DateTime);
+        highest = await Services.RunAsync<PurchaseOrderDirectory, string?>(d => d.HighestNumberAsync(today));
+        head = new Head { Date = today.ToDateTime(TimeOnly.MinValue), No = await Services.RunAsync<PurchaseOrderDirectory, string>(d => d.SuggestNumberAsync(today)) };
+    }
+
+    private async Task LoadLinesAsync()
+    {
+        supplier = null;
+        lines = [];
+        if (requestId is not { } id) return;
+        var outstanding = await Services.RunAsync<PurchaseOrderDirectory, IReadOnlyList<OutstandingRequestLine>>(d => d.GetOutstandingLinesAsync(id));
+        lines = outstanding.Select(o => new Line { Source = o, Selected = true, Quantity = o.Outstanding, Price = o.LatestPrice }).ToList();
+        if (outstanding.Count > 0)
+        {
+            head.Location = outstanding[0].PurchasingLocation ?? head.Location ?? locations.FirstOrDefault()?.Code;
+            head.Reason = outstanding[0].Reason;
+            head.Note = outstanding[0].Note;
+            // the material's latest supplier is offered first
+            if (outstanding.Select(o => o.LatestSupplierId).FirstOrDefault(s => s is not null) is { } supplierId)
+                PickSupplier(await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(supplierId)));
+        }
+    }
+
+    private void PickSupplier(SupplierDto? picked)
+    {
+        supplier = picked;
+        if (picked is null) return;
+        head.SupplierName = picked.Name;
+        head.Address1 = picked.Address1;
+        head.Address2 = picked.Address2;
+        head.Tel = picked.Tel1;
+        head.Fax = picked.Fax;
+        head.Credit = picked.CreditDays;
+        head.Vat = picked.Vat;
+    }
+
+    private async Task IssueAsync()
+    {
+        if (supplier is null) { Snackbar.Add("กรุณาเลือกผู้ขาย", Severity.Error); return; }
+        busy = true;
+        try
+        {
+            var input = new PurchaseOrderInput(head.No, DateOnly.FromDateTime(head.Date ?? Clock.GetLocalNow().DateTime), supplier.Id, head.SupplierName ?? "", head.Address1, head.Address2,
+                head.Tel, head.Fax, head.Credit, head.Vat, head.Location ?? "", head.Reason, head.Note,
+                lines.Where(l => l.Selected).Select(l => new PurchaseOrderLineInput(l.Source.RequestLineId, l.Quantity, l.Price)).ToList());
+            var result = await Services.RunAsync<PurchaseOrderRegistry, ServiceResult>(r => r.IssueAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add($"ออกใบสั่งซื้อ {head.No} แล้ว", Severity.Success);
+            Navigation.NavigateTo("purch/orders/new", forceLoad: true);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class Head
+    {
+        public string No { get; set; } = "";
+        public DateTime? Date { get; set; }
+        public string? Location { get; set; }
+        public bool Vat { get; set; } = true;
+        public string? SupplierName { get; set; }
+        public string? Address1 { get; set; }
+        public string? Address2 { get; set; }
+        public string? Tel { get; set; }
+        public string? Fax { get; set; }
+        public int? Credit { get; set; }
+        public string? Reason { get; set; }
+        public string? Note { get; set; }
+    }
+
+    private sealed class Line
+    {
+        public required OutstandingRequestLine Source { get; init; }
+        public bool Selected { get; set; }
+        public decimal? Quantity { get; set; }
+        public decimal? Price { get; set; }
+        public decimal Net => PurchaseOrderMath.LineNet(Price ?? 0, Quantity ?? 0);
+    }
+}

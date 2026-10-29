@@ -305,3 +305,81 @@ internal sealed class PurchaseRequestLine : IAudited
 
     string IHasBusinessKey.BusinessKey => PurchaseRequest?.RequestNo ?? "";
 }
+
+/// <summary>
+/// ใบสั่งซื้อ (หัวใบ, SCR-05): one supplier, VAT at the head. The supplier's name, address, phone, fax and credit are the document's own copy
+/// (filled from the register, editable); <see cref="Subtotal"/>, <see cref="Tax"/> and <see cref="Total"/> are BR-022 as printed.
+/// </summary>
+internal sealed class PurchaseOrder : IAudited
+{
+    public int Id { get; set; }
+    /// <summary>เลขที่ใบสั่งซื้อ <c>&lt;YY พ.ศ.&gt;&lt;NNNN&gt;</c> (e.g. 690988), unique.</summary>
+    public string OrderNo { get; set; } = "";
+    public DateOnly OrderDate { get; set; }
+    public int SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    public string SupplierName { get; set; } = "";
+    public string? SupplierAddress1 { get; set; }
+    public string? SupplierAddress2 { get; set; }
+    public string? SupplierTel { get; set; }
+    public string? SupplierFax { get; set; }
+    /// <summary>เครดิตเป็นจำนวนวัน (เงินสด = 0).</summary>
+    public int? CreditDays { get; set; }
+    /// <summary>คิด VAT (VAT ไม่ใช่ NO).</summary>
+    public bool ChargesVat { get; set; }
+    /// <summary>ผู้จัดซื้อ (F/O).</summary>
+    public string? PurchasingLocation { get; set; }
+    public string? Reason { get; set; }
+    public string? Note { get; set; }
+    /// <summary>ยอดก่อนภาษี.</summary>
+    public decimal Subtotal { get; set; }
+    /// <summary>ภาษีมูลค่าเพิ่ม (TA).</summary>
+    public decimal Tax { get; set; }
+    /// <summary>ยอดรวมทั้งสิ้น (TO).</summary>
+    public decimal Total { get; set; }
+    public List<PurchaseOrderLine> Lines { get; set; } = [];
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => OrderNo;
+}
+
+/// <summary>รายการของใบสั่งซื้อ: points at the request line it orders from (one request line can be ordered many times, from many suppliers).</summary>
+internal sealed class PurchaseOrderLine : IAudited
+{
+    public int Id { get; set; }
+    public int PurchaseOrderId { get; set; }
+    public PurchaseOrder? PurchaseOrder { get; set; }
+    public int LineNo { get; set; }
+    public int PurchaseRequestLineId { get; set; }
+    public PurchaseRequestLine? PurchaseRequestLine { get; set; }
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    public string MaterialName { get; set; } = "";
+    public string? Unit { get; set; }
+    /// <summary>จำนวนที่ขอ (PR_QTY) ตอนออกใบ.</summary>
+    public decimal RequestedQuantity { get; set; }
+    /// <summary>จำนวนสั่งซื้อ (PO_QTY).</summary>
+    public decimal Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    /// <summary>จำนวนเงินรายการ = ราคา × จำนวนสั่ง.</summary>
+    public decimal NetAmount { get; set; }
+    /// <summary>ยอดรายการรวม VAT (TAX, BR-022 ข้อ 6).</summary>
+    public decimal TaxIncludedAmount { get; set; }
+    /// <summary>วันที่ต้องการของ (DELI_D) จากใบขอซื้อ.</summary>
+    public DateOnly? DesiredDate { get; set; }
+    /// <summary>แผนกที่ขอซื้อ (of องค์กร).</summary>
+    public int DepartmentId { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => PurchaseOrder?.OrderNo ?? "";
+}
