@@ -1,0 +1,98 @@
+@page "/purch/suppliers/options"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* ตัวเลือกประกอบของผู้ขาย (SCR-02, #214): ตัวเลือกเครดิต (T-CREDIT, จำนวนวัน, 0 = เงินสด) and ประเภทธุรกิจ (T-ประเภทธุรกิจ). *@
+<PageTitle>ตัวเลือกเครดิตและประเภทธุรกิจ — LOCKTE</PageTitle>
+<h1 class="mb-4">ตัวเลือกเครดิตและประเภทธุรกิจของผู้ขาย</h1>
+
+@if (days is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:40rem">
+        <MudText Typo="Typo.h6">เครดิต (วัน)</MudText>
+        <MudText Typo="Typo.caption">0 = เงินสด</MudText>
+        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2" Class="mt-2">
+            @foreach (var d in days)
+            {
+                <MudChip T="string" OnClose="@(() => days.Remove(d))">@SupplierCredit.Text(d)</MudChip>
+            }
+        </MudStack>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
+            <MudNumericField T="int?" @bind-Value="newDays" Label="เพิ่มจำนวนวัน" Min="0" Style="max-width:12rem" />
+            <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddDays">เพิ่ม</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:40rem">
+        <MudText Typo="Typo.h6">ประเภทธุรกิจ</MudText>
+        @foreach (var t in types)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudText>@t</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => types.Remove(t))" aria-label="ลบ" />
+            </MudStack>
+        }
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
+            <MudTextField @bind-Value="newType" Label="เพิ่มประเภทธุรกิจ" MaxLength="SupplierRegistry.TextLength" />
+            <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddType">เพิ่ม</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+}
+
+<MudButton Href="purch/suppliers" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับหน้าผู้ขาย</MudButton>
+
+@code {
+    private List<int>? days;
+    private List<string> types = [];
+    private int? newDays;
+    private string? newType;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        days = (await Services.RunAsync<SupplierDirectory, IReadOnlyList<int>>(d => d.GetCreditOptionsAsync())).ToList();
+        types = (await Services.RunAsync<SupplierDirectory, IReadOnlyList<string>>(d => d.GetBusinessTypesAsync())).ToList();
+    }
+
+    private void AddDays()
+    {
+        if (newDays is { } d && !days!.Contains(d)) days.Add(d);
+        newDays = null;
+    }
+
+    private void AddType()
+    {
+        if (!string.IsNullOrWhiteSpace(newType) && !types.Contains(newType.Trim())) types.Add(newType.Trim());
+        newType = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var (d, t) = (days!.ToList(), types.ToList());
+            var result = await Services.RunAsync<SupplierRegistry, ServiceResult>(r => r.SaveOptionsAsync(d, t));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

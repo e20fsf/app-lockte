@@ -13,6 +13,9 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
 
     internal DbSet<PurchSettings> Settings => Set<PurchSettings>();
     internal DbSet<ResaleGroup> ResaleGroups => Set<ResaleGroup>();
+    internal DbSet<Supplier> Suppliers => Set<Supplier>();
+    internal DbSet<SupplierCreditOption> SupplierCreditOptions => Set<SupplierCreditOption>();
+    internal DbSet<SupplierBusinessType> SupplierBusinessTypes => Set<SupplierBusinessType>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -36,6 +39,40 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             g.Property(x => x.Name).HasMaxLength(PurchSettingsRegistry.NameLength).HasAuditName("ชื่อกลุ่ม");
             g.Property(x => x.SortOrder).HasAuditName("ลำดับ");
             g.HasIndex(x => x.Prefix).IsUnique();
+        });
+
+        modelBuilder.Entity<Supplier>(s =>
+        {
+            s.HasAuditName("ผู้ขาย");
+            s.Property(x => x.Code).HasMaxLength(SupplierRegistry.CodeLength).HasAuditName("รหัสผู้ขาย");
+            s.Property(x => x.Name).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ชื่อผู้ขาย");
+            s.Property(x => x.Address1).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ที่อยู่");
+            s.Property(x => x.Address2).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("เขต(อำเภอ)และจังหวัด");
+            s.Property(x => x.Tel1).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("โทรศัพท์ 1");
+            s.Property(x => x.Tel2).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("โทรศัพท์ 2");
+            s.Property(x => x.Fax).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("แฟกซ์");
+            s.Property(x => x.Contact).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ผู้ติดต่อ");
+            s.Property(x => x.CreditDays).HasAuditName("เครดิต (วัน)");
+            s.Property(x => x.Vat).HasAuditName("VAT");
+            s.Property(x => x.ProductType).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ประเภทผลิตภัณฑ์");
+            s.Property(x => x.BusinessType).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ประเภทธุรกิจ");
+            s.Property(x => x.Certificate).HasAuditName("ใบรับรอง");
+            s.Property(x => x.UsedInProduction).HasAuditName("ใช้ในการผลิต");
+            s.HasIndex(x => x.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<SupplierCreditOption>(o =>
+        {
+            o.HasAuditName("ตัวเลือกเครดิตผู้ขาย");
+            o.Property(x => x.Days).HasAuditName("เครดิต (วัน)");
+            o.HasIndex(x => x.Days).IsUnique();
+        });
+
+        modelBuilder.Entity<SupplierBusinessType>(o =>
+        {
+            o.HasAuditName("ประเภทธุรกิจผู้ขาย");
+            o.Property(x => x.Name).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ประเภทธุรกิจ");
+            o.HasIndex(x => x.Name).IsUnique();
         });
     }
 }
