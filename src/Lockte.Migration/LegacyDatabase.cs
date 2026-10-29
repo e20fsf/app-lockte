@@ -85,7 +85,7 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         ["SP", "MTR_NAME", "รายชื่อแผนก", "PURC", "CREDIT", "ประเภทธุรกิจ", "เหตุผลในการขอซื้อ", "หมายเหตุ", "รหัสตัวแรกของวัตถุดิบ"];
 
     /// <summary>The history tables of <c>วัตถุดิบ.accdb</c> that the migration reads (#268, and the ones the tickets after it add).</summary>
-    public static IReadOnlyList<string> PurchHistoryTables { get; } = ["ประเมินผู้ขาย", "Stock"];
+    public static IReadOnlyList<string> PurchHistoryTables { get; } = ["ประเมินผู้ขาย", "Stock", "PO_RECEI4", "PO_RECEI5"];
 
     /// <summary>The balances carried forward by every cut are moved from 1 Jan 2025 (#267); the older ones and the history of the issues (P_ADDST) are not.</summary>
     public static readonly DateOnly PurchCutFrom = new(2025, 1, 1);

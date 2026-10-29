@@ -115,7 +115,7 @@ public static class MigrationTool
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
             .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>().AddScoped<QaSpecImport>().AddScoped<QaSpecMigration>()
-            .AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>()
+            .AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>().AddScoped<PurchDocumentMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -192,6 +192,7 @@ public static class PurchHistoryTool
         var legacy = LegacyDatabase.ReadPurchHistoryFile(sourceFile);
         await using var scope = services.CreateAsyncScope();
         var report = await scope.ServiceProvider.GetRequiredService<PurchHistoryMigration>().RunAsync(legacy, map);
+        await scope.ServiceProvider.GetRequiredService<PurchDocumentMigration>().RunAsync(legacy, map, report); // ใบขอซื้อ ใบสั่งซื้อ การรับของ (#266)
         report.WriteTo(outputFolder);
         return report;
     }
