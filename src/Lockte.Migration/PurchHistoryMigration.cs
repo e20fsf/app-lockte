@@ -140,7 +140,7 @@ public sealed class PurchHistoryMigration(AuditScope audit, PurchHistoryImport i
             if (row.Date("RE_DATE") is not { } legacyDate) { rejected++; report.Add(table, code, BadDate, $"{position}: ไม่มีวันที่ — ไม่โหลด (จำนวน {quantity.ToString("0.####", CultureInfo.InvariantCulture)})", MigrationReport.NotLoaded); unmatched[code.ToUpperInvariant() + " (ไม่มีวันที่)"] = quantity; continue; }
             var date = DateOnly.FromDateTime(legacyDate);
             if (date.Year < 2000 || date > today)
-                report.Add(table, code, BadDate, $"{position}: วันที่ {date:yyyy-MM-dd} ผิดปกติ — โหลดตามเดิม ไม่แก้เอง", "โหลดตามเดิม");
+                report.Add(table, code, BadDate, $"{position}: วันที่ {date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} ผิดปกติ — โหลดตามเดิม ไม่แก้เอง", "โหลดตามเดิม");
 
             var mark = row.Text("MARK")?.ToLowerInvariant();
             var document = row.Text("INVOICE_NO");
@@ -215,7 +215,7 @@ public sealed class PurchHistoryMigration(AuditScope audit, PurchHistoryImport i
         // rows of one cut and one material that repeat are added up into the one balance (counted as moved with it)
         var merged = rows.Count - rejected - totals.Count;
         report.Tables.Add(new TableCount(table, "purch.StockPeriodBalances", sourceRows, sourceRows - rows.Count + merged, rejected, totals.Count, balances));
-        if (sourceRows > rows.Count) report.Notes.Add($"ต้นงวดP_ST: ย้ายเฉพาะยอดยกมาตั้งแต่ {LegacyDatabase.PurchCutFrom:yyyy-MM-dd} ({sourceRows - rows.Count} แถวเก่ากว่านั้นไม่ย้าย)");
+        if (sourceRows > rows.Count) report.Notes.Add($"ต้นงวดP_ST: ย้ายเฉพาะยอดยกมาตั้งแต่ {LegacyDatabase.PurchCutFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} ({sourceRows - rows.Count} แถวเก่ากว่านั้นไม่ย้าย)");
     }
 
     /// <summary>The quarter (1–4) of the calendar year a period starts in — used only when the old row has no valid TERM.</summary>
