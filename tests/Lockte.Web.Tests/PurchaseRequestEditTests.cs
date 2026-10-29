@@ -66,7 +66,7 @@ public sealed class PurchaseRequestEditTests(LocalDbFixture db)
 
         await using var scope = db.Scope();
         var rows = await scope.Get<HistoryService>().SearchAsync(new(Table: "รายการใบขอซื้อ", RowKey: request.RequestNo));
-        Assert.Contains(rows, r => r is { Action: HistoryActions.Modified, Column: "จำนวน", OldValue: "5", NewValue: "8", UserName: "buyer1" });
+        Assert.Contains(rows, r => r is { Action: HistoryActions.Modified, Column: "จำนวน", UserName: "buyer1" } && decimal.Parse(r.OldValue!, System.Globalization.CultureInfo.InvariantCulture) == 5m && decimal.Parse(r.NewValue!, System.Globalization.CultureInfo.InvariantCulture) == 8m);
         Assert.Equal(3, materials.Length);
     }
 
