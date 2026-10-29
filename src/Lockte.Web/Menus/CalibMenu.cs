@@ -35,7 +35,7 @@ public static class CalibMenu
             new("แก้ไขและลบเครื่องมือวัด", Code: "SCR-03-ext"),
             new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-ext"),
             new("พิมพ์ฟอร์มบันทึกผลการสอบเทียบ", Code: "RPT-03-ext"),
-            new("เพิ่มรายชื่อบริษัทที่สอบเทียบ", Code: "SCR-06"),
+            new("เพิ่มรายชื่อบริษัทที่สอบเทียบ", Code: "SCR-06", Page: "calib/providers"),
         ]),
         new(Internal, "สอบเทียบภายใน", 1,
         [

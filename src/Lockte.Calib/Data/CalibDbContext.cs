@@ -15,6 +15,7 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
     internal DbSet<CalibSettings> Settings => Set<CalibSettings>();
     internal DbSet<Instrument> Instruments => Set<Instrument>();
     internal DbSet<InstrumentMachine> InstrumentMachines => Set<InstrumentMachine>();
+    internal DbSet<CalibrationProvider> CalibrationProviders => Set<CalibrationProvider>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -54,6 +55,14 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             m.HasAuditName("เครื่องจักรของเครื่องมือวัด");
             m.Property(x => x.MachineId).HasAuditName("เครื่องจักร");
             m.HasIndex(x => new { x.InstrumentId, x.MachineId }).IsUnique();
+        });
+
+        modelBuilder.Entity<CalibrationProvider>(p =>
+        {
+            p.HasAuditName("บริษัทที่สอบเทียบ");
+            p.Property(x => x.SupplierId).HasAuditName("ผู้ขาย");
+            p.Property(x => x.Name).HasMaxLength(255).HasAuditName("ชื่อบริษัท");
+            p.HasIndex(x => x.SupplierId).IsUnique();
         });
     }
 }

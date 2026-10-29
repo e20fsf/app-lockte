@@ -1,0 +1,69 @@
+@page "/calib/providers"
+@attribute [Authorize]
+@using Lockte.Calib
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+@* เพิ่มรายชื่อบริษัทที่สอบเทียบ (SCR-06, BR-007): the company is a supplier of the register of วัตถุดิบ. "บริษัทต่อไป" saves and clears the name, "กลับเมนูเดิม"
+   saves what was typed and goes back (the legacy's two buttons did nothing, Q-10). A blank name is not saved and a repeated one is refused. *@
+<PageTitle>เพิ่มรายชื่อบริษัทที่สอบเทียบ — LOCKTE</PageTitle>
+<h1 class="mb-4">เพิ่มรายชื่อบริษัทที่สอบเทียบ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudTextField @bind-Value="name" Label="ชื่อบริษัท" MaxLength="255" Immediate="true" />
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Add">บริษัทต่อไป</MudButton>
+        <MudButton OnClick="BackAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">รายชื่อบริษัทที่สอบเทียบ</MudText>
+    <MudTable Items="providers" Dense="true" T="CalibrationProviderDto" Breakpoint="Breakpoint.None">
+        <HeaderContent><MudTh>รหัสผู้ขาย</MudTh><MudTh>ชื่อบริษัท</MudTh></HeaderContent>
+        <RowTemplate><MudTd>@context.SupplierCode</MudTd><MudTd>@context.Name</MudTd></RowTemplate>
+        <NoRecordsContent><MudText>ยังไม่มีบริษัทที่สอบเทียบ</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private string? name;
+    private bool busy;
+    private IReadOnlyList<CalibrationProviderDto> providers = [];
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+        => providers = await Services.RunAsync<CalibrationProviderDirectory, IReadOnlyList<CalibrationProviderDto>>(d => d.ListAsync());
+
+    private async Task<bool> SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var text = name;
+            var result = await Services.RunAsync<CalibrationProviderRegistry, ServiceResult>(r => r.AddAsync(text));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"เพิ่มบริษัท {text!.Trim()} แล้ว", Severity.Success);
+            await ReloadAsync();
+            return result.Succeeded;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task NextAsync()
+    {
+        if (await SaveAsync()) name = null;
+    }
+
+    private async Task BackAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(name) && !await SaveAsync()) return;
+        Navigation.NavigateTo(CalibMenu.HrefOf(CalibMenu.External));
+    }
+}
