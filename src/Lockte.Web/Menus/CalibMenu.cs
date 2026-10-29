@@ -47,8 +47,8 @@ public static class CalibMenu
         ]),
         new(Caliper, "เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์", Internal,
         [
-            new("เพิ่มรายชื่อเครื่องมือวัด", Code: "SCR-02-caliper"),
-            new("แก้ไขและลบเครื่องมือวัด", Code: "SCR-03-caliper"),
+            new("เพิ่มรายชื่อเครื่องมือวัด", Code: "SCR-02-caliper", Page: "calib/instruments/caliper/new"),
+            new("แก้ไขและลบเครื่องมือวัด", Code: "SCR-03-caliper", Page: "calib/instruments/caliper"),
             new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-caliper"),
             new("พิมพ์บันทึกผลการสอบเทียบ", Code: "RPT-03-caliper"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-caliper"),

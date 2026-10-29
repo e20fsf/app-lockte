@@ -13,6 +13,8 @@ public static class CalibModule
         services.AddModuleDbContext<CalibDbContext>(connectionString, CalibDbContext.Schema);
         services.AddScoped<CalibSettingsDirectory>();
         services.AddScoped<CalibSettingsRegistry>();
+        services.AddScoped<InstrumentDirectory>();
+        services.AddScoped<InstrumentRegistry>();
         return services;
     }
 

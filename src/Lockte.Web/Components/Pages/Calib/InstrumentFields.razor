@@ -1,0 +1,119 @@
+@using Lockte.SharedKernel
+@using Lockte.Calib
+@using Lockte.Org
+@inject ScopedServices Services
+
+@* The fields of SCR-02/03 for one kind (screens.md): ชื่อ/ยี่ห้อ/หน่วย/แกน/คู่มือ/ขีดจำกัด/เครื่องมือที่ใช้ suggest the values already used in the
+   kind (BR-005) but accept new ones; ผู้สอบเทียบ is picked from the employee register; แผนก and its เครื่องจักร from the organisation. *@
+<MudGrid Spacing="2">
+    <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.Code" Label="หมายเลขเครื่อง" MaxLength="InstrumentRegistry.CodeLength" Required="true" RequiredError="กรุณากรอกหมายเลขเครื่อง" /></MudItem>
+    <MudItem xs="12" sm="5">
+        <MudAutocomplete T="string" @bind-Value="Form.Name" Label="@Info.NameLabel" SearchFunc="@((t, _) => Filter(Choices.Names, t))" CoerceValue="true" CoerceText="true"
+                         Clearable="true" MaxLength="InstrumentRegistry.TextLength" />
+    </MudItem>
+    <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="Form.RegisteredOn" Label="วันที่ขึ้นบัญชี" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
+    @if (Info.ShowMaker)
+    {
+        <MudItem xs="12" sm="4">
+            <MudAutocomplete T="string" @bind-Value="Form.Maker" Label="ยี่ห้อ/ผู้ผลิต" SearchFunc="@((t, _) => Filter(Choices.Makers, t))" CoerceValue="true" CoerceText="true"
+                             Clearable="true" MaxLength="InstrumentRegistry.TextLength" />
+        </MudItem>
+    }
+    @if (Info.ShowAxis)
+    {
+        <MudItem xs="12" sm="4">
+            <MudAutocomplete T="string" @bind-Value="Form.Axis" Label="แกน (mm)" SearchFunc="@((t, _) => Filter(Choices.Axes, t))" CoerceValue="true" CoerceText="true"
+                             Clearable="true" MaxLength="InstrumentRegistry.TextLength" />
+        </MudItem>
+    }
+    @if (Info.ShowManual)
+    {
+        <MudItem xs="12" sm="4">
+            <MudAutocomplete T="string" @bind-Value="Form.ManualNo" Label="คู่มือวิธีการที่ใช้เลขที่" SearchFunc="@((t, _) => Filter(Choices.ManualNos, t))" CoerceValue="true"
+                             CoerceText="true" Clearable="true" MaxLength="InstrumentRegistry.ShortTextLength" />
+        </MudItem>
+    }
+    <MudItem xs="12" sm="4">
+        <MudSelect T="int?" Value="Form.DepartmentId" ValueChanged="DepartmentChanged" Label="แผนกที่ใช้งาน" Clearable="true">
+            @foreach (var d in departments)
+            {
+                <MudSelectItem T="int?" Value="d.Id">@d.Code  @d.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudSelect T="int" SelectedValues="Form.MachineIds" SelectedValuesChanged="MachinesChanged" MultiSelection="true" Label="เครื่องจักรที่เกี่ยวข้อง" Disabled="Form.DepartmentId is null"
+                   Clearable="true" ToStringFunc="@(id => machines.FirstOrDefault(m => m.Id == id)?.Code ?? id.ToString())">
+            @foreach (var m in MachinesOfDepartment)
+            {
+                <MudSelectItem T="int" Value="m.Id">@m.Code  @m.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    @if (Info.ShowRange)
+    {
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.Range" Label="พิกัดใช้งาน" MaxLength="InstrumentRegistry.TextLength" /></MudItem>
+    }
+    @if (Info.ShowResolution)
+    {
+        <MudItem xs="12" sm="4"><MudTextField @bind-Value="Form.Resolution" Label="ค่าความละเอียด" MaxLength="InstrumentRegistry.ShortTextLength" /></MudItem>
+    }
+    <MudItem xs="12" sm="4">
+        <MudAutocomplete T="string" @bind-Value="Form.Limit" Label="ขีดจำกัดที่ยอมรับได้" SearchFunc="@((t, _) => Filter(Choices.Limits, t))" CoerceValue="true" CoerceText="true"
+                         Clearable="true" MaxLength="InstrumentRegistry.ShortTextLength" />
+    </MudItem>
+    @if (Info.ShowUnit)
+    {
+        <MudItem xs="12" sm="4">
+            <MudAutocomplete T="string" @bind-Value="Form.Unit" Label="หน่วย" SearchFunc="@((t, _) => Filter(Choices.Units, t))" CoerceValue="true" CoerceText="true"
+                             Clearable="true" MaxLength="InstrumentRegistry.ShortTextLength" />
+        </MudItem>
+    }
+    @if (Info.ShowStandard)
+    {
+        <MudItem xs="12" sm="8">
+            <MudAutocomplete T="string" @bind-Value="Form.StandardUsed" Label="@Info.StandardLabel" SearchFunc="@((t, _) => Filter(Choices.StandardsUsed, t))" CoerceValue="true"
+                             CoerceText="true" Clearable="true" MaxLength="InstrumentRegistry.TextLength" />
+        </MudItem>
+    }
+    @if (Info.Internal)
+    {
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="CalibEmployeeRef" @bind-Value="Form.Calibrator" Label="ผู้สอบเทียบ (รหัส หรือ ชื่อ)" SearchFunc="SearchCalibratorsAsync"
+                             ToStringFunc="@(e => e is null ? "" : string.IsNullOrEmpty(e.Code) ? e.Name : $"{e.Code}  {e.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+        </MudItem>
+    }
+    <MudItem xs="12" sm="@(Info.Internal ? 6 : 12)"><MudTextField @bind-Value="Form.Note" Label="หมายเหตุ" MaxLength="InstrumentRegistry.TextLength" /></MudItem>
+</MudGrid>
+
+@code {
+    [Parameter, EditorRequired] public InstrumentKindInfo Info { get; set; } = null!;
+    [Parameter, EditorRequired] public InstrumentFormModel Form { get; set; } = null!;
+    /// <summary>The suggestions of BR-005; the page reloads them after each save so a new value is offered next time.</summary>
+    [Parameter] public InstrumentChoices Choices { get; set; } = new([], [], [], [], [], [], []);
+
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private IReadOnlyList<MachineDto> machines = [];
+
+    private IEnumerable<MachineDto> MachinesOfDepartment => machines.Where(m => m.DepartmentId == Form.DepartmentId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+        machines = await Services.RunAsync<OrgDirectory, IReadOnlyList<MachineDto>>(o => o.GetMachinesAsync());
+    }
+
+    private void DepartmentChanged(int? id)
+    {
+        Form.DepartmentId = id;
+        Form.MachineIds = Form.MachineIds.Where(m => machines.Any(x => x.Id == m && x.DepartmentId == id)).ToHashSet();
+    }
+
+    private void MachinesChanged(IEnumerable<int> ids) => Form.MachineIds = ids.ToHashSet();
+
+    private static Task<IEnumerable<string>> Filter(IReadOnlyList<string> values, string? text)
+        => Task.FromResult(values.Where(v => string.IsNullOrEmpty(text) || v.Contains(text, StringComparison.OrdinalIgnoreCase)));
+
+    private Task<IEnumerable<CalibEmployeeRef>> SearchCalibratorsAsync(string? text, CancellationToken token)
+        => Services.RunAsync<InstrumentDirectory, IEnumerable<CalibEmployeeRef>>(async d => await d.SearchCalibratorsAsync(text));
+}

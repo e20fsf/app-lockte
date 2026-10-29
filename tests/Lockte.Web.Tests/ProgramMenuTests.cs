@@ -143,4 +143,20 @@ public sealed class ProgramMenuTests
         Assert.Equal(["SCR-02-jig", "SCR-03-jig", "RPT-02-jig", "SCR-05", "SCR-04-jig"], CalibMenu.Menu.Find(CalibMenu.Jig)!.Items.Select(i => i.Code));
         Assert.Equal(["SCR-02-ext", "SCR-03-ext", "RPT-02-ext", "RPT-03-ext", "SCR-06"], CalibMenu.Menu.Find(CalibMenu.External)!.Items.Select(i => i.Code));
     }
+
+    [Fact]
+    public void Built_instrument_screens_are_opened_by_their_menu_items()
+    {
+        Assert.Equal("calib/instruments/caliper/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-caliper")!.Value.Item)); // built (#194)
+        Assert.Equal("calib/instruments/caliper", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-03-caliper")!.Value.Item));
+        Assert.Same(CalibMenu.Menu, ProgramMenus.Of("calib/instruments/caliper/new"));
+    }
+
+    [Fact]
+    public void Every_instrument_kind_has_its_screen_info_and_returns_to_its_own_menu()
+    {
+        Assert.Equal(Enum.GetValues<Lockte.Calib.InstrumentKind>().Order(), Lockte.Web.Components.Pages.Calib.InstrumentKindInfo.All.Select(k => k.Kind).Order());
+        Assert.All(Lockte.Web.Components.Pages.Calib.InstrumentKindInfo.All, k => Assert.NotNull(CalibMenu.Menu.Find(k.MenuNumber)));
+        Assert.Equal(Lockte.Web.Components.Pages.Calib.InstrumentKindInfo.All.Count, Lockte.Web.Components.Pages.Calib.InstrumentKindInfo.All.Select(k => k.Key).Distinct().Count());
+    }
 }

@@ -16,6 +16,8 @@
     <ProjectReference Include="..\Lockte.Prod\Lockte.Prod.csproj" />
     <!-- The interface of the employee lookup for สมุดสต็อกวัตถุดิบ (IPurchEmployeeLookup) lives in module จัดซื้อและวัตถุดิบ, which does not refer to this one. -->
     <ProjectReference Include="..\Lockte.Purch\Lockte.Purch.csproj" />
+    <!-- The interface of the employee lookup for ผู้สอบเทียบ (ICalibEmployeeLookup) lives in module สอบเทียบ, which does not refer to this one. -->
+    <ProjectReference Include="..\Lockte.Calib\Lockte.Calib.csproj" />
   </ItemGroup>
 
   <ItemGroup>
