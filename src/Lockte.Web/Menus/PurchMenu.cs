@@ -30,8 +30,8 @@ public static class PurchMenu
         ]),
         new(10, "ข้อมูลวัตถุดิบ", 1,
         [
-            new("เพิ่มรายชื่อวัตถุดิบ", Code: "SCR-17-1"),
-            new("แก้ไขและพิมพ์รายชื่อวัตถุดิบ", Code: "SCR-17-2"),
+            new("เพิ่มรายชื่อวัตถุดิบ", Code: "SCR-17-1", Page: "purch/materials/new"),
+            new("แก้ไขและพิมพ์รายชื่อวัตถุดิบ", Code: "SCR-17-2", Page: "purch/materials"),
         ]),
         new(3, "ใบขออนุมัติสั่งซื้อและใบสั่งซื้อ", 1,
         [

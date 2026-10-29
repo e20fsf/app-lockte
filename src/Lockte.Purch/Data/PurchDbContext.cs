@@ -16,6 +16,8 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
     internal DbSet<Supplier> Suppliers => Set<Supplier>();
     internal DbSet<SupplierCreditOption> SupplierCreditOptions => Set<SupplierCreditOption>();
     internal DbSet<SupplierBusinessType> SupplierBusinessTypes => Set<SupplierBusinessType>();
+    internal DbSet<Material> Materials => Set<Material>();
+    internal DbSet<MaterialGroup> MaterialGroups => Set<MaterialGroup>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -73,6 +75,31 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             o.HasAuditName("ประเภทธุรกิจผู้ขาย");
             o.Property(x => x.Name).HasMaxLength(SupplierRegistry.TextLength).HasAuditName("ประเภทธุรกิจ");
             o.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<Material>(m =>
+        {
+            m.HasAuditName("วัตถุดิบ");
+            m.Property(x => x.Code).HasMaxLength(MaterialRegistry.CodeLength).HasAuditName("รหัสวัตถุดิบ");
+            m.Property(x => x.Name).HasMaxLength(MaterialRegistry.NameLength).HasAuditName("ชื่อวัตถุดิบ");
+            m.Property(x => x.Unit).HasMaxLength(MaterialRegistry.UnitLength).HasAuditName("หน่วย");
+            m.Property(x => x.MinimumQuantity).HasPrecision(18, 4).HasAuditName("จุดสั่งซื้อต่ำสุด");
+            m.Property(x => x.Cost).HasPrecision(18, 4).HasAuditName("ราคา");
+            m.Property(x => x.LatestSupplierId).HasAuditName("ผู้ขายล่าสุด");
+            m.Property(x => x.IsMain).HasAuditName("วัตถุดิบหลัก");
+            m.Property(x => x.BuyBackPrice).HasPrecision(18, 4).HasAuditName("ราคาซื้อคืน กก.ละ");
+            m.Property(x => x.ProductId).HasAuditName("สินค้า");
+            m.HasIndex(x => x.Code).IsUnique();
+            m.HasIndex(x => x.LatestSupplierId);
+            m.HasOne(x => x.LatestSupplier).WithMany().HasForeignKey(x => x.LatestSupplierId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MaterialGroup>(g =>
+        {
+            g.HasAuditName("กลุ่มรหัสวัตถุดิบ");
+            g.Property(x => x.Prefix).HasMaxLength(MaterialRegistry.CodeLength).HasAuditName("รหัสขึ้นต้น");
+            g.Property(x => x.Name).HasMaxLength(MaterialRegistry.NameLength).HasAuditName("ชื่อกลุ่ม");
+            g.HasIndex(x => x.Prefix).IsUnique();
         });
     }
 }
