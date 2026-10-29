@@ -1,0 +1,29 @@
+@using Lockte.Purch
+@* RPT-28 / RPT-29 รายชื่อวัตถุดิบ, ระดับ B on A4 ตั้ง: [กลุ่มรหัส …]; ที่, รหัส, ชื่อ, หน่วย, ราคา (COST, 2 ทศนิยม). *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    @if (Report.Group is { Length: > 0 })
+    {
+        <p class="sub">กลุ่มรหัส @Report.Group*</p>
+    }
+    <table>
+        <colgroup><col style="width:8%" /><col style="width:16%" /><col style="width:46%" /><col style="width:12%" /><col style="width:18%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อวัตถุดิบ</th><th>หน่วย</th><th class="num">ราคา</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var m = Report.Rows[i];
+                <tr><td class="num">@(i + 1)</td><td>@m.Code</td><td>@m.Name</td><td>@m.Unit</td><td class="num">@ReportText.Decimal2(m.Cost)</td></tr>
+            }
+            <tr><td colspan="5" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MaterialListReport Report { get; set; } = null!;
+}

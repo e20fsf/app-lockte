@@ -83,7 +83,8 @@ public static class PurchMenu
         new(11, "สต็อกวัตถุดิบ", 1, // STOCK วัตถุดิบ
         [
             new("เบิกและแก้ไขใบเบิกวัตถุดิบ", Code: "SCR-14", Page: "purch/stock/issue"),
-            new("พิมพ์สต็อกการ์ดวัตถุดิบ", Code: "RPT-14"), // STOCK CARD
+            new("พิมพ์สต็อกการ์ดวัตถุดิบ", Code: "RPT-14", Page: "purch/reports/stock/card"), // STOCK CARD
+            new("พิมพ์รายงานการตัดสต็อก", Code: "RPT-26", Page: "purch/reports/stock/cut"),
             new("ตัดสต็อกวัตถุดิบ", Code: "SCR-18", Page: "purch/stock/close"), // ตัด STOCK วัตถุดิบ
             new("แก้ไขหรือเพิ่มสต็อกวัตถุดิบ", Code: "SCR-16", Page: "purch/stock/entries"), // แก้ไขหรือเพิ่ม STOCK วัตถุดิบ
         ]),

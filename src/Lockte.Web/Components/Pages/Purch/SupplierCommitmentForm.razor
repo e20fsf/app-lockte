@@ -1,0 +1,53 @@
+@page "/purch/reports/commitment"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+
+@* พิมพ์หนังสือแสดงความมุ่งมั่นของผู้ส่งมอบ (SCR-02 → RPT-33): pick the supplier, print one letter for it to sign. The supplier chosen last is remembered in this browser (BR-081). *@
+<PageTitle>พิมพ์หนังสือแสดงความมุ่งมั่นของผู้ขาย — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์หนังสือแสดงความมุ่งมั่นของผู้ส่งมอบหรือผู้รับเหมาช่วง</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (รหัสหรือชื่อ)" />
+    <MudStack Row="true" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/reports/purch/commitment?supplier={supplier?.Id}")" Target="_blank" Disabled="@(supplier is null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(9)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private const string Key = "purch.commitment";
+    private SupplierDto? supplier;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            if (await Storage.GetAsync<int?>(Key) is { Success: true, Value: { } id})
+            {
+                supplier = (await Services.RunAsync<SupplierDirectory, IReadOnlyList<SupplierDto>>(d => d.GetAllAsync())).FirstOrDefault(s => s.Id == id);
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): start empty.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try
+        {
+            await Storage.SetAsync(Key, supplier?.Id);
+        }
+        catch (Exception)
+        {
+            // remembering is a convenience only
+        }
+    }
+}

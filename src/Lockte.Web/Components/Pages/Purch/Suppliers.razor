@@ -10,7 +10,7 @@
 
 @* ผู้ขาย (SCR-02, BR-002): เพิ่ม (ฟอร์ม SP) and แก้ไข (SP1/SP2) on one page — pick a row of the list to edit it, "รายต่อไป" for a
    new one. Unlike the legacy the code cannot repeat (AC-32) and a supplier is deleted with a button and a confirmation, not by
-   clearing its name. The print buttons (RPT-30…33) come with #263/#264. *@
+   clearing its name. The list prints (RPT-30/31) are the buttons below the list; RPT-32/33 are the last two. *@
 <PageTitle>ผู้ขาย — LOCKTE</PageTitle>
 <h1 class="mb-4">ผู้ขาย</h1>
 
@@ -94,6 +94,10 @@
 
 <MudStack Row="true" Spacing="2" Class="mt-4">
     <MudButton Variant="Variant.Outlined" Href="purch/suppliers/options" StartIcon="@Icons.Material.Filled.Tune">แก้ตัวเลือกเครดิตและประเภทธุรกิจ</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="reports/purch/lists/suppliers" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อผู้ขายตามรหัส</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="reports/purch/lists/suppliers?byName=true" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อผู้ขายตามชื่อ</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="reports/purch/approved-suppliers" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนผู้ขาย (ASL)</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="purch/reports/commitment" StartIcon="@Icons.Material.Filled.Print">พิมพ์หนังสือแสดงความมุ่งมั่น</MudButton>
 </MudStack>
 
 <MudButton Href="@PurchMenu.HrefOf(9)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>

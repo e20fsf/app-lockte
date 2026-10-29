@@ -1,0 +1,25 @@
+@using Lockte.Purch
+@* RPT-32 ทะเบียนผู้ขาย (Approved Supplier List), ระดับ B on A4 นอน: the suppliers used in production — ที่, รหัส, ชื่อผู้ขาย, ที่อยู่ (2 บรรทัด), โทรศัพท์, FAX, ผู้ติดต่อ, เครดิต (วัน; "เงินสด" for 0). *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="font-size:.85em">
+        <colgroup><col style="width:4%" /><col style="width:8%" /><col style="width:22%" /><col style="width:28%" /><col style="width:11%" /><col style="width:10%" /><col style="width:11%" /><col style="width:6%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อผู้ขาย</th><th>ที่อยู่</th><th>โทรศัพท์</th><th>FAX</th><th>ผู้ติดต่อ</th><th>เครดิต (วัน)</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var s = Report.Rows[i];
+                <tr><td class="num">@(i + 1)</td><td>@s.Code</td><td>@s.Name</td><td>@s.Address1<br />@s.Address2</td><td>@s.Tel1</td><td>@s.Fax</td><td>@s.Contact</td><td>@s.CreditText</td></tr>
+            }
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ApprovedSupplierReport Report { get; set; } = null!;
+}

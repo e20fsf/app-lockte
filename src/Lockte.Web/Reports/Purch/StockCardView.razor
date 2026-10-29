@@ -1,0 +1,33 @@
+@using Lockte.Purch
+@* RPT-14 STOCK CARD, ระดับ B on A4 ตั้ง: "รหัส … ชื่อวัตถุดิบ … หน่วย …"; วันที่, เลขที่, ลำดับ, เข้า, เบิก (ค่าลบ), คงเหลือ (running), พนักงาน, หมายเหตุ — then "รวม" เข้า, เบิก, คงเหลือสุทธิ. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub"><b>รหัส</b> @Report.Code&emsp;<b>ชื่อวัตถุดิบ</b> @Report.Name&emsp;<b>หน่วย</b> @Report.Unit</p>
+    <table>
+        <colgroup><col style="width:12%" /><col style="width:13%" /><col style="width:8%" /><col style="width:12%" /><col style="width:12%" /><col style="width:13%" /><col style="width:10%" /><col style="width:20%" /></colgroup>
+        <thead><tr><th>วันที่</th><th>เลขที่</th><th>ลำดับ</th><th class="num">เข้า</th><th class="num">เบิก</th><th class="num">คงเหลือ</th><th>พนักงาน</th><th>หมายเหตุ</th></tr></thead>
+        <tbody>
+            @foreach (var r in Report.Rows)
+            {
+                <tr>
+                    <td>@ReportText.Date(r.Date)</td><td>@r.DocumentNo</td><td>@r.LineNo</td>
+                    <td class="num">@(r.In is { } i ? ReportText.Decimal2(i) : "")</td><td class="num">@(r.Out is { } o ? ReportText.Decimal2(o) : "")</td>
+                    <td class="num">@ReportText.Decimal2(r.Balance)</td><td>@r.EmployeeCode</td><td>@r.Note</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="3"><b>รวม</b></td><td class="num"><b>@ReportText.Decimal2(Report.TotalIn)</b></td><td class="num"><b>@ReportText.Decimal2(Report.TotalOut)</b></td>
+                <td class="num"><b>@ReportText.Decimal2(Report.Balance)</b></td><td colspan="2"></td>
+            </tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public StockCardReport Report { get; set; } = null!;
+}
