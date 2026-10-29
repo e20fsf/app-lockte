@@ -179,7 +179,7 @@ public sealed class PurchaseRequestRegistry(PurchDbContext db, OrgDirectory org,
                 Unit = Clean(line.Unit) ?? material.Unit,
                 Quantity = line.Quantity!.Value,
                 UnitPrice = price,
-                NetAmount = LineNet(price, line.Quantity.Value),
+                NetAmount = PurchaseOrderMath.LineNet(price, line.Quantity.Value),
                 TankWeight = line.TankWeight,
             });
         }
@@ -252,7 +252,7 @@ public sealed class PurchaseRequestRegistry(PurchDbContext db, OrgDirectory org,
             line.Unit = Clean(edit.Unit) ?? (materialChanged || edit.Id is null ? material.Unit : line.Unit);
             line.Quantity = edit.Quantity!.Value;
             line.UnitPrice = edit.UnitPrice ?? (materialChanged || edit.Id is null ? material.Cost : line.UnitPrice);
-            line.NetAmount = LineNet(line.UnitPrice, line.Quantity);
+            line.NetAmount = PurchaseOrderMath.LineNet(line.UnitPrice, line.Quantity);
             line.TankWeight = edit.TankWeight;
         }
         await db.SaveChangesAsync();
@@ -275,9 +275,6 @@ public sealed class PurchaseRequestRegistry(PurchDbContext db, OrgDirectory org,
             ? ServiceResult.Ok()
             : ServiceResult.Fail("ลบรายการนี้ไม่ได้ เพราะมีรายการอื่นอ้างถึงอยู่");
     }
-
-    /// <summary>RND-B: price × quantity as the legacy's doubles, not rounded (the same as <c>PurchaseOrderMath.LineNet</c> of #221).</summary>
-    private static decimal LineNet(decimal unitPrice, decimal quantity) => (decimal)((double)unitPrice * (double)quantity);
 
     private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 }
