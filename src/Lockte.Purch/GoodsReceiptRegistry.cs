@@ -47,6 +47,9 @@ public sealed record GoodsReceiptDto(
     string? ReturnNote,
     bool OnTime,
     decimal OutstandingAfter,
+    string? Lot,
+    bool? HasCertificate,
+    string? QaNote,
     byte[] RowVersion);
 
 /// <summary>One delivery to record: <see cref="UnitPrice"/> null = the order's price, <see cref="SupplierId"/> null = the order's supplier.</summary>
@@ -78,6 +81,22 @@ public sealed record GoodsReceiptUpdate(
     string? Unit,
     bool Failed,
     string? ReturnNote);
+
+/// <summary>
+/// ผลตรวจรับของ QA (SCR-13, BR-035): LOT, ผลการตรวจ (<see cref="Failed"/> = ไม่ผ่าน), ใบรับรอง, หมายเหตุ — and the name of the material and the supplier as the document shows
+/// them (DQ-04). Null name/unit/supplier keep what the receipt has.
+/// </summary>
+public sealed record GoodsReceiptQaUpdate(
+    int Id,
+    byte[] RowVersion,
+    string? Lot,
+    bool Failed,
+    bool? HasCertificate,
+    string? Note,
+    int? MaterialId = null,
+    string? MaterialName = null,
+    string? Unit = null,
+    int? SupplierId = null);
 
 /// <summary>An order with something left to receive (SCR-11's "เลือกเลขที่ใบสั่งซื้อ").</summary>
 public sealed record ReceivableOrder(int OrderId, string OrderNo, DateOnly OrderDate, string SupplierName, int OutstandingLines);
@@ -215,6 +234,49 @@ public sealed class GoodsReceiptRegistry(PurchDbContext db, StockLedger ledger)
         return ServiceResult.Ok();
     }
 
+    /// <summary>
+    /// QA บันทึกผลตรวจรับ (SCR-13, BR-035). Marking a receipt that already went into the stock as ไม่ผ่าน **does not change the stock** (ข้อสมมติ ค), and the order does not go back
+    /// to ยอดค้างรับ — the screen warns the user to correct the stock (AC-39). A stale row throws <see cref="ConcurrencyConflictException"/>.
+    /// </summary>
+    public async Task<ServiceResult> SaveQaAsync(GoodsReceiptQaUpdate input)
+    {
+        var receipt = await db.GoodsReceipts.Include(r => r.PurchaseOrderLine).FirstOrDefaultAsync(r => r.Id == input.Id);
+        if (receipt is null) return ServiceResult.Fail("ไม่พบรายการรับของนี้ (อาจถูกลบไปแล้ว)");
+        receipt.ExpectRowVersion(input.RowVersion);
+        var errors = new List<string>();
+        if (Clean(input.Lot)?.Length > StockLedger.TextLength || Clean(input.Note)?.Length > StockLedger.TextLength) errors.Add($"LOT และหมายเหตุยาวได้ไม่เกิน {StockLedger.TextLength} ตัว");
+        Material? material = null;
+        if (input.MaterialId is { } materialId && materialId != receipt.MaterialId)
+        {
+            material = await db.Materials.AsNoTracking().FirstOrDefaultAsync(m => m.Id == materialId);
+            if (material is null) errors.Add("ไม่พบวัตถุดิบที่เลือก");
+        }
+        if (input.SupplierId is { } supplierId && !await db.Suppliers.AnyAsync(s => s.Id == supplierId)) errors.Add("ไม่พบผู้ขายที่เลือก");
+        if (errors.Count > 0) return new ServiceResult(false, errors);
+
+        var line = receipt.PurchaseOrderLine!;
+        var before = await OutstandingAsync(line);
+        receipt.Lot = Clean(input.Lot);
+        receipt.Failed = input.Failed;
+        receipt.HasCertificate = input.HasCertificate;
+        receipt.QaNote = Clean(input.Note);
+        if (material is not null)
+        {
+            receipt.MaterialId = material.Id;
+            receipt.MaterialName = Clean(input.MaterialName) ?? material.Name;
+            receipt.Unit = Clean(input.Unit) ?? material.Unit;
+        }
+        else
+        {
+            receipt.MaterialName = Clean(input.MaterialName) ?? receipt.MaterialName;
+            receipt.Unit = Clean(input.Unit) ?? receipt.Unit;
+        }
+        if (input.SupplierId is { } supplier) receipt.SupplierId = supplier;
+        await db.SaveChangesAsync();
+        await KeepClosedAsync(line, before);
+        return ServiceResult.Ok(receipt.Id);
+    }
+
     /// <summary>ยอดค้างรับ of a line: ordered − Σ received that did not fail.</summary>
     private async Task<decimal> OutstandingAsync(PurchaseOrderLine line)
         => line.Quantity - (await db.GoodsReceipts.Where(r => r.PurchaseOrderLineId == line.Id && !r.Failed).SumAsync(r => (decimal?)r.Quantity) ?? 0);
@@ -274,6 +336,17 @@ public sealed class GoodsReceiptDirectory(PurchDbContext db)
         return result;
     }
 
+    /// <summary>
+    /// ทุกรายการที่รับในวันที่ระบุ (SCR-13, BR-035 ข้อ 1) — every material, main or not — by order number and line. The date is a date: the legacy compared it with text.
+    /// </summary>
+    public async Task<IReadOnlyList<GoodsReceiptDto>> GetByDateAsync(DateOnly date)
+    {
+        var lineIds = await db.GoodsReceipts.AsNoTracking().Where(r => r.ReceiveDate == date).Select(r => r.PurchaseOrderLineId).Distinct().ToListAsync();
+        var result = new List<GoodsReceiptDto>();
+        foreach (var lineId in lineIds) result.AddRange((await GetReceiptsAsync(lineId)).Where(r => r.ReceiveDate == date));
+        return result.OrderBy(r => r.OrderNo.Length).ThenBy(r => r.OrderNo).ThenBy(r => r.Id).ToList();
+    }
+
     /// <summary>Orders that have receipts in the history (SCR-12's "เลือกเลขที่ใบสั่งซื้อ"), the highest number first.</summary>
     public async Task<IReadOnlyList<ReceivableOrder>> GetHistoryOrdersAsync()
         => (await db.GoodsReceipts.AsNoTracking().Select(r => new { r.PurchaseOrderLine!.PurchaseOrderId, r.PurchaseOrderLine.PurchaseOrder!.OrderNo, r.PurchaseOrderLine.PurchaseOrder.OrderDate, r.PurchaseOrderLine.PurchaseOrder.SupplierName })
@@ -291,7 +364,7 @@ public sealed class GoodsReceiptDirectory(PurchDbContext db)
 
     private static GoodsReceiptDto ToDto(GoodsReceipt r, string orderNo, DateOnly? desired, decimal outstandingAfter) => new(
         r.Id, r.PurchaseOrderLineId, orderNo, r.MaterialId, r.Material!.Code, r.MaterialName, r.Unit, r.Failed, r.ReceiveDate, r.Quantity, r.InvoiceNo, r.InvoiceLineNo, r.UnitPrice, r.NetAmount,
-        r.SupplierId, r.ReturnNote, GoodsReceiptMath.OnTime(desired, r.ReceiveDate), outstandingAfter, r.RowVersion);
+        r.SupplierId, r.ReturnNote, GoodsReceiptMath.OnTime(desired, r.ReceiveDate), outstandingAfter, r.Lot, r.HasCertificate, r.QaNote, r.RowVersion);
 
     private static bool IsOutstanding(PurchaseOrderLine line, Dictionary<int, decimal> received)
         => !line.ReceivingCancelled && line.Quantity - received.GetValueOrDefault(line.Id) > 0;

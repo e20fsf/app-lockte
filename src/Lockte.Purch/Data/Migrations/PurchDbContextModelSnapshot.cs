@@ -120,6 +120,10 @@ namespace Lockte.Purch.Data.Migrations
                         .HasColumnType("bit")
                         .HasAnnotation("Lockte:AuditName", "ผลตรวจไม่ผ่าน");
 
+                    b.Property<bool?>("HasCertificate")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ใบรับรอง");
+
                     b.Property<string>("InvoiceLineNo")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
@@ -129,6 +133,11 @@ namespace Lockte.Purch.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
                         .HasAnnotation("Lockte:AuditName", "เลขที่ใบส่งสินค้า");
+
+                    b.Property<string>("Lot")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "LOT #");
 
                     b.Property<int>("MaterialId")
                         .HasColumnType("int")
@@ -148,6 +157,11 @@ namespace Lockte.Purch.Data.Migrations
                     b.Property<int>("PurchaseOrderLineId")
                         .HasColumnType("int")
                         .HasAnnotation("Lockte:AuditName", "รายการใบสั่งซื้อ");
+
+                    b.Property<string>("QaNote")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "หมายเหตุผลตรวจ");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)

@@ -266,6 +266,9 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             r.Property(x => x.MaterialName).HasMaxLength(MaterialRegistry.NameLength).HasAuditName("ชื่อวัตถุดิบ");
             r.Property(x => x.Unit).HasMaxLength(MaterialRegistry.UnitLength).HasAuditName("หน่วย");
             r.Property(x => x.Failed).HasAuditName("ผลตรวจไม่ผ่าน");
+            r.Property(x => x.Lot).HasMaxLength(StockLedger.TextLength).HasAuditName("LOT #");
+            r.Property(x => x.HasCertificate).HasAuditName("ใบรับรอง");
+            r.Property(x => x.QaNote).HasMaxLength(StockLedger.TextLength).HasAuditName("หมายเหตุผลตรวจ");
             r.HasIndex(x => x.MaterialId);
             r.HasIndex(x => x.PurchaseOrderLineId);
             r.HasIndex(x => x.ReceiveDate);

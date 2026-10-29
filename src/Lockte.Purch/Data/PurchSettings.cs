@@ -463,6 +463,12 @@ internal sealed class GoodsReceipt : IAudited
     /// ผลตรวจ ไม่ผ่าน (BR-032): kept as evidence for the supplier's evaluation, not counted as received — the order stays waiting for the full quantity — and never goes into the stock.
     /// </summary>
     public bool Failed { get; set; }
+    /// <summary>LOT # that QA writes after the receipt (BR-035); the supplier evaluation counts only receipts that have one (BR-050).</summary>
+    public string? Lot { get; set; }
+    /// <summary>ใบรับรอง มี/ไม่มี (NOPASS); null = not filled in yet.</summary>
+    public bool? HasCertificate { get; set; }
+    /// <summary>หมายเหตุผลตรวจ QA (RESULT).</summary>
+    public string? QaNote { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

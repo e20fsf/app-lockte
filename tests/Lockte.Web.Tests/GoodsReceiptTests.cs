@@ -257,4 +257,57 @@ public sealed class GoodsReceiptTests(LocalDbFixture db)
         Assert.Contains("จำนวนรับต้องมากกว่า 0 (ถ้าไม่ต้องการรายการนี้ ใช้ปุ่มลบ)",
             (await AsAsync(s => s.Get<GoodsReceiptRegistry>().UpdateAsync(update with { RowVersion = edited.RowVersion, Quantity = 0m }))).Errors);
     }
+
+    // ---------- #251: QA รับวัตถุดิบ (BR-035, AC-39) ----------
+
+    [Fact]
+    public async Task A_date_lists_everything_received_that_day_main_or_not_BR_035_1()
+    {
+        var day = new DateOnly(2026, 8, Random.Shared.Next(1, 28));
+        var main = await OrderAsync(10m, 1m, main: true);
+        var other = await OrderAsync(10m, 1m, main: false);
+        var elsewhere = await OrderAsync(10m, 1m, main: true);
+        await ReceiveAsync(new GoodsReceiptInput(main.OrderLineId, day, 4m), new GoodsReceiptInput(other.OrderLineId, day, 2m), new GoodsReceiptInput(elsewhere.OrderLineId, day.AddDays(1), 1m));
+
+        var received = await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetByDateAsync(day));
+        Assert.Contains(received, r => r.OrderNo == main.OrderNo);
+        Assert.Contains(received, r => r.OrderNo == other.OrderNo); // not filtered by วัตถุดิบหลัก (AC-39)
+        Assert.DoesNotContain(received, r => r.OrderNo == elsewhere.OrderNo);
+        Assert.All(received, r => Assert.Equal(day, r.ReceiveDate));
+    }
+
+    [Fact]
+    public async Task QA_writes_the_lot_result_certificate_and_note_and_marking_failed_leaves_the_stock_BR_035_2_AC_39()
+    {
+        var order = await OrderAsync(10m, 1m, main: true);
+        await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026, 10m));
+        var receipt = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.Equal(10m, await StockAsync(order.MaterialId));
+
+        Assert.True((await AsAsync(s => s.Get<GoodsReceiptRegistry>().SaveQaAsync(new GoodsReceiptQaUpdate(receipt.Id, receipt.RowVersion, " L-0911 ", false, true, "ตรวจแล้ว")))).Succeeded);
+        var passed = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.Equal(("L-0911", false, true, "ตรวจแล้ว"), (passed.Lot, passed.Failed, passed.HasCertificate, passed.QaNote));
+
+        Assert.True((await AsAsync(s => s.Get<GoodsReceiptRegistry>().SaveQaAsync(new GoodsReceiptQaUpdate(passed.Id, passed.RowVersion, "L-0911", true, false, "ไม่ผ่าน")))).Succeeded);
+        var failed = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.True(failed.Failed);
+        Assert.Equal(10m, await StockAsync(order.MaterialId)); // the stock is unchanged
+        Assert.DoesNotContain(await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetOrdersAsync()), o => o.OrderNo == order.OrderNo); // and the order does not go back to waiting
+
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
+            AsAsync(s => s.Get<GoodsReceiptRegistry>().SaveQaAsync(new GoodsReceiptQaUpdate(passed.Id, passed.RowVersion, "ซ้ำ", false, null, null))));
+    }
+
+    [Fact]
+    public async Task QA_can_correct_the_material_name_and_the_supplier_on_the_document()
+    {
+        var order = await OrderAsync(10m, 1m, main: false);
+        await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026, 3m));
+        var receipt = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        var supplier = await SupplierAsync();
+        Assert.True((await AsAsync(s => s.Get<GoodsReceiptRegistry>().SaveQaAsync(new GoodsReceiptQaUpdate(receipt.Id, receipt.RowVersion, null, false, null, null, MaterialName: "ชื่อที่ QA แก้", Unit: "ถัง", SupplierId: supplier)))).Succeeded);
+        var edited = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.Equal(("ชื่อที่ QA แก้", "ถัง", supplier), (edited.MaterialName, edited.Unit, edited.SupplierId));
+        Assert.Contains("ไม่พบผู้ขายที่เลือก", (await AsAsync(s => s.Get<GoodsReceiptRegistry>().SaveQaAsync(new GoodsReceiptQaUpdate(edited.Id, edited.RowVersion, null, false, null, null, SupplierId: int.MaxValue)))).Errors);
+    }
 }
