@@ -71,8 +71,8 @@ public static class CalibMenu
         ]),
         new(Jig, "JIG", Internal,
         [
-            new("เพิ่มรายชื่อ JIG", Code: "SCR-02-jig"),
-            new("แก้ไขและลบรายชื่อ JIG", Code: "SCR-03-jig"),
+            new("เพิ่มรายชื่อ JIG", Code: "SCR-02-jig", Page: "calib/instruments/jig/new"),
+            new("แก้ไขและลบรายชื่อ JIG", Code: "SCR-03-jig", Page: "calib/instruments/jig"),
             new("บัญชีรายชื่อ JIG", Code: "RPT-02-jig"),
             new("พิมพ์บันทึกการตรวจสอบ JIG", Code: "SCR-05"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-jig"),

@@ -125,7 +125,7 @@ public sealed class ProgramMenuTests
             n => Assert.Equal(CalibMenu.Internal, CalibMenu.Menu.Find(n)!.Back));
 
         Assert.Equal("calib/RPT-01", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("RPT-01")!.Value.Item));
-        Assert.Equal("calib/SCR-02-jig", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-jig")!.Value.Item));
+        Assert.Equal("calib/SCR-05", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-05")!.Value.Item));
         Assert.Equal("calib/menu/7", CalibMenu.HrefOf(CalibMenu.Jig));
         Assert.Equal("calib", CalibMenu.HrefOf(ProgramMenu.Main));
         Assert.Same(CalibMenu.Menu, ProgramMenus.Of("calib/menu/4"));
@@ -168,5 +168,12 @@ public sealed class ProgramMenuTests
     {
         Assert.Equal($"calib/instruments/{key}/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem($"SCR-02-{key}")!.Value.Item));
         Assert.Equal($"calib/instruments/{key}", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem($"SCR-03-{key}")!.Value.Item));
+    }
+
+    [Fact]
+    public void Jig_screens_are_opened_by_their_menu_items() // built (#196)
+    {
+        Assert.Equal("calib/instruments/jig/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-jig")!.Value.Item));
+        Assert.Equal("calib/instruments/jig", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-03-jig")!.Value.Item));
     }
 }
