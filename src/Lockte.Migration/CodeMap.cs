@@ -28,10 +28,15 @@ public static class CodeKinds
     /// </summary>
     public const string SupplierName = "supplier-name";
 
+    /// <summary>
+    /// T-Stock.EMP_ID of a ใบเบิก (#267) that is not the code of an employee as it stands (<c>P178/</c>, <c>ญ178</c>, <c>136</c>) → รหัสพนักงาน in the HR register; code <c>-</c> = decided to link nobody.
+    /// </summary>
+    public const string StockEmployee = "stock-employee";
+
     /// <summary>The code of a decision "link nobody" (<see cref="ProductionEmployee"/>, <see cref="SalesRepresentative"/>).</summary>
     public const string Nobody = "-";
 
-    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift, ProductionEmployee, SalesRepresentative, SupplierName];
+    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift, ProductionEmployee, SalesRepresentative, SupplierName, StockEmployee];
 }
 
 /// <summary>

@@ -85,7 +85,10 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         ["SP", "MTR_NAME", "รายชื่อแผนก", "PURC", "CREDIT", "ประเภทธุรกิจ", "เหตุผลในการขอซื้อ", "หมายเหตุ", "รหัสตัวแรกของวัตถุดิบ"];
 
     /// <summary>The history tables of <c>วัตถุดิบ.accdb</c> that the migration reads (#268, and the ones the tickets after it add).</summary>
-    public static IReadOnlyList<string> PurchHistoryTables { get; } = ["ประเมินผู้ขาย"];
+    public static IReadOnlyList<string> PurchHistoryTables { get; } = ["ประเมินผู้ขาย", "Stock"];
+
+    /// <summary>The balances carried forward by every cut are moved from 1 Jan 2025 (#267); the older ones and the history of the issues (P_ADDST) are not.</summary>
+    public static readonly DateOnly PurchCutFrom = new(2025, 1, 1);
 
     /// <summary>ประวัติ ORDER and ประวัติการส่ง are moved from 1 Jan 2025 (#112, ข้อตัดสิน #17); ORDER ค้างส่ง (ODD) all.</summary>
     public static readonly DateOnly OrderHistoryFrom = new(2025, 1, 1);
@@ -163,6 +166,9 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         {
             foreach (var table in PurchHistoryTables)
                 tables[table] = Read(connection, table, null);
+            tables["ต้นงวดP_ST"] = Read(connection, "ต้นงวดP_ST", WhereFrom("DATE", PurchCutFrom));
+            using var count = new OleDbCommand("SELECT COUNT(*) FROM [ต้นงวดP_ST]", connection);
+            counts["ต้นงวดP_ST"] = Convert.ToInt32(count.ExecuteScalar());
         });
 
     [SupportedOSPlatform("windows")]

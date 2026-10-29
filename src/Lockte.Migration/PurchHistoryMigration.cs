@@ -10,7 +10,7 @@ namespace Lockte.Migration;
 /// DQ report to be decided in the code map (<see cref="CodeKinds.SupplierName"/>) and run again. The row for <c>*</c> (all suppliers added up) is no supplier and is not loaded. Loaded through
 /// <see cref="PurchHistoryImport"/>, outside the change history (#39).
 /// </summary>
-public sealed class PurchHistoryMigration(AuditScope audit, PurchHistoryImport import, SupplierDirectory suppliers)
+public sealed class PurchHistoryMigration(AuditScope audit, PurchHistoryImport import, SupplierDirectory suppliers, MaterialDirectory materials, IPurchEmployeeLookup employees)
 {
     private const string Other = "NF-06";
     private const string SupplierName = "DQ-16";
@@ -27,6 +27,7 @@ public sealed class PurchHistoryMigration(AuditScope audit, PurchHistoryImport i
         (legacy, map, report) = (legacyDatabase, codeMap, into ?? new MigrationReport { Source = legacyDatabase.Source });
         using (audit.SuppressRowChanges())
             await LoadEvaluationsAsync();
+            await LoadStockAsync();
         return report;
     }
 
@@ -97,6 +98,124 @@ public sealed class PurchHistoryMigration(AuditScope audit, PurchHistoryImport i
         for (var n = 0; n < 6; n++)
             report.MonthlyTotals.Add(new MonthlyTotal(table, "ทุกไตรมาส", measures[n], expected[n], expected[n], sums[n]));
         report.Notes.Add($"ผลประเมินผู้ขาย: ผลรวมทุกผู้ขาย (SUP = *) {excluded} แถว ไม่ย้าย");
+    }
+
+
+    // ---------- สมุดสต็อก (Stock) และยอดยกมาของทุกการตัด (ต้นงวดP_ST) (#267) ----------
+
+    private const string UnknownMaterial = "DQ-07";
+    private const string NegativeBalance = "DQ-08";
+    private const string BadDate = "DQ-09";
+    private const string BadEmployee = "DQ-10";
+
+    private async Task LoadStockAsync()
+    {
+        const string table = "Stock";
+        var rows = legacy[table];
+        var materialByCode = (await materials.GetAllAsync()).ToDictionary(m => m.Code, StringComparer.OrdinalIgnoreCase);
+        var supplierByCode = (await suppliers.GetAllAsync()).ToDictionary(s => s.Code, StringComparer.OrdinalIgnoreCase);
+        var employeeCache = new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase);
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        await import.DeleteStockAsync();
+        var loaded = new List<ImportedStockEntry>();
+        var expected = new Dictionary<int, decimal>();
+        var unmatched = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        int rejected = 0;
+        decimal sumIn = 0, sumOut = 0;
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+            var position = $"แถวที่ {i + 1}";
+            var quantity = (decimal)(row.Number("RE_QTY") ?? 0);
+            if (row.Text("MTR_CODE") is not { } code) { rejected++; report.Add(table, position, Other, "ไม่มีรหัสวัตถุดิบ", MigrationReport.NotLoaded); continue; }
+            if (!materialByCode.TryGetValue(code, out var material))
+            {
+                // DQ-07: matched by the code in capitals; what cannot be matched is reported with its quantity, which stays in the totals of the report
+                rejected++;
+                unmatched[code.ToUpperInvariant()] = unmatched.GetValueOrDefault(code.ToUpperInvariant()) + quantity;
+                report.Add(table, code, UnknownMaterial, $"รหัสวัตถุดิบไม่อยู่ในทะเบียน (จำนวน {quantity.ToString("0.####", CultureInfo.InvariantCulture)})", MigrationReport.NotLoaded);
+                continue;
+            }
+            if (row.Date("RE_DATE") is not { } legacyDate) { rejected++; report.Add(table, code, BadDate, $"{position}: ไม่มีวันที่ — ไม่โหลด (จำนวน {quantity.ToString("0.####", CultureInfo.InvariantCulture)})", MigrationReport.NotLoaded); unmatched[code.ToUpperInvariant() + " (ไม่มีวันที่)"] = quantity; continue; }
+            var date = DateOnly.FromDateTime(legacyDate);
+            if (date.Year < 2000 || date > today)
+                report.Add(table, code, BadDate, $"{position}: วันที่ {date:yyyy-MM-dd} ผิดปกติ — โหลดตามเดิม ไม่แก้เอง", "โหลดตามเดิม");
+
+            var mark = row.Text("MARK")?.ToLowerInvariant();
+            var document = row.Text("INVOICE_NO");
+            var kind = document == "stock" ? StockEntryKind.OpeningBalance : mark == "st" ? StockEntryKind.Receipt : mark == "tr" ? StockEntryKind.Issue : StockEntryKind.Adjustment;
+            int? supplierId = null, employeeId = null;
+            string? note = null;
+            var who = row.Text("EMP_ID");
+            if (kind == StockEntryKind.Receipt && who is not null)
+            {
+                if (supplierByCode.TryGetValue(who, out var supplier)) supplierId = supplier.Id;
+                else report.Add(table, code, Other, $"{position}: ผู้ขาย '{who}' ของแถวรับไม่อยู่ในทะเบียนผู้ขาย", MigrationReport.LoadedBlank);
+            }
+            else if (kind == StockEntryKind.Issue && who is not null)
+            {
+                if (!employeeCache.TryGetValue(who, out employeeId)) employeeCache[who] = employeeId = await FindEmployeeAsync(who);
+                if (employeeId is null)
+                {
+                    note = $"รหัสพนักงานเดิม: {who}";
+                    report.Add(table, code, BadEmployee, $"{position}: รหัสพนักงานผู้เบิก '{who}' ไม่พบในทะเบียนพนักงาน — เก็บเป็นหมายเหตุ ใส่ {CodeKinds.StockEmployee},{who},<รหัสพนักงาน> ในตารางจับคู่", MigrationReport.LoadedBlank);
+                }
+            }
+            loaded.Add(new ImportedStockEntry(date, document, row.Text("INV_SUF"), material.Id, quantity, kind, supplierId, employeeId, kind == StockEntryKind.Receipt && row.Number("U_PRICE") is { } price and > 0 ? (decimal)price : null, note));
+            expected[material.Id] = expected.GetValueOrDefault(material.Id) + quantity;
+            if (quantity >= 0) sumIn += quantity; else sumOut += quantity;
+        }
+        await import.AddStockEntriesAsync(loaded);
+
+        // AC-18: the balance of every material = the sum of its rows in the old book
+        var actual = await import.GetStockBalancesAsync();
+        var codeOf = materialByCode.Values.ToDictionary(m => m.Id, m => m.Code);
+        foreach (var (id, sum) in expected.Where(e => actual.GetValueOrDefault(e.Key) != e.Value))
+            report.MonthlyTotals.Add(new MonthlyTotal(table, codeOf[id], "ยอดคงเหลือ", (double)sum, (double)sum, (double)actual.GetValueOrDefault(id)));
+        foreach (var (id, sum) in actual.Where(a => a.Value < 0).OrderBy(a => codeOf[a.Key], StringComparer.Ordinal))
+            report.Add(table, codeOf[id], NegativeBalance, $"ยอดคงเหลือติดลบ {sum.ToString("0.####", CultureInfo.InvariantCulture)} — โหลดตามเดิม ห้ามปรับเป็น 0 เอง รอตรวจนับ (Q-13)", "โหลดตามเดิม");
+        var (entries, _) = await import.CountStockAsync();
+        report.Tables.Add(new TableCount(table, "purch.StockEntries", rows.Count, 0, rejected, loaded.Count, entries));
+        report.MonthlyTotals.Add(new MonthlyTotal(table, "ทั้งหมด", "Σ จำนวนที่โหลด (รับ/ยกมา +)", (double)sumIn, (double)sumIn, (double)(await StockSumAsync(positive: true))));
+        report.MonthlyTotals.Add(new MonthlyTotal(table, "ทั้งหมด", "Σ จำนวนที่โหลด (เบิก −)", (double)sumOut, (double)sumOut, (double)(await StockSumAsync(positive: false))));
+        foreach (var (code, sum) in unmatched.OrderBy(u => u.Key, StringComparer.Ordinal))
+            report.Notes.Add($"สต็อก: แถวที่ไม่ได้โหลด {code} รวม {sum.ToString("0.####", CultureInfo.InvariantCulture)}");
+
+        await LoadCutBalancesAsync(materialByCode);
+    }
+
+    private async Task<decimal> StockSumAsync(bool positive)
+        => (await import.GetStockRowQuantitiesAsync()).Where(q => positive ? q >= 0 : q < 0).Sum();
+
+    private async Task<int?> FindEmployeeAsync(string text)
+    {
+        var decision = map.Find(CodeKinds.StockEmployee, text);
+        if (decision?.Code == CodeKinds.Nobody) return null;
+        return (await employees.FindByCodeAsync(decision?.Code ?? text))?.Id;
+    }
+
+    private async Task LoadCutBalancesAsync(Dictionary<string, MaterialDto> materialByCode)
+    {
+        const string table = "ต้นงวดP_ST";
+        var rows = legacy[table];
+        var sourceRows = legacy.SourceRows(table);
+        var totals = new Dictionary<(DateOnly, int), decimal>();
+        var rejected = 0;
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+            if (row.Date("DATE") is not { } legacyDate || row.Text("PD_C") is not { } code) { rejected++; report.Add(table, $"แถวที่ {i + 1}", Other, "ไม่มีวันที่หรือรหัสวัตถุดิบ", MigrationReport.NotLoaded); continue; }
+            if (!materialByCode.TryGetValue(code, out var material)) { rejected++; report.Add(table, code, UnknownMaterial, "รหัสวัตถุดิบไม่อยู่ในทะเบียน", MigrationReport.NotLoaded); continue; }
+            var key = (DateOnly.FromDateTime(legacyDate), material.Id);
+            totals[key] = totals.GetValueOrDefault(key) + (decimal)(row.Number("QTY") ?? 0);
+        }
+        await import.AddPeriodBalancesAsync(totals.Select(t => new ImportedPeriodBalance(t.Key.Item1, t.Key.Item2, t.Value)).ToList());
+        var (_, balances) = await import.CountStockAsync();
+        // rows of one cut and one material that repeat are added up into the one balance (counted as moved with it)
+        var merged = rows.Count - rejected - totals.Count;
+        report.Tables.Add(new TableCount(table, "purch.StockPeriodBalances", sourceRows, sourceRows - rows.Count + merged, rejected, totals.Count, balances));
+        if (sourceRows > rows.Count) report.Notes.Add($"ต้นงวดP_ST: ย้ายเฉพาะยอดยกมาตั้งแต่ {LegacyDatabase.PurchCutFrom:yyyy-MM-dd} ({sourceRows - rows.Count} แถวเก่ากว่านั้นไม่ย้าย)");
     }
 
     /// <summary>The quarter (1–4) of the calendar year a period starts in — used only when the old row has no valid TERM.</summary>

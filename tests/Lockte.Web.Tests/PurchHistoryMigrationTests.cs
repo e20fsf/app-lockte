@@ -15,6 +15,15 @@ public static class FakePurchHistoryFile
             ("EXPR1", "LONG"), ("EXPR2", "LONG"), ("EXPR3", "LONG"), ("EXPR4", "LONG"), ("EXPR5", "LONG"), ("EXPR6", "LONG"),
             ("FROM_DATE", "DATETIME"), ("TO_DATE", "DATETIME"), ("SUP", "TEXT(255)"), ("POINT1", "LONG"), ("POINT2", "LONG"), ("TERM", "TEXT(50)"),
         ],
+        ["Stock"] =
+        [
+            ("RE_DATE", "DATETIME"), ("INVOICE_NO", "TEXT(255)"), ("INV_SUF", "TEXT(255)"), ("MTR_CODE", "TEXT(255)"), ("RE_QTY", "DOUBLE"), ("EMP_ID", "TEXT(255)"),
+            ("MARK", "TEXT(255)"), ("U_PRICE", "DOUBLE"),
+        ],
+        ["ต้นงวดP_ST"] =
+        [
+            ("DATE", "DATETIME"), ("REF_NO", "TEXT(10)"), ("SUF_NO", "TEXT(2)"), ("PD_C", "TEXT(6)"), ("QTY", "DOUBLE"), ("ID", "TEXT(50)"), ("MARK", "TEXT(2)"), ("U_PRICE", "DOUBLE"),
+        ],
     };
 
     public static FakeLegacyFile Empty() => new(Schema);
@@ -81,7 +90,7 @@ public sealed class PurchHistoryMigrationTests(MigrationDbFixture db) : IDisposa
         finally
         {
             // the master-data tests of this database refuse a reload while evaluations exist
-            await AsAsync(async s => { await s.Get<PurchHistoryImport>().DeleteEvaluationsAsync(); return 0; });
+            await AsAsync(async s => { await s.Get<PurchHistoryImport>().DeleteEvaluationsAsync(); await s.Get<PurchHistoryImport>().DeleteStockAsync(); return 0; });
         }
     }
 }
