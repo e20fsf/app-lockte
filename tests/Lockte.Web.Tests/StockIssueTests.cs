@@ -23,7 +23,7 @@ public sealed class StockIssueTests(LocalDbFixture db)
     {
         for (var i = 0; i < 30; i++)
         {
-            var code = "I" + Random.Shared.Next(1000, 10000);
+            var code = "I" + Random.Shared.Next(100, 1000); // รหัสพนักงานยาวได้ไม่เกิน 4 ตัว
             if ((await AsStoreAsync(s => s.Get<EmployeeRegistry>().SaveAsync(new EmployeeInput { Code = code, Name = "พนักงานเบิกทดสอบ" }))).Succeeded) return code;
         }
         throw new InvalidOperationException("no free employee code");
