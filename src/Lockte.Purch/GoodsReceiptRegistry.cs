@@ -27,6 +27,18 @@ public sealed record ReceivableLine(
     string SupplierName,
     byte[] RowVersion);
 
+/// <summary>A line still waited for with the supplier's phone (RPT-04): ordered, received, ยอดค้างรับ.</summary>
+public sealed record OutstandingReceiptLine(
+    string OrderNo,
+    DateOnly OrderDate,
+    int LineNo,
+    string MaterialName,
+    string? Unit,
+    decimal Outstanding,
+    DateOnly? DesiredDate,
+    string SupplierName,
+    string? SupplierTel);
+
 /// <summary>A delivery received. <see cref="OnTime"/> is ส่งทัน (BR-030); <see cref="OutstandingAfter"/> is ยอดค้างรับ after it (negative when over-received).</summary>
 public sealed record GoodsReceiptDto(
     int Id,
@@ -305,6 +317,19 @@ public sealed class GoodsReceiptDirectory(PurchDbContext db)
         var received = await ReceivedAsync(orders.SelectMany(o => o.Lines.Select(l => l.Id)).ToList());
         return orders.Select(o => new ReceivableOrder(o.Id, o.OrderNo, o.OrderDate, o.SupplierName, o.Lines.Count(l => IsOutstanding(l, received))))
             .Where(o => o.OutstandingLines > 0).OrderByDescending(o => o.OrderNo.Length).ThenByDescending(o => o.OrderNo).ToList();
+    }
+
+    /// <summary>
+    /// ทุกรายการสั่งซื้อที่ยังค้างรับ (RPT-04) by เลขที่ใบสั่งซื้อ (the highest year last, as numbers sort) → ที่: ยอดค้างรับ = สั่ง − Σรับ (ไม่นับที่ไม่ผ่าน), not cancelled. Live, no work table.
+    /// </summary>
+    public async Task<IReadOnlyList<OutstandingReceiptLine>> GetAllOutstandingAsync()
+    {
+        var orders = await db.PurchaseOrders.AsNoTracking().Include(o => o.Lines).ToListAsync();
+        var received = await ReceivedAsync(orders.SelectMany(o => o.Lines.Select(l => l.Id)).ToList());
+        return orders.OrderBy(o => o.OrderNo.Length).ThenBy(o => o.OrderNo, StringComparer.Ordinal)
+            .SelectMany(o => o.Lines.OrderBy(l => l.LineNo).ThenBy(l => l.Id).Where(l => IsOutstanding(l, received))
+                .Select(l => new OutstandingReceiptLine(o.OrderNo, o.OrderDate, l.LineNo, l.MaterialName, l.Unit, l.Quantity - received.GetValueOrDefault(l.Id), l.DesiredDate, o.SupplierName, o.SupplierTel)))
+            .ToList();
     }
 
     /// <summary>The lines of an order that are still waited for.</summary>
