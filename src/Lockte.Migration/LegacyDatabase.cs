@@ -80,6 +80,10 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     public static IReadOnlyList<string> OrderMasterDataTables { get; } =
         ["เซล", "P_CUS", "P_NAME", "MC_N", "รหัสพิมพ์", "แผนก", "ประเภท", "TYPE", "MODEL", "รหัสสินค้าย่อ", "EMPO"];
 
+    /// <summary>The master-data tables of <c>วัตถุดิบ.accdb</c> (#217), named as in data-model.md without the "T-".</summary>
+    public static IReadOnlyList<string> PurchMasterDataTables { get; } =
+        ["SP", "MTR_NAME", "รายชื่อแผนก", "PURC", "CREDIT", "ประเภทธุรกิจ", "เหตุผลในการขอซื้อ", "หมายเหตุ", "รหัสตัวแรกของวัตถุดิบ"];
+
     /// <summary>ประวัติ ORDER and ประวัติการส่ง are moved from 1 Jan 2025 (#112, ข้อตัดสิน #17); ORDER ค้างส่ง (ODD) all.</summary>
     public static readonly DateOnly OrderHistoryFrom = new(2025, 1, 1);
 
@@ -140,6 +144,15 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     /// The master-data tables of <c>ผลผลิตและORDER.accdb</c> (#107), read from a copy the same way (<see cref="ReadAccessFile"/>).
     /// The file's name, size and time are kept in <see cref="Source"/> for the report.
     /// </summary>
+    /// <summary>The master-data tables of <c>วัตถุดิบ.accdb</c> (#217), read from a copy the same way.</summary>
+    [SupportedOSPlatform("windows")]
+    public static LegacyDatabase ReadPurchFile(string accdbPath)
+        => ReadCopy(accdbPath, (connection, tables, counts) =>
+        {
+            foreach (var table in PurchMasterDataTables)
+                tables[table] = Read(connection, table, null);
+        });
+
     [SupportedOSPlatform("windows")]
     public static LegacyDatabase ReadOrderFile(string accdbPath)
         => ReadCopy(accdbPath, (connection, tables, counts) =>
