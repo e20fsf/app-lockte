@@ -176,7 +176,7 @@
         {
             Id = row.Id, RecordedOn = ToDateTime(row.RecordedOn), FromDate = ToDateTime(row.FromDate), ToDate = ToDateTime(row.ToDate),
             FromTime = TimeText.Format(row.FromTime), ToTime = TimeText.Format(row.ToTime), Days = row.Days, Type = row.Type,
-            Paid = row.Paid, Remark = row.Remark, DailyWage = row.DailyWage, RowVersion = row.RowVersion,
+            Paid = row.Paid, Remark = row.Remark, DailyWage = Employee.DailyWage, RowVersion = row.RowVersion, // UAT-4 (#278): the wage comes from the employee master
         };
     }
 
@@ -214,7 +214,7 @@
             </MudSelect>
         </td>
         <td><MudTextField @bind-Value="f.Remark" MaxLength="LeaveRegistry.RemarkLength" Style="min-width:7rem" /></td>
-        <td><MudNumericField T="double?" @bind-Value="f.DailyWage" Min="0" HideSpinButtons="true" Style="min-width:5rem" /></td>
+        <td><MudNumericField T="double?" Value="Employee.DailyWage" ReadOnly="true" HideSpinButtons="true" Style="min-width:5rem" HelperText="จากทะเบียนพนักงาน" /></td>
         <td></td>
         <td style="white-space:nowrap">
             <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Primary" Size="Size.Small" Disabled="busy" OnClick="() => SaveAsync()" title="บันทึก" />
@@ -241,6 +241,12 @@
             Snackbar.Add("เวลาต้องเป็น ชั่วโมง:นาที เช่น 08:00", Severity.Error);
             return;
         }
+        if (Employee.DailyWage <= 0)
+        {
+            Snackbar.Add("พนักงานคนนี้ยังไม่มีค่าแรงรายวันในทะเบียน — ไปตั้งที่ แก้ไขข้อมูลพนักงาน ก่อนบันทึกการลา", Severity.Error);
+            return;
+        }
+        f.DailyWage = Employee.DailyWage; // UAT-4 (#278): never typed here
         var input = new LeaveInput(f.Id, Employee.Id, ToDateOnly(f.RecordedOn), ToDateOnly(f.FromDate), ToDateOnly(f.ToDate), fromTime, toTime,
             f.Days, f.Type, f.Paid, f.Remark, f.DailyWage, f.RowVersion);
         busy = true;
