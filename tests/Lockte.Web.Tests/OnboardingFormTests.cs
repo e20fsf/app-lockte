@@ -25,6 +25,14 @@ public sealed class OnboardingFormTests
 
     private static readonly OnboardingEmployee Daily = Monthly with { EmployeeType = EmployeeTypes.Daily, Salary = 0, DailyWage = 372, StartDate = new(2026, 8, 13) };
 
+    [Theory]
+    [InlineData(null, null, "reports/hr/employees/roster?")]
+    [InlineData(3, null, "reports/hr/employees/roster?department=3")]
+    [InlineData(null, 2, "reports/hr/employees/roster?shift=2")]
+    [InlineData(3, 2, "reports/hr/employees/roster?department=3&shift=2")]
+    public void RosterHref_leaves_out_all_departments_and_shifts_since_an_empty_value_does_not_bind_to_int(int? department, int? shift, string expected)
+        => Assert.Equal(expected, OnboardingReports.RosterHref(department, shift));
+
     /// <summary>The texts of an SVG page with their x, baseline and size (font-size in mm).</summary>
     private static List<(double X, double Y, string Text)> Texts(FormPage page)
         => Regex.Matches(page.ToSvg(), "<text x=\"([\\d.]+)\" y=\"([\\d.]+)\"[^>]*>([^<]*)</text>")
