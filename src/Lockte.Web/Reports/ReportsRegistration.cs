@@ -65,6 +65,7 @@ public static class ReportsRegistration
         reports.MapSupplierEvaluationSummaryReports(); // แบบประเมินประจำปี และสรุปรายไตรมาส (วัตถุดิบ #255)
         reports.MapPurchBacklogReports(); // ยอดค้างสั่ง/ค้างรับ (วัตถุดิบ #256)
         reports.MapIncomingReports(); // บันทึกการรับของ และ INCOMING INSPECTION (วัตถุดิบ #257)
+        reports.MapReceiptReports(); // รายงานการรับวัตถุดิบตามแผนก/ชื่อ/ผู้ขาย (วัตถุดิบ #258)
 
         // RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13): A4 ตั้ง, no document number.
         reports.MapGet("/hr/pay-periods/{id:int}/time", async (int id, HttpContext http, PayPeriodDirectory periods, ReportPrinter printer,

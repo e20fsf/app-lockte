@@ -1,0 +1,38 @@
+@using Lockte.Purch
+@* RPT-18 รายงานการรับวัตถุดิบ (รายละเอียด), ระดับ B on A4 ตั้ง: per supplier a band "รหัสผู้ขาย … ชื่อผู้ขาย …", then its materials by รหัส and their deliveries by วันที่ — รหัส, ชื่อ, วันที่,
+   จำนวน+หน่วย, ราคา, จำนวนเงิน — and "รวม" Σ จำนวนเงิน, Σ จำนวน. The result of the inspection does not filter. *@
+@if (Report.Suppliers.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    <table>
+        <colgroup><col style="width:11%" /><col style="width:30%" /><col style="width:12%" /><col style="width:14%" /><col style="width:6%" /><col style="width:12%" /><col style="width:15%" /></colgroup>
+        <thead><tr><th>รหัส</th><th>ชื่อวัตถุดิบ</th><th>วันที่</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @foreach (var supplier in Report.Suppliers)
+            {
+                <tr><td colspan="7"><b>รหัสผู้ขาย @supplier.Code&emsp;ชื่อผู้ขาย @supplier.Name</b></td></tr>
+                @foreach (var material in supplier.Materials)
+                {
+                    @foreach (var r in material.Rows)
+                    {
+                        <tr>
+                            <td>@material.MaterialCode</td><td>@r.MaterialName</td><td>@ReportText.Date(r.ReceiveDate)</td><td class="num">@ReportText.Decimal2(r.Quantity)</td><td>@r.Unit</td>
+                            <td class="num">@ReportText.Decimal2(r.UnitPrice)</td><td class="num">@ReportText.Decimal2(r.Amount)</td>
+                        </tr>
+                    }
+                }
+                <tr class="total"><td colspan="3"><b>รวม @supplier.Name</b></td><td class="num"><b>@ReportText.Decimal2(supplier.Quantity)</b></td><td colspan="2"></td><td class="num"><b>@ReportText.Decimal2(supplier.Amount)</b></td></tr>
+            }
+            <tr class="total"><td colspan="3"><b>รวมทั้งหมด</b></td><td class="num"><b>@ReportText.Decimal2(Report.TotalQuantity)</b></td><td colspan="2"></td><td class="num"><b>@ReportText.Decimal2(Report.TotalAmount)</b></td></tr>
+            <tr><td colspan="7" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public SupplierReceiptReport Report { get; set; } = null!;
+}

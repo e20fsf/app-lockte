@@ -61,9 +61,9 @@ public static class PurchMenu
             new("ใบขออนุมัติสั่งซื้อที่ยังไม่ได้พิมพ์ใบสั่งซื้อ", Code: "RPT-03", Page: "reports/purch/backlog/requests", NewTab: true),
             new("รายงานวัตถุดิบที่ยังไม่ได้รับ", Code: "RPT-04", Page: "reports/purch/backlog/orders", NewTab: true), // ยอดค้างรับ
             new("พิมพ์บันทึกการรับวัตถุดิบ, แบบการประเมินผู้ขายและสรุป", SubMenu: 7),
-            new("พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก", Code: "RPT-12"),
-            new("พิมพ์รายงานการรับวัตถุดิบตามชื่อ", Code: "RPT-15"),
-            new("พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย", Code: "RPT-18"),
+            new("พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก", Code: "RPT-12", Page: "purch/reports/receipts/department"),
+            new("พิมพ์รายงานการรับวัตถุดิบตามชื่อ", Code: "RPT-15", Page: "purch/reports/receipts/material"),
+            new("พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย", Code: "RPT-18", Page: "purch/reports/receipts/supplier"),
             new("พิมพ์สรุปการรับวัตถุดิบ", Code: "RPT-20"),
         ]),
         new(7, "บันทึกการรับวัตถุดิบ, แบบการประเมินผู้ขายและสรุป", 2,

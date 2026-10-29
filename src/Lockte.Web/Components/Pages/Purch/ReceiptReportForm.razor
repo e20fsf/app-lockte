@@ -1,0 +1,129 @@
+@page "/purch/reports/receipts/{Kind}"
+@attribute [Authorize]
+@using Lockte.Org
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+@inject TimeProvider Clock
+
+@* พิมพ์รายงานการรับวัตถุดิบ (SCR-20, #258): ตามแผนก (RPT-12, สรุป RPT-13), ตามชื่อวัตถุดิบ (RPT-15), ตามผู้ขาย (RPT-18, สรุป RPT-19). The period and the choice of the
+   report; what was typed last is remembered in this browser, per screen (BR-081). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        </MudStack>
+        @if (Kind == "department")
+        {
+            <MudSelect T="int?" @bind-Value="departmentId" @bind-Value:after="RememberAsync" Label="แผนก" Style="max-width:28rem">
+                @foreach (var d in departments)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)d.Id)">@d.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        else if (Kind == "material")
+        {
+            <MaterialPicker Value="material" ValueChanged="@(async (MaterialDto? m) => { material = m; await RememberAsync(); })" Label="วัตถุดิบ (รหัสหรือชื่อ)" />
+        }
+        else
+        {
+            <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (ว่าง = ทุกราย)" />
+        }
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url(false)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        @if (Kind != "material")
+        {
+            <MudButton Variant="Variant.Outlined" Href="@Url(true)" Target="_blank" Disabled="@(DatesProblem is not null)" StartIcon="@Icons.Material.Filled.Summarize">พิมพ์สรุป</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Kind { get; set; } = "department";
+
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private DateTime? from;
+    private DateTime? to;
+    private int? departmentId;
+    private MaterialDto? material;
+    private SupplierDto? supplier;
+    private bool loadedMemory;
+
+    private string Title => Kind switch
+    {
+        "material" => "พิมพ์รายงานการรับวัตถุดิบตามชื่อ",
+        "supplier" => "พิมพ์รายงานการรับวัตถุดิบตามชื่อผู้ขาย",
+        _ => "พิมพ์รายงานการรับวัตถุดิบแต่ละแผนก",
+    };
+
+    private string? DatesProblem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    private string? Problem => DatesProblem ?? (Kind == "department" && departmentId is null ? "กรุณาเลือกแผนก" : Kind == "material" && material is null ? "กรุณาเลือกวัตถุดิบ" : null);
+
+    private string Url(bool summary)
+    {
+        var url = $"/reports/purch/receipts/{Kind}?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        if (Kind == "department" && departmentId is { } d) url += "&department=" + d;
+        if (Kind == "material" && material is not null) url += "&material=" + material.Id;
+        if (Kind == "supplier" && supplier is not null) url += "&supplier=" + supplier.Id;
+        return summary ? url + "&summary=true" : url;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var today = Clock.GetLocalNow().DateTime.Date;
+        (from, to) = (new DateTime(today.Year, today.Month, 1), new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1));
+        (departmentId, material, supplier, loadedMemory) = (null, null, null, false);
+        if (Kind == "department") departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("purch.receipts." + Kind) is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                departmentId = saved.DepartmentId;
+                if (saved.MaterialId is { } m) material = await Services.RunAsync<MaterialDirectory, MaterialDto?>(d => d.GetAsync(m));
+                if (saved.SupplierId is { } s) supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(s));
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the defaults.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try
+        {
+            await Storage.SetAsync("purch.receipts." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, departmentId, material?.Id, supplier?.Id));
+        }
+        catch (Exception)
+        {
+            // remembering is a convenience only
+        }
+    }
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To, int? DepartmentId, int? MaterialId, int? SupplierId);
+}

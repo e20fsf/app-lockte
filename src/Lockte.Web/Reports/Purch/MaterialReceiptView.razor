@@ -1,0 +1,34 @@
+@using Lockte.Purch
+@* RPT-15 รายงานการรับวัตถุดิบ / <ชื่อวัตถุดิบ>, ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ …; the deliveries of one material (not the failed ones) by วันที่รับ — ผู้ขาย, เลขที่ใบสั่งซื้อ, จำนวน, หน่วย, ราคา, จำนวนเงิน — and
+   Σ จำนวนเงิน, Σ จำนวน and the average price (Σ เงิน ÷ Σ จำนวน). *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <p class="sub"><b>@Report.MaterialName</b>&emsp;ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+    <table>
+        <colgroup><col style="width:5%" /><col style="width:13%" /><col style="width:27%" /><col style="width:11%" /><col style="width:13%" /><col style="width:6%" /><col style="width:11%" /><col style="width:14%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>วันที่รับ</th><th>ผู้ขาย</th><th>เลขที่ใบสั่งซื้อ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@ReportText.Date(r.ReceiveDate)</td><td>@r.SupplierName</td><td>@r.OrderNo</td>
+                    <td class="num">@ReportText.Decimal2(r.Quantity)</td><td>@r.Unit</td><td class="num">@ReportText.Decimal2(r.UnitPrice)</td><td class="num">@ReportText.Decimal2(r.Amount)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="4"><b>รวม</b></td><td class="num"><b>@ReportText.Decimal2(Report.TotalQuantity)</b></td><td></td>
+                <td class="num"><b>@(Report.AveragePrice is { } p ? ReportText.Decimal2(p) : "")</b></td><td class="num"><b>@ReportText.Decimal2(Report.TotalAmount)</b></td>
+            </tr>
+            <tr><td colspan="8" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public MaterialReceiptReport Report { get; set; } = null!;
+}
