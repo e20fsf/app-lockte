@@ -47,8 +47,8 @@ public sealed class ProgramMenu(string key, string title, string root, string me
             .FirstOrDefault();
 
     /// <summary>
-    /// "You are here" for a page path: เมนูหลัก → … → the menu item, following each menu's "กลับเมนูเดิม" up to the main
-    /// menu. A path below a menu item's page (an employee's own screen) belongs to that item. A path that is on none of
+    /// "You are here" for a page path: เมนูหลัก (เลือกโปรแกรม) → the program → … → the menu item, following each menu's
+    /// "กลับเมนูเดิม" up to the program's main menu. A path below a menu item's page (an employee's own screen) belongs to that item. A path that is on none of
     /// this program's menus (ประวัติการแก้ไข, the other program) gets no trail.
     /// </summary>
     public IReadOnlyList<Crumb> Trail(string path)
@@ -75,7 +75,9 @@ public sealed class ProgramMenu(string key, string title, string root, string me
         var trail = new List<Crumb>();
         if (item is not null) trail.Add(new Crumb(item.Text, null));
         for (var m = menu; m is not null; m = m.Back is { } b ? Find(b) : null)
-            trail.Insert(0, new Crumb(m.Title, item is null && m == menu ? null : HrefOf(m.Number)));
+            trail.Insert(0, new Crumb(m.Number == Main ? Title : m.Title, item is null && m == menu ? null : HrefOf(m.Number)));
+        // UAT-5 (#281): เมนูหลัก is the program chooser; the program's own main menu is named after the program
+        trail.Insert(0, new Crumb("เมนูหลัก", ProgramMenus.ChooserHref));
         return trail;
     }
 

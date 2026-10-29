@@ -10,24 +10,24 @@ public sealed class MenuTrailTests
     public void Main_menu_is_the_only_step_and_is_the_current_page()
     {
         var trail = EmployeeMenu.Menu.Trail("hr");
-        Assert.Equal([new ProgramMenu.Crumb("เมนูหลัก", null)], trail);
+        Assert.Equal([new ProgramMenu.Crumb("เมนูหลัก", "programs"), new ProgramMenu.Crumb("พนักงานและค่าแรง", null)], trail);
     }
 
     [Fact]
     public void A_screen_shows_the_menus_above_it_and_links_back_to_each()
     {
         var trail = EmployeeMenu.Menu.Trail("hr/time/entry");
-        Assert.Equal(["เมนูหลัก", "วันอาทิตย์และวันหยุด", "เวลาทำงาน", "บันทึกเวลาทำงาน, OT, วันอาทิตย์และวันหยุด"], trail.Select(c => c.Text));
-        Assert.Equal(["hr", "menu/7", "menu/3", null], trail.Select(c => c.Href));
+        Assert.Equal(["เมนูหลัก", "พนักงานและค่าแรง", "วันอาทิตย์และวันหยุด", "เวลาทำงาน", "บันทึกเวลาทำงาน, OT, วันอาทิตย์และวันหยุด"], trail.Select(c => c.Text));
+        Assert.Equal(["programs", "hr", "menu/7", "menu/3", null], trail.Select(c => c.Href));
     }
 
     [Fact]
     public void A_sub_menu_is_the_current_page_and_its_parents_link()
     {
         var trail = EmployeeMenu.Menu.Trail("menu/19");
-        Assert.Equal(["เมนูหลัก", "ข้อมูลพนักงาน", "พิมพ์หนังสือรับรอง"], trail.Select(c => c.Text));
+        Assert.Equal(["เมนูหลัก", "พนักงานและค่าแรง", "ข้อมูลพนักงาน", "พิมพ์หนังสือรับรอง"], trail.Select(c => c.Text));
         Assert.Null(trail[^1].Href);
-        Assert.Equal("menu/2", trail[1].Href);
+        Assert.Equal("menu/2", trail[2].Href);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class MenuTrailTests
     [Fact]
     public void Query_string_is_ignored_and_a_page_on_no_menu_has_no_program()
     {
-        Assert.Equal("เลขเอกสารควบคุม", Texts("document-numbers?x=1")[^1]);
+        Assert.Equal("เพิ่มข้อมูลพนักงาน", Texts("hr/employees/new?x=1")[^1]);
         Assert.Null(ProgramMenus.Of("history"));
         Assert.Null(ProgramMenus.Of(""));
         Assert.Null(ProgramMenus.Of(ProgramMenus.ChooserHref));
@@ -51,9 +51,9 @@ public sealed class MenuTrailTests
     {
         // เมนู 15 QA → ผลผลิต opens เมนู 14, whose "กลับเมนูเดิม" goes back to 15.
         var trail = OrderMenu.Menu.Trail("order/qa/production/D");
-        Assert.Equal(["เมนูหลัก", "QA พิมพ์รายงานการตรวจสอบ", "QA ผลผลิต", "ไดคาสท์"], trail.Select(c => c.Text));
-        Assert.Equal(["order", "order/menu/15", "order/menu/14", null], trail.Select(c => c.Href));
-        Assert.Equal(["เมนูหลัก", "ORDER", "ยอดค้างส่ง"], Texts("order/menu/13"));
+        Assert.Equal(["เมนูหลัก", "ผลผลิตและ ORDER", "QA พิมพ์รายงานการตรวจสอบ", "QA ผลผลิต", "ไดคาสท์"], trail.Select(c => c.Text));
+        Assert.Equal(["programs", "order", "order/menu/15", "order/menu/14", null], trail.Select(c => c.Href));
+        Assert.Equal(["เมนูหลัก", "ผลผลิตและ ORDER", "ORDER", "ยอดค้างส่ง"], Texts("order/menu/13"));
     }
 
     [Fact]
