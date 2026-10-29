@@ -77,7 +77,7 @@
     }
 
     private string Url
-        => $"/reports/purch/evaluation?supplier={supplier?.Id}&from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&quarter={quarter}&date={evaluationDate:yyyy-MM-dd}&point1={point1}&point2={point2}";
+        => $"/reports/purch/evaluation?supplier={supplier?.Id}&from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}&quarter={quarter}&date={Lockte.Web.Reports.Purch.UrlDate.Of(evaluationDate)}&point1={point1}&point2={point2}";
 
     protected override void OnInitialized()
     {

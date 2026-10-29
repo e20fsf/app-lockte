@@ -20,6 +20,8 @@ public static class FakePurchHistoryFile
             ("RE_DATE", "DATETIME"), ("INVOICE_NO", "TEXT(255)"), ("INV_SUF", "TEXT(255)"), ("MTR_CODE", "TEXT(255)"), ("RE_QTY", "DOUBLE"), ("EMP_ID", "TEXT(255)"),
             ("MARK", "TEXT(255)"), ("U_PRICE", "DOUBLE"),
         ],
+        ["PO_RECEI4"] = DocumentColumns,
+        ["PO_RECEI5"] = DocumentColumns,
         ["ต้นงวดP_ST"] =
         [
             ("DATE", "DATETIME"), ("REF_NO", "TEXT(10)"), ("SUF_NO", "TEXT(2)"), ("PD_C", "TEXT(6)"), ("QTY", "DOUBLE"), ("ID", "TEXT(50)"), ("MARK", "TEXT(2)"), ("U_PRICE", "DOUBLE"),
@@ -27,6 +29,17 @@ public static class FakePurchHistoryFile
     };
 
     public static FakeLegacyFile Empty() => new(Schema);
+
+    /// <summary>The columns of PO_RECEI4 / PO_RECEI5 that the migration reads, with their legacy types (data-model.md).</summary>
+    private static (string, string)[] DocumentColumns =>
+    [
+        ("PR_NO", "TEXT(255)"), ("PR_SUF", "SINGLE"), ("PR_DATE", "DATETIME"), ("PR_QTY", "DOUBLE"), ("MTR_CODE", "TEXT(255)"), ("MTR_NAME", "TEXT(255)"), ("MTR_UNIT", "TEXT(255)"),
+        ("DELI_D", "DATETIME"), ("EMP_ID", "TEXT(255)"), ("PUR", "TEXT(255)"), ("REMARK", "TEXT(255)"), ("MEM", "TEXT(255)"), ("PO_NO", "TEXT(255)"), ("PO_SUF", "SINGLE"),
+        ("PO_DATE", "DATETIME"), ("PO_QTY", "DOUBLE"), ("SUP_CODE", "TEXT(255)"), ("SUP_NAME", "TEXT(255)"), ("SUP_ADD1", "TEXT(255)"), ("SUP_ADD2", "TEXT(255)"), ("SUP_TEL", "TEXT(255)"),
+        ("SUP_FAX", "TEXT(255)"), ("CREDIT_D", "TEXT(50)"), ("VAT", "TEXT(255)"), ("U_PRICE", "DOUBLE"), ("NET_AMT", "DOUBLE"), ("TAX", "DOUBLE"), ("TOTAL", "DOUBLE"), ("RE_DATE", "DATETIME"),
+        ("RE_QTY", "DOUBLE"), ("INVOICE_NO", "TEXT(255)"), ("INV_SUF", "TEXT(255)"), ("LOT", "TEXT(255)"), ("PASS", "TEXT(255)"), ("NOPASS", "TEXT(255)"), ("SEND", "TEXT(50)"), ("RESULT", "TEXT(255)"),
+    ];
+
 }
 
 /// <summary>เครื่องมือย้ายข้อมูล: ผลประเมินผู้ขาย (#268) — the names matched to the suppliers' codes, the exceptions, the totals.</summary>
@@ -90,7 +103,7 @@ public sealed class PurchHistoryMigrationTests(MigrationDbFixture db) : IDisposa
         finally
         {
             // the master-data tests of this database refuse a reload while evaluations exist
-            await AsAsync(async s => { await s.Get<PurchHistoryImport>().DeleteEvaluationsAsync(); await s.Get<PurchHistoryImport>().DeleteStockAsync(); return 0; });
+            await AsAsync(async s => { await s.Get<PurchHistoryImport>().DeleteEvaluationsAsync(); await s.Get<PurchHistoryImport>().DeleteStockAsync(); await s.Get<PurchHistoryImport>().DeleteDocumentsAsync(); return 0; });
         }
     }
 }
