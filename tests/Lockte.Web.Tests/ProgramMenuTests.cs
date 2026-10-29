@@ -97,4 +97,50 @@ public sealed class ProgramMenuTests
         Assert.Same(PurchMenu.Menu, ProgramMenus.Of("purch/menu/5"));
         Assert.Same(PurchMenu.Menu, ProgramMenus.Of("purch/settings"));
     }
+
+    [Fact]
+    public void Calib_menus_are_the_eight_legacy_switchboard_pages_without_จบโปรแกรม()
+    {
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8], CalibMenu.Menu.Pages.Select(p => p.Number));
+        Assert.Equal(
+            [("แผนการสอบเทียบ", null), ("สอบเทียบภายนอก", 2), ("สอบเทียบภายใน", 3)],
+            CalibMenu.Menu.Find(ProgramMenu.Main)!.Items.Select(i => (i.Text, i.SubMenu)));
+        Assert.Equal(
+            ["เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์", "เพรสเซอร์เกจ", "เครื่องชั่ง", "JIG", "ตัวควบคุมอุณหภูมิ (TEMP CONTROL)"],
+            CalibMenu.Menu.Find(CalibMenu.Internal)!.Items.Select(i => i.Text));
+
+        var texts = CalibMenu.Menu.Pages.SelectMany(p => p.Items.Select(i => i.Text).Append(p.Title)).ToList();
+        Assert.DoesNotContain(texts, t => t.Contains("จบโปรแกรม"));
+        Assert.DoesNotContain(texts, t => t.Contains("ภาน")); // the legacy's misspelt สอบเทียบภานใน / ภานนอก
+        Assert.DoesNotContain(texts, t => t.Contains("หน่วยงานสอบเทียบ")); // CONTEXT.md: บริษัทที่สอบเทียบ
+        Assert.Contains("เพิ่มรายชื่อบริษัทที่สอบเทียบ", texts);
+    }
+
+    [Fact]
+    public void Calib_menus_return_to_the_legacy_parents_and_open_their_own_placeholders()
+    {
+        Assert.Equal(1, CalibMenu.Menu.Find(CalibMenu.External)!.Back);
+        Assert.Equal(1, CalibMenu.Menu.Find(CalibMenu.Internal)!.Back);
+        Assert.All([CalibMenu.Caliper, CalibMenu.PressureGauge, CalibMenu.Scale, CalibMenu.Jig, CalibMenu.TempControl],
+            n => Assert.Equal(CalibMenu.Internal, CalibMenu.Menu.Find(n)!.Back));
+
+        Assert.Equal("calib/RPT-01", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("RPT-01")!.Value.Item));
+        Assert.Equal("calib/SCR-02-jig", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-jig")!.Value.Item));
+        Assert.Equal("calib/menu/7", CalibMenu.HrefOf(CalibMenu.Jig));
+        Assert.Equal("calib", CalibMenu.HrefOf(ProgramMenu.Main));
+        Assert.Same(CalibMenu.Menu, ProgramMenus.Of("calib/menu/4"));
+        Assert.Same(CalibMenu.Menu, ProgramMenus.Of("calib/SCR-06"));
+        Assert.Contains(CalibMenu.Menu, ProgramMenus.All);
+    }
+
+    [Fact]
+    public void Each_instrument_menu_has_the_same_five_kinds_of_item()
+    {
+        // add, edit, list (RPT-02), the record form (RPT-03; JIG opens SCR-05 instead) and the sticker (SCR-04, internal types only)
+        foreach (var (page, suffix) in new[] { (CalibMenu.Caliper, "caliper"), (CalibMenu.PressureGauge, "pg"), (CalibMenu.Scale, "scale"), (CalibMenu.TempControl, "tc") })
+            Assert.Equal([$"SCR-02-{suffix}", $"SCR-03-{suffix}", $"RPT-02-{suffix}", $"RPT-03-{suffix}", $"SCR-04-{suffix}"],
+                CalibMenu.Menu.Find(page)!.Items.Select(i => i.Code));
+        Assert.Equal(["SCR-02-jig", "SCR-03-jig", "RPT-02-jig", "SCR-05", "SCR-04-jig"], CalibMenu.Menu.Find(CalibMenu.Jig)!.Items.Select(i => i.Code));
+        Assert.Equal(["SCR-02-ext", "SCR-03-ext", "RPT-02-ext", "RPT-03-ext", "SCR-06"], CalibMenu.Menu.Find(CalibMenu.External)!.Items.Select(i => i.Code));
+    }
 }

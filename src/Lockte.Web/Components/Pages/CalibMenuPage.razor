@@ -1,0 +1,9 @@
+@page "/calib/menu/{Number:int}"
+@attribute [Authorize]
+
+<MenuView Program="CalibMenu.Menu" Number="Number" />
+
+@code {
+    [Parameter]
+    public int Number { get; set; }
+}

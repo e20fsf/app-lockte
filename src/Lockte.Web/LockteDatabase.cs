@@ -1,3 +1,4 @@
+using Lockte.Calib;
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
@@ -27,5 +28,6 @@ public static class LockteDatabase
         await SalesModule.MigrateAsync(services);
         await ProdModule.MigrateAsync(services);
         await PurchModule.MigrateAsync(services);
+        await CalibModule.MigrateAsync(services);
     }
 }

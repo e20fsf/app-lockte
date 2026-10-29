@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Lockte.Calib/Lockte.Calib.csproj" />
     <Project Path="src/Lockte.Hr/Lockte.Hr.csproj" />
     <Project Path="src/Lockte.Migration/Lockte.Migration.csproj" />
     <Project Path="src/Lockte.Org/Lockte.Org.csproj" />
