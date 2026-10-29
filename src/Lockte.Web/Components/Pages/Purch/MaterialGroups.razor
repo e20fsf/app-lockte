@@ -1,0 +1,71 @@
+@page "/purch/materials/groups"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* กลุ่มรหัสวัตถุดิบ (T-รหัสตัวแรกของวัตถุดิบ, #215): the code prefixes the list of materials can be filtered and printed by (RPT-28). *@
+<PageTitle>กลุ่มรหัสวัตถุดิบ — LOCKTE</PageTitle>
+<h1 class="mb-4">กลุ่มรหัสวัตถุดิบ</h1>
+
+@if (prefixes is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:40rem">
+        <MudText Typo="Typo.caption">รหัสขึ้นต้น เช่น E0 = รหัสที่ขึ้นต้นด้วย E0</MudText>
+        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2" Class="mt-2">
+            @foreach (var p in prefixes)
+            {
+                <MudChip T="string" OnClose="@(() => prefixes.Remove(p))">@p</MudChip>
+            }
+        </MudStack>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
+            <MudTextField @bind-Value="newPrefix" Label="เพิ่มรหัสขึ้นต้น" MaxLength="MaterialRegistry.CodeLength" Style="max-width:14rem" />
+            <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="Add">เพิ่ม</MudButton>
+        </MudStack>
+    </MudPaper>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+}
+
+<MudButton Href="purch/materials" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับหน้าวัตถุดิบ</MudButton>
+
+@code {
+    private List<string>? prefixes;
+    private string? newPrefix;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+        => prefixes = (await Services.RunAsync<MaterialDirectory, IReadOnlyList<string>>(d => d.GetGroupsAsync())).ToList();
+
+    private void Add()
+    {
+        var p = newPrefix?.Trim().ToUpperInvariant().TrimEnd('*');
+        if (!string.IsNullOrEmpty(p) && !prefixes!.Contains(p)) prefixes.Add(p);
+        newPrefix = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var list = prefixes!.ToList();
+            var result = await Services.RunAsync<MaterialRegistry, ServiceResult>(r => r.SaveGroupsAsync(list));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

@@ -119,3 +119,122 @@ internal sealed class SupplierBusinessType : IAudited
 
     string IHasBusinessKey.BusinessKey => Name;
 }
+
+/// <summary>
+/// วัตถุดิบ (T-MTR_NAME, SCR-17): the register of purchasable items — วัตถุดิบ, spare parts, services, สินค้าซื้อมาขาย.
+/// The fields the legacy no longer used (U_PACK, CATEGORY, MAXIMUM, R-W, REMARK) are not kept (Q-11).
+/// </summary>
+internal sealed class Material : IAudited
+{
+    public int Id { get; set; }
+    /// <summary>รหัสวัตถุดิบ (upper case, unique), e.g. <c>R0019</c>.</summary>
+    public string Code { get; set; } = "";
+    /// <summary>ชื่อวัตถุดิบ; need not be unique (DQ-02).</summary>
+    public string Name { get; set; } = "";
+    /// <summary>หน่วยนับ.</summary>
+    public string? Unit { get; set; }
+    /// <summary>จุดสั่งซื้อต่ำสุด (MINIMUM): shown in the list only.</summary>
+    public decimal? MinimumQuantity { get; set; }
+    /// <summary>ราคาล่าสุดต่อหน่วย ไม่รวม VAT (COST); the goods receipt overwrites it (BR-031).</summary>
+    public decimal Cost { get; set; }
+    /// <summary>ผู้ขายล่าสุด; set by the goods receipt, shown read-only here.</summary>
+    public int? LatestSupplierId { get; set; }
+    public Supplier? LatestSupplier { get; set; }
+    /// <summary>วัตถุดิบหลัก (INCOMING = ใช่): decides stock entry and incoming reports (BR-003).</summary>
+    public bool IsMain { get; set; }
+    /// <summary>ราคาซื้อคืนส่วนเกินต่อ กก. (BUY): only for recycled aluminium (BR-060).</summary>
+    public decimal BuyBackPrice { get; set; }
+    /// <summary>สินค้าของ module ผลิต for a สินค้าซื้อมาขาย (ข้อสมมติ ญ); checked on save, no database key across modules.</summary>
+    public int? ProductId { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Code;
+}
+
+/// <summary>กลุ่มรหัสวัตถุดิบ (T-รหัสตัวแรกของวัตถุดิบ): a code prefix the list can be printed by (RPT-28).</summary>
+internal sealed class MaterialGroup : IAudited
+{
+    public int Id { get; set; }
+    /// <summary>รหัสขึ้นต้น, upper case (the legacy wrote them as patterns like <c>E0*</c>).</summary>
+    public string Prefix { get; set; } = "";
+    public string? Name { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Prefix;
+}
+
+/// <summary>
+/// prefix เลขที่ใบขอซื้อของแผนก (T-รายชื่อแผนก.CODE, SCR-10). The แผนก itself is the register of module องค์กร, so only its id is kept
+/// (checked on save; no database key across modules); the prefix is data (<c>B</c>, <c>DM</c>…), not a search pattern (Q-17).
+/// </summary>
+internal sealed class DepartmentPrefix : IAudited
+{
+    public int Id { get; set; }
+    public int DepartmentId { get; set; }
+    /// <summary>Upper case, unique across departments.</summary>
+    public string Prefix { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Prefix;
+}
+
+/// <summary>ผู้จัดซื้อ (T-PURC): the place that issues purchase orders — a code (<c>F</c>, <c>O</c>) and a name (โรงงาน, สำนักงานสีลม).</summary>
+internal sealed class PurchasingLocation : IAudited
+{
+    public int Id { get; set; }
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Code;
+}
+
+/// <summary>ข้อความเหตุผลในการขอซื้อที่เลือกได้ (T-เหตุผลในการขอซื้อ); the form also takes free text.</summary>
+internal sealed class RequestReason : IAudited
+{
+    public int Id { get; set; }
+    public string Text { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Text;
+}
+
+/// <summary>ข้อความหมายเหตุที่เลือกได้ (T-หมายเหตุ); the form also takes free text.</summary>
+internal sealed class RequestNote : IAudited
+{
+    public int Id { get; set; }
+    public string Text { get; set; } = "";
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Text;
+}
