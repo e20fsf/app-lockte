@@ -1,0 +1,128 @@
+@page "/purch/receipts/new"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject TimeProvider Clock
+
+@* จัดซื้อรับวัตถุดิบ (SCR-11, BR-030, BR-031, BR-033): pick an order that still has lines to receive, fill the date, quantity, invoice number and price of each delivery and save —
+   one transaction. A วัตถุดิบหลัก goes into the stock, another does not; the register's latest price and supplier follow. What is not received stays as ยอดค้างรับ; a line the
+   supplier will not send is removed from it with the delete button. The history of receipts and the failed ones are edited in #250. *@
+<PageTitle>จัดซื้อรับวัตถุดิบ — LOCKTE</PageTitle>
+<h1 class="mb-4">จัดซื้อรับวัตถุดิบ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudSelect T="int?" @bind-Value="orderId" @bind-Value:after="LoadAsync" Label="เลือกเลขที่ใบสั่งซื้อที่ต้องการ" Style="max-width:30rem">
+        @foreach (var o in orders)
+        {
+            <MudSelectItem T="int?" Value="@((int?)o.OrderId)">@o.OrderNo — @o.SupplierName (ค้างรับ @o.OutstandingLines รายการ)</MudSelectItem>
+        }
+    </MudSelect>
+</MudPaper>
+
+@if (rows.Count > 0)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        @foreach (var row in rows)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
+                <MudText Style="width:2rem">@row.Line.LineNo</MudText>
+                <MudText Style="width:22rem">@row.Line.MaterialCode  @row.Line.MaterialName@(row.Line.MaterialIsMain ? "" : " (ไม่เข้าสต็อก)")</MudText>
+                <MudText Style="width:13rem">สั่ง @row.Line.Ordered.ToString("#,0.####") รับแล้ว @row.Line.Received.ToString("#,0.####") ค้างรับ @row.Line.Outstanding.ToString("#,0.####")</MudText>
+                <MudText Style="width:10rem">ต้องการ @(row.Line.DesiredDate is { } d ? ThaiDate.Format(d) : "-")</MudText>
+                <MudDatePicker Editable="true" @bind-Date="row.Date" Label="วันที่รับ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Margin="Margin.Dense" Style="width:11rem" />
+                <MudNumericField T="decimal?" @bind-Value="row.Quantity" Label="จำนวนรับ" Min="0" Margin="Margin.Dense" Style="width:9rem" />
+                <MudTextField @bind-Value="row.InvoiceNo" Label="เลขที่ใบส่งสินค้า" Margin="Margin.Dense" Style="width:10rem" MaxLength="StockLedger.TextLength" />
+                <MudTextField @bind-Value="row.InvoiceLineNo" Label="ลำดับ" Margin="Margin.Dense" Style="width:5rem" MaxLength="StockLedger.TextLength" />
+                <MudNumericField T="decimal?" @bind-Value="row.Price" Label="ราคา/หน่วย" Min="0" Margin="Margin.Dense" Style="width:9rem" />
+                <MudText Style="width:13rem">@row.Result</MudText>
+                <MudTextField @bind-Value="row.ReturnNote" Label="อื่น ๆ (ส่งคืน)" Margin="Margin.Dense" Style="width:11rem" MaxLength="StockLedger.TextLength" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => CancelAsync(row))" aria-label="ลบรายการค้างรับ" />
+            </MudStack>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Save">บันทึกการรับ</MudButton>
+    </MudPaper>
+}
+else if (orderId is not null)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">ใบสั่งซื้อนี้ไม่มีรายการค้างรับแล้ว</MudAlert>
+}
+
+<MudButton Href="@PurchMenu.HrefOf(5)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<ReceivableOrder> orders = [];
+    private int? orderId;
+    private List<Row> rows = [];
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await ReloadOrdersAsync();
+
+    private async Task ReloadOrdersAsync()
+        => orders = await Services.RunAsync<GoodsReceiptDirectory, IReadOnlyList<ReceivableOrder>>(d => d.GetOrdersAsync());
+
+    private async Task LoadAsync()
+    {
+        rows = [];
+        if (orderId is not { } id) return;
+        var lines = await Services.RunAsync<GoodsReceiptDirectory, IReadOnlyList<ReceivableLine>>(d => d.GetReceivableLinesAsync(id));
+        var today = Clock.GetLocalNow().DateTime.Date;
+        rows = lines.Select(l => new Row { Line = l, Date = today, Price = l.UnitPrice }).ToList();
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var inputs = rows.Select(r => new GoodsReceiptInput(r.Line.OrderLineId, DateOnly.FromDateTime(r.Date ?? Clock.GetLocalNow().DateTime), r.Quantity, r.InvoiceNo, r.InvoiceLineNo, r.Price, null, r.ReturnNote)).ToList();
+            var result = await Services.RunAsync<GoodsReceiptRegistry, ServiceResult>(r => r.ReceiveAsync(inputs));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(result.Id is null or 0 ? "ไม่มีรายการที่กรอกจำนวนรับ" : $"บันทึกการรับ {result.Id} รายการแล้ว", result.Id is null or 0 ? Severity.Info : Severity.Success);
+            await ReloadOrdersAsync();
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task CancelAsync(Row row)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบรายการค้างรับ",
+            $"ผู้ขายยกเลิกการส่ง {row.Line.MaterialCode} ของใบสั่งซื้อ {row.Line.OrderNo}? รายการจะหายจากยอดค้างรับ (เลขที่ใบสั่งซื้อไม่ถูกแตะ)", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        try
+        {
+            var result = await Services.RunAsync<GoodsReceiptRegistry, ServiceResult>(r => r.CancelOutstandingAsync(row.Line.OrderLineId, row.Line.RowVersion));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("ลบรายการค้างรับแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        await ReloadOrdersAsync();
+        await LoadAsync();
+    }
+
+    private sealed class Row
+    {
+        public required ReceivableLine Line { get; init; }
+        public DateTime? Date { get; set; }
+        public decimal? Quantity { get; set; }
+        public string? InvoiceNo { get; set; }
+        public string? InvoiceLineNo { get; set; }
+        public decimal? Price { get; set; }
+        public string? ReturnNote { get; set; }
+
+        /// <summary>ส่งทัน/ไม่ทัน, ยอดค้างรับ and จำนวนเงิน as the legacy showed them while typing (BR-030).</summary>
+        public string Result => Quantity is not > 0 ? "" :
+            $"{(GoodsReceiptMath.OnTime(Line.DesiredDate, DateOnly.FromDateTime(Date ?? DateTime.Today)) ? "ทัน" : "ไม่ทัน")} · ค้าง {(Line.Outstanding - Quantity.Value):#,0.####} · {PurchaseOrderMath.LineNet(Price ?? 0, Quantity.Value):N2}";
+    }
+}

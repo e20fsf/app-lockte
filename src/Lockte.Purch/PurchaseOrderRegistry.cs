@@ -291,6 +291,7 @@ public sealed class PurchaseOrderRegistry(PurchDbContext db, SupplierDirectory s
         var line = await db.PurchaseOrderLines.Include(l => l.PurchaseOrder).ThenInclude(o => o!.Lines).FirstOrDefaultAsync(l => l.Id == lineId);
         if (line is null) return ServiceResult.Ok();
         line.ExpectRowVersion(loadedRowVersion);
+        if (await db.GoodsReceipts.AnyAsync(r => r.PurchaseOrderLineId == lineId)) return ServiceResult.Fail("รายการนี้มีการรับของแล้ว ลบไม่ได้");
         var order = line.PurchaseOrder!;
         var removed = order.Lines.Count == 1 ? order.Lines : [line];
         var requestLineIds = removed.Select(l => l.PurchaseRequestLineId).ToList();

@@ -52,7 +52,7 @@ public static class PurchMenu
         ]),
         new(5, "รับวัตถุดิบ", 8,
         [
-            new("จัดซื้อรับวัตถุดิบ", Code: "SCR-11"),
+            new("จัดซื้อรับวัตถุดิบ", Code: "SCR-11", Page: "purch/receipts/new"),
             new("แก้ไขและลบการรับวัตถุดิบ", Code: "SCR-12"),
             new("QA รับวัตถุดิบ", Code: "SCR-13"),
         ]),

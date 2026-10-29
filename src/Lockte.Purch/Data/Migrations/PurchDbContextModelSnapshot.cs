@@ -100,6 +100,91 @@ namespace Lockte.Purch.Data.Migrations
                     b.ToTable("DocumentCounters", "purch");
                 });
 
+            modelBuilder.Entity("Lockte.Purch.Data.GoodsReceipt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("InvoiceLineNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับใบส่งสินค้า");
+
+                    b.Property<string>("InvoiceNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่ใบส่งสินค้า");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนเงิน");
+
+                    b.Property<int>("PurchaseOrderLineId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "รายการใบสั่งซื้อ");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนรับ");
+
+                    b.Property<DateOnly>("ReceiveDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่รับ");
+
+                    b.Property<string>("ReturnNote")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "อื่น ๆ (ส่งคืน)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ขาย");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "ราคา");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseOrderLineId");
+
+                    b.HasIndex("ReceiveDate");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("GoodsReceipts", "purch");
+
+                    b.HasAnnotation("Lockte:AuditName", "การรับของ");
+                });
+
             modelBuilder.Entity("Lockte.Purch.Data.Material", b =>
                 {
                     b.Property<int>("Id")
@@ -484,6 +569,10 @@ namespace Lockte.Purch.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)")
                         .HasAnnotation("Lockte:AuditName", "จำนวนสั่งซื้อ");
+
+                    b.Property<bool>("ReceivingCancelled")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ยกเลิกการรับ");
 
                     b.Property<decimal>("RequestedQuantity")
                         .HasPrecision(18, 4)
@@ -1250,6 +1339,25 @@ namespace Lockte.Purch.Data.Migrations
                         {
                             t.ExcludeFromMigrations();
                         });
+                });
+
+            modelBuilder.Entity("Lockte.Purch.Data.GoodsReceipt", b =>
+                {
+                    b.HasOne("Lockte.Purch.Data.PurchaseOrderLine", "PurchaseOrderLine")
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lockte.Purch.Data.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PurchaseOrderLine");
+
+                    b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("Lockte.Purch.Data.Material", b =>

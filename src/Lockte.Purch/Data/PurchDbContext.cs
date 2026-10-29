@@ -28,6 +28,7 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
     internal DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     internal DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     internal DbSet<StockEntry> StockEntries => Set<StockEntry>();
+    internal DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -221,6 +222,7 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             l.Property(x => x.TaxIncludedAmount).HasPrecision(18, 2).HasAuditName("ยอดรวม VAT");
             l.Property(x => x.DesiredDate).HasAuditName("วันที่ต้องการ");
             l.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            l.Property(x => x.ReceivingCancelled).HasAuditName("ยกเลิกการรับ");
             l.HasIndex(x => x.PurchaseRequestLineId);
             l.HasIndex(x => x.MaterialId);
             // A request line, or a material, that an order uses cannot be deleted (ข้อสมมติ ง).
@@ -246,6 +248,25 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             e.HasIndex(x => x.DocumentNo);
             e.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<GoodsReceipt>(r =>
+        {
+            r.HasAuditName("การรับของ");
+            r.Property(x => x.PurchaseOrderLineId).HasAuditName("รายการใบสั่งซื้อ");
+            r.Property(x => x.ReceiveDate).HasAuditName("วันที่รับ");
+            r.Property(x => x.Quantity).HasPrecision(18, 4).HasAuditName("จำนวนรับ");
+            r.Property(x => x.InvoiceNo).HasMaxLength(StockLedger.TextLength).HasAuditName("เลขที่ใบส่งสินค้า");
+            r.Property(x => x.InvoiceLineNo).HasMaxLength(StockLedger.TextLength).HasAuditName("ลำดับใบส่งสินค้า");
+            r.Property(x => x.UnitPrice).HasPrecision(18, 4).HasAuditName("ราคา");
+            r.Property(x => x.NetAmount).HasPrecision(18, 4).HasAuditName("จำนวนเงิน");
+            r.Property(x => x.SupplierId).HasAuditName("ผู้ขาย");
+            r.Property(x => x.ReturnNote).HasMaxLength(StockLedger.TextLength).HasAuditName("อื่น ๆ (ส่งคืน)");
+            r.HasIndex(x => x.PurchaseOrderLineId);
+            r.HasIndex(x => x.ReceiveDate);
+            // An order line that was received cannot be deleted (ข้อสมมติ ง).
+            r.HasOne(x => x.PurchaseOrderLine).WithMany().HasForeignKey(x => x.PurchaseOrderLineId).OnDelete(DeleteBehavior.Restrict);
+            r.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

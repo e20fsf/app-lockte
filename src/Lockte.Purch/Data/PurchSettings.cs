@@ -378,6 +378,10 @@ internal sealed class PurchaseOrderLine : IAudited
     public DateOnly? DesiredDate { get; set; }
     /// <summary>แผนกที่ขอซื้อ (of องค์กร).</summary>
     public int DepartmentId { get; set; }
+    /// <summary>
+    /// ผู้ขายยกเลิกการส่ง (BR-033): the line is no longer waited for — it leaves ยอดค้างรับ — but stays on the order, whose number is untouched (AC-37).
+    /// </summary>
+    public bool ReceivingCancelled { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
@@ -424,4 +428,38 @@ internal sealed class StockEntry : IAudited
     public byte[] RowVersion { get; set; } = [];
 
     string IHasBusinessKey.BusinessKey => Material?.Code ?? MaterialId.ToString();
+}
+
+/// <summary>
+/// การรับของ (BR-030, BR-031): a row of its own for each delivery of a purchase order line — a line can be received in several parts. Whether it was on time (ส่งทัน)
+/// is not stored: it is the line's วันที่ต้องการ against <see cref="ReceiveDate"/>, so it follows whichever of the two dates is edited (DQ-11).
+/// </summary>
+internal sealed class GoodsReceipt : IAudited
+{
+    public int Id { get; set; }
+    public int PurchaseOrderLineId { get; set; }
+    public PurchaseOrderLine? PurchaseOrderLine { get; set; }
+    /// <summary>วันที่รับ (RE_DATE).</summary>
+    public DateOnly ReceiveDate { get; set; }
+    /// <summary>จำนวนรับ (RE_QTY).</summary>
+    public decimal Quantity { get; set; }
+    /// <summary>เลขที่ใบส่งสินค้า and its ลำดับ.</summary>
+    public string? InvoiceNo { get; set; }
+    public string? InvoiceLineNo { get; set; }
+    public decimal UnitPrice { get; set; }
+    /// <summary>จำนวนเงิน = ราคา × จำนวนรับ (RND-B).</summary>
+    public decimal NetAmount { get; set; }
+    /// <summary>ผู้ขายที่ส่ง (the order's by default).</summary>
+    public int SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    /// <summary>อื่น ๆ (ส่งคืน): CREM.</summary>
+    public string? ReturnNote { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => PurchaseOrderLine?.PurchaseOrder?.OrderNo ?? PurchaseOrderLineId.ToString();
 }
