@@ -13,10 +13,9 @@ namespace Lockte.Web.Tests;
 [Collection(LocalDbCollection.Name)]
 public sealed class PayAccessDbTests(LocalDbFixture db)
 {
-    private static int lastCode;
-
-    /// <summary>"Y" + 3 digits keeps clear of the other test classes' codes (T-EMPLO.ID is Text(4)).</summary>
-    private static string NewCode() => $"Y{Interlocked.Increment(ref lastCode):D3}";
+    /// <summary>"Y" keeps clear of the other test classes' codes (T-EMPLO.ID is Text(4)).</summary>
+    /// <summary>The test database outlives a run, so a counter would meet the rows of the run before: 3 random base-36 characters.</summary>
+    private static string NewCode() => "Y" + string.Concat(Enumerable.Range(0, 3).Select(_ => "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Random.Shared.Next(36)]));
 
     private async Task<int> NewEmployeeAsync(double salary = 15000, double dailyWage = 500, string ttb = "1234567890", string kbank = "0987654321")
     {
