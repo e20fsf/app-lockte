@@ -66,7 +66,8 @@ public sealed class MaterialTests(LocalDbFixture db)
         await using (var scope = db.Scope())
         {
             var rows = await scope.Get<HistoryService>().SearchAsync(new(Table: "วัตถุดิบ", RowKey: code.ToUpperInvariant()));
-            Assert.Contains(rows, r => r is { Action: HistoryActions.Modified, Column: "ราคา", OldValue: "10", NewValue: "12", UserName: "buyer1" });
+            Assert.Contains(rows, r => r is { Action: HistoryActions.Modified, Column: "ราคา", UserName: "buyer1" } && decimal.Parse(r.OldValue!, System.Globalization.CultureInfo.InvariantCulture) == 10m && decimal.Parse(r.NewValue!, System.Globalization.CultureInfo.InvariantCulture) == 12m);
+            Assert.Contains(rows, r => r is { Action: HistoryActions.Modified, Column: "วัตถุดิบหลัก", OldValue: "ไม่ใช่", NewValue: "ใช่" });
         }
         var fresh = (await FindAsync(code))!;
         Assert.True(fresh.IsMain);
