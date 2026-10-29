@@ -387,3 +387,41 @@ internal sealed class PurchaseOrderLine : IAudited
 
     string IHasBusinessKey.BusinessKey => PurchaseOrder?.OrderNo ?? "";
 }
+
+/// <summary>
+/// สมุดสต็อกวัตถุดิบ (T-Stock, BR-041): one row per movement of a material — the one source of the balance that receiving, issuing and ตัดสต็อก share.
+/// Balance of a material = Σ <see cref="Quantity"/> of the rows not yet closed. Internal to the module: others read through <see cref="StockDirectory"/>.
+/// </summary>
+internal sealed class StockEntry : IAudited
+{
+    public int Id { get; set; }
+    public DateOnly EntryDate { get; set; }
+    /// <summary>เลขที่เอกสาร: เลขที่ใบเบิก for an issue; blank for a receipt.</summary>
+    public string? DocumentNo { get; set; }
+    /// <summary>ลำดับรายการในเอกสาร.</summary>
+    public string? DocumentLineNo { get; set; }
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    /// <summary>จำนวน: + in, − out; may take the balance below zero (ข้อสมมติ ข).</summary>
+    public decimal Quantity { get; set; }
+    public StockEntryKind Kind { get; set; }
+    /// <summary>ผู้ขาย of a receipt (T-Stock.EMP_ID of a receipt row).</summary>
+    public int? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+    /// <summary>พนักงานผู้เบิก of module พนักงาน (checked on save; no database key across modules).</summary>
+    public int? EmployeeId { get; set; }
+    /// <summary>ราคาต่อหน่วยตอนรับ (receipts only).</summary>
+    public decimal? UnitPrice { get; set; }
+    /// <summary>หมายเหตุ: what the user types.</summary>
+    public string? Note { get; set; }
+    /// <summary>ปิดงวดแล้ว: set by ตัดสต็อก (BR-042); a closed row no longer counts in the balance and cannot be edited.</summary>
+    public bool IsClosed { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Material?.Code ?? MaterialId.ToString();
+}

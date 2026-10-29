@@ -27,6 +27,7 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
     internal DbSet<PurchaseRequestLine> PurchaseRequestLines => Set<PurchaseRequestLine>();
     internal DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     internal DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
+    internal DbSet<StockEntry> StockEntries => Set<StockEntry>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -225,6 +226,26 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             // A request line, or a material, that an order uses cannot be deleted (ข้อสมมติ ง).
             l.HasOne(x => x.PurchaseRequestLine).WithMany().HasForeignKey(x => x.PurchaseRequestLineId).OnDelete(DeleteBehavior.Restrict);
             l.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StockEntry>(e =>
+        {
+            e.HasAuditName("สมุดสต็อกวัตถุดิบ");
+            e.Property(x => x.EntryDate).HasAuditName("วันที่");
+            e.Property(x => x.DocumentNo).HasMaxLength(StockLedger.TextLength).HasAuditName("เลขที่");
+            e.Property(x => x.DocumentLineNo).HasMaxLength(StockLedger.TextLength).HasAuditName("ลำดับ");
+            e.Property(x => x.MaterialId).HasAuditName("วัตถุดิบ");
+            e.Property(x => x.Quantity).HasPrecision(18, 4).HasAuditName("จำนวน");
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20).HasAuditName("ชนิดรายการ");
+            e.Property(x => x.SupplierId).HasAuditName("ผู้ขาย");
+            e.Property(x => x.EmployeeId).HasAuditName("พนักงาน");
+            e.Property(x => x.UnitPrice).HasPrecision(18, 4).HasAuditName("ราคา");
+            e.Property(x => x.Note).HasMaxLength(StockLedger.TextLength).HasAuditName("หมายเหตุ");
+            e.Property(x => x.IsClosed).HasAuditName("ปิดงวดแล้ว");
+            e.HasIndex(x => new { x.MaterialId, x.IsClosed });
+            e.HasIndex(x => x.DocumentNo);
+            e.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
