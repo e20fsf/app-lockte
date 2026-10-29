@@ -24,8 +24,8 @@ public sealed class PurchStockMigrationTests(MigrationDbFixture db) : IDisposabl
     [Fact]
     public async Task The_balance_of_every_material_is_the_sum_of_its_rows_and_the_odd_rows_are_reported()
     {
-        var tag = Unique();
-        string code1 = "ST" + tag, code2 = "SU" + tag;
+        var tag = Unique()[..4]; // PD_C of the cut table is Text(6): the codes are tag + 1 letter
+        string code1 = "T" + tag, code2 = "U" + tag;
         var supplier = (await AsAsync(s => s.Get<SupplierRegistry>().SaveAsync(new SupplierInput(null, "SS" + tag, "ผู้ขายสต็อก " + tag, null)))).Id!.Value;
         var m1 = (await AsAsync(s => s.Get<MaterialRegistry>().SaveAsync(new MaterialInput(null, code1, "วัตถุดิบสต็อก 1", null, "กก.", IsMain: true)))).Id!.Value;
         var m2 = (await AsAsync(s => s.Get<MaterialRegistry>().SaveAsync(new MaterialInput(null, code2, "วัตถุดิบสต็อก 2", null, "กก.", IsMain: true)))).Id!.Value;
@@ -38,12 +38,12 @@ public sealed class PurchStockMigrationTests(MigrationDbFixture db) : IDisposabl
             .Row("Stock", ("RE_DATE", cut), ("INVOICE_NO", "stock"), ("MTR_CODE", code2), ("RE_QTY", -13250.0))                                                                        // overdrawn at the cut
             .Row("Stock", ("RE_DATE", new DateTime(2027, 11, 22)), ("INVOICE_NO", "87/1"), ("MARK", "tr"), ("MTR_CODE", code2), ("RE_QTY", -5.0))                                         // a date in the future
             .Row("Stock", ("RE_DATE", new DateTime(2026, 9, 21)), ("MTR_CODE", code2), ("RE_QTY", 7.0))                                                                                 // typed by hand: an adjustment
-            .Row("Stock", ("RE_DATE", new DateTime(2026, 9, 22)), ("MTR_CODE", "NOPE" + tag), ("RE_QTY", 40.0))                                                                          // a code nobody has
+            .Row("Stock", ("RE_DATE", new DateTime(2026, 9, 22)), ("MTR_CODE", "N" + tag), ("RE_QTY", 40.0))                                                                          // a code nobody has
             .Row("Stock", ("MTR_CODE", code2), ("RE_QTY", 3.0))                                                                                                                         // no date
             .Row("ต้นงวดP_ST", ("DATE", new DateTime(2025, 10, 31)), ("REF_NO", "stock"), ("PD_C", code1), ("QTY", 1000.0))
             .Row("ต้นงวดP_ST", ("DATE", new DateTime(2025, 10, 31)), ("REF_NO", "stock"), ("PD_C", code2), ("QTY", -13250.0))
             .Row("ต้นงวดP_ST", ("DATE", new DateTime(2024, 5, 31)), ("REF_NO", "stock"), ("PD_C", code1), ("QTY", 9.0))                 // before 2025: not moved
-            .Row("ต้นงวดP_ST", ("DATE", new DateTime(2025, 9, 30)), ("REF_NO", "stock"), ("PD_C", "NOPE" + tag), ("QTY", 1.0));        // a code nobody has
+            .Row("ต้นงวดP_ST", ("DATE", new DateTime(2025, 9, 30)), ("REF_NO", "stock"), ("PD_C", "N" + tag), ("QTY", 1.0));        // a code nobody has
         var source = file.Save(Path.Combine(work.FullName, "วัตถุดิบ.accdb"));
         var map = Path.Combine(work.FullName, "map.csv");
         File.WriteAllLines(map, ["kind,legacy,code,name,prefix"]);
@@ -70,7 +70,7 @@ public sealed class PurchStockMigrationTests(MigrationDbFixture db) : IDisposabl
             Assert.Equal(StockEntryKind.Adjustment, (await AsAsync(s => s.Get<StockDirectory>().GetEntriesAsync(m2))).Single(e => e.Quantity == 7m).Kind);
 
             Assert.Contains(report.Exceptions, e => e.Rule == "DQ-08" && e.Key == code2);       // the negative balance, by code
-            Assert.Contains(report.Exceptions, e => e.Rule == "DQ-07" && e.Key == "NOPE" + tag);
+            Assert.Contains(report.Exceptions, e => e.Rule == "DQ-07" && e.Key == "N" + tag);
             Assert.Contains(report.Exceptions, e => e.Rule == "DQ-09" && e.Problem.Contains("2027-11-22"));
             Assert.Contains(report.Exceptions, e => e.Rule == "DQ-10");
             Assert.Contains(new DateOnly(2025, 10, 31), await AsAsync(s => s.Get<StockClosingDirectory>().GetCutDatesAsync())); // RPT-26 of that day can be printed again

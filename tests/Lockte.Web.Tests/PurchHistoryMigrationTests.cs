@@ -73,7 +73,7 @@ public sealed class PurchHistoryMigrationTests(MigrationDbFixture db) : IDisposa
         {
             var report = await PurchHistoryTool.RunAsync(db.Services, source, map, Path.Combine(work.FullName, "out"));
 
-            var table = report.Tables.Single();
+            var table = report.Tables.Single(t => t.LegacyTable == "ประเมินผู้ขาย");
             Assert.Equal((7, 1, 3, 3), (table.SourceRows, table.Excluded, table.Rejected, table.Loaded));
             Assert.True(report.Balanced, string.Join("; ", report.MonthlyTotals.Where(m => !m.Balanced).Select(m => m.Measure)));
             Assert.Equal(["DQ-16", "DQ-16", "DQ-17"], report.Exceptions.Where(e => e.Rule is "DQ-16" or "DQ-17").Select(e => e.Rule).Order().ToArray());
