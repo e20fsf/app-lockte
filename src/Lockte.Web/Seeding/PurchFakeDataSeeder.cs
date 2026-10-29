@@ -49,7 +49,7 @@ public sealed class PurchFakeDataSeeder(Func<AsyncServiceScope> newScope)
         await SeedMaterialsAsync();
 
         // the months before the cut: normal buying, every delivery with a LOT, a few that failed
-        for (var i = 0; i < 40; i++) await BuyAsync(QuarterFrom.AddDays(random.Next(0, 88)), Scenario.ReceivedFully, lines: random.Next(1, 4));
+        for (var i = 0; i < 60; i++) await BuyAsync(QuarterFrom.AddDays(random.Next(0, 88)), Scenario.ReceivedFully, lines: random.Next(1, 4));
         for (var i = 0; i < 6; i++) await BuyAsync(QuarterFrom.AddDays(random.Next(0, 88)), Scenario.Failed, lines: 1);
         await IssueStockAsync(QuarterFrom.AddDays(40), 12);
 
