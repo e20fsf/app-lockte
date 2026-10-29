@@ -159,4 +159,14 @@ public sealed class ProgramMenuTests
         Assert.All(Lockte.Web.Components.Pages.Calib.InstrumentKindInfo.All, k => Assert.NotNull(CalibMenu.Menu.Find(k.MenuNumber)));
         Assert.Equal(Lockte.Web.Components.Pages.Calib.InstrumentKindInfo.All.Count, Lockte.Web.Components.Pages.Calib.InstrumentKindInfo.All.Select(k => k.Key).Distinct().Count());
     }
+
+    [Theory]
+    [InlineData("pg")]
+    [InlineData("scale")]
+    [InlineData("tc")]
+    public void Pressure_gauge_scale_and_temp_control_screens_are_opened_by_their_menu_items(string key) // built (#195)
+    {
+        Assert.Equal($"calib/instruments/{key}/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem($"SCR-02-{key}")!.Value.Item));
+        Assert.Equal($"calib/instruments/{key}", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem($"SCR-03-{key}")!.Value.Item));
+    }
 }
