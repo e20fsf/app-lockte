@@ -11,7 +11,7 @@
 
 @* วัตถุดิบ (SCR-17, BR-001): เพิ่ม (ฟอร์ม MTR_NAME) and แก้ไข (MTR_NAME1/2) on one page — pick a row to edit it, "รายต่อไป" for a new one.
    The code cannot repeat (AC-31); a material is deleted with a button and a confirmation, not by clearing its name. The latest supplier is
-   filled by the goods receipt and only shown. The list print (RPT-28/29) comes with #263. *@
+   filled by the goods receipt and only shown. The list prints (RPT-28/29) are the buttons below the list. *@
 <PageTitle>วัตถุดิบ — LOCKTE</PageTitle>
 <h1 class="mb-4">วัตถุดิบ</h1>
 
@@ -78,6 +78,8 @@
 
 <MudStack Row="true" Spacing="2" Class="mt-4">
     <MudButton Variant="Variant.Outlined" Href="purch/materials/groups" StartIcon="@Icons.Material.Filled.Tune">แก้กลุ่มรหัสวัตถุดิบ</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="@($"reports/purch/lists/materials?group={Uri.EscapeDataString(group ?? "")}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อตามรหัส@(string.IsNullOrEmpty(group) ? "" : " (กลุ่ม " + group + "*)")</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="reports/purch/lists/materials?byName=true" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อตามชื่อ (ทั้งหมด)</MudButton>
 </MudStack>
 
 <MudButton Href="@PurchMenu.HrefOf(10)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>

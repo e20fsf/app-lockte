@@ -1,0 +1,27 @@
+@using Lockte.Purch
+@* RPT-30 / RPT-31 รายชื่อผู้ขาย, ระดับ B on A4 นอน: ที่, รหัส, ชื่อ, ที่อยู่ (2 บรรทัด), โทร, FAX, ผู้ติดต่อ, เครดิต (ตัวเลขหรือ "เงินสด"), สินค้าหรือบริการ. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="font-size:.85em">
+        <colgroup><col style="width:4%" /><col style="width:8%" /><col style="width:18%" /><col style="width:22%" /><col style="width:10%" /><col style="width:9%" /><col style="width:10%" /><col style="width:6%" /><col style="width:13%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อ</th><th>ที่อยู่</th><th>โทร</th><th>FAX</th><th>ผู้ติดต่อ</th><th>เครดิต</th><th>สินค้าหรือบริการ</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var s = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@s.Code</td><td>@s.Name</td><td>@s.Address1<br />@s.Address2</td><td>@s.Tel1</td><td>@s.Fax</td><td>@s.Contact</td><td>@s.CreditText</td><td>@s.ProductType</td>
+                </tr>
+            }
+            <tr><td colspan="9" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public SupplierListReport Report { get; set; } = null!;
+}
