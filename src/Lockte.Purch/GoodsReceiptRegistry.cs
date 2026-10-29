@@ -32,6 +32,11 @@ public sealed record GoodsReceiptDto(
     int Id,
     int OrderLineId,
     string OrderNo,
+    int MaterialId,
+    string MaterialCode,
+    string MaterialName,
+    string? Unit,
+    bool Failed,
     DateOnly ReceiveDate,
     decimal Quantity,
     string? InvoiceNo,
@@ -53,7 +58,26 @@ public sealed record GoodsReceiptInput(
     string? InvoiceLineNo = null,
     decimal? UnitPrice = null,
     int? SupplierId = null,
-    string? ReturnNote = null);
+    string? ReturnNote = null,
+    bool Failed = false);
+
+/// <summary>
+/// A receipt in the history as SCR-12 edits it (BR-034). <see cref="MaterialName"/>/<see cref="Unit"/> are the document's text; changing <see cref="MaterialId"/> refills them.
+/// </summary>
+public sealed record GoodsReceiptUpdate(
+    int Id,
+    byte[] RowVersion,
+    DateOnly ReceiveDate,
+    decimal Quantity,
+    string? InvoiceNo,
+    string? InvoiceLineNo,
+    decimal UnitPrice,
+    int SupplierId,
+    int MaterialId,
+    string? MaterialName,
+    string? Unit,
+    bool Failed,
+    string? ReturnNote);
 
 /// <summary>An order with something left to receive (SCR-11's "เลือกเลขที่ใบสั่งซื้อ").</summary>
 public sealed record ReceivableOrder(int OrderId, string OrderNo, DateOnly OrderDate, string SupplierName, int OutstandingLines);
@@ -103,7 +127,9 @@ public sealed class GoodsReceiptRegistry(PurchDbContext db, StockLedger ledger)
             {
                 PurchaseOrderLineId = line.Id, ReceiveDate = input.ReceiveDate, Quantity = quantity, InvoiceNo = Clean(input.InvoiceNo), InvoiceLineNo = Clean(input.InvoiceLineNo),
                 UnitPrice = price, NetAmount = PurchaseOrderMath.LineNet(price, quantity), SupplierId = supplierId, ReturnNote = Clean(input.ReturnNote),
+                MaterialId = material.Id, MaterialName = line.MaterialName, Unit = line.Unit, Failed = input.Failed,
             });
+            if (input.Failed) continue; // BR-032: evidence only — not received, not in the stock, the register is not touched
             // only a วัตถุดิบหลัก goes into the stock (BR-003, ข้อสมมติ ข)
             if (material.IsMain)
                 ledger.Add(StockEntryKind.Receipt, input.ReceiveDate, material.Id, quantity, Clean(input.InvoiceNo), Clean(input.InvoiceLineNo), supplierId: supplierId, unitPrice: price);
@@ -129,6 +155,79 @@ public sealed class GoodsReceiptRegistry(PurchDbContext db, StockLedger ledger)
         line.ReceivingCancelled = true;
         await db.SaveChangesAsync();
         return ServiceResult.Ok();
+    }
+
+    /// <summary>
+    /// แก้ประวัติรับของ (SCR-12, BR-034): date, quantity, price, material, supplier, result, return note — the amount recomputed as in BR-030. **The stock is not adjusted**
+    /// and the order is not handed back to ยอดค้างรับ (AC-38, ข้อสมมติ ค): the screen tells the user to correct the stock on SCR-16. A stale row throws
+    /// <see cref="ConcurrencyConflictException"/>.
+    /// </summary>
+    public async Task<ServiceResult> UpdateAsync(GoodsReceiptUpdate input)
+    {
+        var receipt = await db.GoodsReceipts.Include(r => r.PurchaseOrderLine).FirstOrDefaultAsync(r => r.Id == input.Id);
+        if (receipt is null) return ServiceResult.Fail("ไม่พบรายการรับของนี้ (อาจถูกลบไปแล้ว)");
+        receipt.ExpectRowVersion(input.RowVersion);
+        var errors = new List<string>();
+        if (input.ReceiveDate == default) errors.Add("กรุณากรอกวันที่รับ");
+        if (input.Quantity <= 0) errors.Add("จำนวนรับต้องมากกว่า 0 (ถ้าไม่ต้องการรายการนี้ ใช้ปุ่มลบ)");
+        if (input.UnitPrice < 0) errors.Add("ราคาต้องไม่ติดลบ");
+        if (Clean(input.InvoiceNo)?.Length > StockLedger.TextLength || Clean(input.InvoiceLineNo)?.Length > StockLedger.TextLength || Clean(input.ReturnNote)?.Length > StockLedger.TextLength)
+            errors.Add($"เลขที่ใบส่งสินค้า ลำดับ และอื่น ๆ ยาวได้ไม่เกิน {StockLedger.TextLength} ตัว");
+        var material = await db.Materials.AsNoTracking().FirstOrDefaultAsync(m => m.Id == input.MaterialId);
+        if (material is null) errors.Add("ไม่พบวัตถุดิบที่เลือก");
+        if (!await db.Suppliers.AnyAsync(s => s.Id == input.SupplierId)) errors.Add("ไม่พบผู้ขายที่เลือก");
+        if (errors.Count > 0) return new ServiceResult(false, errors);
+
+        var line = receipt.PurchaseOrderLine!;
+        var before = await OutstandingAsync(line);
+        var materialChanged = receipt.MaterialId != material!.Id;
+        receipt.ReceiveDate = input.ReceiveDate;
+        receipt.Quantity = input.Quantity;
+        receipt.InvoiceNo = Clean(input.InvoiceNo);
+        receipt.InvoiceLineNo = Clean(input.InvoiceLineNo);
+        receipt.UnitPrice = input.UnitPrice;
+        receipt.NetAmount = PurchaseOrderMath.LineNet(input.UnitPrice, input.Quantity);
+        receipt.SupplierId = input.SupplierId;
+        receipt.MaterialId = material.Id;
+        receipt.MaterialName = Clean(input.MaterialName) ?? (materialChanged ? material.Name : receipt.MaterialName);
+        receipt.Unit = Clean(input.Unit) ?? (materialChanged ? material.Unit : receipt.Unit);
+        receipt.Failed = input.Failed;
+        receipt.ReturnNote = Clean(input.ReturnNote);
+        await db.SaveChangesAsync();
+        await KeepClosedAsync(line, before);
+        return ServiceResult.Ok(receipt.Id);
+    }
+
+    /// <summary>
+    /// ลบรายการในประวัติรับของ (SCR-12, BR-034 ข้อ 2, ปุ่มลบพร้อมหน้ายืนยัน): the row goes; the stock is not taken back and the order does not return to ยอดค้างรับ
+    /// (AC-38); the document numbers are not touched (AC-35). Deleting a row that is already gone succeeds.
+    /// </summary>
+    public async Task<ServiceResult> DeleteAsync(int id, byte[] loadedRowVersion)
+    {
+        var receipt = await db.GoodsReceipts.Include(r => r.PurchaseOrderLine).FirstOrDefaultAsync(r => r.Id == id);
+        if (receipt is null) return ServiceResult.Ok();
+        receipt.ExpectRowVersion(loadedRowVersion);
+        var line = receipt.PurchaseOrderLine!;
+        var before = await OutstandingAsync(line);
+        db.GoodsReceipts.Remove(receipt);
+        await db.SaveChangesAsync();
+        await KeepClosedAsync(line, before);
+        return ServiceResult.Ok();
+    }
+
+    /// <summary>ยอดค้างรับ of a line: ordered − Σ received that did not fail.</summary>
+    private async Task<decimal> OutstandingAsync(PurchaseOrderLine line)
+        => line.Quantity - (await db.GoodsReceipts.Where(r => r.PurchaseOrderLineId == line.Id && !r.Failed).SumAsync(r => (decimal?)r.Quantity) ?? 0);
+
+    /// <summary>A line that was fully received does not go back to waiting when its history is corrected (AC-38): it is marked as no longer waited for.</summary>
+    private async Task KeepClosedAsync(PurchaseOrderLine line, decimal outstandingBefore)
+    {
+        if (outstandingBefore > 0 || line.ReceivingCancelled) return;
+        if (await OutstandingAsync(line) > 0)
+        {
+            line.ReceivingCancelled = true;
+            await db.SaveChangesAsync();
+        }
     }
 
     private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
@@ -164,22 +263,40 @@ public sealed class GoodsReceiptDirectory(PurchDbContext db)
     {
         var line = await db.PurchaseOrderLines.AsNoTracking().Include(l => l.PurchaseOrder).FirstOrDefaultAsync(l => l.Id == orderLineId);
         if (line is null) return [];
-        var rows = await db.GoodsReceipts.AsNoTracking().Where(r => r.PurchaseOrderLineId == orderLineId).OrderBy(r => r.ReceiveDate).ThenBy(r => r.Id).ToListAsync();
+        var rows = await db.GoodsReceipts.AsNoTracking().Include(r => r.Material).Where(r => r.PurchaseOrderLineId == orderLineId).OrderBy(r => r.ReceiveDate).ThenBy(r => r.Id).ToListAsync();
         var running = 0m;
         var result = new List<GoodsReceiptDto>();
         foreach (var r in rows)
         {
-            running += r.Quantity;
-            result.Add(new GoodsReceiptDto(r.Id, r.PurchaseOrderLineId, line.PurchaseOrder!.OrderNo, r.ReceiveDate, r.Quantity, r.InvoiceNo, r.InvoiceLineNo, r.UnitPrice, r.NetAmount, r.SupplierId,
-                r.ReturnNote, GoodsReceiptMath.OnTime(line.DesiredDate, r.ReceiveDate), line.Quantity - running, r.RowVersion));
+            if (!r.Failed) running += r.Quantity; // a failed delivery is not received: the outstanding stays
+            result.Add(ToDto(r, line.PurchaseOrder!.OrderNo, line.DesiredDate, line.Quantity - running));
         }
         return result;
     }
+
+    /// <summary>Orders that have receipts in the history (SCR-12's "เลือกเลขที่ใบสั่งซื้อ"), the highest number first.</summary>
+    public async Task<IReadOnlyList<ReceivableOrder>> GetHistoryOrdersAsync()
+        => (await db.GoodsReceipts.AsNoTracking().Select(r => new { r.PurchaseOrderLine!.PurchaseOrderId, r.PurchaseOrderLine.PurchaseOrder!.OrderNo, r.PurchaseOrderLine.PurchaseOrder.OrderDate, r.PurchaseOrderLine.PurchaseOrder.SupplierName })
+                .Distinct().ToListAsync())
+            .OrderByDescending(o => o.OrderNo.Length).ThenByDescending(o => o.OrderNo).Select(o => new ReceivableOrder(o.PurchaseOrderId, o.OrderNo, o.OrderDate, o.SupplierName, 0)).ToList();
+
+    /// <summary>Every receipt of an order, by line then date.</summary>
+    public async Task<IReadOnlyList<GoodsReceiptDto>> GetOrderReceiptsAsync(int orderId)
+    {
+        var lines = await db.PurchaseOrderLines.AsNoTracking().Include(l => l.PurchaseOrder).Where(l => l.PurchaseOrderId == orderId).OrderBy(l => l.LineNo).ThenBy(l => l.Id).ToListAsync();
+        var result = new List<GoodsReceiptDto>();
+        foreach (var line in lines) result.AddRange(await GetReceiptsAsync(line.Id));
+        return result;
+    }
+
+    private static GoodsReceiptDto ToDto(GoodsReceipt r, string orderNo, DateOnly? desired, decimal outstandingAfter) => new(
+        r.Id, r.PurchaseOrderLineId, orderNo, r.MaterialId, r.Material!.Code, r.MaterialName, r.Unit, r.Failed, r.ReceiveDate, r.Quantity, r.InvoiceNo, r.InvoiceLineNo, r.UnitPrice, r.NetAmount,
+        r.SupplierId, r.ReturnNote, GoodsReceiptMath.OnTime(desired, r.ReceiveDate), outstandingAfter, r.RowVersion);
 
     private static bool IsOutstanding(PurchaseOrderLine line, Dictionary<int, decimal> received)
         => !line.ReceivingCancelled && line.Quantity - received.GetValueOrDefault(line.Id) > 0;
 
     private async Task<Dictionary<int, decimal>> ReceivedAsync(IReadOnlyList<int> lineIds)
-        => await db.GoodsReceipts.AsNoTracking().Where(r => lineIds.Contains(r.PurchaseOrderLineId))
+        => await db.GoodsReceipts.AsNoTracking().Where(r => lineIds.Contains(r.PurchaseOrderLineId) && !r.Failed)
             .GroupBy(r => r.PurchaseOrderLineId).Select(g => new { g.Key, Total = g.Sum(r => r.Quantity) }).ToDictionaryAsync(g => g.Key, g => g.Total);
 }

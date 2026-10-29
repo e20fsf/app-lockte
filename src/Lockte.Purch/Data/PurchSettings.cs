@@ -454,6 +454,15 @@ internal sealed class GoodsReceipt : IAudited
     public Supplier? Supplier { get; set; }
     /// <summary>อื่น ๆ (ส่งคืน): CREM.</summary>
     public string? ReturnNote { get; set; }
+    /// <summary>วัตถุดิบที่รับ (the order line's, or the one the history was corrected to) with the name and unit as the document shows them (DQ-04).</summary>
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    public string MaterialName { get; set; } = "";
+    public string? Unit { get; set; }
+    /// <summary>
+    /// ผลตรวจ ไม่ผ่าน (BR-032): kept as evidence for the supplier's evaluation, not counted as received — the order stays waiting for the full quantity — and never goes into the stock.
+    /// </summary>
+    public bool Failed { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

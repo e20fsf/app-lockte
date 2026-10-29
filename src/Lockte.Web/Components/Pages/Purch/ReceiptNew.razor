@@ -40,6 +40,7 @@
                 <MudNumericField T="decimal?" @bind-Value="row.Price" Label="ราคา/หน่วย" Min="0" Margin="Margin.Dense" Style="width:9rem" />
                 <MudText Style="width:13rem">@row.Result</MudText>
                 <MudTextField @bind-Value="row.ReturnNote" Label="อื่น ๆ (ส่งคืน)" Margin="Margin.Dense" Style="width:11rem" MaxLength="StockLedger.TextLength" />
+                <MudCheckBox T="bool" @bind-Value="row.Failed" Label="ผลตรวจไม่ผ่าน" Color="Color.Error" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => CancelAsync(row))" aria-label="ลบรายการค้างรับ" />
             </MudStack>
         }
@@ -78,7 +79,7 @@ else if (orderId is not null)
         busy = true;
         try
         {
-            var inputs = rows.Select(r => new GoodsReceiptInput(r.Line.OrderLineId, DateOnly.FromDateTime(r.Date ?? Clock.GetLocalNow().DateTime), r.Quantity, r.InvoiceNo, r.InvoiceLineNo, r.Price, null, r.ReturnNote)).ToList();
+            var inputs = rows.Select(r => new GoodsReceiptInput(r.Line.OrderLineId, DateOnly.FromDateTime(r.Date ?? Clock.GetLocalNow().DateTime), r.Quantity, r.InvoiceNo, r.InvoiceLineNo, r.Price, null, r.ReturnNote, r.Failed)).ToList();
             var result = await Services.RunAsync<GoodsReceiptRegistry, ServiceResult>(r => r.ReceiveAsync(inputs));
             foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
             if (!result.Succeeded) return;
@@ -120,9 +121,11 @@ else if (orderId is not null)
         public string? InvoiceLineNo { get; set; }
         public decimal? Price { get; set; }
         public string? ReturnNote { get; set; }
+        public bool Failed { get; set; }
 
         /// <summary>ส่งทัน/ไม่ทัน, ยอดค้างรับ and จำนวนเงิน as the legacy showed them while typing (BR-030).</summary>
         public string Result => Quantity is not > 0 ? "" :
-            $"{(GoodsReceiptMath.OnTime(Line.DesiredDate, DateOnly.FromDateTime(Date ?? DateTime.Today)) ? "ทัน" : "ไม่ทัน")} · ค้าง {(Line.Outstanding - Quantity.Value):#,0.####} · {PurchaseOrderMath.LineNet(Price ?? 0, Quantity.Value):N2}";
+            Failed ? "ไม่ผ่าน: บันทึกเป็นหลักฐาน ค้างรับเท่าเดิม ไม่เข้าสต็อก"
+                : $"{(GoodsReceiptMath.OnTime(Line.DesiredDate, DateOnly.FromDateTime(Date ?? DateTime.Today)) ? "ทัน" : "ไม่ทัน")} · ค้าง {(Line.Outstanding - Quantity.Value):#,0.####} · {PurchaseOrderMath.LineNet(Price ?? 0, Quantity.Value):N2}";
     }
 }

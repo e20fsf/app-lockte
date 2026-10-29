@@ -262,11 +262,17 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             r.Property(x => x.NetAmount).HasPrecision(18, 4).HasAuditName("จำนวนเงิน");
             r.Property(x => x.SupplierId).HasAuditName("ผู้ขาย");
             r.Property(x => x.ReturnNote).HasMaxLength(StockLedger.TextLength).HasAuditName("อื่น ๆ (ส่งคืน)");
+            r.Property(x => x.MaterialId).HasAuditName("วัตถุดิบ");
+            r.Property(x => x.MaterialName).HasMaxLength(MaterialRegistry.NameLength).HasAuditName("ชื่อวัตถุดิบ");
+            r.Property(x => x.Unit).HasMaxLength(MaterialRegistry.UnitLength).HasAuditName("หน่วย");
+            r.Property(x => x.Failed).HasAuditName("ผลตรวจไม่ผ่าน");
+            r.HasIndex(x => x.MaterialId);
             r.HasIndex(x => x.PurchaseOrderLineId);
             r.HasIndex(x => x.ReceiveDate);
             // An order line that was received cannot be deleted (ข้อสมมติ ง).
             r.HasOne(x => x.PurchaseOrderLine).WithMany().HasForeignKey(x => x.PurchaseOrderLineId).OnDelete(DeleteBehavior.Restrict);
             r.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
+            r.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

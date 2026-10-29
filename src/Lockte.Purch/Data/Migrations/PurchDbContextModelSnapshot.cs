@@ -116,6 +116,10 @@ namespace Lockte.Purch.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<bool>("Failed")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ผลตรวจไม่ผ่าน");
+
                     b.Property<string>("InvoiceLineNo")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
@@ -125,6 +129,16 @@ namespace Lockte.Purch.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
                         .HasAnnotation("Lockte:AuditName", "เลขที่ใบส่งสินค้า");
+
+                    b.Property<int>("MaterialId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "วัตถุดิบ");
+
+                    b.Property<string>("MaterialName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อวัตถุดิบ");
 
                     b.Property<decimal>("NetAmount")
                         .HasPrecision(18, 4)
@@ -159,6 +173,11 @@ namespace Lockte.Purch.Data.Migrations
                         .HasColumnType("int")
                         .HasAnnotation("Lockte:AuditName", "ผู้ขาย");
 
+                    b.Property<string>("Unit")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "หน่วย");
+
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)")
@@ -173,6 +192,8 @@ namespace Lockte.Purch.Data.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MaterialId");
 
                     b.HasIndex("PurchaseOrderLineId");
 
@@ -1343,6 +1364,12 @@ namespace Lockte.Purch.Data.Migrations
 
             modelBuilder.Entity("Lockte.Purch.Data.GoodsReceipt", b =>
                 {
+                    b.HasOne("Lockte.Purch.Data.Material", "Material")
+                        .WithMany()
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Lockte.Purch.Data.PurchaseOrderLine", "PurchaseOrderLine")
                         .WithMany()
                         .HasForeignKey("PurchaseOrderLineId")
@@ -1354,6 +1381,8 @@ namespace Lockte.Purch.Data.Migrations
                         .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Material");
 
                     b.Navigation("PurchaseOrderLine");
 

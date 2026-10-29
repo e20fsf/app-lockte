@@ -179,4 +179,82 @@ public sealed class GoodsReceiptTests(LocalDbFixture db)
         Assert.Contains("จำนวนรับต้องไม่ติดลบ", (await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026, -1m))).Errors);
         Assert.Contains("ไม่พบรายการใบสั่งซื้อที่รับ (อาจถูกลบไปแล้ว)", (await ReceiveAsync(new GoodsReceiptInput(int.MaxValue, Oct2026, 1m))).Errors);
     }
+
+    // ---------- #250: ไม่ผ่าน (BR-032) และแก้/ลบประวัติ (BR-034) ----------
+
+    private Task<GoodsReceiptUpdate> UpdateOf(GoodsReceiptDto r, int supplier, decimal? quantity = null, decimal? price = null, bool? failed = null)
+        => Task.FromResult(new GoodsReceiptUpdate(r.Id, r.RowVersion, r.ReceiveDate, quantity ?? r.Quantity, r.InvoiceNo, r.InvoiceLineNo, price ?? r.UnitPrice, supplier, r.MaterialId, r.MaterialName, r.Unit,
+            failed ?? r.Failed, r.ReturnNote));
+
+    [Fact]
+    public async Task A_failed_receipt_is_kept_as_evidence_but_is_not_received_and_not_in_the_stock_BR_032_AC_16()
+    {
+        var order = await OrderAsync(1000m, 10m, main: true);
+        Assert.True((await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026, 1000m, Failed: true))).Succeeded);
+
+        var receipt = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.True(receipt.Failed);
+        Assert.Equal(1000m, receipt.OutstandingAfter); // the order still waits for all of it
+        Assert.Equal(0m, await StockAsync(order.MaterialId));
+        var line = Assert.Single(await AsAsync(async s => await s.Get<GoodsReceiptDirectory>().GetReceivableLinesAsync((await s.Get<PurchaseOrderDirectory>().FindByNoAsync(order.OrderNo))!.Id)));
+        Assert.Equal((0m, 1000m), (line.Received, line.Outstanding));
+        var material = (await AsAsync(s => s.Get<MaterialDirectory>().GetAsync(order.MaterialId)))!;
+        Assert.Equal(1m, material.Cost); // the register's price is not set by a failed delivery
+
+        Assert.True((await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026.AddDays(2), 1000m))).Succeeded); // the supplier delivers again, accepted
+        Assert.Equal(1000m, await StockAsync(order.MaterialId));
+        Assert.Equal([1000m, 0m], (await ReceiptsAsync(order.OrderLineId)).Select(r => r.OutstandingAfter));
+    }
+
+    [Fact]
+    public async Task Editing_a_receipt_recomputes_the_amount_and_leaves_the_stock_and_the_order_alone_BR_034_1_AC_38()
+    {
+        var order = await OrderAsync(400m, 96m, main: true);
+        await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026, 400m));
+        var receipt = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.Equal(400m, await StockAsync(order.MaterialId));
+
+        Assert.True((await AsAsync(async s => await s.Get<GoodsReceiptRegistry>().UpdateAsync(await UpdateOf(receipt, order.SupplierId, quantity: 380m, price: 100m)))).Succeeded);
+        var edited = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.Equal((380m, 38000m), (edited.Quantity, edited.NetAmount));
+        Assert.Equal(400m, await StockAsync(order.MaterialId)); // the stock is still +400
+        Assert.DoesNotContain(await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetOrdersAsync()), o => o.OrderNo == order.OrderNo); // not back to ยอดค้างรับ
+        Assert.Single(await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetHistoryOrdersAsync()), o => o.OrderNo == order.OrderNo);
+
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
+            AsAsync(async s => await s.Get<GoodsReceiptRegistry>().UpdateAsync(await UpdateOf(receipt, order.SupplierId, quantity: 390m))));
+    }
+
+    [Fact]
+    public async Task Deleting_a_receipt_does_not_take_the_stock_back_or_reopen_the_order_BR_034_2()
+    {
+        var order = await OrderAsync(100m, 5m, main: true);
+        await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026, 100m));
+        var receipt = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+
+        Assert.True((await AsAsync(s => s.Get<GoodsReceiptRegistry>().DeleteAsync(receipt.Id, receipt.RowVersion))).Succeeded);
+        Assert.Empty(await ReceiptsAsync(order.OrderLineId));
+        Assert.Equal(100m, await StockAsync(order.MaterialId));
+        Assert.DoesNotContain(await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetOrdersAsync()), o => o.OrderNo == order.OrderNo);
+        Assert.NotNull(await AsAsync(s => s.Get<PurchaseOrderDirectory>().FindByNoAsync(order.OrderNo))); // the order number stays
+        Assert.True((await AsAsync(s => s.Get<GoodsReceiptRegistry>().DeleteAsync(receipt.Id, receipt.RowVersion))).Succeeded); // already gone
+    }
+
+    [Fact]
+    public async Task A_partly_received_order_stays_waiting_when_a_receipt_is_corrected_and_the_material_can_be_changed()
+    {
+        var order = await OrderAsync(200m, 10m, main: false);
+        await ReceiveAsync(new GoodsReceiptInput(order.OrderLineId, Oct2026, 50m));
+        var receipt = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        var other = (await AsAsync(s => s.Get<MaterialRegistry>().SaveAsync(new MaterialInput(null, Unique("ch").ToUpperInvariant(), "วัตถุดิบที่แก้ให้ถูก", null, "ใบ")))).Id!.Value;
+
+        var update = new GoodsReceiptUpdate(receipt.Id, receipt.RowVersion, receipt.ReceiveDate, 30m, receipt.InvoiceNo, receipt.InvoiceLineNo, receipt.UnitPrice, order.SupplierId, other, null, null, false, "ส่งคืน 20");
+        Assert.True((await AsAsync(s => s.Get<GoodsReceiptRegistry>().UpdateAsync(update))).Succeeded);
+        var edited = Assert.Single(await ReceiptsAsync(order.OrderLineId));
+        Assert.Equal((other, "วัตถุดิบที่แก้ให้ถูก", "ใบ", 170m, "ส่งคืน 20"), (edited.MaterialId, edited.MaterialName, edited.Unit, edited.OutstandingAfter, edited.ReturnNote));
+        Assert.Contains(await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetOrdersAsync()), o => o.OrderNo == order.OrderNo); // still waiting for the rest
+
+        Assert.Contains("จำนวนรับต้องมากกว่า 0 (ถ้าไม่ต้องการรายการนี้ ใช้ปุ่มลบ)",
+            (await AsAsync(s => s.Get<GoodsReceiptRegistry>().UpdateAsync(update with { RowVersion = edited.RowVersion, Quantity = 0m }))).Errors);
+    }
 }
