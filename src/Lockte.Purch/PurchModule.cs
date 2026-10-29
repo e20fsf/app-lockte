@@ -15,6 +15,7 @@ public static class PurchModule
         services.AddScoped<PurchSettingsRegistry>();
         services.AddScoped<SupplierDirectory>();
         services.AddScoped<SupplierRegistry>();
+        services.AddScoped<PurchaseOrderCalculator>();
         return services;
     }
 
