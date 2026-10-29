@@ -1,0 +1,86 @@
+@page "/calib/instruments/{Key}/new"
+@attribute [Authorize]
+@using Lockte.Calib
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+@* เพิ่มเครื่องมือวัด (SCR-02, BR-001): one form for every kind. "รายการต่อไป" saves and opens an empty form; "กลับเมนูเดิม" saves what was
+   typed and goes back — an untouched form leaves nothing behind (AC-04). Unlike the legacy a row without หมายเลขเครื่อง is refused with
+   a message, not deleted in silence, and a repeated หมายเลขเครื่อง is refused (Q-22). *@
+@if (info is null)
+{
+    <MudAlert Severity="Severity.Error">ไม่รู้จักชนิดเครื่องมือวัด</MudAlert>
+}
+else
+{
+    <PageTitle>@info.AddHeading — LOCKTE</PageTitle>
+    <h1 class="mb-4">@info.AddHeading</h1>
+    <MudPaper Class="pa-4" Outlined="true">
+        <InstrumentFields Info="info" Form="form" Choices="choices" />
+        <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Add">รายการต่อไป</MudButton>
+            <MudButton OnClick="BackAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+
+    private InstrumentKindInfo? info;
+    private InstrumentFormModel form = new();
+    private InstrumentChoices choices = new([], [], [], [], [], [], []);
+    private bool busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        info = InstrumentKindInfo.Find(Key);
+        if (info is not null) await ReloadChoicesAsync();
+    }
+
+    private async Task ReloadChoicesAsync()
+    {
+        var kind = info!.Kind;
+        choices = await Services.RunAsync<InstrumentDirectory, InstrumentChoices>(d => d.GetChoicesAsync(kind));
+    }
+
+    /// <summary>Saves the form; true when saved (the messages of a refusal are shown).</summary>
+    private async Task<bool> SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = form.ToInput(info!.Kind);
+            var result = await Services.RunAsync<InstrumentRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return false;
+            Snackbar.Add($"บันทึก {form.Code.Trim()} แล้ว", Severity.Success);
+            return true;
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            return false;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task NextAsync()
+    {
+        if (!await SaveAsync()) return;
+        form = new InstrumentFormModel();
+        await ReloadChoicesAsync();
+    }
+
+    private async Task BackAsync()
+    {
+        if (!form.IsEmpty && !await SaveAsync()) return;
+        Navigation.NavigateTo(CalibMenu.HrefOf(info!.MenuNumber));
+    }
+}

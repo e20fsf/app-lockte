@@ -1,0 +1,131 @@
+@page "/calib/instruments/{Key}"
+@attribute [Authorize]
+@using Lockte.Calib
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* แก้ไขและลบเครื่องมือวัด (SCR-03, BR-003/004): pick an instrument of the kind from the list (หมายเลข + ชื่อ, by หมายเลข), edit any field —
+   the หมายเลข too — and save; "ลบรายการนี้" asks first, then deletes (ประวัติการแก้ไข keeps who did). Two people editing the same row: the
+   later save is told. *@
+@if (info is null)
+{
+    <MudAlert Severity="Severity.Error">ไม่รู้จักชนิดเครื่องมือวัด</MudAlert>
+}
+else
+{
+    <PageTitle>@info.EditHeading — LOCKTE</PageTitle>
+    <h1 class="mb-4">@info.EditHeading</h1>
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudSelect T="int?" Value="selectedId" ValueChanged="SelectAsync" Label="เลือกรายชื่อเครื่องมือวัดที่ต้องการแก้ไข" Clearable="true" Class="mb-3">
+            @foreach (var i in instruments)
+            {
+                <MudSelectItem T="int?" Value="i.Id">@i.Code  @i.Name</MudSelectItem>
+            }
+        </MudSelect>
+        @if (form is null)
+        {
+            <MudText Typo="Typo.body2">เลือกเครื่องมือวัดจากรายการด้านบน</MudText>
+        }
+        else
+        {
+            <InstrumentFields Info="info" Form="form" Choices="choices" />
+            <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+                <MudSpacer />
+                <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบรายการนี้</MudButton>
+            </MudStack>
+        }
+    </MudPaper>
+    <MudButton Href="@CalibMenu.HrefOf(info.MenuNumber)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+}
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+
+    private InstrumentKindInfo? info;
+    private IReadOnlyList<InstrumentDto> instruments = [];
+    private InstrumentChoices choices = new([], [], [], [], [], [], []);
+    private InstrumentFormModel? form;
+    private int? selectedId;
+    private bool busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        info = InstrumentKindInfo.Find(Key);
+        form = null;
+        selectedId = null;
+        if (info is not null) await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var kind = info!.Kind;
+        instruments = await Services.RunAsync<InstrumentDirectory, IReadOnlyList<InstrumentDto>>(d => d.ListAsync(kind));
+        choices = await Services.RunAsync<InstrumentDirectory, InstrumentChoices>(d => d.GetChoicesAsync(kind));
+    }
+
+    private async Task SelectAsync(int? id)
+    {
+        selectedId = id;
+        form = null;
+        if (id is not { } instrumentId) return;
+        var instrument = await Services.RunAsync<InstrumentDirectory, InstrumentDto?>(d => d.GetAsync(instrumentId));
+        form = instrument is null ? null : InstrumentFormModel.From(instrument);
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = form!.ToInput(info!.Kind);
+            var result = await Services.RunAsync<InstrumentRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add($"บันทึก {form.Code.Trim()} แล้ว", Severity.Success);
+            await ReloadAsync();
+            await SelectAsync(selectedId);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            await SelectAsync(selectedId);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบเครื่องมือวัด", $"ลบเครื่องมือวัด {form!.Code} {form.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (form.Id!.Value, form.RowVersion!);
+            var result = await Services.RunAsync<InstrumentRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            form = null;
+            selectedId = null;
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            form = null;
+            selectedId = null;
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+}

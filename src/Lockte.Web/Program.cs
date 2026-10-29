@@ -1,3 +1,4 @@
+using Lockte.Calib;
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
@@ -38,6 +39,7 @@ builder.Services.Replace(ServiceDescriptor.Scoped<IPayAccess, UserPayAccess>());
 builder.Services.AddSalesModule(connectionString);
 builder.Services.AddProdModule(connectionString);
 builder.Services.AddPurchModule(connectionString);
+builder.Services.AddCalibModule(connectionString);
 builder.Services.AddReportData(connectionString);
 builder.Services.AddReportPrinting(builder.Configuration);
 builder.Services.AddScoped<Lockte.Web.Reports.Hr.FormPrinter>();

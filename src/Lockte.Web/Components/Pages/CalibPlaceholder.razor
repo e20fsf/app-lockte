@@ -1,0 +1,9 @@
+@page "/calib/{Code}"
+@attribute [Authorize]
+
+<ScreenPlaceholder Program="CalibMenu.Menu" Code="@Code" />
+
+@code {
+    [Parameter]
+    public string Code { get; set; } = "";
+}

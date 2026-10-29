@@ -1,3 +1,4 @@
+using Lockte.Calib;
 using Lockte.Hr;
 using Lockte.Migration;
 using Lockte.Org;
@@ -46,6 +47,7 @@ public class LocalDbFixture : IAsyncLifetime
         collection.AddSalesModule(AccountsRegistration.ConnectionString(config));
         collection.AddProdModule(AccountsRegistration.ConnectionString(config));
         collection.AddPurchModule(AccountsRegistration.ConnectionString(config));
+        collection.AddCalibModule(AccountsRegistration.ConnectionString(config));
         collection.AddReportData(AccountsRegistration.ConnectionString(config));
         collection.AddMasterDataMigration();
         collection.AddModuleDbContext<WidgetDbContext>(AccountsRegistration.ConnectionString(config), WidgetDbContext.Schema);

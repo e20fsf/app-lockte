@@ -151,3 +151,13 @@ internal sealed class PurchEmployeeLookup(EmployeeDirectory employees) : Lockte.
     public async Task<Lockte.Purch.PurchEmployeeRef?> FindByCodeAsync(string code)
         => await employees.FindByCodeAsync(code) is { } e ? new Lockte.Purch.PurchEmployeeRef(e.Id, e.Code, e.Name) : null;
 }
+
+/// <summary>The employee register as module สอบเทียบ reads it for ผู้สอบเทียบ of เครื่องมือวัด (<see cref="Lockte.Calib.ICalibEmployeeLookup"/>).</summary>
+internal sealed class CalibEmployeeLookup(EmployeeDirectory employees) : Lockte.Calib.ICalibEmployeeLookup
+{
+    public async Task<Lockte.Calib.CalibEmployeeRef?> FindAsync(int employeeId)
+        => await employees.GetAsync(employeeId) is { } e ? new Lockte.Calib.CalibEmployeeRef(e.Id, e.Code, e.Name) : null;
+
+    public async Task<IReadOnlyList<Lockte.Calib.CalibEmployeeRef>> SearchAsync(string? text, int take)
+        => (await employees.SearchAsync(text)).Where(e => e.IsWorking).Take(take).Select(e => new Lockte.Calib.CalibEmployeeRef(e.Id, e.Code, e.Name)).ToList();
+}

@@ -22,6 +22,7 @@ public static class HrModule
         services.AddScoped<Lockte.Sales.IEmployeeLookup, SalesEmployeeLookup>();
         services.AddScoped<Lockte.Prod.IProductionEmployeeLookup, ProductionEmployeeLookup>();
         services.AddScoped<Lockte.Purch.IPurchEmployeeLookup, PurchEmployeeLookup>();
+        services.AddScoped<Lockte.Calib.ICalibEmployeeLookup, CalibEmployeeLookup>();
         services.AddScoped<GovernmentFormDirectory>();
         services.AddScoped<CalendarDirectory>();
         services.AddScoped<CalendarRegistry>();
