@@ -174,6 +174,7 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             l.Property(x => x.UnitPrice).HasPrecision(18, 4).HasAuditName("ราคา");
             l.Property(x => x.NetAmount).HasPrecision(18, 4).HasAuditName("จำนวนเงิน");
             l.Property(x => x.TankWeight).HasPrecision(18, 4).HasAuditName("นน.ถัง");
+            l.Property(x => x.AbandonedQuantity).HasPrecision(18, 4).HasAuditName("จำนวนที่สั่งแล้วลบใบ");
             l.HasIndex(x => x.MaterialId);
             // A material that a request uses cannot be deleted (ข้อสมมติ ง).
             l.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);

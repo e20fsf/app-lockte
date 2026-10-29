@@ -96,6 +96,41 @@ public sealed record PurchaseOrderInput(
     string? Note,
     IReadOnlyList<PurchaseOrderLineInput> Lines);
 
+/// <summary>
+/// A line of an order being edited (SCR-07): quantity, price and the document's own name/unit. <see cref="RowVersion"/> is the one it was loaded with.
+/// <see cref="UnitPrice"/> null keeps the price it has.
+/// </summary>
+public sealed record PurchaseOrderLineUpdate(
+    int Id,
+    byte[] RowVersion,
+    decimal? Quantity,
+    decimal? UnitPrice = null,
+    int? LineNo = null,
+    string? MaterialName = null,
+    string? Unit = null);
+
+/// <summary>The head of an order as edited, and its lines. Lines of the order that are not listed stay as they are; a line is removed with <see cref="PurchaseOrderRegistry.DeleteLineAsync"/>.</summary>
+public sealed record PurchaseOrderUpdate(
+    int Id,
+    byte[] RowVersion,
+    string OrderNo,
+    DateOnly OrderDate,
+    int SupplierId,
+    string SupplierName,
+    string? SupplierAddress1,
+    string? SupplierAddress2,
+    string? SupplierTel,
+    string? SupplierFax,
+    int? CreditDays,
+    bool ChargesVat,
+    string PurchasingLocation,
+    string? Reason,
+    string? Note,
+    IReadOnlyList<PurchaseOrderLineUpdate> Lines);
+
+/// <summary>An order in a search list (SCR-07/09).</summary>
+public sealed record PurchaseOrderSummary(int Id, string OrderNo, DateOnly OrderDate, string SupplierName, int LineCount, decimal Total);
+
 /// <summary>ออกใบสั่งซื้อจากรายการขอซื้อ เต็มหรือบางส่วน (SCR-05, BR-020, BR-021, BR-022, BR-023).</summary>
 public sealed class PurchaseOrderRegistry(PurchDbContext db, SupplierDirectory suppliers, PurchSettingsDirectory settings, RequestSetupDirectory setup)
 {
@@ -177,6 +212,101 @@ public sealed class PurchaseOrderRegistry(PurchDbContext db, SupplierDirectory s
         return ServiceResult.Ok(order.Id);
     }
 
+    /// <summary>
+    /// แก้ใบสั่งซื้อ (SCR-07, BR-024): the supplier (name, address, credit — and VAT, which the legacy did not refill), the price, the quantity ordered, the
+    /// purchasing location, the number. Unlike the legacy the stored totals and each line's amount are recomputed after every edit (BR-024 #1). The number
+    /// may change but must not repeat. A stale head or line throws <see cref="ConcurrencyConflictException"/>.
+    /// </summary>
+    public async Task<ServiceResult> UpdateAsync(PurchaseOrderUpdate input)
+    {
+        var order = await db.PurchaseOrders.Include(o => o.Lines).FirstOrDefaultAsync(o => o.Id == input.Id);
+        if (order is null) return ServiceResult.Fail("ไม่พบใบสั่งซื้อนี้");
+        order.ExpectRowVersion(input.RowVersion);
+
+        var no = Clean(input.OrderNo);
+        var errors = new List<string>();
+        if (no is null) errors.Add("กรุณากรอกเลขที่ใบสั่งซื้อ");
+        else if (no.Length > NumberLength) errors.Add($"เลขที่ใบสั่งซื้อยาวได้ไม่เกิน {NumberLength} ตัว");
+        else if (await db.PurchaseOrders.AnyAsync(o => o.OrderNo == no && o.Id != input.Id)) errors.Add($"มีเลขที่ใบสั่งซื้อ '{no}' อยู่แล้ว");
+        if (input.OrderDate == default) errors.Add("กรุณากรอกวันที่สั่งซื้อ");
+        var supplier = await suppliers.GetAsync(input.SupplierId);
+        if (supplier is null) errors.Add("กรุณาเลือกผู้ขาย");
+        var supplierName = Clean(input.SupplierName) ?? supplier?.Name;
+        var location = Clean(input.PurchasingLocation);
+        if (location is null) errors.Add("กรุณาเลือกผู้จัดซื้อ");
+        else if ((await setup.GetLocationsAsync()).All(l => l.Code != location)) errors.Add($"ไม่พบผู้จัดซื้อ '{location}'");
+        if (input.CreditDays < 0) errors.Add("เครดิตต้องไม่ติดลบ (เงินสด = 0)");
+        var texts = new (string? Value, string Label)[]
+        {
+            (supplierName, "ชื่อผู้ขาย"), (input.SupplierAddress1, "ที่อยู่"), (input.SupplierAddress2, "เขต(อำเภอ)และจังหวัด"), (input.SupplierTel, "โทรศัพท์"), (input.SupplierFax, "แฟกซ์"),
+        };
+        errors.AddRange(texts.Where(t => t.Value?.Trim().Length > SupplierRegistry.TextLength).Select(t => $"{t.Label}ยาวได้ไม่เกิน {SupplierRegistry.TextLength} ตัว"));
+        var reason = Clean(input.Reason);
+        var note = Clean(input.Note);
+        if (reason?.Length > RequestSetupRegistry.TextLength || note?.Length > RequestSetupRegistry.TextLength)
+            errors.Add($"เหตุผลและหมายเหตุยาวได้ไม่เกิน {RequestSetupRegistry.TextLength} ตัว");
+        var existing = order.Lines.ToDictionary(l => l.Id);
+        if (input.Lines.Any(l => !existing.ContainsKey(l.Id))) errors.Add("ไม่พบรายการที่แก้ (อาจถูกลบไปแล้ว)");
+        if (input.Lines.Any(l => l.Quantity is not > 0)) errors.Add("ทุกรายการต้องกรอกจำนวนสั่งซื้อ (มากกว่า 0) — ถ้าไม่ต้องการรายการนี้ ใช้ปุ่มลบรายการ");
+        if (input.Lines.Any(l => l.UnitPrice < 0)) errors.Add("ราคาต้องไม่ติดลบ");
+        if (errors.Count > 0) return new ServiceResult(false, errors);
+
+        order.OrderNo = no!;
+        order.OrderDate = input.OrderDate;
+        order.SupplierId = input.SupplierId;
+        order.SupplierName = supplierName!;
+        order.SupplierAddress1 = Clean(input.SupplierAddress1);
+        order.SupplierAddress2 = Clean(input.SupplierAddress2);
+        order.SupplierTel = Clean(input.SupplierTel);
+        order.SupplierFax = Clean(input.SupplierFax);
+        order.CreditDays = input.CreditDays;
+        order.ChargesVat = input.ChargesVat;
+        order.PurchasingLocation = location;
+        order.Reason = reason;
+        order.Note = note;
+        foreach (var edit in input.Lines)
+        {
+            var line = existing[edit.Id];
+            line.ExpectRowVersion(edit.RowVersion);
+            if (edit.LineNo is > 0) line.LineNo = edit.LineNo.Value;
+            line.MaterialName = Clean(edit.MaterialName) ?? line.MaterialName;
+            line.Unit = Clean(edit.Unit) ?? line.Unit;
+            line.Quantity = edit.Quantity!.Value;
+            line.UnitPrice = edit.UnitPrice ?? line.UnitPrice;
+            line.NetAmount = PurchaseOrderMath.LineNet(line.UnitPrice, line.Quantity);
+        }
+        await RecalculateAsync(order);
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(order.Id);
+    }
+
+    /// <summary>
+    /// ลบรายการของใบสั่งซื้อ (BR-025, ปุ่มลบพร้อมหน้ายืนยัน): the order number stays while it has another line and is free again once the last one is removed
+    /// (AC-35). The request line is not given back to be ordered again — as before, a new request is needed (BR-025 ⚠). The totals are recomputed.
+    /// Deleting a line that is already gone succeeds.
+    /// </summary>
+    public async Task<ServiceResult> DeleteLineAsync(int lineId, byte[] loadedRowVersion)
+    {
+        var line = await db.PurchaseOrderLines.Include(l => l.PurchaseOrder).ThenInclude(o => o!.Lines).FirstOrDefaultAsync(l => l.Id == lineId);
+        if (line is null) return ServiceResult.Ok();
+        line.ExpectRowVersion(loadedRowVersion);
+        var order = line.PurchaseOrder!;
+        var removed = order.Lines.Count == 1 ? order.Lines : [line];
+        var requestLineIds = removed.Select(l => l.PurchaseRequestLineId).ToList();
+        var requestLines = await db.PurchaseRequestLines.Where(r => requestLineIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id);
+        foreach (var gone in removed) requestLines[gone.PurchaseRequestLineId].AbandonedQuantity += gone.Quantity; // not handed back to be ordered again
+        if (order.Lines.Count == 1) db.PurchaseOrders.Remove(order); // the line goes with it
+        else
+        {
+            order.Lines.Remove(line);
+            db.PurchaseOrderLines.Remove(line);
+            await RecalculateAsync(order);
+        }
+        return await db.TrySaveDeleteAsync()
+            ? ServiceResult.Ok()
+            : ServiceResult.Fail("ลบรายการนี้ไม่ได้ เพราะมีรายการอื่นอ้างถึงอยู่ (เช่น การรับของ)");
+    }
+
     /// <summary>BR-022: the totals of the order and each line's amount with VAT, by the rate in the settings.</summary>
     private async Task RecalculateAsync(PurchaseOrder order)
     {
@@ -217,8 +347,8 @@ public sealed class PurchaseOrderDirectory(PurchDbContext db)
     {
         var requests = await db.PurchaseRequests.AsNoTracking().Include(r => r.Lines).OrderByDescending(r => r.RequestDate).ThenByDescending(r => r.RequestNo).ToListAsync();
         var ordered = await OrderedByRequestLineAsync(requests.SelectMany(r => r.Lines.Select(l => l.Id)).ToList());
-        return requests.Where(r => r.Lines.Any(l => l.Quantity - ordered.GetValueOrDefault(l.Id) > 0))
-            .Select(r => new PurchaseRequestSummary(r.Id, r.RequestNo, r.RequestDate, r.DepartmentId, r.Lines.Count(l => l.Quantity - ordered.GetValueOrDefault(l.Id) > 0))).ToList();
+        return requests.Where(r => r.Lines.Any(l => l.Quantity - l.AbandonedQuantity - ordered.GetValueOrDefault(l.Id) > 0))
+            .Select(r => new PurchaseRequestSummary(r.Id, r.RequestNo, r.RequestDate, r.DepartmentId, r.Lines.Count(l => l.Quantity - l.AbandonedQuantity - ordered.GetValueOrDefault(l.Id) > 0))).ToList();
     }
 
     /// <summary>The lines of a request that still have ยอดค้างสั่ง (ขอ − สั่งไปแล้ว &gt; 0), by ลำดับ.</summary>
@@ -228,11 +358,22 @@ public sealed class PurchaseOrderDirectory(PurchDbContext db)
         if (request is null) return [];
         var ordered = await OrderedByRequestLineAsync(request.Lines.Select(l => l.Id).ToList());
         return request.Lines.OrderBy(l => l.LineNo).ThenBy(l => l.Id)
-            .Select(l => (Line: l, Ordered: ordered.GetValueOrDefault(l.Id)))
+            .Select(l => (Line: l, Ordered: ordered.GetValueOrDefault(l.Id) + l.AbandonedQuantity))
             .Where(x => x.Line.Quantity - x.Ordered > 0)
             .Select(x => new OutstandingRequestLine(x.Line.Id, request.RequestNo, request.RequestDate, x.Line.LineNo, x.Line.MaterialId, x.Line.Material!.Code, x.Line.MaterialName,
                 x.Line.Unit, x.Line.Quantity, x.Ordered, x.Line.Quantity - x.Ordered, x.Line.Material.Cost, x.Line.Material.LatestSupplierId, request.DesiredDate, request.DepartmentId,
                 request.Reason, request.Note, request.PurchasingLocation)).ToList();
+    }
+
+    /// <summary>
+    /// ใบสั่งซื้อที่เลขที่มี <paramref name="text"/> (ว่าง = ทั้งหมด), the highest number first (SCR-07/09: there is no number register), at most <paramref name="max"/>.
+    /// </summary>
+    public async Task<IReadOnlyList<PurchaseOrderSummary>> SearchAsync(string? text = null, int max = 100)
+    {
+        var term = text?.Trim();
+        return await db.PurchaseOrders.AsNoTracking().Where(o => string.IsNullOrEmpty(term) || o.OrderNo.Contains(term))
+            .OrderByDescending(o => o.OrderNo.Length).ThenByDescending(o => o.OrderNo).Take(max)
+            .Select(o => new PurchaseOrderSummary(o.Id, o.OrderNo, o.OrderDate, o.SupplierName, o.Lines.Count, o.Total)).ToListAsync();
     }
 
     /// <summary>How much of a request line has been ordered, over all orders.</summary>

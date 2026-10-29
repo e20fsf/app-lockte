@@ -296,6 +296,10 @@ internal sealed class PurchaseRequestLine : IAudited
     public decimal NetAmount { get; set; }
     /// <summary>นน.ถัง (WEIGHT): aluminium work (BR-060).</summary>
     public decimal? TankWeight { get; set; }
+    /// <summary>
+    /// จำนวนที่เคยสั่งซื้อแต่ใบสั่งซื้อถูกลบ: still counts as ordered, so a deleted order does not hand the line back to be ordered (BR-025 ⚠ — a new request is needed).
+    /// </summary>
+    public decimal AbandonedQuantity { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

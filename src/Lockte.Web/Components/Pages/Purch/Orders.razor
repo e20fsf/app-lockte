@@ -1,0 +1,250 @@
+@page "/purch/orders"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+
+@* แก้ไข ลบ และพิมพ์ซ้ำใบสั่งซื้อ (SCR-07, SCR-09, BR-024, BR-025): search by number (the highest first; there is no number register to maintain by hand), edit the
+   supplier, price, quantity, VAT and purchasing location — the totals are recomputed on every save —, delete an item with a confirmation (the number stays in use
+   until the last item is removed, AC-35; the request is not handed back to be ordered again) and tick the items to print again (AC-36). The form itself (RPT-02) is #224. *@
+<PageTitle>แก้ไขใบสั่งซื้อ — LOCKTE</PageTitle>
+<h1 class="mb-4">แก้ไข ลบ และพิมพ์ซ้ำใบสั่งซื้อ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudTextField @bind-Value="search" @bind-Value:after="SearchAsync" Immediate="false" Label="ค้นตามเลขที่ใบสั่งซื้อ" Clearable="true" Style="max-width:20rem" />
+        <MudButton OnClick="SearchAsync" StartIcon="@Icons.Material.Filled.Search">ค้นหา</MudButton>
+        <MudButton Href="purch/orders/new" StartIcon="@Icons.Material.Filled.Add">ออกใบสั่งซื้อใหม่</MudButton>
+    </MudStack>
+    <MudTable Items="found" Dense="true" Hover="true" T="PurchaseOrderSummary" Breakpoint="Breakpoint.None" Class="mt-2" Style="max-height:14rem;overflow:auto"
+              OnRowClick="@((TableRowClickEventArgs<PurchaseOrderSummary> e) => OpenAsync(e.Item!.Id))">
+        <HeaderContent><MudTh>เลขที่</MudTh><MudTh>วันที่สั่งซื้อ</MudTh><MudTh>ผู้ขาย</MudTh><MudTh>รายการ</MudTh><MudTh>รวมทั้งสิ้น</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.OrderNo</MudTd>
+            <MudTd>@ThaiDate.Format(context.OrderDate)</MudTd>
+            <MudTd>@context.SupplierName</MudTd>
+            <MudTd>@context.LineCount</MudTd>
+            <MudTd>@context.Total.ToString("N2")</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ไม่พบใบสั่งซื้อ</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@if (form is not null)
+{
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">ใบสั่งซื้อ @form.OriginalNo</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.No" Label="เลขที่ใบสั่งซื้อ" MaxLength="PurchaseOrderRegistry.NumberLength" /></MudItem>
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="form.Date" Label="วันที่สั่งซื้อ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" @bind-Value="form.Location" Label="ผู้จัดซื้อ">
+                    @foreach (var l in locations)
+                    {
+                        <MudSelectItem T="string" Value="l.Code">@l.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="bool" @bind-Value="form.Vat" Label="@($"ภาษีมูลค่าเพิ่ม {vatRate * 100:0.##}%")">
+                    <MudSelectItem T="bool" Value="true">YES</MudSelectItem>
+                    <MudSelectItem T="bool" Value="false">NO</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6"><SupplierPicker Value="form.Supplier" ValueChanged="PickSupplier" Label="รหัสผู้ขาย (เปลี่ยนแล้วเติมชื่อ ที่อยู่ เครดิต)" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.SupplierName" Label="ชื่อผู้ขาย (ในใบสั่งซื้อ)" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Address1" Label="ที่อยู่" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Address2" Label="เขต(อำเภอ)และจังหวัด" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="2"><MudTextField @bind-Value="form.Tel" Label="โทรศัพท์" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="2"><MudTextField @bind-Value="form.Fax" Label="แฟกซ์" MaxLength="SupplierRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="3"><MudNumericField T="int?" @bind-Value="form.Credit" Label="เครดิต (วัน, เงินสด = 0)" Min="0" /></MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Reason" Label="เหตุผลในการซื้อ" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
+            <MudItem xs="12" sm="5"><MudTextField @bind-Value="form.Note" Label="หมายเหตุ" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-1">รายการ</MudText>
+        @foreach (var line in form.Lines)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
+                <MudCheckBox T="bool" @bind-Value="line.Selected" aria-label="เลือกพิมพ์" Style="margin-right:-0.5rem" />
+                <MudNumericField T="int?" @bind-Value="line.LineNo" Label="ลำดับ" Margin="Margin.Dense" Style="width:5rem" />
+                <MudText Style="width:9rem">@line.Source.MaterialCode</MudText>
+                <MudTextField @bind-Value="line.Name" Label="ชื่อวัตถุดิบ" Margin="Margin.Dense" MaxLength="MaterialRegistry.NameLength" Style="width:20rem" />
+                <MudNumericField T="decimal?" @bind-Value="line.Quantity" Label="จำนวนสั่ง" Min="0" Margin="Margin.Dense" Style="width:8rem" />
+                <MudTextField @bind-Value="line.Unit" Label="หน่วย" Margin="Margin.Dense" MaxLength="MaterialRegistry.UnitLength" Style="width:6rem" />
+                <MudNumericField T="decimal?" @bind-Value="line.Price" Label="ราคา/หน่วย" Min="0" Margin="Margin.Dense" Style="width:8rem" />
+                <MudText Style="min-width:8rem">= @line.Net.ToString("N2") · ขอ @line.Source.RequestedQuantity.ToString("#,0.####")</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteLineAsync(line))" aria-label="ลบรายการนี้" />
+            </MudStack>
+        }
+        <MudDivider Class="my-2" />
+        <MudText>ยอดก่อนภาษี @totals.Subtotal.ToString("N2") · ภาษี @totals.Tax.ToString("N2") · <b>รวมทั้งสิ้น @totals.Total.ToString("N2")</b></MudText>
+        <MudText Typo="Typo.caption">(@totals.TotalInWords)</MudText>
+
+        <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="Print" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายการที่เลือก</MudButton>
+            <MudButton OnClick="SelectAll">เลือกทุกรายการ</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@PurchMenu.HrefOf(3)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private string? search;
+    private IReadOnlyList<PurchaseOrderSummary> found = [];
+    private IReadOnlyList<PurchasingLocationDto> locations = [];
+    private decimal vatRate = PurchSettingsDefaults.VatRate;
+    private OrderForm? form;
+    private bool busy;
+
+    private PurchaseOrderTotals totals => form is null
+        ? PurchaseOrderMath.Calculate([], true, vatRate)
+        : PurchaseOrderMath.Calculate(form.Lines.Select(l => l.Net).ToList(), form.Vat, vatRate);
+
+    protected override async Task OnInitializedAsync()
+    {
+        locations = await Services.RunAsync<RequestSetupDirectory, IReadOnlyList<PurchasingLocationDto>>(d => d.GetLocationsAsync());
+        vatRate = (await Services.RunAsync<PurchSettingsDirectory, PurchSettingsDto>(d => d.GetAsync())).VatRate;
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+        => found = await Services.RunAsync<PurchaseOrderDirectory, IReadOnlyList<PurchaseOrderSummary>>(d => d.SearchAsync(search));
+
+    private async Task OpenAsync(int id)
+    {
+        var order = await Services.RunAsync<PurchaseOrderDirectory, PurchaseOrderDto?>(d => d.GetAsync(id));
+        if (order is null) { form = null; Snackbar.Add("ไม่พบใบสั่งซื้อนี้ (อาจถูกลบไปแล้ว)", Severity.Warning); await SearchAsync(); return; }
+        var supplier = await Services.RunAsync<SupplierDirectory, SupplierDto?>(d => d.GetAsync(order.SupplierId));
+        form = new OrderForm
+        {
+            Id = order.Id, OriginalNo = order.OrderNo, No = order.OrderNo, Date = order.OrderDate.ToDateTime(TimeOnly.MinValue), Supplier = supplier, SupplierName = order.SupplierName,
+            Address1 = order.SupplierAddress1, Address2 = order.SupplierAddress2, Tel = order.SupplierTel, Fax = order.SupplierFax, Credit = order.CreditDays, Vat = order.ChargesVat,
+            Location = order.PurchasingLocation, Reason = order.Reason, Note = order.Note, RowVersion = order.RowVersion,
+            Lines = order.Lines.Select(l => new LineForm
+            {
+                Source = l, Id = l.Id, LineNo = l.LineNo, Name = l.MaterialName, Quantity = l.Quantity, Unit = l.Unit, Price = l.UnitPrice, RowVersion = l.RowVersion,
+            }).ToList(),
+        };
+    }
+
+    private void PickSupplier(SupplierDto? picked)
+    {
+        if (form is null) return;
+        form.Supplier = picked;
+        if (picked is null) return;
+        form.SupplierName = picked.Name;
+        form.Address1 = picked.Address1;
+        form.Address2 = picked.Address2;
+        form.Tel = picked.Tel1;
+        form.Fax = picked.Fax;
+        form.Credit = picked.CreditDays; // the VAT is not refilled (SCR-07)
+    }
+
+    private void SelectAll() => form?.Lines.ForEach(l => l.Selected = true);
+
+    private async Task SaveAsync()
+    {
+        if (form is null) return;
+        if (form.Supplier is null) { Snackbar.Add("กรุณาเลือกผู้ขาย", Severity.Error); return; }
+        busy = true;
+        try
+        {
+            var input = new PurchaseOrderUpdate(form.Id, form.RowVersion, form.No, DateOnly.FromDateTime(form.Date ?? DateTime.Today), form.Supplier.Id, form.SupplierName ?? "",
+                form.Address1, form.Address2, form.Tel, form.Fax, form.Credit, form.Vat, form.Location ?? "", form.Reason, form.Note,
+                form.Lines.Select(l => new PurchaseOrderLineUpdate(l.Id, l.RowVersion, l.Quantity, l.Price, l.LineNo, l.Name, l.Unit)).ToList());
+            var result = await Services.RunAsync<PurchaseOrderRegistry, ServiceResult>(r => r.UpdateAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add($"บันทึกใบสั่งซื้อ {form.No} แล้ว", Severity.Success);
+            await OpenAsync(form.Id);
+            await SearchAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await OpenAsync(form.Id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteLineAsync(LineForm line)
+    {
+        if (form is null) return;
+        var last = form.Lines.Count == 1;
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบรายการ",
+            $"ลบรายการ {line.Name} ออกจากใบสั่งซื้อ {form.OriginalNo}? รายการขอซื้อจะไม่ถูกคืนไปรอออกใบสั่งซื้อ" + (last ? " (เป็นรายการสุดท้าย ใบนี้จะถูกลบและเลขที่ว่างให้ใช้ใหม่)" : ""),
+            yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        var orderId = form.Id;
+        try
+        {
+            var result = await Services.RunAsync<PurchaseOrderRegistry, ServiceResult>(r => r.DeleteLineAsync(line.Id, line.RowVersion));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบรายการแล้ว", Severity.Success);
+            if (last) form = null; else await OpenAsync(orderId);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await OpenAsync(orderId);
+        }
+        await SearchAsync();
+    }
+
+    private void Print()
+    {
+        var ids = form?.Lines.Where(l => l.Selected).Select(l => l.Id).ToList() ?? [];
+        if (form is null || ids.Count == 0)
+        {
+            Snackbar.Add("ไม่มีรายการ — ติ๊กเลือกรายการที่ต้องการพิมพ์ก่อน", Severity.Info);
+            return;
+        }
+        Navigation.NavigateTo($"reports/purch/order/{form.Id}?lines={string.Join(",", ids)}", forceLoad: true);
+    }
+
+    private sealed class OrderForm
+    {
+        public int Id { get; set; }
+        public string OriginalNo { get; set; } = "";
+        public string No { get; set; } = "";
+        public DateTime? Date { get; set; }
+        public SupplierDto? Supplier { get; set; }
+        public string? SupplierName { get; set; }
+        public string? Address1 { get; set; }
+        public string? Address2 { get; set; }
+        public string? Tel { get; set; }
+        public string? Fax { get; set; }
+        public int? Credit { get; set; }
+        public bool Vat { get; set; }
+        public string? Location { get; set; }
+        public string? Reason { get; set; }
+        public string? Note { get; set; }
+        public byte[] RowVersion { get; set; } = [];
+        public List<LineForm> Lines { get; set; } = [];
+    }
+
+    private sealed class LineForm
+    {
+        public required PurchaseOrderLineDto Source { get; init; }
+        public int Id { get; init; }
+        public byte[] RowVersion { get; init; } = [];
+        public bool Selected { get; set; }
+        public int? LineNo { get; set; }
+        public string? Name { get; set; }
+        public decimal? Quantity { get; set; }
+        public string? Unit { get; set; }
+        public decimal? Price { get; set; }
+        public decimal Net => PurchaseOrderMath.LineNet(Price ?? 0, Quantity ?? 0);
+    }
+}
