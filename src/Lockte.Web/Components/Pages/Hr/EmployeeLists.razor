@@ -25,10 +25,16 @@
             }
         </MudSelect>
         <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-            <MudButton Href="@OnboardingReports.RosterHref(departmentId, shiftId)" Target="_blank" Variant="Variant.Filled" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
-            <MudButton Href="@($"{OnboardingReports.Base}/register")" Target="_blank" Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงาน</MudButton>
+            @* รายชื่อแผนก (เงินเดือน/ค่าแรง) and ทะเบียนประวัติ (ค่าแรง) carry ข้อมูลค่าจ้าง (#277) *@
+            <PayView>
+                <ChildContent>
+                <MudButton Href="@OnboardingReports.RosterHref(departmentId, shiftId)" Target="_blank" Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+                <MudButton Href="@($"{OnboardingReports.Base}/register")" Target="_blank" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงาน</MudButton>
+                </ChildContent>
+                <NotAllowed><MudText Typo="Typo.caption">พิมพ์รายชื่อแผนกและทะเบียนประวัติไม่ได้ — ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
+            </PayView>
             <MudButton Href="@($"{OnboardingReports.Base}/working")" Target="_blank" Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อพนักงานทั้งหมด</MudButton>
         </MudStack>

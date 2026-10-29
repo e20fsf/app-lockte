@@ -3,6 +3,7 @@ using Lockte.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Lockte.Hr;
 
@@ -15,6 +16,7 @@ public static class HrModule
     public static IServiceCollection AddHrModule(this IServiceCollection services, string connectionString)
     {
         services.AddModuleDbContext<HrDbContext>(connectionString, HrDbContext.Schema);
+        services.TryAddScoped<IPayAccess, OpenPayAccess>(); // the web host replaces it with the signed-in user's flag (#277)
         services.AddScoped<EmployeeDirectory>();
         services.AddScoped<EmployeeRegistry>();
         services.AddScoped<Lockte.Sales.IEmployeeLookup, SalesEmployeeLookup>();

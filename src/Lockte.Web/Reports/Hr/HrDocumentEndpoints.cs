@@ -14,7 +14,7 @@ public static class HrDocumentEndpoints
 {
     public static IEndpointRouteBuilder MapHrDocuments(this IEndpointRouteBuilder app)
     {
-        var hr = app.MapGroup("/reports/hr").RequireAuthorization();
+        var hr = app.MapGroup("/reports/hr").RequireAuthorization().RequirePayWhereListed(); // #277: severance is pay
 
         // RPT-50 ใบลางาน: A5 นอน.
         hr.MapGet("/leave-form/{employeeId:int}", async (int employeeId, HrDocumentDirectory documents, FormPrinter printer, TimeProvider clock,
@@ -27,10 +27,11 @@ public static class HrDocumentEndpoints
         });
 
         // RPT-53 หนังสือรับรองการทำงาน (kind=work) / เงินเดือน (kind=salary): A4 ตั้ง.
-        hr.MapGet("/certificate/{employeeId:int}", async (int employeeId, string? kind, HrDocumentDirectory documents, FormPrinter printer,
+        hr.MapGet("/certificate/{employeeId:int}", async (int employeeId, string? kind, HttpContext http, HrDocumentDirectory documents, FormPrinter printer,
             CancellationToken cancellationToken) =>
         {
             var salary = kind == "salary";
+            if (salary && !PayReportAccess.Allowed(http)) return PayReportAccess.Forbidden(); // #277
             if (await documents.GetCertificateAsync(employeeId) is not { } person) return Results.NotFound("ไม่พบพนักงานคนนี้");
             var pdf = await printer.PrintAsync<CertificateView>(CertificateView.TitleOf(salary), Paper.A4Portrait,
                 salary ? DocumentKeys.SalaryCertificate : DocumentKeys.WorkCertificate,

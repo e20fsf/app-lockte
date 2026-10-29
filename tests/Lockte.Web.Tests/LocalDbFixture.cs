@@ -9,6 +9,7 @@ using Lockte.Web.Reports;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Lockte.Web.Tests;
 
@@ -39,6 +40,8 @@ public class LocalDbFixture : IAsyncLifetime
         collection.AddLockteAccounts(config);
         collection.AddOrgModule(AccountsRegistration.ConnectionString(config));
         collection.AddHrModule(AccountsRegistration.ConnectionString(config));
+        collection.AddScoped<TestPayAccess>(); // #277: the scope says whether its user may see ข้อมูลค่าจ้าง (default yes)
+        collection.Replace(ServiceDescriptor.Scoped<IPayAccess>(sp => sp.GetRequiredService<TestPayAccess>()));
         collection.AddSalesModule(AccountsRegistration.ConnectionString(config));
         collection.AddProdModule(AccountsRegistration.ConnectionString(config));
         collection.AddReportData(AccountsRegistration.ConnectionString(config));
@@ -59,12 +62,18 @@ public class LocalDbFixture : IAsyncLifetime
     }
 
     /// <summary>One request / circuit acting as <paramref name="actingUser"/>.</summary>
-    public TestScope Scope(string actingUser = "tester")
+    public TestScope Scope(string actingUser = "tester", bool canViewPay = true)
     {
         var scope = services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<TestCurrentUser>().UserName = actingUser;
+        scope.ServiceProvider.GetRequiredService<TestPayAccess>().CanViewPay = canViewPay;
         return new TestScope(scope);
     }
+}
+
+public sealed class TestPayAccess : IPayAccess
+{
+    public bool CanViewPay { get; set; } = true;
 }
 
 public sealed class TestCurrentUser : ICurrentUser

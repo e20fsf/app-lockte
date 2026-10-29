@@ -1,0 +1,16 @@
+@* #277: shows ChildContent only to a user with ดูข้อมูลค่าจ้างได้; everyone else sees *** (or NotAllowed when given).
+   Wrap a pay value or a pay input with it — the one component every screen uses. Values already come masked from
+   the services; this makes the screen say so. *@
+<AuthorizeView Policy="@AuthPolicies.ViewPay">
+    <Authorized>@ChildContent</Authorized>
+    <NotAuthorized>@if (NotAllowed is not null) { @NotAllowed } else { <span class="pay-masked">@Mask</span> }</NotAuthorized>
+</AuthorizeView>
+
+@code {
+    public const string Mask = "***";
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>What the others see instead of <c>***</c>, e.g. a read-only field or a note replacing a button.</summary>
+    [Parameter] public RenderFragment? NotAllowed { get; set; }
+}

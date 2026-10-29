@@ -12,8 +12,14 @@
         <EmployeePicker @bind-Value="employee" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="employee is null" Target="_blank"
                    Href="@Link("work")" StartIcon="@Icons.Material.Filled.Print">การทำงาน</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="employee is null" Target="_blank"
-                   Href="@Link("salary")" StartIcon="@Icons.Material.Filled.Print">เงินเดือน</MudButton>
+        <PayView>
+            <ChildContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="employee is null" Target="_blank"
+                       Href="@Link("salary")" StartIcon="@Icons.Material.Filled.Print">เงินเดือน</MudButton>
+            </ChildContent>
+            <NotAllowed><MudButton Variant="Variant.Filled" Disabled="true" StartIcon="@Icons.Material.Filled.Print">เงินเดือน</MudButton>
+                <MudText Typo="Typo.caption">ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
+        </PayView>
     </MudStack>
 </MudPaper>
 

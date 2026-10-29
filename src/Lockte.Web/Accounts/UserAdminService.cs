@@ -18,13 +18,13 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
         var now = clock.GetUtcNow();
         var rows = await db.Users.AsNoTracking().OrderByDescending(u => u.IsAdmin).ThenBy(u => u.UserName).ToListAsync();
         return rows.Select(u => new UserSummary(
-            u.Id, u.UserName!, u.DisplayName, u.IsAdmin, u.IsActive, u.MustChangePassword,
+            u.Id, u.UserName!, u.DisplayName, u.IsAdmin, u.IsActive, u.MustChangePassword, u.CanViewPay,
             u.LockoutEnd > now ? u.LockoutEnd : null,
             u.CreatedBy, u.CreatedAt, u.UpdatedBy, u.UpdatedAt, u.RowVersion)).ToList();
     }
 
     /// <summary>New user starts with a temporary password and must change it at first login.</summary>
-    public async Task<AccountResult> CreateAsync(string userName, string displayName, string temporaryPassword)
+    public async Task<AccountResult> CreateAsync(string userName, string displayName, string temporaryPassword, bool canViewPay = false)
     {
         userName = userName.Trim();
         displayName = displayName.Trim();
@@ -33,7 +33,7 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
         if (string.Equals(userName, AppUser.AdminUserName, StringComparison.OrdinalIgnoreCase))
             return AccountResult.Fail($"ชื่อ user '{AppUser.AdminUserName}' สงวนไว้สำหรับผู้ดูแลระบบ");
 
-        var user = new AppUser { UserName = userName, DisplayName = displayName, MustChangePassword = true };
+        var user = new AppUser { UserName = userName, DisplayName = displayName, MustChangePassword = true, CanViewPay = canViewPay };
         return AccountResult.From(await users.CreateAsync(user, temporaryPassword));
     }
 
@@ -46,6 +46,22 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
 
         user.ExpectRowVersion(loadedRowVersion);
         user.IsActive = active;
+        return AccountResult.From(await users.UpdateSecurityStampAsync(user));
+    }
+
+    /// <summary>
+    /// #277 ดูข้อมูลค่าจ้างได้. The change is in the change history like any other edit; the new security stamp ends the
+    /// user's open sessions so the next login carries the new right (the login cookie holds it as a claim).
+    /// The admin account has no such right whatever is stored.
+    /// </summary>
+    public async Task<AccountResult> SetCanViewPayAsync(string userId, bool canViewPay, byte[] loadedRowVersion)
+    {
+        var user = await users.FindByIdAsync(userId);
+        if (user is null) return AccountResult.Fail("ไม่พบผู้ใช้");
+        if (user.IsAdmin) return AccountResult.Fail("บัญชี admin ดูข้อมูลค่าจ้างไม่ได้");
+
+        user.ExpectRowVersion(loadedRowVersion);
+        user.CanViewPay = canViewPay;
         return AccountResult.From(await users.UpdateSecurityStampAsync(user));
     }
 

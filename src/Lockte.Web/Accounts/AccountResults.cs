@@ -35,6 +35,7 @@ public sealed record UserSummary(
     bool IsAdmin,
     bool IsActive,
     bool MustChangePassword,
+    bool CanViewPay,
     DateTimeOffset? LockedUntil,
     string CreatedBy,
     DateTimeOffset CreatedAt,

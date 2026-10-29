@@ -76,6 +76,13 @@ public static class AccountsRegistration
             options.Cookie.Name = "Lockte.Auth";
             options.LoginPath = "/Account/Login";
             options.AccessDeniedPath = HomeEndpoint; // a page this user may not open → their own start page
+            // A report/file the user may not have (#277: ข้อมูลค่าจ้าง) is a plain 403, not a redirect to a page.
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/reports")) context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                else context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            };
             // Session cookie; the ticket inside expires after the idle time. The idle script (idle.js) renews it
             // while the user is active and returns to login when not.
             options.ExpireTimeSpan = TimeSpan.FromMinutes(auth.IdleTimeoutMinutes);

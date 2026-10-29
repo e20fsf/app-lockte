@@ -9,11 +9,15 @@ public static class AccountClaims
     public const string DisplayName = "lockte:display_name";
     public const string Admin = "lockte:admin";
     public const string MustChangePassword = "lockte:must_change_password";
+    public const string ViewPay = "lockte:view_pay";
 
     public static string DisplayNameOf(ClaimsPrincipal user)
         => user.FindFirstValue(DisplayName) ?? user.Identity?.Name ?? "";
 
     public static bool IsAdmin(ClaimsPrincipal user) => user.HasClaim(c => c.Type == Admin);
+
+    /// <summary>#277: the user may see ข้อมูลค่าจ้าง. The admin never does.</summary>
+    public static bool CanViewPay(ClaimsPrincipal user) => user.HasClaim(c => c.Type == ViewPay) && !IsAdmin(user);
 
     public static bool MustChange(ClaimsPrincipal user) => user.HasClaim(c => c.Type == MustChangePassword);
 
@@ -34,6 +38,7 @@ public sealed class AppClaimsPrincipalFactory(UserManager<AppUser> userManager, 
         var identity = await base.GenerateClaimsAsync(user);
         identity.AddClaim(new Claim(AccountClaims.DisplayName, user.DisplayName));
         if (user.IsAdmin) identity.AddClaim(new Claim(AccountClaims.Admin, "1"));
+        if (user.CanViewPay && !user.IsAdmin) identity.AddClaim(new Claim(AccountClaims.ViewPay, "1"));
         if (user.MustChangePassword) identity.AddClaim(new Claim(AccountClaims.MustChangePassword, "1"));
         return identity;
     }

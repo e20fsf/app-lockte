@@ -10,7 +10,7 @@ namespace Lockte.Hr;
 /// the history. Edits and deletes of one row carry the rowversion the screen loaded; a newer save by someone else
 /// throws <see cref="ConcurrencyConflictException"/>.
 /// </summary>
-public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock)
+public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess pay)
 {
     public const string LeaveTable = "การลา";
     /// <summary>T-LEAVE.REMARK size.</summary>
@@ -50,9 +50,10 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock)
 
         if (row is null)
         {
-            row = db.Leaves.Add(new Leave { DailyWage = input.DailyWage ?? employee.DailyWage }).Entity;
+            // #277: without the right to see ค่าแรง, the screen's wage is masked: take it from the register.
+            row = db.Leaves.Add(new Leave { DailyWage = pay.CanViewPay ? input.DailyWage ?? employee.DailyWage : employee.DailyWage }).Entity;
         }
-        else if (input.DailyWage is { } wage)
+        else if (pay.CanViewPay && input.DailyWage is { } wage)
         {
             row.DailyWage = wage;
         }
