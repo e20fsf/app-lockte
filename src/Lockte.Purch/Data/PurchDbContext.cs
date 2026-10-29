@@ -29,6 +29,7 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
     internal DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     internal DbSet<StockEntry> StockEntries => Set<StockEntry>();
     internal DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
+    internal DbSet<StockPeriodBalance> StockPeriodBalances => Set<StockPeriodBalance>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -276,6 +277,16 @@ public sealed class PurchDbContext(DbContextOptions<PurchDbContext> options) : M
             r.HasOne(x => x.PurchaseOrderLine).WithMany().HasForeignKey(x => x.PurchaseOrderLineId).OnDelete(DeleteBehavior.Restrict);
             r.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict);
             r.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StockPeriodBalance>(b =>
+        {
+            b.HasAuditName("ยอดยกมาวัตถุดิบ");
+            b.Property(x => x.CutDate).HasAuditName("วันตัดสต็อก");
+            b.Property(x => x.MaterialId).HasAuditName("วัตถุดิบ");
+            b.Property(x => x.Quantity).HasPrecision(18, 4).HasAuditName("ยอดยกมา");
+            b.HasIndex(x => new { x.CutDate, x.MaterialId }).IsUnique();
+            b.HasOne(x => x.Material).WithMany().HasForeignKey(x => x.MaterialId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

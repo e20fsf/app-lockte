@@ -478,3 +478,24 @@ internal sealed class GoodsReceipt : IAudited
 
     string IHasBusinessKey.BusinessKey => PurchaseOrderLine?.PurchaseOrder?.OrderNo ?? PurchaseOrderLineId.ToString();
 }
+
+/// <summary>
+/// ยอดยกมารายวัตถุดิบต่อวันตัดสต็อก (T-ต้นงวดP_ST, BR-042 ขั้น 8): what ตัดสต็อก carried forward on <see cref="CutDate"/>, kept for the report of that cut (RPT-26).
+/// A cut of the same date replaces the ones of that date.
+/// </summary>
+internal sealed class StockPeriodBalance : IAudited
+{
+    public int Id { get; set; }
+    public DateOnly CutDate { get; set; }
+    public int MaterialId { get; set; }
+    public Material? Material { get; set; }
+    public decimal Quantity { get; set; }
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => CutDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+}
