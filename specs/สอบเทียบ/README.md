@@ -62,7 +62,7 @@ flowchart LR
 | [integrations.md](integrations.md) | import/export | ถอดครบ — ไม่มีการเชื่อมต่ออัตโนมัติ (มีความเชื่อมโยงเชิงเนื้อหากับโปรแกรมอื่น INT-01) | 2 |
 | [non-functional.md](non-functional.md) | สิทธิ์ ปริมาณ รูปแบบ การย้ายข้อมูล การพิมพ์ | ถอดครบ — รอยืนยัน | 9 |
 | [acceptance.md](acceptance.md) | เกณฑ์ตรวจรับ AC-01…14 | ร่าง (ใช้ตอนสร้างระบบใหม่) | 1 |
-| [open-questions.md](open-questions.md) | คำถามค้าง + การตัดสินใจ | หมวด ก. 15 ข้อ (รอผู้ใช้) · หมวด ข. 8 ข้อ (พักไว้จนเริ่มออกแบบระบบใหม่) | 23 |
+| [open-questions.md](open-questions.md) | คำถามค้าง + การตัดสินใจ | หมวด ก. 15 ข้อ (รอผู้ใช้) · หมวด ข. 13 ข้อ (พักไว้จนเริ่มออกแบบระบบใหม่) | 28 |
 
 ## วิธีถอดฟอร์มและ VBA
 - สคริปต์ extract ส่งออกฟอร์ม 26 ชิ้นและ module 3 ชิ้นไม่ได้ ("The search key was not found") — กู้จากตารางระบบ `MSysAccessStorage` แบบอ่านอย่างเดียว:
