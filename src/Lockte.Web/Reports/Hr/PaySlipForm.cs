@@ -9,8 +9,8 @@ namespace Lockte.Web.Reports.Hr;
 /// 95 mm (the report's 9.5 cm detail section), to cut apart. Positions in mm — the baseline for texts — measured on the
 /// sample <c>พิมพ์SLIP.pdf</c> (lot 2) for the first slip; Access printed the labels at Angsana New 12 pt (the company 16 pt
 /// bold, the title 14 pt). Changes from the legacy, all on #40's list: TH Sarabun New at Angsana's size; the company logo
-/// is docs/brand/logo.svg; a long name is squeezed into its space instead of running into the next label (D-1); the label
-/// "ค่าแรงค้างวิคก่อน" reads "ค่าแรงค้างงวดก่อน" (CONTEXT.md: งวด, not week); a signer with a signature picture prints the
+/// is docs/brand/logo.svg; a long name is squeezed into its space instead of running into the next label (D-1); the legacy
+/// ค่าแรงค้างงวดก่อน column is gone and เงินสงเคราะห์ลูกจ้าง/บริษัท and รวมเงินสะสม are in (#180, the slip of lot 4); a signer with a signature picture prints the
 /// picture over the line instead of the typed name (#55, the legacy ตาราง3.SIGN that the report never showed).
 /// </summary>
 public static class PaySlipForm
@@ -24,6 +24,9 @@ public static class PaySlipForm
     private const double Weight = 0.35;
     /// <summary>The left and right rule of the tables.</summary>
     private const double Left = 26.77, Right = 187.85;
+
+    /// <summary>The rules between the ten columns of the totals row, left to right (ATM … เงินได้สุทธิ).</summary>
+    private static readonly double[] TotalsEdges = [Left, 37.63, 52.0, 73.0, 94.0, 112.0, 122.5, 133.0, 148.0, 164.5, Right];
 
     private static readonly Lazy<byte[]> Logo = new(() =>
     {
@@ -84,7 +87,7 @@ public static class PaySlipForm
         V(Right, 38.24, 73.25);
         V(106.82, 38.24, 58.2);
         foreach (var x in new[] { 36.66, 44.57, 56.41, 66.29, 77.19, 92.98, 120.68, 134.49, 144.37, 155.23, 172.07 }) V(x, 45.23, 58.42);
-        foreach (var x in new[] { 37.63, 56.41, 79.17, 102.86, 115.71, 128.58, 142.38, 163.14 }) V(x, 58.21, 73.2);
+        foreach (var x in TotalsEdges.Skip(1).SkipLast(1)) V(x, 58.21, 73.2);
 
         T(60.64, 43.52, "เวลาทำงาน"); T(144.82, 43.52, "ค่าแรง");
         const double heads = 50.52, values = 56.49;
@@ -102,15 +105,21 @@ public static class PaySlipForm
         T(170.04, values, ReportText.Baht(s.Parts.SundayOvertime), TextAnchor.End);
         T(183.96, values, ReportText.Baht(s.Parts.HolidayOvertime), TextAnchor.End);
 
-        const double totalsHead = 63.51, totals = 70.5;
-        T(29.02, totalsHead, "ATM"); T(39.6, totalsHead, "ประกันสังคม"); T(59.88, totalsHead, "กองทุนเลี้ยงชีพ");
-        T(80.76, totalsHead, "ค่าแรงค้างงวดก่อน"); T(106.52, totalsHead, "ภาษี"); T(118.52, totalsHead, "โบนัส");
-        T(130.04, totalsHead, "ค่าพักร้อน"); T(147.07, totalsHead, "รวมค่าแรง"); T(169.05, totalsHead, "เงินได้สุทธิ");
-        if (s.Atm is { } atm) T(36.6, totals, Forms.FormFormat.Standard((double)atm, 2), TextAnchor.End);
-        T(122.19, totals, ReportText.Baht(s.Bonus), TextAnchor.Middle);
-        T(140.49, totals, ReportText.Baht(s.Hot), TextAnchor.End);
-        T(152.82, totals, ReportText.Baht(s.Total), TextAnchor.Middle);
-        T(175.59, totals, ReportText.Baht(s.Net), TextAnchor.Middle);
+        // The totals row of today's slip (photo of lot 4, #180): the legacy ค่าแรงค้างงวดก่อน gives way to the เงินสงเคราะห์ and the
+        // รวมเงินสะสม; ประกันสังคม and ภาษี stay blank (Q-02); เงินได้สุทธิ = รวมค่าแรง − เงินสงเคราะห์ลูกจ้าง.
+        const double headOne = 63.51, headUp = 61.6, headDown = 65.6, totals = 70.5;
+        void Head(int column, string? first, string? second = null)
+        {
+            double x0 = TotalsEdges[column], x1 = TotalsEdges[column + 1], middle = (x0 + x1) / 2, fit = x1 - x0 - 1;
+            if (second is null) T(middle, headOne, first, TextAnchor.Middle, fit: fit);
+            else { T(middle, headUp, first, TextAnchor.Middle, fit: fit); T(middle, headDown, second, TextAnchor.Middle, fit: fit); }
+        }
+        void Value(int column, decimal value) => T((TotalsEdges[column] + TotalsEdges[column + 1]) / 2, totals, ReportText.Baht(value), TextAnchor.Middle);
+        Head(0, "ATM"); Head(1, "ประกันสังคม"); Head(2, "กองทุนสงเคราะห์", "ลูกจ้าง (0.25%)"); Head(3, "กองทุนสงเคราะห์", "บริษัท (0.25%)");
+        Head(4, "รวมเงินสะสม", "ทั้งหมด"); Head(5, "ภาษี"); Head(6, "โบนัส"); Head(7, "ค่าพักร้อน"); Head(8, "รวมค่าแรง"); Head(9, "เงินได้สุทธิ");
+        if (s.Atm is { } atm) T(TotalsEdges[1] - 1.03, totals, Forms.FormFormat.Standard((double)atm, 2), TextAnchor.End);
+        Value(2, s.WelfareEmployee); Value(3, s.WelfareCompany); Value(4, s.WelfareAccumulated);
+        Value(6, s.Bonus); Value(7, s.Hot); Value(8, s.Total); Value(9, s.Net);
 
         // ลงนาม: ผู้รับเงิน on its own line; แผนกบุคคล and ผู้จัดการโรงงาน by name or signature picture
         const double sign = 79.46;

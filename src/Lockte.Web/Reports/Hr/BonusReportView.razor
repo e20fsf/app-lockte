@@ -1,0 +1,57 @@
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@* RPT-35 คำนวณโบนัส (รายงาน คำนวนณโบนัส, BR-030, SCR-50 "พิมพ์"): ระดับ C on A4 นอน — the legacy layout is not in print-samples, so this is
+   the columns of the query: ที่ รหัส ชื่อ-นามสกุล แผนก เริ่มทำงาน อายุงาน (ปี) วันลา % โบนัส, then รวม. Rows from BonusDirectory. *@
+<p class="sub">การลาตั้งแต่วันที่ @ReportText.Date(Report.Input.From)&emsp;ถึงวันที่ @ReportText.Date(Report.Input.To)&emsp;แผนก @(Report.DepartmentName ?? "ทุกแผนก")</p>
+<p class="sub">ตัวคูณรายเดือน @Report.Input.MonthlyMultiplier.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) เท่าของเงินเดือน&emsp;ตัวคูณรายวัน @Report.Input.DailyMultiplier.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) เท่าของค่าแรงต่อวัน</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="table-layout:fixed">
+        <colgroup>
+            @foreach (var width in new[] { 5, 8, 24, 17, 11, 8, 8, 8, 11 })
+            {
+                <col style="width:@(width)%" />
+            }
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="num">ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>เริ่มทำงาน</th>
+                <th class="num">อายุงาน</th><th class="num">วันลา</th><th class="num">%</th><th class="num">โบนัส</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Lines.Count; i++)
+            {
+                var line = Report.Lines[i];
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@line.Code</td>
+                    <td>@line.Name</td>
+                    <td>@line.DepartmentName</td>
+                    <td>@(line.StartDate is { } start ? ReportText.Date(start) : "")</td>
+                    <td class="num">@(line.ServiceYears is { } years ? ReportText.Decimal2(years) : "")</td>
+                    <td class="num">@ReportText.Decimal2(line.LeaveDays)</td>
+                    <td class="num">@ReportText.Decimal2(line.Percent)</td>
+                    <td class="num">@ReportText.Baht(line.Amount)</td>
+                </tr>
+            }
+            <tr class="total">
+                <td colspan="7"></td>
+                <td class="num">รวม</td>
+                <td class="num">@ReportText.Baht(Report.Total)</td>
+            </tr>
+            <tr><td colspan="9" class="end"></td></tr>
+        </tbody>
+    </table>
+    <SignatureBoxes Labels="@(new[] { "จัดทำโดย", "อนุมัติโดย" })" />
+}
+
+@code {
+    public const string Title = "คำนวณโบนัส";
+
+    [Parameter, EditorRequired] public BonusReport Report { get; set; } = default!;
+}

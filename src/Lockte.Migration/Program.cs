@@ -60,6 +60,17 @@ if (options.Program == MigrationOptions.CompareProgram)
     Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return results.All(r => r.Passed) ? 0 : 1;
 }
+if (options.Program == MigrationOptions.ComparePeriodProgram)
+{
+    if (options.Calculate) await GoLiveGuard.EnsureNotLiveAsync(options.ConnectionString);
+    Console.WriteLine($"เทียบงวดที่เริ่ม {options.PeriodFrom:yyyy-MM-dd} กับ baseline ใน {options.BaselineFolder} …");
+    var comparison = await PeriodComparison.RunAsync(services, options.BaselineFolder!, options.PeriodFrom!.Value, options.Calculate);
+    PeriodComparison.WriteReport(options.OutputFolder, comparison);
+    foreach (var c in comparison.Criteria)
+        Console.WriteLine($"{c.Id,-6} {c.Title,-28} {(!c.HasBaseline ? "ไม่ได้เทียบ" : c.Passed ? "ตรง" : "ไม่ตรง"),-12} เทียบ {c.People.Count,5:N0}  ช่องไม่ตรง {c.Mismatches.Count,5:N0}");
+    Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return comparison.Passed ? 0 : 1;
+}
 if (options.Program == MigrationOptions.MarkGoLiveProgram)
 {
     await GoLiveGuard.MarkAsync(options.ConnectionString);

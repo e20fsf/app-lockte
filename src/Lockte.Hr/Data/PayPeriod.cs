@@ -16,6 +16,11 @@ internal sealed class PayPeriod : IAudited
     public DateOnly ToDate { get; set; }
     /// <summary>วันที่จ่าย (PAY_D).</summary>
     public DateOnly PayDate { get; set; }
+    /// <summary>
+    /// จำนวนวัน (ตั้งวันที่ตัดWEEK.DAY, #58): set when this period is one ช่วง of the งวดคร่อมปีใหม่ (27–31 ธ.ค. / 1–11 ม.ค., BR-008) —
+    /// the days a รายเดือน employee is paid for the ช่วง; null on an ordinary period.
+    /// </summary>
+    public int? PartDays { get; set; }
     /// <summary>The last step of เมนู 6 done (#22: no step before the one before it is done).</summary>
     public PayPeriodStep CompletedStep { get; set; }
     /// <summary>When and by whom the เวลาทำงาน totals were last calculated (#41: อธิบายได้เมื่อยอดเปลี่ยน).</summary>

@@ -8,22 +8,26 @@ namespace Lockte.Hr;
 /// <param name="WeeklyHolidays">SUN_D: the employee's SUN.</param>
 /// <param name="PublicHolidays">H_D: the employee's HOLI.</param>
 /// <param name="Rate">SA_D: รายเดือน SALARY, อื่น SA_DAY.</param>
+/// <param name="WelfareEmployee">เงินสงเคราะห์ลูกจ้าง (0.25%, #180): deducted from the net.</param>
+/// <param name="WelfareCompany">เงินสงเคราะห์บริษัท (0.25%): printed, not deducted.</param>
+/// <param name="WelfareAccumulated">รวมเงินสะสมทั้งหมด: the employee's WelfareEmployee over every period up to this one.</param>
 /// <param name="Atm">ATM: 0 for a daily or CLAS 3 employee without a บัญชีทหารไทย (SLIP5/51/7/71), blank otherwise.</param>
 public sealed record PaySlip(string Code, string Name, int Days, int WeeklyHolidays, int PublicHolidays, double Rate,
     double Normal, double PaidLeave, double Sunday, double Holiday, double Overtime, double SundayOvertime, double HolidayOvertime,
-    decimal PayNormal, OvertimeParts Parts, decimal Hot, decimal? Atm)
+    decimal PayNormal, OvertimeParts Parts, decimal Hot, decimal? Atm,
+    decimal WelfareEmployee = 0, decimal WelfareCompany = 0, decimal WelfareAccumulated = 0)
 {
     /// <summary>W_D: TT_D − HOLI − SUN.</summary>
     public int WorkingDays => Days - PublicHolidays - WeeklyHolidays;
 
-    /// <summary>N โบนัส: 0 on the slip of a period (only the slip รวมโบนัส, RPT-42, fills it).</summary>
-    public decimal Bonus => 0;
+    /// <summary>N โบนัส: 0 on the slip of a period; the slip รวมโบนัส (RPT-42, BR-035) fills it.</summary>
+    public decimal Bonus { get; init; }
 
     /// <summary>TT รวมค่าแรง: SALA + OT + S_W + OT2 + H_W + OT3 + HOT.</summary>
     public decimal Total => PayNormal + Parts.Total + Hot;
 
-    /// <summary>NET เงินได้สุทธิ = TT: nothing is deducted (SO_S, FA_L, INS, TAX stay blank, Q-02).</summary>
-    public decimal Net => Total;
+    /// <summary>NET เงินได้สุทธิ = TT + โบนัส − เงินสงเคราะห์ลูกจ้าง (4,692 − 12 = 4,680 on the slip of lot 4); ประกันสังคมและภาษีไม่หัก (Q-02).</summary>
+    public decimal Net => Total + Bonus - WelfareEmployee;
 }
 
 /// <summary>The slips of one period, by รหัส ↑, with the signers printed on every slip.</summary>
@@ -66,10 +70,12 @@ public sealed record SlipSignerInput(SlipSignerRole Role, string? Name, byte[]? 
 /// </summary>
 public static class PaySlips
 {
-    public static PaySlip Build(PayPeriodDates dates, EmployeeTimeTotal time, EmployeePay pay, int employeeType, bool hasTtbAccount)
+    public static PaySlip Build(PayPeriodDates dates, EmployeeTimeTotal time, EmployeePay pay, int employeeType, bool hasTtbAccount,
+        decimal welfareEmployee = 0, decimal welfareCompany = 0, decimal welfareAccumulated = 0)
         => new(pay.Code, pay.Name, dates.Days, time.WeeklyHolidays, time.PublicHolidays, pay.Rate,
             time.Normal, time.PaidLeave, time.Sunday, time.Holiday, time.Overtime, time.SundayOvertime, time.HolidayOvertime,
             pay.PayNormal, pay.Parts,
             employeeType == EmployeeTypes.Monthly ? 0 : pay.Hot, // SLIP2/3 insert no HOT
-            employeeType != EmployeeTypes.Monthly && !hasTtbAccount ? 0 : null);
+            employeeType != EmployeeTypes.Monthly && !hasTtbAccount ? 0 : null,
+            welfareEmployee, welfareCompany, welfareAccumulated);
 }

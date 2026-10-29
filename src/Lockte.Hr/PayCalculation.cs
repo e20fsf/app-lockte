@@ -41,7 +41,9 @@ public static class PayCalculation
             case EmployeeTypes.Monthly: // คำนวณค่าแรง2
                 sundayFactor = 1;
                 holidayFactor = 1;
-                payNormal = employee.FixedPay is { } monthlyFixed ? monthlyFixed
+                // คำนวณค่าแรง2ช่วง (#58, BR-008): a ช่วง of the งวดคร่อมปีใหม่ pays min(W + L + HOLI + SUN, DAY) days; no POINT_1, no resignation.
+                payNormal = period.PartDays is { } partDays ? Math.Min(expr1 + holi + sun, partDays) * saDay
+                    : employee.FixedPay is { } monthlyFixed ? monthlyFixed
                     : resign is null ? (expr1 + holi >= days - sun ? employee.Salary / 2 : (15 - unpaid) * saDay)
                     : expr1 == 0 ? 0
                     : resign == dates.To.AddDays(1) ? employee.Salary / 2
@@ -91,7 +93,7 @@ public static class PayCalculation
 /// What the pay formulas read of the period besides each employee's totals: D from the dates, the วันหยุดประจำสัปดาห์
 /// in it (ค่าแรง.SUNDAY) and DAT, the first วันหยุดประเพณี in it (คิวรี คำนวณค่าแรง: Min(HOLIDAY.DATE), blank if none).
 /// </summary>
-public sealed record PayPeriodFacts(PayPeriodDates Dates, int WeeklyHolidays, DateOnly? FirstPublicHoliday);
+public sealed record PayPeriodFacts(PayPeriodDates Dates, int WeeklyHolidays, DateOnly? FirstPublicHoliday, int? PartDays = null);
 
 /// <summary>
 /// What the pay formulas read of an employee (T-EMPLO): CLAS, SALARY, SA_DAY, POINT_1 (⚠ Q-09: a score used as a set
@@ -110,6 +112,19 @@ public sealed record EmployeePay(int EmployeeId, string Code, string Name, doubl
 {
     /// <summary>ยอดรวม: PAY_W + PAY_OT + HOT.</summary>
     public decimal Total => PayNormal + PayOvertime + Hot;
+}
+
+/// <summary>
+/// เงินสงเคราะห์ลูกจ้าง (#180): the slip of today prints 0.25% of รวมค่าแรง withheld from the employee and 0.25% the company
+/// adds (photo of lot 4: รวมค่าแรง 4,692 → 12 and 12, เงินได้สุทธิ 4,680). ⚠ ฐานและการปัดเป็นข้อสมมติ — ยังไม่ได้ยืนยันกับ
+/// ฝ่ายบุคคล (รายการ UAT ใน #102): ฐาน = รวมค่าแรง (PAY_W + PAY_OT + HOT), ปัด RND-A เป็นบาทเต็ม, ทั้งสองฝั่งเท่ากัน.
+/// </summary>
+public static class Welfare
+{
+    public const decimal Rate = 0.0025m;
+
+    /// <summary>The contribution of one side on a รวมค่าแรง, whole baht, half away from zero.</summary>
+    public static decimal Contribution(decimal total) => Math.Round(total * Rate, 0, MidpointRounding.AwayFromZero);
 }
 
 /// <summary>

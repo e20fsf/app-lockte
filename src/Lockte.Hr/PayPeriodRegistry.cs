@@ -36,12 +36,14 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
         if (input.From is not { } from || input.To is not { } to || input.PayDate is not { } payDate)
             return ServiceResult.Fail("กรุณากรอกจากวันที่ ถึงวันที่ และวันที่จ่าย");
         if (from > to) return ServiceResult.Fail("จากวันที่ต้องไม่หลังถึงวันที่");
+        if (input.PartDays is { } partDays && (partDays < 1 || partDays > to.DayNumber - from.DayNumber + 1))
+            return ServiceResult.Fail("จำนวนวันที่จ่ายของช่วงต้องอยู่ระหว่าง 1 ถึงจำนวนวันของช่วง");
         if (await db.PayPeriods.AnyAsync(p => p.FromDate == from && p.Id != input.Id))
             return ServiceResult.Fail($"มีงวดค่าแรงที่เริ่มวันที่ {ThaiDate.Format(from)} อยู่แล้ว");
 
         if (input.Id is not { } id)
         {
-            var added = db.PayPeriods.Add(new PayPeriod { FromDate = from, ToDate = to, PayDate = payDate, CompletedStep = PayPeriodStep.Set }).Entity;
+            var added = db.PayPeriods.Add(new PayPeriod { FromDate = from, ToDate = to, PayDate = payDate, PartDays = input.PartDays, CompletedStep = PayPeriodStep.Set }).Entity;
             await db.SaveChangesAsync();
             return ServiceResult.Ok(added.Id);
         }
@@ -52,7 +54,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
         if (period is null) return ServiceResult.Fail("ไม่พบงวดค่าแรงนี้ อาจถูกลบไปแล้ว");
         period.ExpectRowVersion(input.RowVersion
             ?? throw new ArgumentException("Editing needs the rowversion the screen loaded.", nameof(input)));
-        if (period.Migrated && (period.FromDate != from || period.ToDate != to || period.PayDate != payDate))
+        if (period.Migrated && (period.FromDate != from || period.ToDate != to || period.PayDate != payDate || period.PartDays != input.PartDays))
             return ServiceResult.Fail(MigratedMessage);
         if (period.FromDate != from || period.ToDate != to)
         {
@@ -62,9 +64,16 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
             period.TimeCalculatedAt = null;
             period.TimeCalculatedBy = null;
         }
+        else if (period.PartDays != input.PartDays && period.CompletedStep >= PayPeriodStep.PayCalculated)
+        {
+            // The days a รายเดือน employee is paid change the ค่าแรง, not the time: calculate the pay again.
+            await ForgetPayAsync(period);
+            period.CompletedStep = PayPeriodStep.TimeCalculated;
+        }
         period.FromDate = from;
         period.ToDate = to;
         period.PayDate = payDate;
+        period.PartDays = input.PartDays;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return ServiceResult.Ok(id);
@@ -147,7 +156,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
             var facts = new PayPeriodFacts(new PayPeriodDates(from, to, period.PayDate),
                 await db.WeeklyHolidays.CountAsync(h => h.Date >= from && h.Date <= to),
                 await db.PublicHolidays.Where(h => h.Date >= from && h.Date <= to).OrderBy(h => h.Date).Select(h => (DateOnly?)h.Date)
-                    .FirstOrDefaultAsync());
+                    .FirstOrDefaultAsync(), period.PartDays);
             var results = rows
                 .Select(r => (r.Employee, r.DepartmentId, Pay: PayCalculation.Calculate(facts, r.Time, r.Employee)))
                 .Where(r => r.Pay is not null)
@@ -159,6 +168,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
                     PublicHolidays = r.Pay.PublicHolidays, WeeklyHolidays = r.Pay.WeeklyHolidays,
                     OvertimePay = r.Pay.Parts.Overtime, SundayPay = r.Pay.Parts.Sunday, SundayOvertimePay = r.Pay.Parts.SundayOvertime,
                     HolidayPay = r.Pay.Parts.Holiday, HolidayOvertimePay = r.Pay.Parts.HolidayOvertime,
+                    WelfareEmployee = Welfare.Contribution(r.Pay.Total), WelfareCompany = Welfare.Contribution(r.Pay.Total),
                 })
                 .ToList();
 
