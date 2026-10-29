@@ -15,8 +15,8 @@ public sealed class PayAccessDbTests(LocalDbFixture db)
 {
     private static int lastCode;
 
-    /// <summary>"P" + 3 digits keeps clear of the other test classes' codes (T-EMPLO.ID is Text(4)).</summary>
-    private static string NewCode() => $"P{Interlocked.Increment(ref lastCode):D3}";
+    /// <summary>"Y" + 3 digits keeps clear of the other test classes' codes (T-EMPLO.ID is Text(4)).</summary>
+    private static string NewCode() => $"Y{Interlocked.Increment(ref lastCode):D3}";
 
     private async Task<int> NewEmployeeAsync(double salary = 15000, double dailyWage = 500, string ttb = "1234567890", string kbank = "0987654321")
     {
@@ -69,7 +69,7 @@ public sealed class PayAccessDbTests(LocalDbFixture db)
         await using var check = db.Scope();
         var rows = await check.Get<HistoryService>().SearchAsync(new(Table: "ผู้ใช้", RowKey: userName));
         var change = Assert.Single(rows, r => r.Column == "ดูข้อมูลค่าจ้างได้" && r.Action == HistoryActions.Modified);
-        Assert.Equal(("ไม่", "ใช่", AppUser.AdminUserName), (change.OldValue, change.NewValue, change.UserName));
+        Assert.Equal(("ไม่ใช่", "ใช่", AppUser.AdminUserName), (change.OldValue, change.NewValue, change.UserName));
     }
 
     [Fact]
