@@ -23,7 +23,7 @@ internal static class SeedPurchFakeCommand
         try
         {
             var made = await seeder.SeedAsync();
-            Console.WriteLine($"เติมข้อมูลปลอมแล้ว: ผู้ขาย {made.Suppliers}, วัตถุดิบ {made.Materials}, ใบขอซื้อ {made.Requests}, ใบสั่งซื้อ {made.Orders}, การรับของ {made.Receipts}, ใบเบิก {made.Issues}, ผลประเมิน {made.Evaluations}, ตัดสต็อกวันที่ {made.CutDate:yyyy-MM-dd}");
+            Console.WriteLine($"เติมข้อมูลปลอมแล้ว: ผู้ขาย {made.Suppliers}, วัตถุดิบ {made.Materials}, ใบขอซื้อ {made.Requests}, ใบสั่งซื้อ {made.Orders}, การรับของ {made.Receipts}, ใบเบิก {made.Issues}, ผลประเมิน {made.Evaluations}, ตัดสต็อกวันที่ {Lockte.Web.Reports.Purch.UrlDate.Of(made.CutDate)}");
             return 0;
         }
         catch (InvalidOperationException e)

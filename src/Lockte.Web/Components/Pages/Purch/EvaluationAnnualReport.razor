@@ -30,7 +30,7 @@
 
     private string? Problem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
 
-    private string Url => $"/reports/purch/evaluation-annual?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+    private string Url => $"/reports/purch/evaluation-annual?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}";
 
     protected override void OnInitialized()
     {

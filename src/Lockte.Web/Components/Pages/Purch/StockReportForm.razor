@@ -47,7 +47,7 @@
 
     private bool Ready => Kind == "cut" ? cutDate is not null : material is not null;
 
-    private string Url => Kind == "cut" ? $"/reports/purch/stock-cut?date={cutDate:yyyy-MM-dd}" : $"/reports/purch/stock-card?material={material?.Id}";
+    private string Url => Kind == "cut" ? $"/reports/purch/stock-cut?date={Lockte.Web.Reports.Purch.UrlDate.Of(cutDate)}" : $"/reports/purch/stock-card?material={material?.Id}";
 
     protected override async Task OnParametersSetAsync()
     {

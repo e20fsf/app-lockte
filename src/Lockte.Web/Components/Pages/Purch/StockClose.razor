@@ -30,7 +30,7 @@
     @if (result is { Succeeded: true } done)
     {
         <MudAlert Severity="Severity.Success" Class="mt-3">ตัดสต็อกวันที่ @ThaiDate.Format(done.Date) แล้ว — ปิด @done.ClosedRows รายการ ยกยอดมา @done.OpeningBalances รหัส</MudAlert>
-        <MudButton Variant="Variant.Outlined" Href="@($"/reports/purch/stock-cut?date={done.Date:yyyy-MM-dd}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print" Class="mt-2">พิมพ์รายงานการตัด STOCK</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@($"/reports/purch/stock-cut?date={Lockte.Web.Reports.Purch.UrlDate.Of(done.Date)}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print" Class="mt-2">พิมพ์รายงานการตัด STOCK</MudButton>
     }
 </MudPaper>
 
@@ -41,7 +41,7 @@
         <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
             @foreach (var cut in cuts.Take(24))
             {
-                <MudChip T="string" Size="Size.Small" Href="@($"/reports/purch/stock-cut?date={cut:yyyy-MM-dd}")" Target="_blank">@ThaiDate.Format(cut)</MudChip>
+                <MudChip T="string" Size="Size.Small" Href="@($"/reports/purch/stock-cut?date={Lockte.Web.Reports.Purch.UrlDate.Of(cut)}")" Target="_blank">@ThaiDate.Format(cut)</MudChip>
             }
         </MudStack>
     </MudPaper>

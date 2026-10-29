@@ -110,13 +110,13 @@
 
     private string Url(bool summary)
     {
-        if (Kind == "resale") return $"/reports/purch/receipts/resale?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
-        if (Kind == "small-orders") return $"/reports/purch/small-orders?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&approver={Uri.EscapeDataString(approver ?? "")}";
+        if (Kind == "resale") return $"/reports/purch/receipts/resale?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}";
+        if (Kind == "small-orders") return $"/reports/purch/small-orders?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}&approver={Uri.EscapeDataString(approver ?? "")}";
         if (Kind == "yearly-materials") return $"/reports/purch/receipts/yearly-materials?year={year}" + (summary ? "&units=true" : "");
         if (Kind == "yearly") return $"/reports/purch/receipts/yearly?year={year}" + (summary ? "&main=true" : "");
-        if (Kind is "summary") return $"/reports/purch/receipts/summary?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}" + (summary ? "&main=true" : "");
-        if (Kind == "department-purchases") return $"/reports/purch/receipts/department-purchases?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
-        var url = $"/reports/purch/receipts/{Kind}?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        if (Kind is "summary") return $"/reports/purch/receipts/summary?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}" + (summary ? "&main=true" : "");
+        if (Kind == "department-purchases") return $"/reports/purch/receipts/department-purchases?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}";
+        var url = $"/reports/purch/receipts/{Kind}?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}";
         if (Kind == "department" && departmentId is { } d) url += "&department=" + d;
         if (Kind == "material" && material is not null) url += "&material=" + material.Id;
         if (Kind == "supplier" && supplier is not null) url += "&supplier=" + supplier.Id;

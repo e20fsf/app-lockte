@@ -71,7 +71,7 @@ public static class MaterialStockReports
             if (date is not { } day) return Results.BadRequest("กรุณาเลือกวันที่ตัด STOCK");
             var report = Cut(day, await closing.GetBalancesAsync(day));
             var pdf = await printer.PrintAsync<StockCutView>(CutTitle, Paper.A4Portrait, new() { ["Report"] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
-            return ReportsRegistration.Pdf(http, pdf, "ตัด STOCK " + day.ToString("yyyy-MM-dd"));
+            return ReportsRegistration.Pdf(http, pdf, "ตัด STOCK " + UrlDate.Of(day));
         });
         return reports;
     }
