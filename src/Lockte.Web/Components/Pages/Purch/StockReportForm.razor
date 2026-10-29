@@ -1,0 +1,91 @@
+@page "/purch/reports/stock/{Kind}"
+@attribute [Authorize]
+@using Lockte.Purch
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+
+@* พิมพ์ STOCK CARD (RPT-14, เลือกรหัส) และรายงานการตัด STOCK (RPT-26, เลือกวันตัดที่เคยตัด; พิมพ์ซ้ำได้ทุกวัน). The last choice is remembered in this browser, per screen (BR-081). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    @if (Kind == "cut")
+    {
+        <MudSelect T="DateOnly?" @bind-Value="cutDate" @bind-Value:after="RememberAsync" Label="วันที่ตัด STOCK" Style="max-width:20rem">
+            @foreach (var d in cuts)
+            {
+                <MudSelectItem T="DateOnly?" Value="@((DateOnly?)d)">@ThaiDate.Format(d)</MudSelectItem>
+            }
+        </MudSelect>
+        @if (cuts.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">ยังไม่เคยตัด STOCK</MudAlert>
+        }
+    }
+    else
+    {
+        <MaterialPicker Value="material" ValueChanged="@(async (MaterialDto? m) => { material = m; await RememberAsync(); })" Label="รหัสวัตถุดิบ" />
+    }
+    <MudStack Row="true" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url" Target="_blank" Disabled="@(!Ready)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(11)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    [Parameter] public string Kind { get; set; } = "card";
+
+    private IReadOnlyList<DateOnly> cuts = [];
+    private DateOnly? cutDate;
+    private MaterialDto? material;
+    private bool loadedMemory;
+
+    private string Title => Kind == "cut" ? "พิมพ์รายงานการตัด STOCK" : "พิมพ์ STOCK CARD วัตถุดิบ";
+
+    private bool Ready => Kind == "cut" ? cutDate is not null : material is not null;
+
+    private string Url => Kind == "cut" ? $"/reports/purch/stock-cut?date={cutDate:yyyy-MM-dd}" : $"/reports/purch/stock-card?material={material?.Id}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        (material, cutDate, loadedMemory) = (null, null, false);
+        cuts = Kind == "cut" ? await Services.RunAsync<StockClosingDirectory, IReadOnlyList<DateOnly>>(d => d.GetCutDatesAsync()) : [];
+        cutDate = cuts.Count > 0 ? cuts[0] : null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("purch.stock." + Kind) is { Success: true, Value: { } saved })
+            {
+                if (saved.CutDate is { } d && cuts.Contains(d)) cutDate = d;
+                if (saved.MaterialId is { } m) material = await Services.RunAsync<MaterialDirectory, MaterialDto?>(x => x.GetAsync(m));
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the defaults.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try
+        {
+            await Storage.SetAsync("purch.stock." + Kind, new Remembered(cutDate, material?.Id));
+        }
+        catch (Exception)
+        {
+            // remembering is a convenience only
+        }
+    }
+
+    private sealed record Remembered(DateOnly? CutDate, int? MaterialId);
+}

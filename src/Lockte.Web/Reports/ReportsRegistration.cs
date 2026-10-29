@@ -67,6 +67,7 @@ public static class ReportsRegistration
         reports.MapIncomingReports(); // บันทึกการรับของ และ INCOMING INSPECTION (วัตถุดิบ #257)
         reports.MapReceiptReports(); // รายงานการรับวัตถุดิบตามแผนก/ชื่อ/ผู้ขาย (วัตถุดิบ #258)
         reports.MapListReports(); // รายชื่อวัตถุดิบและผู้ขาย (วัตถุดิบ #263)
+        reports.MapMaterialStockReports(); // STOCK CARD และรายงานการตัด STOCK (วัตถุดิบ #262)
         reports.MapResaleAndSmallOrderReports(); // ซื้อมาขายไป และใบสั่งซื้อต่ำกว่าเกณฑ์ (วัตถุดิบ #261)
         reports.MapMaterialYearReports(); // การซื้อวัตถุดิบรายปีตามชื่อ 12 เดือน (วัตถุดิบ #260)
         reports.MapReceiptSummaryReports(); // สรุปการรับวัตถุดิบ รายเดือน/รายปี/แยกแผนก (วัตถุดิบ #259)
