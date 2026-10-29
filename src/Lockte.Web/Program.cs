@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,6 +33,7 @@ builder.Services.AddAuthorization(AuthPolicies.Configure);
 
 builder.Services.AddOrgModule(connectionString);
 builder.Services.AddHrModule(connectionString);
+builder.Services.Replace(ServiceDescriptor.Scoped<IPayAccess, UserPayAccess>()); // #277
 builder.Services.AddSalesModule(connectionString);
 builder.Services.AddProdModule(connectionString);
 builder.Services.AddReportData(connectionString);

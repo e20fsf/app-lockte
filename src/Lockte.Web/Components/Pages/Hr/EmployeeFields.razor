@@ -83,10 +83,19 @@
             }
         </MudSelect>
     </MudItem>
-    <MudItem xs="6" sm="2">
-        <MudNumericField T="double" Value="Form.Salary" ValueChanged="SalaryChanged" Label="เงินเดือน" HideSpinButtons="true" Format="N2" />
-    </MudItem>
-    <MudItem xs="6" sm="2"><MudNumericField @bind-Value="Form.DailyWage" Label="ค่าแรง/วัน" HideSpinButtons="true" /></MudItem>
+    @* #277: เงินเดือน, ค่าแรง/วัน and เลขบัญชี are ข้อมูลค่าจ้าง — *** and read-only without ดูข้อมูลค่าจ้างได้; the service keeps the stored values on save *@
+    <PayView>
+        <ChildContent>
+        <MudItem xs="6" sm="2">
+            <MudNumericField T="double" Value="Form.Salary" ValueChanged="SalaryChanged" Label="เงินเดือน" HideSpinButtons="true" Format="N2" />
+        </MudItem>
+        <MudItem xs="6" sm="2"><MudNumericField @bind-Value="Form.DailyWage" Label="ค่าแรง/วัน" HideSpinButtons="true" /></MudItem>
+        </ChildContent>
+        <NotAllowed>
+            <MudItem xs="6" sm="2"><MudTextField T="string" Value="@PayView.Mask" Label="เงินเดือน" ReadOnly="true" /></MudItem>
+            <MudItem xs="6" sm="2"><MudTextField T="string" Value="@PayView.Mask" Label="ค่าแรง/วัน" ReadOnly="true" /></MudItem>
+        </NotAllowed>
+    </PayView>
 
     <MudItem xs="6" sm="2">
         <MudSelect T="int?" @bind-Value="Form.ShiftId" Label="กะ" Clearable="true">
@@ -102,8 +111,16 @@
             <MudSelectItem T="bool" Value="true">ได้</MudSelectItem>
         </MudSelect>
     </MudItem>
-    <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.BankAccountTtb" Label="บัญชีทหารไทย" MaxLength="10" /></MudItem>
-    <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.BankAccountKbank" Label="บัญชีกสิกร" /></MudItem>
+    <PayView>
+        <ChildContent>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.BankAccountTtb" Label="บัญชีทหารไทย" MaxLength="10" /></MudItem>
+        <MudItem xs="6" sm="2"><MudTextField @bind-Value="Form.BankAccountKbank" Label="บัญชีกสิกร" /></MudItem>
+        </ChildContent>
+        <NotAllowed>
+            <MudItem xs="6" sm="2"><MudTextField T="string" Value="@PayView.Mask" Label="บัญชีทหารไทย" ReadOnly="true" /></MudItem>
+            <MudItem xs="6" sm="2"><MudTextField T="string" Value="@PayView.Mask" Label="บัญชีกสิกร" ReadOnly="true" /></MudItem>
+        </NotAllowed>
+    </PayView>
     <MudItem xs="12" sm="4">
         <MudAutocomplete T="string" @bind-Value="Form.Hospital" Label="โรงพยาบาล" SearchFunc="@((t, _) => Filter(Choices.Hospitals, t))"
                          CoerceValue="true" Clearable="true" />

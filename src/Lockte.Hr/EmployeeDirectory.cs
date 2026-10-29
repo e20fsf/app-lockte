@@ -1,5 +1,6 @@
 using Lockte.Hr.Data;
 using Lockte.Org;
+using Lockte.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lockte.Hr;
@@ -8,7 +9,7 @@ namespace Lockte.Hr;
 /// The public, read-only face of ทะเบียนพนักงาน: how screens and other modules read employees (ADR 0002).
 /// Department, section and shift names come from module องค์กร. Writes go through <see cref="EmployeeRegistry"/>.
 /// </summary>
-public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProvider clock)
+public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProvider clock, IPayAccess pay)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 
@@ -95,6 +96,7 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
         var sections = (await org.GetSectionsAsync()).ToDictionary(s => s.Id, s => s.Name);
         var shifts = (await org.GetShiftsAsync()).ToDictionary(s => s.Id);
         var today = Today;
+        var canViewPay = pay.CanViewPay; // #277: hidden fields never leave this service
         return rows.Select(e =>
         {
             var department = e.DepartmentId is { } d ? departments.GetValueOrDefault(d) : null;
@@ -107,9 +109,9 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
                 StartDate = e.StartDate, ListNo = e.ListNo, Education = e.Education,
                 DepartmentId = e.DepartmentId, DepartmentName = department?.Name,
                 SectionId = e.SectionId, SectionName = e.SectionId is { } sec ? sections.GetValueOrDefault(sec) : null,
-                Position = e.Position, Duty = e.Duty, EmployeeType = e.EmployeeType, Salary = e.Salary, DailyWage = e.DailyWage,
+                Position = e.Position, Duty = e.Duty, EmployeeType = e.EmployeeType, Salary = canViewPay ? e.Salary : 0, DailyWage = canViewPay ? e.DailyWage : 0,
                 ShiftId = e.ShiftId, ShiftCode = e.ShiftId is { } s ? shifts.GetValueOrDefault(s)?.Code : null,
-                HotAllowance = e.HotAllowance, BankAccountTtb = e.BankAccountTtb, BankAccountKbank = e.BankAccountKbank,
+                HotAllowance = e.HotAllowance, BankAccountTtb = canViewPay ? e.BankAccountTtb : null, BankAccountKbank = canViewPay ? e.BankAccountKbank : null,
                 Hospital = e.Hospital, ResignDate = e.ResignDate, Memo = e.Memo,
                 Evaluation1Date = e.Evaluation1Date, Evaluation1Score = e.Evaluation1Score, Evaluation1Grade = e.Evaluation1Grade,
                 Evaluation2Date = e.Evaluation2Date, Evaluation2Score = e.Evaluation2Score, Evaluation2Grade = e.Evaluation2Grade,

@@ -1,21 +1,25 @@
 using Lockte.Hr.Data;
+using Lockte.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lockte.Hr;
 
 /// <summary>The read side of การลา (SCR-30). Writes go through <see cref="LeaveRegistry"/>.</summary>
-public sealed class LeaveDirectory(HrDbContext db, TimeProvider clock)
+public sealed class LeaveDirectory(HrDbContext db, TimeProvider clock, IPayAccess pay)
 {
     /// <summary>
     /// One employee's rows whose FROM_D is in <paramref name="year"/>, by FROM_D then entry — subform LEAVE1 of SCR-30
     /// (OrderBy FROM_D, id), which showed the legacy LEAVE table of the current year (one table for every year, #41).
     /// </summary>
     public async Task<IReadOnlyList<LeaveDto>> ListOfEmployeeAsync(int employeeId, int year)
-        => await OfYear(db.Leaves.AsNoTracking(), employeeId, year)
+    {
+        var canViewPay = pay.CanViewPay; // #277: ค่าแรง/วัน and จำนวนเงิน are ข้อมูลค่าจ้าง
+        return await OfYear(db.Leaves.AsNoTracking(), employeeId, year)
             .OrderBy(l => l.FromDate).ThenBy(l => l.Id)
             .Select(l => new LeaveDto(l.Id, l.EmployeeId, l.Employee.Code, l.RecordedOn, l.FromDate, l.ToDate, l.FromTime, l.ToTime,
-                l.Days, l.Type, l.Paid, l.Remark, l.DailyWage, l.Pay, l.RowVersion))
+                l.Days, l.Type, l.Paid, l.Remark, canViewPay ? l.DailyWage : 0, canViewPay ? l.Pay : 0, l.RowVersion))
             .ToListAsync();
+    }
 
     /// <summary>
     /// สรุปการลา (คิวรี สรุปการลา6 / subform สรุปการลา subform1): the ได้ค่าแรง days by SR of the calendar year, their
@@ -37,7 +41,7 @@ public sealed class LeaveDirectory(HrDbContext db, TimeProvider clock)
             "4" when employee.Sex != "F" => "เพศชายลาคลอดไม่ได้",
             _ => null,
         })).ToList();
-        return new LeaveSummary(year, days, byType.Sum(t => t.Days), byType.Sum(t => t.Pay), quotas);
+        return new LeaveSummary(year, days, byType.Sum(t => t.Days), pay.CanViewPay ? byType.Sum(t => t.Pay) : 0, quotas);
     }
 
     private static IQueryable<Leave> OfYear(IQueryable<Leave> leaves, int employeeId, int year)

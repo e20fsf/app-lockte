@@ -60,8 +60,21 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
     }
     <MudStack Row="true" Spacing="2" Class="mt-4">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl()" Target="_blank" Disabled="@(Problem is not null)"
-                   StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        @if (PayKinds.Contains(Kind)) @* ลางานรายบุคคล / สรุปการลา print จำนวนเงิน (#277) *@
+        {
+            <PayView>
+                <ChildContent>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl()" Target="_blank" Disabled="@(Problem is not null)"
+                           StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+                </ChildContent>
+                <NotAllowed><MudText Typo="Typo.caption">พิมพ์ไม่ได้ — รายงานนี้มีข้อมูลค่าจ้าง และ user นี้ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
+            </PayView>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl()" Target="_blank" Disabled="@(Problem is not null)"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        }
         @if (Kind == "leave-department")
         {
             <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/leave/list")" Target="_blank" Disabled="@(Problem is not null)">พิมพ์ลางานตามวันที่</MudButton>
@@ -79,6 +92,9 @@
     /// <summary>One report form: its title, PDF path, the fields it asks and its menu.</summary>
     private sealed record Form(string Title, string Path, int Menu, bool OneDay = false, EmployeeChoice Employee = EmployeeChoice.None,
         DepartmentChoice Department = DepartmentChoice.None, bool Headcount = false, bool WorkDays = false);
+
+    /// <summary>Forms whose report prints จำนวนเงิน (see <c>PayReportRoutes</c>).</summary>
+    private static readonly HashSet<string> PayKinds = ["leave-employee", "leave-summary"];
 
     private static readonly Dictionary<string, Form> Forms = new()
     {

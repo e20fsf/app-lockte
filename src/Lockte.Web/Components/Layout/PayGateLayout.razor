@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+@layout MainLayout
+
+@* #277: a page that is only ข้อมูลค่าจ้าง (bonus, pay adjustment, bank files …). Without ดูข้อมูลค่าจ้างได้ the page is
+   never created: the user sees this message instead. Put `@layout PayGateLayout` on the page. *@
+<AuthorizeView Policy="@AuthPolicies.ViewPay">
+    <Authorized>@Body</Authorized>
+    <NotAuthorized>
+        <h1 class="mb-4">ข้อมูลค่าจ้าง</h1>
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+            หน้านี้เป็นข้อมูลค่าจ้าง — user นี้ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง ติดต่อผู้ดูแลระบบถ้าต้องการสิทธิ์
+        </MudAlert>
+    </NotAuthorized>
+</AuthorizeView>

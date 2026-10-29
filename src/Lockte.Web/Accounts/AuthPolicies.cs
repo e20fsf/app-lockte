@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Authorization;
 namespace Lockte.Web.Accounts;
 
 /// <summary>
-/// No roles (#39). Four gates only:
+/// No roles (#39; ADR 0004 adds one per-user flag, #277). Five gates:
 /// <see cref="Staff"/> (default for every page) — signed in, not admin, password not temporary;
 /// <see cref="Admin"/> — the admin account, which sees only user management;
 /// <see cref="StaffOrAdmin"/> — staff or admin with a password of their own (the trail under the app bar);
-/// <see cref="SignedIn"/> — any signed-in user, even with a temporary password (change password, log out).
+/// <see cref="SignedIn"/> — any signed-in user, even with a temporary password (change password, log out);
+/// <see cref="ViewPay"/> — staff with the flag ดูข้อมูลค่าจ้างได้ (never the admin).
 /// </summary>
 public static class AuthPolicies
 {
@@ -15,6 +16,7 @@ public static class AuthPolicies
     public const string Admin = "admin";
     public const string StaffOrAdmin = "staff-or-admin";
     public const string SignedIn = "signed-in";
+    public const string ViewPay = "view-pay";
 
     public static void Configure(AuthorizationOptions options)
     {
@@ -22,6 +24,9 @@ public static class AuthPolicies
         options.AddPolicy(StaffOrAdmin, p => p.RequireAuthenticatedUser().RequireAssertion(c => !AccountClaims.MustChange(c.User)));
         options.AddPolicy(Staff, p => p.RequireAuthenticatedUser().RequireAssertion(c =>
             !AccountClaims.MustChange(c.User) && !AccountClaims.IsAdmin(c.User)));
+        // #277: staff who were given ดูข้อมูลค่าจ้างได้ — the one gate for every pay report, bank file and slip.
+        options.AddPolicy(ViewPay, p => p.RequireAuthenticatedUser().RequireAssertion(c =>
+            !AccountClaims.MustChange(c.User) && AccountClaims.CanViewPay(c.User)));
         options.AddPolicy(Admin, p => p.RequireAuthenticatedUser().RequireAssertion(c =>
             !AccountClaims.MustChange(c.User) && AccountClaims.IsAdmin(c.User)));
         options.DefaultPolicy = options.GetPolicy(Staff)!;

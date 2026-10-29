@@ -11,7 +11,7 @@ namespace Lockte.Hr;
 /// <see cref="OrgDirectory"/> (ADR 0002). Each save carries the rowversion the screen loaded; if the row changed
 /// since, it throws <see cref="ConcurrencyConflictException"/>.
 /// </summary>
-public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org)
+public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org, IPayAccess pay)
 {
     /// <summary>T-EMPLO.ID is Text(4): a letter and three digits, e.g. D385.</summary>
     public const int CodeLength = 4;
@@ -70,12 +70,18 @@ public sealed class EmployeeRegistry(HrDbContext db, OrgDirectory org)
         employee.Position = Clean(input.Position);
         employee.Duty = Clean(input.Duty);
         employee.EmployeeType = input.EmployeeType;
-        employee.Salary = input.Salary;
-        employee.DailyWage = input.DailyWage;
+        if (pay.CanViewPay)
+        {
+            employee.Salary = input.Salary;
+            employee.DailyWage = input.DailyWage;
+        }
         employee.ShiftId = input.ShiftId;
         employee.HotAllowance = input.HotAllowance;
-        employee.BankAccountTtb = Clean(input.BankAccountTtb);
-        employee.BankAccountKbank = Clean(input.BankAccountKbank);
+        if (pay.CanViewPay) // #277: a user who cannot see ข้อมูลค่าจ้าง never changes it; a new employee starts with none
+        {
+            employee.BankAccountTtb = Clean(input.BankAccountTtb);
+            employee.BankAccountKbank = Clean(input.BankAccountKbank);
+        }
         employee.Hospital = Clean(input.Hospital);
         employee.ResignDate = input.ResignDate;
         employee.Memo = Clean(input.Memo);

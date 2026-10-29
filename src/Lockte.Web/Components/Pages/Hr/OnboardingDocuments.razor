@@ -31,14 +31,20 @@
             <MudDatePicker Editable="true" @bind-Date="interviewedOn" Label="วันที่สัมภาษณ์" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
         </MudStack>
         <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-            <MudButton Href="@(selected is null ? null : OnboardingReports.HiringFormHref(selected.Id, Day(appliedOn), Day(interviewedOn)))" Target="_blank"
-                       Disabled="selected is null" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">
-                พิมพ์ฟอร์มการรับพนักงาน
-            </MudButton>
-            <MudButton Href="@(selected is null ? null : OnboardingReports.ContractHref(selected.Id))" Target="_blank" Disabled="selected is null"
-                       Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">
-                @(selected?.EmployeeType == EmployeeTypes.Monthly ? "พิมพ์สัญญาจ้างรายเดือน" : "พิมพ์สัญญาจ้างรายวัน")
-            </MudButton>
+            @* both forms print เงินเดือน / ค่าแรง (#277) *@
+            <PayView>
+                <ChildContent>
+                <MudButton Href="@(selected is null ? null : OnboardingReports.HiringFormHref(selected.Id, Day(appliedOn), Day(interviewedOn)))" Target="_blank"
+                           Disabled="selected is null" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">
+                    พิมพ์ฟอร์มการรับพนักงาน
+                </MudButton>
+                <MudButton Href="@(selected is null ? null : OnboardingReports.ContractHref(selected.Id))" Target="_blank" Disabled="selected is null"
+                           Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">
+                    @(selected?.EmployeeType == EmployeeTypes.Monthly ? "พิมพ์สัญญาจ้างรายเดือน" : "พิมพ์สัญญาจ้างรายวัน")
+                </MudButton>
+                </ChildContent>
+                <NotAllowed><MudText Typo="Typo.caption">พิมพ์ฟอร์มการรับพนักงานและสัญญาจ้างไม่ได้ — ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
+            </PayView>
         </MudStack>
         <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Style="align-self:flex-start">กลับเมนูเดิม</MudButton>
     </MudStack>

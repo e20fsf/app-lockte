@@ -97,6 +97,10 @@ namespace Lockte.Web.Accounts.Migrations
                         .HasColumnType("int")
                         .HasAnnotation("Lockte:Bookkeeping", true);
 
+                    b.Property<bool>("CanViewPay")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ดูข้อมูลค่าจ้างได้");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");

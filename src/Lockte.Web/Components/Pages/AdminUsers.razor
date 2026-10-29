@@ -16,6 +16,10 @@
         <MudItem xs="12" sm="2" Class="d-flex align-center">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="busy">เพิ่ม</MudButton>
         </MudItem>
+        <MudItem xs="12">
+            <MudCheckBox T="bool" @bind-Value="newCanViewPay" Label="ดูข้อมูลค่าจ้างได้" Dense="true"
+                         Class="mt-n2" />
+        </MudItem>
     </MudGrid>
 </MudPaper>
 
@@ -24,6 +28,7 @@
         <MudTh>ชื่อ user</MudTh>
         <MudTh>ชื่อที่แสดง</MudTh>
         <MudTh>สถานะ</MudTh>
+        <MudTh>ดูข้อมูลค่าจ้างได้</MudTh>
         <MudTh>แก้ล่าสุด</MudTh>
         <MudTh></MudTh>
     </HeaderContent>
@@ -35,6 +40,17 @@
             else if (context.LockedUntil is { } until) { <MudChip T="string" Size="Size.Small" Color="Color.Error">ล็อกถึง @until.ToLocalTime().ToString("HH:mm") น.</MudChip> }
             else { <MudChip T="string" Size="Size.Small" Color="Color.Success">ใช้งาน</MudChip> }
             @if (context.MustChangePassword) { <MudChip T="string" Size="Size.Small" Color="Color.Warning">รอเปลี่ยนรหัส</MudChip> }
+        </MudTd>
+        <MudTd>
+            @if (context.IsAdmin)
+            {
+                <MudText Typo="Typo.caption">ไม่มีสิทธิ์</MudText>
+            }
+            else
+            {
+                <MudCheckBox T="bool" Value="context.CanViewPay" ValueChanged="@(v => SetCanViewPayAsync(context, v))" Dense="true"
+                             Disabled="busy" aria-label="@($"ดูข้อมูลค่าจ้างได้ {context.UserName}")" />
+            }
         </MudTd>
         <MudTd>@context.UpdatedBy @context.UpdatedAt.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiCulture)</MudTd>
         <MudTd Style="text-align:right">
@@ -66,6 +82,7 @@
 @code {
     private IReadOnlyList<UserSummary>? users;
     private string newUserName = "", newDisplayName = "", newPassword = "";
+    private bool newCanViewPay;
     private UserSummary? tempFor;
     private string tempPassword = "";
     private bool busy;
@@ -78,9 +95,13 @@
     private async Task ReloadAsync() => users = await UseAsync(s => s.ListAsync());
 
     private Task CreateAsync() => RunAsync(
-        s => s.CreateAsync(newUserName, newDisplayName, newPassword),
+        s => s.CreateAsync(newUserName, newDisplayName, newPassword, newCanViewPay),
         $"เพิ่ม user {newUserName.Trim()} แล้ว",
-        () => newUserName = newDisplayName = newPassword = "");
+        () => { newUserName = newDisplayName = newPassword = ""; newCanViewPay = false; });
+
+    private Task SetCanViewPayAsync(UserSummary user, bool allowed) => RunAsync(
+        s => s.SetCanViewPayAsync(user.Id, allowed, user.RowVersion),
+        allowed ? $"{user.UserName} ดูข้อมูลค่าจ้างได้แล้ว (มีผลเมื่อเข้าระบบใหม่)" : $"{user.UserName} ดูข้อมูลค่าจ้างไม่ได้แล้ว");
 
     private Task SetActiveAsync(UserSummary user, bool active) => RunAsync(
         s => s.SetActiveAsync(user.Id, active, user.RowVersion),

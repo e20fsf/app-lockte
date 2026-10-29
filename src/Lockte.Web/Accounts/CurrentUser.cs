@@ -15,11 +15,19 @@ public sealed class CurrentUser(IHttpContextAccessor http) : ICurrentUser
 
     internal ClaimsPrincipal? CircuitUser { get; set; }
 
+    internal ClaimsPrincipal? Principal => CircuitUser ?? http.HttpContext?.User;
+
     /// <summary>Set by work that runs outside any user, e.g. the reset-admin command.</summary>
     internal string? OverrideUserName { get; set; }
 
     public string UserName
         => OverrideUserName ?? ((CircuitUser ?? http.HttpContext?.User)?.Identity?.Name is { Length: > 0 } name ? name : Anonymous);
+}
+
+/// <summary>#277: reads the flag from the same user <see cref="CurrentUser"/> names. No signed-in user → no access.</summary>
+public sealed class UserPayAccess(CurrentUser current) : IPayAccess
+{
+    public bool CanViewPay => current.OverrideUserName is not null || (current.Principal is { } user && AccountClaims.CanViewPay(user));
 }
 
 internal sealed class CurrentUserCircuitHandler(AuthenticationStateProvider authState, CurrentUser currentUser)
