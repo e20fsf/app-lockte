@@ -176,4 +176,8 @@ public sealed class ProgramMenuTests
         Assert.Equal("calib/instruments/jig/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-jig")!.Value.Item));
         Assert.Equal("calib/instruments/jig", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-03-jig")!.Value.Item));
     }
+
+    [Fact]
+    public void The_calibration_company_screen_is_opened_from_the_external_menu() // built (#197)
+        => Assert.Equal("calib/providers", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-06")!.Value.Item));
 }

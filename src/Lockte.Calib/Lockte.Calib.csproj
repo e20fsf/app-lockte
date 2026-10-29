@@ -9,6 +9,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Lockte.SharedKernel\Lockte.SharedKernel.csproj" />
     <ProjectReference Include="..\Lockte.Org\Lockte.Org.csproj" />
+    <!-- Public services only (SupplierDirectory, SupplierRegistry): บริษัทที่สอบเทียบ are suppliers of purch (ADR 0002). -->
+    <ProjectReference Include="..\Lockte.Purch\Lockte.Purch.csproj" />
   </ItemGroup>
 
   <ItemGroup>
