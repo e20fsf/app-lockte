@@ -1,0 +1,48 @@
+@using Lockte.Purch
+@* RPT-06 บันทึกการทำ INCOMING INSPECTION (II-QA001/2548 ฉบับที่ 1), ระดับ B on A4 นอน: the receipts of the period that have a LOT, grouped by supplier then วันที่รับ — ที่, รหัส, ชื่อ,
+   ผู้ขาย, จำนวน/หน่วย, วันที่รับเข้า, วันที่ต้องการ, LOT, การตรวจสอบ, ใบรับรอง, ผลการส่ง, หมายเหตุ. A receipt with no LOT is never listed. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    var t = Report.Totals;
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)&emsp;ชื่อผู้ขาย: @(Report.SupplierName ?? "ทั้งหมด")</p>
+    <table>
+        <thead>
+            <tr><th class="num">ที่</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>ผู้ขาย</th><th class="num">จำนวน</th><th>หน่วย</th><th>วันที่รับเข้า</th><th>วันที่ต้องการ</th><th>LOT</th><th>การตรวจสอบ</th><th>ใบรับรอง</th><th>ผลการส่ง</th><th>หมายเหตุ</th></tr>
+        </thead>
+        <tbody>
+            @{
+                var no = 0;
+            }
+            @foreach (var r in Report.Rows.OrderBy(r => r.SupplierName, StringComparer.Ordinal).ThenBy(r => r.ReceiveDate).ThenBy(r => r.OrderNo, StringComparer.Ordinal))
+            {
+                no++;
+                <tr>
+                    <td class="num">@no</td>
+                    <td>@r.MaterialCode</td>
+                    <td>@r.MaterialName</td>
+                    <td>@r.SupplierName</td>
+                    <td class="num">@ReportText.Decimal2(r.Quantity)</td>
+                    <td>@r.Unit</td>
+                    <td>@ReportText.Date(r.ReceiveDate)</td>
+                    <td>@(r.DesiredDate is { } d ? ReportText.Date(d) : null)</td>
+                    <td>@r.Lot</td>
+                    <td>@(r.Failed ? "ไม่ผ่าน" : "ผ่าน")</td>
+                    <td>@(r.HasCertificate is { } c ? (c ? "มี" : "ไม่มี") : null)</td>
+                    <td>@(r.OnTime ? "ทัน" : "ไม่ทัน")</td>
+                    <td>@r.QaNote</td>
+                </tr>
+            }
+            <tr class="total"><td colspan="13"><b>รวมทั้งหมด @t.Count รายการ</b> · ใบรับรอง มี @t.WithCertificate / ไม่มี @t.WithoutCertificate · ส่งทัน @t.OnTime / ไม่ทัน @t.Late · ผ่าน @t.Passed / ไม่ผ่าน @t.Failed</td></tr>
+            <tr><td colspan="13" class="end"></td></tr>
+        </tbody>
+    </table>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" />
+}
+
+@code {
+    [Parameter, EditorRequired] public IncomingReport Report { get; set; } = null!;
+}

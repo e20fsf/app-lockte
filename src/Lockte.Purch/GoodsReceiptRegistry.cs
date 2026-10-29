@@ -39,6 +39,23 @@ public sealed record OutstandingReceiptLine(
     string SupplierName,
     string? SupplierTel);
 
+/// <summary>A receipt that QA has looked at (it has a LOT), as RPT-05 / RPT-06 list it. <see cref="OnTime"/> is ส่งทัน; <see cref="HasCertificate"/> null = not filled in.</summary>
+public sealed record IncomingRow(
+    DateOnly ReceiveDate,
+    string OrderNo,
+    string MaterialCode,
+    string MaterialName,
+    decimal Quantity,
+    string? Unit,
+    int SupplierId,
+    string SupplierName,
+    DateOnly? DesiredDate,
+    string Lot,
+    bool Failed,
+    bool? HasCertificate,
+    bool OnTime,
+    string? QaNote);
+
 /// <summary>A delivery received. <see cref="OnTime"/> is ส่งทัน (BR-030); <see cref="OutstandingAfter"/> is ยอดค้างรับ after it (negative when over-received).</summary>
 public sealed record GoodsReceiptDto(
     int Id,
@@ -331,6 +348,19 @@ public sealed class GoodsReceiptDirectory(PurchDbContext db)
                 .Select(l => new OutstandingReceiptLine(o.OrderNo, o.OrderDate, l.LineNo, l.MaterialName, l.Unit, l.Quantity - received.GetValueOrDefault(l.Id), l.DesiredDate, o.SupplierName, o.SupplierTel)))
             .ToList();
     }
+
+    /// <summary>
+    /// รายการรับของที่ QA บันทึก LOT แล้วในช่วงวันที่ (RPT-05, RPT-06, BR-050 ⚠: a receipt with no LOT is never listed), of one supplier or all of them (<paramref name="supplierId"/> null),
+    /// all materials or only วัตถุดิบหลัก. By วันที่รับ → เลขที่ใบสั่งซื้อ.
+    /// </summary>
+    public async Task<IReadOnlyList<IncomingRow>> GetIncomingAsync(DateOnly from, DateOnly to, int? supplierId = null, bool mainOnly = false)
+        => (await db.GoodsReceipts.AsNoTracking().Include(r => r.Supplier).Include(r => r.Material)
+                .Include(r => r.PurchaseOrderLine).ThenInclude(l => l!.PurchaseOrder)
+                .Where(r => r.ReceiveDate >= from && r.ReceiveDate <= to && r.Lot != null && r.Lot != "" && (supplierId == null || r.SupplierId == supplierId) && (!mainOnly || r.Material!.IsMain))
+                .ToListAsync())
+            .OrderBy(r => r.ReceiveDate).ThenBy(r => r.PurchaseOrderLine!.PurchaseOrder!.OrderNo.Length).ThenBy(r => r.PurchaseOrderLine!.PurchaseOrder!.OrderNo, StringComparer.Ordinal).ThenBy(r => r.Id)
+            .Select(r => new IncomingRow(r.ReceiveDate, r.PurchaseOrderLine!.PurchaseOrder!.OrderNo, r.Material!.Code, r.MaterialName, r.Quantity, r.Unit, r.SupplierId, r.Supplier!.Name,
+                r.PurchaseOrderLine.DesiredDate, r.Lot!, r.Failed, r.HasCertificate, GoodsReceiptMath.OnTime(r.PurchaseOrderLine.DesiredDate, r.ReceiveDate), r.QaNote)).ToList();
 
     /// <summary>The lines of an order that are still waited for.</summary>
     public async Task<IReadOnlyList<ReceivableLine>> GetReceivableLinesAsync(int orderId)

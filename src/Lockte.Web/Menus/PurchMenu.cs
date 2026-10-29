@@ -68,8 +68,8 @@ public static class PurchMenu
         ]),
         new(7, "บันทึกการรับวัตถุดิบ, แบบการประเมินผู้ขายและสรุป", 2,
         [
-            new("พิมพ์บันทึกการรับของ", Code: "RPT-05"),
-            new("พิมพ์บันทึกการทำ INCOMING INSPECTION", Code: "RPT-06"),
+            new("พิมพ์บันทึกการรับของ", Code: "RPT-05", Page: "purch/reports/incoming/record"),
+            new("พิมพ์บันทึกการทำ INCOMING INSPECTION", Code: "RPT-06", Page: "purch/reports/incoming/inspection"),
             new("พิมพ์แบบผลการประเมินติดตามผู้ขายประจำไตรมาส", Code: "RPT-07", Page: "purch/reports/evaluation"),
             new("พิมพ์แบบผลการประเมินผู้ขายประจำปี", Code: "RPT-08", Page: "purch/reports/evaluation-annual"),
             new("พิมพ์สรุปการประเมินผู้ขาย", Code: "RPT-09", Page: "purch/reports/evaluation-summary"),
