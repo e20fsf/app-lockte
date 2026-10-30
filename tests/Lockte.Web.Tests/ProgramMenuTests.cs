@@ -140,7 +140,7 @@ public sealed class ProgramMenuTests
         foreach (var (page, suffix) in new[] { (CalibMenu.Caliper, "caliper"), (CalibMenu.PressureGauge, "pg"), (CalibMenu.Scale, "scale"), (CalibMenu.TempControl, "tc") })
             Assert.Equal([$"SCR-02-{suffix}", $"SCR-03-{suffix}", $"RPT-02-{suffix}", $"RPT-03-{suffix}", $"SCR-04-{suffix}"],
                 CalibMenu.Menu.Find(page)!.Items.Select(i => i.Code));
-        Assert.Equal(["SCR-02-jig", "SCR-03-jig", "RPT-02-jig", "SCR-05", "SCR-04-jig"], CalibMenu.Menu.Find(CalibMenu.Jig)!.Items.Select(i => i.Code));
+        Assert.Equal(["SCR-02-jig", "SCR-03-jig", "RPT-02-jig", "SCR-05", "SCR-04-jig", "JIG-SHEETS"], CalibMenu.Menu.Find(CalibMenu.Jig)!.Items.Select(i => i.Code));
         Assert.Equal(["SCR-02-ext", "SCR-03-ext", "RPT-02-ext", "RPT-03-ext", "SCR-06"], CalibMenu.Menu.Find(CalibMenu.External)!.Items.Select(i => i.Code));
     }
 

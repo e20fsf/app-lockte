@@ -76,6 +76,7 @@ public static class CalibMenu
             new("บัญชีรายชื่อ JIG", Code: "RPT-02-jig"),
             new("พิมพ์บันทึกการตรวจสอบ JIG", Code: "SCR-05"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-jig"),
+            new("แก้ไขแบบตรวจ JIG", Code: "JIG-SHEETS", Page: "calib/jig-sheets"), // not in the legacy: the values its 42 reports had typed in (#199)
         ]),
         new(TempControl, "ตัวควบคุมอุณหภูมิ (TEMP CONTROL)", Internal,
         [
