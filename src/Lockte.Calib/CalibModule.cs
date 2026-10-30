@@ -17,6 +17,8 @@ public static class CalibModule
         services.AddScoped<InstrumentRegistry>();
         services.AddScoped<CalibrationProviderDirectory>();
         services.AddScoped<CalibrationProviderRegistry>();
+        services.AddScoped<JigSheetDirectory>();
+        services.AddScoped<JigSheetRegistry>();
         return services;
     }
 
