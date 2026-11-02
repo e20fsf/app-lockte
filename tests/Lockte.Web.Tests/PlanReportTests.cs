@@ -14,7 +14,7 @@ public sealed class PlanViewTests
     private static List<string> Body(string html) => html.Split("<tbody>")[1].Split("</tbody>")[0].Split("<tr").Skip(1).ToList();
 
     private static PlanReport Default => PlanReport.Of(new CalibSettingsDto(4m, 2.1m, CalibSettingsDefaults.PlanExternalMonth, CalibSettingsDefaults.PlanInternalMonth,
-        CalibSettingsDefaults.PlanResponsible, CalibSettingsDefaults.PlanReviewer, CalibSettingsDefaults.PlanNote, CalibSettingsDefaults.ExternalRegisterNote, null));
+        CalibSettingsDefaults.PlanResponsible, CalibSettingsDefaults.PlanReviewer, CalibSettingsDefaults.PlanNote, CalibSettingsDefaults.ExternalRegisterNote, "", "", "", "", "", "", null));
 
     [Fact]
     public async Task The_plan_has_the_two_rows_the_parties_and_the_twelve_months()

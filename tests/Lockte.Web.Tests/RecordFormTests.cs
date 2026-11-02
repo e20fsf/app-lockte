@@ -91,3 +91,39 @@ public sealed class RecordFormTests(ChromiumFixture chromium)
         Assert.Equal(1, Pages(pdf));
     }
 }
+
+/// <summary>The fixed RPT-03 sheets of เพรสเซอร์เกจ and ตัวควบคุมอุณหภูมิ (#206): one page for "ทุกเครื่อง", the values from the settings.</summary>
+public sealed class FixedRecordFormTests
+{
+    private static CalibSettingsDto Defaults => new(4m, 2.1m, 7, 8, "QA", "QMR", "", "", CalibSettingsDefaults.PressureGaugeName, CalibSettingsDefaults.PressureGaugeRange,
+        CalibSettingsDefaults.PressureGaugeLimit, CalibSettingsDefaults.TempControlName, CalibSettingsDefaults.TempControlRange, CalibSettingsDefaults.TempControlLimit, null);
+
+    [Fact] // reports.md RPT-03 / Q-13: the constants of the legacy sheets
+    public void The_pressure_gauge_sheet_prints_the_constants_of_the_legacy_form()
+    {
+        var head = RecordReports.FixedHead(InstrumentKind.PressureGauge, Defaults);
+        Assert.Equal(("Pressure Gauge", "ทุกเครื่อง", "50 - 150 Kg/cm²", "±10 kg/cm²"), (head.Name, head.Code, head.Range, head.Limit));
+        Assert.Equal((null, null, null, false), (head.Calibrator, head.Provider, head.StandardUsed, head.External));
+        var svg = System.Net.WebUtility.HtmlDecode(RecordForm.Page(head, null).ToSvg());
+        foreach (var text in new[] { ">Pressure Gauge<", ">ทุกเครื่อง<", ">50 - 150 Kg/cm²<", ">±10 kg/cm²<" }) Assert.Contains(text, svg);
+    }
+
+    [Fact]
+    public void The_temp_control_sheet_prints_its_own_constants()
+    {
+        var head = RecordReports.FixedHead(InstrumentKind.TempControl, Defaults);
+        Assert.Equal(("Temp Control", "ทุกเครื่อง", "190 - 210 °C", "±10 °C"), (head.Name, head.Code, head.Range, head.Limit));
+    }
+
+    [Fact] // the values are master data: another value in the settings prints
+    public void The_sheet_follows_the_settings()
+        => Assert.Equal("0 - 700 Kg/cm²", RecordReports.FixedHead(InstrumentKind.PressureGauge, Defaults with { PressureGaugeRange = "0 - 700 Kg/cm²" }).Range);
+
+    [Fact]
+    public void Only_the_two_fixed_kinds_are_fixed()
+    {
+        Assert.Equal([InstrumentKind.PressureGauge, InstrumentKind.TempControl], Enum.GetValues<InstrumentKind>().Where(RecordReports.IsFixed));
+        Assert.All(Enum.GetValues<InstrumentKind>().Where(RecordReports.IsFixed), k => Assert.False(RecordReports.IsPerInstrument(k)));
+        Assert.Equal(5, Enum.GetValues<InstrumentKind>().Count(k => RecordReports.IsFixed(k) || RecordReports.IsPerInstrument(k))); // JIG has its own forms (#207 #208)
+    }
+}

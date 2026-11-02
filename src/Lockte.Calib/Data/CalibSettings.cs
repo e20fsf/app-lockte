@@ -24,6 +24,12 @@ internal sealed class CalibSettings : IAudited
     public string PlanNote { get; set; } = CalibSettingsDefaults.PlanNote;
     /// <summary>หมายเหตุท้ายบัญชีรายชื่อสอบเทียบภายนอก.</summary>
     public string ExternalRegisterNote { get; set; } = CalibSettingsDefaults.ExternalRegisterNote;
+    public string PressureGaugeName { get; set; } = CalibSettingsDefaults.PressureGaugeName;
+    public string PressureGaugeRange { get; set; } = CalibSettingsDefaults.PressureGaugeRange;
+    public string PressureGaugeLimit { get; set; } = CalibSettingsDefaults.PressureGaugeLimit;
+    public string TempControlName { get; set; } = CalibSettingsDefaults.TempControlName;
+    public string TempControlRange { get; set; } = CalibSettingsDefaults.TempControlRange;
+    public string TempControlLimit { get; set; } = CalibSettingsDefaults.TempControlLimit;
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

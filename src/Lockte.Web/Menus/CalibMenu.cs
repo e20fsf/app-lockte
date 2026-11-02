@@ -59,7 +59,7 @@ public static class CalibMenu
             new("เพิ่มรายชื่อเครื่องมือวัด", Code: "SCR-02-pg", Page: "calib/instruments/pg/new"),
             new("แก้ไขและลบรายชื่อเครื่องมือวัด", Code: "SCR-03-pg", Page: "calib/instruments/pg"),
             new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-pg", Page: "reports/calib/register/pg", NewTab: true),
-            new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-pg"),
+            new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-pg", Page: "reports/calib/record/pg", NewTab: true),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-pg", Page: "calib/stickers/pg"),
         ]),
         new(Scale, "เครื่องชั่ง", Internal,
@@ -84,7 +84,7 @@ public static class CalibMenu
             new("เพิ่มรายชื่อตัวควบคุมอุณหภูมิ", Code: "SCR-02-tc", Page: "calib/instruments/tc/new"),
             new("แก้ไขและลบรายชื่อตัวควบคุมอุณหภูมิ", Code: "SCR-03-tc", Page: "calib/instruments/tc"),
             new("บัญชีรายชื่อตัวควบคุมอุณหภูมิ", Code: "RPT-02-tc", Page: "reports/calib/register/tc", NewTab: true),
-            new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-tc"),
+            new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-tc", Page: "reports/calib/record/tc", NewTab: true),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-tc", Page: "calib/stickers/tc"),
         ]),
     ]);

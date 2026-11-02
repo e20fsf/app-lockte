@@ -34,6 +34,12 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             s.Property(x => x.PlanReviewer).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.PlanReviewer).HasAuditName("ผู้ตรวจสอบ (แผน)");
             s.Property(x => x.PlanNote).HasMaxLength(CalibSettingsRegistry.NoteLength).HasDefaultValue(CalibSettingsDefaults.PlanNote).HasAuditName("หมายเหตุท้ายแผนการสอบเทียบ");
             s.Property(x => x.ExternalRegisterNote).HasMaxLength(CalibSettingsRegistry.NoteLength).HasDefaultValue(CalibSettingsDefaults.ExternalRegisterNote).HasAuditName("หมายเหตุท้ายบัญชีสอบเทียบภายนอก");
+            s.Property(x => x.PressureGaugeName).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.PressureGaugeName).HasAuditName("ชื่อเครื่องมือ (บันทึกผลเพรสเซอร์เกจ)");
+            s.Property(x => x.PressureGaugeRange).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.PressureGaugeRange).HasAuditName("พิกัดใช้งาน (บันทึกผลเพรสเซอร์เกจ)");
+            s.Property(x => x.PressureGaugeLimit).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.PressureGaugeLimit).HasAuditName("ขีดจำกัด (บันทึกผลเพรสเซอร์เกจ)");
+            s.Property(x => x.TempControlName).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.TempControlName).HasAuditName("ชื่อเครื่องมือ (บันทึกผลตัวควบคุมอุณหภูมิ)");
+            s.Property(x => x.TempControlRange).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.TempControlRange).HasAuditName("พิกัดใช้งาน (บันทึกผลตัวควบคุมอุณหภูมิ)");
+            s.Property(x => x.TempControlLimit).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.TempControlLimit).HasAuditName("ขีดจำกัด (บันทึกผลตัวควบคุมอุณหภูมิ)");
         });
 
         modelBuilder.Entity<Instrument>(i =>

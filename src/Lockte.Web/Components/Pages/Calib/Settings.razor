@@ -37,6 +37,20 @@ else
         <MudTextField @bind-Value="form.ExternalNote" Label="หมายเหตุท้ายบัญชี" Lines="3" MaxLength="CalibSettingsRegistry.NoteLength" Class="mt-2" />
     </MudPaper>
     <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
+        <MudText Typo="Typo.h6">แบบฟอร์มบันทึกผลการสอบเทียบแบบคงที่ (RPT-03: เพรสเซอร์เกจ, ตัวควบคุมอุณหภูมิ)</MudText>
+        <MudText Typo="Typo.caption">พิมพ์เหมือนกันทุกเครื่อง ตามแบบเดิม (Q-13)</MudText>
+        <MudStack Row="true" Spacing="2" Class="mt-2" Wrap="Wrap.Wrap">
+            <MudTextField @bind-Value="form.PgName" Label="เพรสเซอร์เกจ: ชื่อเครื่องมือ" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.PgRange" Label="พิกัดใช้งาน" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.PgLimit" Label="ขีดจำกัดที่ยอมรับได้" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+        </MudStack>
+        <MudStack Row="true" Spacing="2" Class="mt-2" Wrap="Wrap.Wrap">
+            <MudTextField @bind-Value="form.TcName" Label="ตัวควบคุมอุณหภูมิ: ชื่อเครื่องมือ" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.TcRange" Label="พิกัดใช้งาน" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.TcLimit" Label="ขีดจำกัดที่ยอมรับได้" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+        </MudStack>
+    </MudPaper>
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
         <MudText Typo="Typo.h6">สติกเกอร์ (RPT-04)</MudText>
         <MudStack Row="true" Spacing="2" Class="mt-2">
             <MudNumericField T="decimal" @bind-Value="form.StickerWidthCm" Label="กว้าง (ซม.)" Min="0.5m" Max="21m" Style="max-width:10rem" />
@@ -66,6 +80,7 @@ else
         {
             StickerWidthCm = s.StickerWidthCm, StickerHeightCm = s.StickerHeightCm, ExternalMonth = s.PlanExternalMonth, InternalMonth = s.PlanInternalMonth,
             Responsible = s.PlanResponsible, Reviewer = s.PlanReviewer, PlanNote = s.PlanNote, ExternalNote = s.ExternalRegisterNote,
+            PgName = s.PressureGaugeName, PgRange = s.PressureGaugeRange, PgLimit = s.PressureGaugeLimit, TcName = s.TempControlName, TcRange = s.TempControlRange, TcLimit = s.TempControlLimit,
         };
     }
 
@@ -75,7 +90,8 @@ else
         try
         {
             var f = form!;
-            var input = new CalibSettingsInput(f.StickerWidthCm, f.StickerHeightCm, rowVersion, f.ExternalMonth, f.InternalMonth, f.Responsible ?? "", f.Reviewer ?? "", f.PlanNote ?? "", f.ExternalNote ?? "");
+            var input = new CalibSettingsInput(f.StickerWidthCm, f.StickerHeightCm, rowVersion, f.ExternalMonth, f.InternalMonth, f.Responsible ?? "", f.Reviewer ?? "", f.PlanNote ?? "", f.ExternalNote ?? "",
+                f.PgName ?? "", f.PgRange ?? "", f.PgLimit ?? "", f.TcName ?? "", f.TcRange ?? "", f.TcLimit ?? "");
             var result = await Services.RunAsync<CalibSettingsRegistry, ServiceResult>(r => r.SaveAsync(input));
             foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
             if (result.Succeeded) Snackbar.Add("บันทึกแล้ว", Severity.Success);
@@ -101,5 +117,11 @@ else
         public string? Reviewer { get; set; }
         public string? PlanNote { get; set; }
         public string? ExternalNote { get; set; }
+        public string? PgName { get; set; }
+        public string? PgRange { get; set; }
+        public string? PgLimit { get; set; }
+        public string? TcName { get; set; }
+        public string? TcRange { get; set; }
+        public string? TcLimit { get; set; }
     }
 }
