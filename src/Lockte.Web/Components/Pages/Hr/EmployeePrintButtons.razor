@@ -1,11 +1,17 @@
 @using Lockte.Hr
+@using Lockte.SharedKernel
 @using Lockte.Web.Reports.Hr
 @* #350–#352: the print buttons of the legacy EMPLO screen (image13: พิมพ์แบบ คร2 / สัญญาจ้างรายวัน / สัญญาจ้างรายเดือน / ฟอร์มการรับพนักงาน)
    for the employee open on SCR-03. Every one of these documents carries เงินเดือน / ค่าแรง (#277, ADR 0004), so they are all
    behind ViewPay; whoever may not see pay is told so instead of getting a button. *@
-<MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mt-4">
+<MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mt-4" AlignItems="AlignItems.End">
     <PayView>
         <ChildContent>
+            @* ฟอร์มการรับพนักงาน: วันที่สมัคร / วันที่สัมภาษณ์ as typed, not stored (as OnboardingDocuments) *@
+            <MudDatePicker Editable="true" @bind-Date="appliedOn" Label="วันที่สมัคร" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+            <MudDatePicker Editable="true" @bind-Date="interviewedOn" Label="วันที่สัมภาษณ์" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+            <MudButton Href="@OnboardingReports.HiringFormHref(Employee.Id, Day(appliedOn), Day(interviewedOn))" Target="_blank" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์ฟอร์มการรับพนักงาน</MudButton>
             <MudButton Href="@($"hr/employees/{Employee.Id}/kor2")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">พิมพ์แบบ คร.2</MudButton>
             <MudButton Href="@OnboardingReports.ContractHref(Employee.Id, "daily")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">พิมพ์สัญญาจ้างรายวัน</MudButton>
             <MudButton Href="@OnboardingReports.ContractHref(Employee.Id, "monthly")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">พิมพ์สัญญาจ้างรายเดือน</MudButton>
@@ -20,6 +26,11 @@
 
 @code {
     [Parameter, EditorRequired] public EmployeeDto Employee { get; set; } = default!;
+
+    private DateTime? appliedOn;
+    private DateTime? interviewedOn;
+
+    private static DateOnly? Day(DateTime? d) => d is { } v ? DateOnly.FromDateTime(v) : null;
 
     /// <summary>#351: both contracts can be printed for anyone, but the employee ประเภท says which one is expected (a hint, not a block).</summary>
     private string? ContractHint => Employee.EmployeeType switch

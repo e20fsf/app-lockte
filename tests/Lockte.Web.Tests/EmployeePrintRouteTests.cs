@@ -32,3 +32,15 @@ public sealed class ContractKindTests
         Assert.Equal("reports/hr/employees/7/contract", Lockte.Web.Reports.Hr.OnboardingReports.ContractHref(7));
     }
 }
+
+/// <summary>#352: the button of ฟอร์มการรับพนักงาน carries the typed dates (invariant yyyy-MM-dd, not the Thai calendar) and none when blank.</summary>
+public sealed class HiringFormHrefTests
+{
+    [Fact]
+    public void The_href_carries_the_dates_in_the_iso_format()
+    {
+        var href = Lockte.Web.Reports.Hr.OnboardingReports.HiringFormHref(7, new DateOnly(2026, 8, 3), null);
+
+        Assert.Equal("reports/hr/employees/7/hiring-form?applied=2026-08-03&interviewed=", href);
+    }
+}
