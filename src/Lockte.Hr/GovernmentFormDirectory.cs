@@ -35,10 +35,12 @@ public sealed class GovernmentFormDirectory(HrDbContext db, EmployeeDirectory em
     /// ทะเบียนผู้ประกันตน as the legacy query <c>ทะเบียนผู้ประกันตน</c>: every employee row including those who resigned
     /// (one person who came back has a row per employment), DISTINCT over the columns it read, ordered by เลขบัตร then
     /// วันเริ่มงาน — rows without a เลขบัตร first, as Access sorts Null first.
+    /// <paramref name="currentOnly"/> (#349) keeps only those still working (ไม่มีวันลาออก), the register as printed for the
+    /// ประกันสังคม office from Access.
     /// </summary>
-    public async Task<IReadOnlyList<InsuredPersonLine>> ListInsuredPersonsAsync()
+    public async Task<IReadOnlyList<InsuredPersonLine>> ListInsuredPersonsAsync(bool currentOnly = false)
     {
-        var rows = await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub)
+        var rows = await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub && (!currentOnly || e.ResignDate == null))
             .Select(e => new { e.NationalId, e.Name, e.Nationality, e.BirthDate, e.StartDate, e.Position, e.Salary, e.DailyWage, e.ResignDate })
             .ToListAsync();
         return rows.Distinct()

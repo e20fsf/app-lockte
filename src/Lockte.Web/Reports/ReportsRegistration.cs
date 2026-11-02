@@ -197,11 +197,11 @@ public static class ReportsRegistration
 
         reports.MapOnboardingReports(); // #66: RPT-20, RPT-21, RPT-22, RPT-56
 
-        // RPT-51 ทะเบียนผู้ประกันตน สปส.6-07 (เมนู 18): ระดับ A, A4 นอน, every employee row.
-        reports.MapGet("/hr/insured-persons", async (HttpContext http, GovernmentFormDirectory forms, IOptionsSnapshot<EmployerOptions> employer,
+        // RPT-51 ทะเบียนผู้ประกันตน สปส.6-07 (เมนู 18): ระดับ A, A4 นอน, every employee row, or ?current=true only those still working (#349).
+        reports.MapGet("/hr/insured-persons", async (bool? current, HttpContext http, GovernmentFormDirectory forms, IOptionsSnapshot<EmployerOptions> employer,
             ReportPrinter printer, CancellationToken cancellationToken) =>
         {
-            var pages = InsuredPersonsForm.Layout(await forms.ListInsuredPersonsAsync(), employer.Value);
+            var pages = InsuredPersonsForm.Layout(await forms.ListInsuredPersonsAsync(current == true), employer.Value);
             return Pdf(http, await printer.PrintFormAsync(InsuredPersonsForm.Title, pages, cancellationToken), InsuredPersonsForm.Title);
         });
 
