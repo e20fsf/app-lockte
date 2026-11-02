@@ -27,12 +27,13 @@ public sealed class JigImageTests(LocalDbFixture db)
         Assert.True((await AsQaAsync(s => s.Get<JigImageRegistry>().SetAsync(sheet.Id, first))).Succeeded);
 
         var image = await AsQaAsync(s => s.Get<JigImageDirectory>().GetAsync(sheet.Id));
-        Assert.Equal(("image/png", first), (image!.ContentType, image.Data));
+        Assert.Equal("image/png", image!.ContentType);
+        Assert.True(first.AsSpan().SequenceEqual(image.Data)); // byte arrays compare by content
         Assert.True((await SheetAsync(JigSheetType.ZeroCheck, "V100")).HasImage);
 
         var second = FakePng(Guid.NewGuid().ToString("N"));
         Assert.True((await AsQaAsync(s => s.Get<JigImageRegistry>().SetAsync(sheet.Id, second))).Succeeded);
-        Assert.Equal(second, (await AsQaAsync(s => s.Get<JigImageDirectory>().GetAsync(sheet.Id)))!.Data);
+        Assert.True(second.AsSpan().SequenceEqual((await AsQaAsync(s => s.Get<JigImageDirectory>().GetAsync(sheet.Id)))!.Data));
 
         Assert.True((await AsQaAsync(s => s.Get<JigImageRegistry>().ClearAsync(sheet.Id))).Succeeded);
         Assert.Null(await AsQaAsync(s => s.Get<JigImageDirectory>().GetAsync(sheet.Id)));
