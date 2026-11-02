@@ -1,0 +1,31 @@
+@using Lockte.SharedKernel
+@* RPT-09 รายงานยอดขายของเก่าและอื่นๆ, ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ … เดือน …; the lines with their date, number and buyer; รวมทั้งหมด and the number of lines. *@
+<p class="sub">ตั้งแต่วันที่ @ThaiDate.Format(Report.From) ถึงวันที่ @ThaiDate.Format(Report.To) เดือน @ScrapSalesReports.MonthOf(Report.To)</p>
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="font-size:.78em">
+        <colgroup><col style="width:5%" /><col style="width:9%" /><col style="width:8%" /><col style="width:5%" /><col style="width:22%" /><col style="width:8%" /><col style="width:6%" /><col style="width:8%" /><col style="width:10%" /><col style="width:19%" /></colgroup>
+        <thead><tr><th class="num">ที่</th><th>วันที่</th><th>เลขที่</th><th class="num">ลำดับ</th><th>รายการ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th><th>ผู้ซื้อ</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                <tr>
+                    <td class="num">@(i + 1)</td><td>@ThaiDate.Format(r.Date)</td><td>@r.No</td><td class="num">@r.Seq</td><td>@r.ItemName</td>
+                    <td class="num">@r.Qty.ToString("#,##0.00#", System.Globalization.CultureInfo.InvariantCulture)</td><td>@r.Unit</td>
+                    <td class="num">@r.UnitPrice.ToString("#,##0.00##", System.Globalization.CultureInfo.InvariantCulture)</td><td class="num">@ReportText.Decimal2(r.Amount)</td><td>@r.BuyerName</td>
+                </tr>
+            }
+            <tr><td colspan="8"><b>รวมทั้งหมด</b> (@Report.Count รายการ)</td><td class="num"><b>@ReportText.Decimal2(Report.Total)</b></td><td></td></tr>
+            <tr><td colspan="10" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public Lockte.Web.Reports.Cash.ScrapSalesReport Report { get; set; } = null!;
+}

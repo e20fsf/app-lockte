@@ -16,6 +16,9 @@ public sealed record ExpenseLineInput(int? Id, DateOnly? Date, string? VoucherNo
 /// <summary>An item offered when a line is keyed: a name with the unit it was last used with.</summary>
 public sealed record ExpenseItemSuggestion(string Name, string? Unit);
 
+/// <summary>One row of the summary by type (RPT-02): the type as named now and the sum of its lines' amounts.</summary>
+public sealed record ExpenseTypeTotal(int ExpenseTypeId, string TypeName, decimal Total);
+
 /// <summary>The money rule of a line (assumption ก, RND-B in the legacy): what the amount becomes when the quantity or the price is edited.</summary>
 public static class ExpenseLineMath
 {
@@ -37,6 +40,20 @@ public sealed class ExpenseLineDirectory(CashDbContext db)
     /// <summary>The lines from <paramref name="from"/> to <paramref name="to"/> inclusive: by date, then voucher number, then the order keyed.</summary>
     public async Task<IReadOnlyList<ExpenseLineDto>> ListAsync(DateOnly from, DateOnly to)
         => await ReadAsync(db.ExpenseLines.AsNoTracking().Where(l => l.Date >= from && l.Date <= to).OrderBy(l => l.Date).ThenBy(l => l.VoucherNo).ThenBy(l => l.Id));
+
+    /// <summary>
+    /// The lines from <paramref name="from"/> to <paramref name="to"/> inclusive added up by type (BR-006): by the name of the type in the Thai dictionary order, a retired type under its
+    /// own name. Nothing is rounded. A range the wrong way round has no lines. (The legacy grouped on the text of TYPE, so two spellings made two rows; here the type is one row.)
+    /// </summary>
+    public async Task<IReadOnlyList<ExpenseTypeTotal>> SummaryByTypeAsync(DateOnly from, DateOnly to)
+    {
+        if (from > to) return [];
+        var sums = await db.ExpenseLines.AsNoTracking().Where(l => l.Date >= from && l.Date <= to).GroupBy(l => l.ExpenseTypeId).Select(g => new { Id = g.Key, Total = g.Sum(l => l.Amount) }).ToListAsync();
+        var ids = sums.Select(s => s.Id).ToList();
+        var names = await db.ExpenseTypes.AsNoTracking().Where(t => ids.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Name);
+        var thai = StringComparer.Create(ThaiDate.Culture, ignoreCase: true);
+        return sums.Select(s => new ExpenseTypeTotal(s.Id, names[s.Id], s.Total)).OrderBy(t => t.TypeName, thai).ThenBy(t => t.ExpenseTypeId).ToList();
+    }
 
     public async Task<ExpenseLineDto?> GetAsync(int id) => (await ReadAsync(db.ExpenseLines.AsNoTracking().Where(l => l.Id == id))).FirstOrDefault();
 

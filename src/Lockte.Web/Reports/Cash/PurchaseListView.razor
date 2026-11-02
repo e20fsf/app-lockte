@@ -1,0 +1,33 @@
+@using Lockte.SharedKernel
+@* RPT-04 รายการซื้อของเงินสดย่อย, ระดับ B on A4 ตั้ง: ตั้งแต่วันที่ … ถึงวันที่ …; วันที่, ลำดับที่ (เลขที่ใบสำคัญจ่าย), รายการ, จำนวน + หน่วย, จำนวนเงิน, ประเภท; รวมทั้งหมด. *@
+<p class="sub">ตั้งแต่วันที่ @ThaiDate.Format(Report.From) ถึงวันที่ @ThaiDate.Format(Report.To)</p>
+@if (Report.Lines.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="font-size:.9em">
+        <colgroup><col style="width:11%" /><col style="width:9%" /><col style="width:30%" /><col style="width:14%" /><col style="width:13%" /><col style="width:23%" /></colgroup>
+        <thead><tr><th>วันที่</th><th>ลำดับที่</th><th>รายการ</th><th class="num">จำนวน</th><th class="num">จำนวนเงิน</th><th>ประเภท</th></tr></thead>
+        <tbody>
+            @foreach (var line in Report.Lines)
+            {
+                <tr>
+                    <td>@ThaiDate.Format(line.Date)</td>
+                    <td>@line.VoucherNo</td>
+                    <td>@line.Name</td>
+                    <td class="num">@line.Qty.ToString("#,##0.00#", System.Globalization.CultureInfo.InvariantCulture) @line.Unit</td>
+                    <td class="num">@ReportText.Decimal2(line.Amount)</td>
+                    <td>@line.ExpenseTypeName</td>
+                </tr>
+            }
+            <tr><td colspan="3"><b>รวมทั้งหมด</b></td><td></td><td class="num"><b>@ReportText.Decimal2(Report.Total)</b></td><td></td></tr>
+            <tr><td colspan="6" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public Lockte.Web.Reports.Cash.PurchaseListReport Report { get; set; } = null!;
+}

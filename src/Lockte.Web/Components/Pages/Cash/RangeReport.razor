@@ -1,0 +1,94 @@
+@page "/cash/ranges/{Kind}"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.SharedKernel
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage Storage
+
+@* ตั้งช่วงวันที่รายงาน (SCR-05, three screens of the legacy that share one table of parameters): "วันที่" (สรุปค่าใช้จ่ายเงินสดย่อย, with ค่าใช้จ่ายงวดที่แล้ว), "วันที่ซื้อของ" (รายการซื้อของ) and
+   "วันที่2" (ยอดขายของเก่า). The last values typed are remembered in this browser, per screen, as the defaults of the next time — there is no table of parameters (assumption ค, BR-022 of the
+   delivery reports). "พิมพ์" opens the report as a PDF in a new tab. *@
+<PageTitle>@Info.Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Info.Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Row="true" Spacing="2">
+        <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+    </MudStack>
+    @if (Info.AskLastPay)
+    {
+        <MudNumericField T="decimal?" @bind-Value="lastPay" @bind-Value:after="RememberAsync" Label="ค่าใช้จ่ายงวดที่แล้ว" Min="0m" Format="N2" HideSpinButtons="true" Class="mt-3" Style="max-width:16rem" />
+    }
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@CashMenu.HrefOf(Info.Menu)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private sealed record Screen(string Title, string Path, int Menu, bool AskLastPay);
+
+    private static readonly Dictionary<string, Screen> Screens = new()
+    {
+        ["expense"] = new("พิมพ์สรุปค่าใช้จ่ายเงินสดย่อย", "reports/cash/expense-summary", ProgramMenu.Main, true),
+        ["purchases"] = new("พิมพ์รายงานการซื้อของ", "reports/cash/purchases", CashMenu.Reports, false),
+        ["scrap"] = new("รายงานยอดขายของเก่า", "reports/cash/scrap-sales", CashMenu.Receipts, false),
+    };
+
+    [Parameter] public string Kind { get; set; } = "";
+
+    private Screen Info => Screens.GetValueOrDefault(Kind) ?? Screens["expense"];
+
+    private DateTime? from;
+    private DateTime? to;
+    private decimal? lastPay;
+    private bool loadedMemory;
+
+    private string? Problem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
+
+    protected override void OnParametersSet()
+    {
+        var today = DateTime.Today;
+        from = new DateTime(today.Year, today.Month, 1);
+        to = from.Value.AddMonths(1).AddDays(-1);
+        loadedMemory = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loadedMemory) return;
+        loadedMemory = true;
+        try
+        {
+            if (await Storage.GetAsync<Remembered>("cash.range-report." + Kind) is { Success: true, Value: { } saved })
+            {
+                from = saved.From?.ToDateTime(TimeOnly.MinValue) ?? from;
+                to = saved.To?.ToDateTime(TimeOnly.MinValue) ?? to;
+                lastPay = saved.LastPay ?? lastPay;
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // Nothing remembered (or unreadable): keep the month.
+        }
+    }
+
+    private async Task RememberAsync()
+    {
+        try { await Storage.SetAsync("cash.range-report." + Kind, new Remembered(from is { } f ? DateOnly.FromDateTime(f) : null, to is { } t ? DateOnly.FromDateTime(t) : null, lastPay)); }
+        catch (Exception) { /* remembering is a convenience only */ }
+    }
+
+    private string PdfUrl
+        => "/" + Info.Path + "?from=" + from?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "&to=" + to?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+           + (Info.AskLastPay ? "&lastPay=" + (lastPay ?? 0m).ToString("0.##", CultureInfo.InvariantCulture) : "");
+
+    private sealed record Remembered(DateOnly? From, DateOnly? To, decimal? LastPay);
+}

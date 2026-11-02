@@ -1,0 +1,29 @@
+@* RPT-02 สรุปค่าใช้จ่ายเงินสดย่อย โรงงาน, ระดับ B on Letter ตั้ง: the range in long dates; ลำดับที่, รายการ, จำนวนเงิน; the three totals (the last in bold) and the words; four signature boxes. *@
+<p class="sub">ตั้งแต่วันที่ @ExpenseSummaryReports.LongDate(Report.From) ถึงวันที่ @ExpenseSummaryReports.LongDate(Report.To)</p>
+<table>
+    <colgroup><col style="width:14%" /><col style="width:62%" /><col style="width:24%" /></colgroup>
+    <thead><tr><th class="num">ลำดับที่</th><th>รายการ</th><th class="num">จำนวนเงิน</th></tr></thead>
+    <tbody>
+        @for (var i = 0; i < Report.Rows.Count; i++)
+        {
+            <tr><td class="num">@(i + 1)</td><td>@Report.Rows[i].TypeName</td><td class="num">@ReportText.Decimal2(Report.Rows[i].Total)</td></tr>
+        }
+        <tr><td></td><td>รวมค่าใช้จ่ายงวดนี้</td><td class="num">@ReportText.Decimal2(Report.Total)</td></tr>
+        <tr><td></td><td>ค่าใช้จ่ายงวดที่แล้ว</td><td class="num">@ReportText.Decimal2(Report.LastPay)</td></tr>
+        <tr><td></td><td><b>รวมค่าใช้จ่ายทั้งสิ้น</b></td><td class="num"><b>@ReportText.Decimal2(Report.Grand)</b></td></tr>
+        <tr><td colspan="3" class="end"></td></tr>
+    </tbody>
+</table>
+<p>@Report.GrandInWords</p>
+<table style="margin-top:12mm">
+    <colgroup><col style="width:25%" /><col style="width:25%" /><col style="width:25%" /><col style="width:25%" /></colgroup>
+    <tbody>
+        <tr style="height:16mm"><td></td><td></td><td></td><td></td></tr>
+        <tr><td style="text-align:center">ผู้อนุมัติ</td><td style="text-align:center">ผู้เตรียม</td><td style="text-align:center">ผู้ตรวจ</td><td style="text-align:center">ผู้ลงบัญชี</td></tr>
+        <tr><td style="text-align:center">วันที่ ....../....../......</td><td style="text-align:center">วันที่ ....../....../......</td><td style="text-align:center">วันที่ ....../....../......</td><td style="text-align:center">วันที่ ....../....../......</td></tr>
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired] public Lockte.Web.Reports.Cash.ExpenseSummaryReport Report { get; set; } = null!;
+}

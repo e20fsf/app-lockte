@@ -24,7 +24,7 @@ public static class CashMenu
             new("เพิ่ม,แก้ไข,ลบและพิมพ์รายการค่าใช้จ่าย", Code: "SCR-02", Page: "cash/expense-types"), // built (#229)
             new("บันทึกค่าใช้จ่ายเงินสดย่อย", Code: "SCR-03", Page: "cash/expenses"), // built (#232)
             new("แก้ไข,ลบบันทึกค่าใช้จ่ายเงินสดย่อยและพิมพ์ใบสำคัญจ่ายเงิน", Code: "SCR-04", Page: "cash/expenses/edit"), // built (#233)
-            new("พิมพ์สรุปค่าใช้จ่ายเงินสดย่อย", Code: "SCR-05-expense"),
+            new("พิมพ์สรุปค่าใช้จ่ายเงินสดย่อย", Code: "SCR-05-expense", Page: "cash/ranges/expense"), // built (#242)
             new("พิมพ์รายการซื้อของ", SubMenu: Reports),
             new("พิมพ์ใบเสร็จรับเงินขายของเก่า", SubMenu: Receipts),
         ]),
@@ -36,11 +36,11 @@ public static class CashMenu
             new("แก้ไขรายชื่อของเก่า", Code: "SCR-08-edit", Page: "cash/scrap-items"), // built (#230)
             new("พิมพ์ใบเสร็จ แก้ไขและยกเลิก", Code: "SCR-09", Page: "cash/receipts"), // พิมพ์ใบเสร็จ,แก้ไขและลบข้อมูล
             new("พิมพ์ตัดยอดนำส่งสำนักงานและยอดรอนำส่ง", Code: "SCR-12", Page: "cash/remit"), // พิมพ์ตัดยอดส่งออฟฟิสและยอดคงค้าง
-            new("รายงานยอดขายของเก่า", Code: "SCR-05-scrap"),
+            new("รายงานยอดขายของเก่า", Code: "SCR-05-scrap", Page: "cash/ranges/scrap"), // built (#244)
         ]),
         new(Reports, "พิมพ์รายงาน", 1,
         [
-            new("พิมพ์รายงานการซื้อของ", Code: "SCR-05-purchases"),
+            new("พิมพ์รายงานการซื้อของ", Code: "SCR-05-purchases", Page: "cash/ranges/purchases"), // built (#243)
             new("พิมพ์สรุปประจำเดือน", Code: "SCR-06"),
         ]),
     ]);
