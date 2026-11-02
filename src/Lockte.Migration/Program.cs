@@ -1,3 +1,4 @@
+using Lockte.Calib;
 using Lockte.Hr;
 using Lockte.Migration;
 using Lockte.Org;
@@ -30,12 +31,13 @@ var services = new ServiceCollection()
     .AddSalesModule(options.ConnectionString)
     .AddProdModule(options.ConnectionString)
     .AddPurchModule(options.ConnectionString)
+    .AddCalibModule(options.ConnectionString)
     .AddMasterDataMigration()
     .BuildServiceProvider(validateScopes: true);
 
 // The web app creates and migrates the database (LockteDatabase.MigrateAsync); this tool only fills it.
 if (!await OrgModule.IsUpToDateAsync(services) || !await HrModule.IsUpToDateAsync(services) || !await SalesModule.IsUpToDateAsync(services)
-    || !await ProdModule.IsUpToDateAsync(services) || !await PurchModule.IsUpToDateAsync(services))
+    || !await ProdModule.IsUpToDateAsync(services) || !await PurchModule.IsUpToDateAsync(services) || !await CalibModule.IsUpToDateAsync(services))
 {
     Console.Error.WriteLine("ฐานข้อมูลยังไม่เป็นรุ่นล่าสุด — เปิดเว็บแอปกับฐานข้อมูลนี้หนึ่งครั้งก่อน");
     return 1;
@@ -61,6 +63,16 @@ if (options.Program == MigrationOptions.CompareProgram)
         Console.WriteLine($"{r.Id,-8} {r.AcceptanceCriteria,-6} {(r.Passed ? "ผ่าน" : "ไม่ผ่าน"),-8} ต้นทาง {r.BaselineKeys,8:N0}  ตรง {r.Matched,8:N0}  ไม่ตรง {r.Different.Count,5:N0}  หักออก {r.BaselineOnlyExplained.Count,6:N0}  หายไม่มีเหตุผล {r.BaselineOnlyUnexplained.Count,5:N0}  เฉพาะฐานข้อมูล {r.NewOnly.Count,5:N0}");
     Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return results.All(r => r.Passed) ? 0 : 1;
+}
+if (options.Program == MigrationOptions.CalibCompareProgram)
+{
+    Console.WriteLine($"เทียบสอบเทียบกับ baseline ใน {options.BaselineFolder} …");
+    var comparison = await CalibComparison.RunAsync(services, options.BaselineFolder!);
+    CalibComparison.WriteTo(options.OutputFolder, comparison);
+    foreach (var gate in comparison.Gate)
+        Console.WriteLine($"{gate.Id,-9} {(gate.Passed is null ? "ตรวจด้วยตา" : gate.Passed.Value ? "ผ่าน" : "ไม่ผ่าน"),-11} {gate.Check} — ควรได้ {gate.Expected} ได้ {gate.Actual}");
+    Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return comparison.Passed ? 0 : 1;
 }
 if (options.Program == MigrationOptions.ComparePeriodProgram)
 {
@@ -100,6 +112,15 @@ if (options.Program == MigrationOptions.PurchHistoryProgram)
     foreach (var note in historyReport.Notes) Console.WriteLine(note);
     Console.WriteLine($"ข้อยกเว้น DQ {historyReport.Exceptions.Count} รายการ — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return historyReport.Balanced ? 0 : 1;
+}
+if (options.Program == MigrationOptions.CalibProgram)
+{
+    var calibReport = await CalibMigrationTool.RunAsync(services, options.SourceFile, options.CodeMapFile, options.OutputFolder, options.JigImagesFolder);
+    foreach (var table in calibReport.Tables)
+        Console.WriteLine($"{table.LegacyTable,-22} → {table.NewTable,-44} ต้นทาง {table.SourceRows,5}  โหลด {table.Loaded,5}  DQ {table.Rejected,4}  ไม่ย้าย {table.Excluded,4}  ในฐานข้อมูล {table.InDatabase,5}  {(table.Balanced ? "ตรง" : "ไม่ตรง")}");
+    foreach (var note in calibReport.Notes) Console.WriteLine(note);
+    Console.WriteLine($"ข้อยกเว้น DQ {calibReport.Exceptions.Count} รายการ — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return calibReport.Balanced ? 0 : 1;
 }
 if (options.Program == MigrationOptions.PurchMasterProgram)
 {

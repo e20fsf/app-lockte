@@ -36,7 +36,22 @@ public static class CodeKinds
     /// <summary>The code of a decision "link nobody" (<see cref="ProductionEmployee"/>, <see cref="SalesRepresentative"/>).</summary>
     public const string Nobody = "-";
 
-    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift, ProductionEmployee, SalesRepresentative, SupplierName, StockEmployee];
+    /// <summary>
+    /// A department of a calibration instrument as the legacy wrote it before its brackets (<c>GR</c>, <c>DC</c>, <c>BL</c> …, #209, Q-05) → รหัสแผนกใน org. Machines in the brackets are looked up in that
+    /// department by their code, then with the first letter of the abbreviation in front (<c>44</c> → <c>D44</c>).
+    /// </summary>
+    public const string CalibDepartment = "calib-department";
+
+    /// <summary>
+    /// ผู้สอบเทียบ of an instrument, a name as typed (#209) → รหัสพนักงาน in the HR register. The file lives outside git (names of people); a name that finds nobody is reported by the code of the
+    /// instrument, never by name.
+    /// </summary>
+    public const string Calibrator = "calibrator";
+
+    /// <summary>The decision on a registration date the rules do not cover (<c>PG-DC107/2565</c> has the year 4722, Q-08): legacy = หมายเลขเครื่อง, code = the date as <c>yyyy-MM-dd</c>.</summary>
+    public const string CalibDate = "calib-date";
+
+    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift, ProductionEmployee, SalesRepresentative, SupplierName, StockEmployee, CalibDepartment, Calibrator, CalibDate];
 }
 
 /// <summary>

@@ -16,6 +16,7 @@
     <ProjectReference Include="..\Lockte.Sales\Lockte.Sales.csproj" />
     <ProjectReference Include="..\Lockte.Prod\Lockte.Prod.csproj" />
     <ProjectReference Include="..\Lockte.Purch\Lockte.Purch.csproj" />
+    <ProjectReference Include="..\Lockte.Calib\Lockte.Calib.csproj" />
   </ItemGroup>
 
   <ItemGroup>
