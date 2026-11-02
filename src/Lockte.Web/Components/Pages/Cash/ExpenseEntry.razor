@@ -1,0 +1,71 @@
+@page "/cash/expenses"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+
+@* บันทึกค่าใช้จ่ายเงินสดย่อย (SCR-03, BR-002): pick the วันที่, key the lines of that day; the lines already saved for it are listed below and a click opens one to edit (SCR-04 is the place to
+   delete and to print the voucher). *@
+<PageTitle>บันทึกค่าใช้จ่ายเงินสดย่อย — LOCKTE</PageTitle>
+<h1 class="mb-4">บันทึกค่าใช้จ่ายเงินสดย่อย</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudDatePicker Editable="true" Date="date" DateChanged="OnDateAsync" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+</MudPaper>
+
+@if (date is not null)
+{
+    <ExpenseLineEditor Date="DateOnly.FromDateTime(date.Value)" Line="editing" Types="types" Suggestions="suggestions" OnSaved="ReloadAsync" OnCleared="ClearEditing" />
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">บรรทัดของวันที่ @ThaiDate.Format(DateOnly.FromDateTime(date.Value))</MudText>
+        <MudTable Items="lines" Dense="true" Hover="true" Loading="lines is null" T="ExpenseLineDto" Breakpoint="Breakpoint.None"
+                  OnRowClick="@((TableRowClickEventArgs<ExpenseLineDto> e) => editing = e.Item)">
+            <HeaderContent><MudTh>เลขที่</MudTh><MudTh>รายการ</MudTh><MudTh Style="text-align:right">จำนวน</MudTh><MudTh>หน่วย</MudTh><MudTh Style="text-align:right">ราคา</MudTh><MudTh Style="text-align:right">จำนวนเงิน</MudTh><MudTh>ประเภท</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.VoucherNo</MudTd>
+                <MudTd>@context.Name</MudTd>
+                <MudTd Style="text-align:right">@context.Qty.ToString("0.###")</MudTd>
+                <MudTd>@context.Unit</MudTd>
+                <MudTd Style="text-align:right">@context.UnitPrice.ToString("N2")</MudTd>
+                <MudTd Style="text-align:right">@context.Amount.ToString("N2")</MudTd>
+                <MudTd>@context.ExpenseTypeName</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>ยังไม่มีบรรทัดของวันนี้</MudText></NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+
+<MudButton Href="@CashMenu.HrefOf(ProgramMenu.Main)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? date = DateTime.Today;
+    private IReadOnlyList<ExpenseTypeDto> types = [];
+    private IReadOnlyList<ExpenseItemSuggestion> suggestions = [];
+    private IReadOnlyList<ExpenseLineDto>? lines;
+    private ExpenseLineDto? editing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        types = await Services.RunAsync<ExpenseTypeDirectory, IReadOnlyList<ExpenseTypeDto>>(d => d.ListActiveAsync());
+        await ReloadAsync();
+    }
+
+    private async Task OnDateAsync(DateTime? value)
+    {
+        date = value;
+        editing = null;
+        await ReloadAsync();
+    }
+
+    private void ClearEditing() => editing = null;
+
+    private async Task ReloadAsync()
+    {
+        editing = null;
+        suggestions = await Services.RunAsync<ExpenseLineDirectory, IReadOnlyList<ExpenseItemSuggestion>>(d => d.SuggestionsAsync());
+        if (date is not { } d) { lines = []; return; }
+        var day = DateOnly.FromDateTime(d);
+        lines = await Services.RunAsync<ExpenseLineDirectory, IReadOnlyList<ExpenseLineDto>>(x => x.ListByDateAsync(day));
+    }
+}

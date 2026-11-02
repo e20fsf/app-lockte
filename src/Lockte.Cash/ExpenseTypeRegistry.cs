@@ -87,8 +87,8 @@ public sealed class ExpenseTypeRegistry(CashDbContext db)
         return ExpenseTypeRemoval.Deleted;
     }
 
-    /// <summary>Whether a line of ค่าใช้จ่ายเงินสดย่อย refers to the type (none can yet: the lines come with SCR-03).</summary>
-    private Task<bool> IsUsedAsync(int expenseTypeId) => Task.FromResult(false);
+    /// <summary>Whether a line of ค่าใช้จ่ายเงินสดย่อย refers to the type.</summary>
+    private Task<bool> IsUsedAsync(int expenseTypeId) => db.ExpenseLines.AnyAsync(l => l.ExpenseTypeId == expenseTypeId);
 
     private async Task<ExpenseType?> LoadAsync(int id, byte[]? loadedRowVersion)
     {

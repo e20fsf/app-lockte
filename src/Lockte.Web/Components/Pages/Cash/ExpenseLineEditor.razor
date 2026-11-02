@@ -1,0 +1,163 @@
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* The fields of one expense line (SCR-03 ซื้อของเงินสด1, SCR-04 ซื้อของเงินสด2; BR-002): เลขที่ (typed), รายการ (the items already keyed are offered, a new one can be typed; picking one fills
+   the หน่วย), จำนวน, หน่วย, ราคา, จำนวนเงิน, ประเภท (the types in use). Editing the quantity or the price works the จำนวนเงิน out when the price is above 0 (assumption ก); the
+   จำนวนเงิน can always be typed over. A line with a required field empty is not saved and the message names the field (the legacy deleted it when the screen was left, BR-003). *@
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(Line is null ? "บรรทัดใหม่" : $"แก้บรรทัด {Line.VoucherNo} {Line.Name}")</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.VoucherNo" Label="เลขที่" MaxLength="ExpenseLineRegistry.VoucherNoLength" HelperText="เช่น 09/36" /></MudItem>
+        <MudItem xs="12" sm="9">
+            <MudAutocomplete T="string" Value="form.Name" ValueChanged="OnName" Label="รายการ" SearchFunc="@((t, _) => Task.FromResult(Find(t)))" CoerceValue="true" CoerceText="false"
+                             Clearable="true" MaxLength="ExpenseLineRegistry.NameLength" ResetValueOnEmptyText="true">
+                <ItemTemplate Context="item"><MudText>@item@(UnitOf(item) is { Length: > 0 } u ? " · " + u : "")</MudText></ItemTemplate>
+            </MudAutocomplete>
+        </MudItem>
+        <MudItem xs="6" sm="3"><MudNumericField T="decimal?" Value="form.Qty" ValueChanged="OnQty" Label="จำนวน" Min="0m" HideSpinButtons="true" /></MudItem>
+        <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.Unit" Label="หน่วย" MaxLength="ExpenseLineRegistry.UnitLength" /></MudItem>
+        <MudItem xs="6" sm="3"><MudNumericField T="decimal?" Value="form.UnitPrice" ValueChanged="OnPrice" Label="ราคา" Min="0m" HideSpinButtons="true" /></MudItem>
+        <MudItem xs="6" sm="3"><MudNumericField T="decimal?" @bind-Value="form.Amount" Label="จำนวนเงิน" Min="0m" HideSpinButtons="true" Format="N2" /></MudItem>
+        <MudItem xs="12">
+            <MudSelect T="int?" @bind-Value="form.ExpenseTypeId" Label="ประเภท">
+                @foreach (var t in Choices)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Name@(t.IsActive ? "" : " (เลิกใช้)")</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        @if (Line is not null)
+        {
+            <MudButton OnClick="@(() => OnCleared.InvokeAsync())" Disabled="busy">เลิกแก้ไข</MudButton>
+            @if (AllowDelete)
+            {
+                <MudSpacer />
+                <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบบรรทัด</MudButton>
+            }
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public DateOnly Date { get; set; }
+    [Parameter] public ExpenseLineDto? Line { get; set; }
+    /// <summary>The types in use; the type of the line being edited is added when it has been retired.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<ExpenseTypeDto> Types { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<ExpenseItemSuggestion> Suggestions { get; set; } = [];
+    [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public EventCallback OnCleared { get; set; }
+    [Parameter] public bool AllowDelete { get; set; }
+
+    private Form form = new();
+    private int? loadedId;
+    private bool busy;
+
+    private IEnumerable<ExpenseTypeDto> Choices
+        => Line is { } l && Types.All(t => t.Id != l.ExpenseTypeId)
+            ? Types.Append(new ExpenseTypeDto(l.ExpenseTypeId, l.ExpenseTypeName, false, []))
+            : Types;
+
+    protected override void OnParametersSet()
+    {
+        if (Line?.Id == loadedId && (Line is not null || loadedId is null)) return;
+        loadedId = Line?.Id;
+        form = Line is null
+            ? new Form { VoucherNo = form.VoucherNo } // the next line of the same voucher usually has the same number
+            : new Form { VoucherNo = Line.VoucherNo, Name = Line.Name, Qty = Line.Qty, Unit = Line.Unit, UnitPrice = Line.UnitPrice, Amount = Line.Amount, ExpenseTypeId = Line.ExpenseTypeId };
+    }
+
+    private IEnumerable<string> Find(string? text)
+        => Suggestions.Select(s => s.Name).Distinct()
+            .Where(n => string.IsNullOrWhiteSpace(text) || n.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)).Take(30);
+
+    private string? UnitOf(string name) => Suggestions.FirstOrDefault(s => s.Name == name)?.Unit;
+
+    private void OnName(string? name)
+    {
+        form.Name = name;
+        if (name is not null && Suggestions.FirstOrDefault(s => s.Name == name) is { } picked) form.Unit = picked.Unit; // BR-002 #3: picking an item fills the unit
+    }
+
+    private void OnQty(decimal? qty)
+    {
+        form.Qty = qty;
+        Recalculate();
+    }
+
+    private void OnPrice(decimal? price)
+    {
+        form.UnitPrice = price;
+        Recalculate();
+    }
+
+    private void Recalculate()
+    {
+        if (form.Qty is { } q && form.UnitPrice is { } p && ExpenseLineMath.AmountOf(q, p) is { } amount) form.Amount = amount;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new ExpenseLineInput(Line?.Id, Date, form.VoucherNo, form.Name, form.Qty, form.Unit, form.UnitPrice, form.Amount, form.ExpenseTypeId, Line?.RowVersion);
+            var result = await Services.RunAsync<ExpenseLineRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            var voucher = form.VoucherNo;
+            form = new Form { VoucherNo = voucher };
+            await OnSaved.InvokeAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await OnSaved.InvokeAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบบรรทัดค่าใช้จ่าย", $"ลบบรรทัด {Line!.VoucherNo} {Line.Name} จำนวนเงิน {Line.Amount:N2}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (Line.Id, Line.RowVersion);
+            await Services.RunAsync<ExpenseLineRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            await OnSaved.InvokeAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await OnSaved.InvokeAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class Form
+    {
+        public string? VoucherNo { get; set; }
+        public string? Name { get; set; }
+        public decimal? Qty { get; set; }
+        public string? Unit { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? Amount { get; set; }
+        public int? ExpenseTypeId { get; set; }
+    }
+}

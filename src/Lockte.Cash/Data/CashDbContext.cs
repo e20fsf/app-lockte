@@ -15,6 +15,7 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
     internal DbSet<ExpenseType> ExpenseTypes => Set<ExpenseType>();
     internal DbSet<ScrapBuyer> ScrapBuyers => Set<ScrapBuyer>();
     internal DbSet<ScrapItem> ScrapItems => Set<ScrapItem>();
+    internal DbSet<ExpenseLine> ExpenseLines => Set<ExpenseLine>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -32,6 +33,23 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
             t.Property(x => x.Name).HasMaxLength(ExpenseTypeRegistry.NameLength).HasAuditName("ชื่อค่าใช้จ่าย");
             t.Property(x => x.IsActive).HasAuditName("ใช้งาน");
             t.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ExpenseLine>(l =>
+        {
+            l.HasAuditName("ค่าใช้จ่ายเงินสดย่อย");
+            l.ToTable("ExpenseLines");
+            l.Property(x => x.Date).HasAuditName("วันที่");
+            l.Property(x => x.VoucherNo).HasMaxLength(ExpenseLineRegistry.VoucherNoLength).HasAuditName("เลขที่");
+            l.Property(x => x.Name).HasMaxLength(ExpenseLineRegistry.NameLength).HasAuditName("รายการ");
+            l.Property(x => x.Qty).HasPrecision(18, 3).HasAuditName("จำนวน");
+            l.Property(x => x.Unit).HasMaxLength(ExpenseLineRegistry.UnitLength).HasAuditName("หน่วย");
+            l.Property(x => x.UnitPrice).HasPrecision(18, 4).HasAuditName("ราคา");
+            l.Property(x => x.Amount).HasPrecision(18, 2).HasAuditName("จำนวนเงิน");
+            l.Property(x => x.ExpenseTypeId).HasAuditName("ประเภท (รหัสภายใน)");
+            l.HasOne(x => x.ExpenseType).WithMany().HasForeignKey(x => x.ExpenseTypeId).OnDelete(DeleteBehavior.Restrict);
+            l.HasIndex(x => new { x.Date, x.VoucherNo });
+            l.HasIndex(x => x.ExpenseTypeId);
         });
 
         modelBuilder.Entity<ScrapBuyer>(b =>

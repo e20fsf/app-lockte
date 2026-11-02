@@ -22,7 +22,7 @@ public static class CashMenu
         new(1, "เมนูหลัก", null,
         [
             new("เพิ่ม,แก้ไข,ลบและพิมพ์รายการค่าใช้จ่าย", Code: "SCR-02", Page: "cash/expense-types"), // built (#229)
-            new("บันทึกค่าใช้จ่ายเงินสดย่อย", Code: "SCR-03"),
+            new("บันทึกค่าใช้จ่ายเงินสดย่อย", Code: "SCR-03", Page: "cash/expenses"), // built (#232)
             new("แก้ไข,ลบบันทึกค่าใช้จ่ายเงินสดย่อยและพิมพ์ใบสำคัญจ่ายเงิน", Code: "SCR-04"),
             new("พิมพ์สรุปค่าใช้จ่ายเงินสดย่อย", Code: "SCR-05-expense"),
             new("พิมพ์รายการซื้อของ", SubMenu: Reports),
