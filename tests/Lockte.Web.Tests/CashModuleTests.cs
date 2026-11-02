@@ -46,9 +46,9 @@ public sealed class CashModuleTests(LocalDbFixture db)
         await using (var scope = db.Scope()) first = await scope.Get<CashSettingsDirectory>().GetAsync();
 
         await using (var scope = db.Scope())
-            Assert.True((await scope.Get<CashSettingsRegistry>().SaveAsync(new(first.LastRemittedReceiptNo, first.RowVersion))).Succeeded);
+            Assert.True((await scope.Get<CashSettingsRegistry>().SaveAsync(new("A" + Guid.NewGuid().ToString("N")[..8], first.RowVersion))).Succeeded); // a value that really changes, or the rowversion does not move
         await using (var scope = db.Scope())
-            await Assert.ThrowsAsync<ConcurrencyConflictException>(() => scope.Get<CashSettingsRegistry>().SaveAsync(new(first.LastRemittedReceiptNo, first.RowVersion)));
+            await Assert.ThrowsAsync<ConcurrencyConflictException>(() => scope.Get<CashSettingsRegistry>().SaveAsync(new("B" + Guid.NewGuid().ToString("N")[..8], first.RowVersion)));
 
         await using var bad = db.Scope();
         Assert.False((await bad.Get<CashSettingsRegistry>().SaveAsync(new(new string('9', 51), null))).Succeeded);
