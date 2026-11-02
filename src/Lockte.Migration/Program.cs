@@ -1,4 +1,5 @@
 using Lockte.Calib;
+using Lockte.Cash;
 using Lockte.Hr;
 using Lockte.Migration;
 using Lockte.Org;
@@ -32,12 +33,13 @@ var services = new ServiceCollection()
     .AddProdModule(options.ConnectionString)
     .AddPurchModule(options.ConnectionString)
     .AddCalibModule(options.ConnectionString)
+    .AddCashModule(options.ConnectionString)
     .AddMasterDataMigration()
     .BuildServiceProvider(validateScopes: true);
 
 // The web app creates and migrates the database (LockteDatabase.MigrateAsync); this tool only fills it.
 if (!await OrgModule.IsUpToDateAsync(services) || !await HrModule.IsUpToDateAsync(services) || !await SalesModule.IsUpToDateAsync(services)
-    || !await ProdModule.IsUpToDateAsync(services) || !await PurchModule.IsUpToDateAsync(services) || !await CalibModule.IsUpToDateAsync(services))
+    || !await ProdModule.IsUpToDateAsync(services) || !await PurchModule.IsUpToDateAsync(services) || !await CalibModule.IsUpToDateAsync(services) || !await CashModule.IsUpToDateAsync(services))
 {
     Console.Error.WriteLine("ฐานข้อมูลยังไม่เป็นรุ่นล่าสุด — เปิดเว็บแอปกับฐานข้อมูลนี้หนึ่งครั้งก่อน");
     return 1;
@@ -112,6 +114,15 @@ if (options.Program == MigrationOptions.PurchHistoryProgram)
     foreach (var note in historyReport.Notes) Console.WriteLine(note);
     Console.WriteLine($"ข้อยกเว้น DQ {historyReport.Exceptions.Count} รายการ — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return historyReport.Balanced ? 0 : 1;
+}
+if (options.Program == MigrationOptions.CashProgram)
+{
+    var cashReport = await CashMigrationTool.RunAsync(services, options.SourceFile, options.CodeMapFile, options.OutputFolder);
+    foreach (var table in cashReport.Tables)
+        Console.WriteLine($"{table.LegacyTable,-22} → {table.NewTable,-30} ต้นทาง {table.SourceRows,5}  โหลด {table.Loaded,5}  DQ {table.Rejected,4}  ไม่ย้าย {table.Excluded,4}  ในฐานข้อมูล {table.InDatabase,5}  {(table.Balanced ? "ตรง" : "ไม่ตรง")}");
+    foreach (var note in cashReport.Notes) Console.WriteLine(note);
+    Console.WriteLine($"ข้อยกเว้น DQ {cashReport.Exceptions.Count} รายการ — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return cashReport.Balanced ? 0 : 1;
 }
 if (options.Program == MigrationOptions.CalibProgram)
 {
