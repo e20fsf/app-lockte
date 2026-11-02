@@ -28,7 +28,8 @@ public static class ExpenseLineMath
 public sealed class ExpenseLineDirectory(CashDbContext db)
 {
     /// <summary>The lines of one day, in the order they were keyed.</summary>
-    public async Task<IReadOnlyList<ExpenseLineDto>> ListByDateAsync(DateOnly date) => await ListAsync(date, date);
+    public async Task<IReadOnlyList<ExpenseLineDto>> ListByDateAsync(DateOnly date)
+        => await ReadAsync(db.ExpenseLines.AsNoTracking().Where(l => l.Date == date).OrderBy(l => l.Id));
 
     /// <summary>The lines from <paramref name="from"/> to <paramref name="to"/> inclusive: by date, then voucher number, then the order keyed.</summary>
     public async Task<IReadOnlyList<ExpenseLineDto>> ListAsync(DateOnly from, DateOnly to)
