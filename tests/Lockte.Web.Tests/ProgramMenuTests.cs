@@ -124,7 +124,7 @@ public sealed class ProgramMenuTests
         Assert.All([CalibMenu.Caliper, CalibMenu.PressureGauge, CalibMenu.Scale, CalibMenu.Jig, CalibMenu.TempControl],
             n => Assert.Equal(CalibMenu.Internal, CalibMenu.Menu.Find(n)!.Back));
 
-        Assert.Equal("calib/RPT-03-ext", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("RPT-03-ext")!.Value.Item));
+        Assert.Equal("calib/RPT-03-pg", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("RPT-03-pg")!.Value.Item));
         Assert.Equal("calib/SCR-05", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-05")!.Value.Item));
         Assert.Equal("calib/menu/7", CalibMenu.HrefOf(CalibMenu.Jig));
         Assert.Equal("calib", CalibMenu.HrefOf(ProgramMenu.Main));
@@ -222,5 +222,15 @@ public sealed class ProgramMenuTests
     {
         var item = CalibMenu.Menu.FindItem("RPT-02-ext")!.Value.Item;
         Assert.Equal(("reports/calib/register/ext", true), (CalibMenu.Menu.HrefOf(item), item.NewTab));
+    }
+
+    [Theory]
+    [InlineData("ext")]
+    [InlineData("caliper")]
+    [InlineData("scale")]
+    public void The_record_sheets_of_ext_caliper_and_scale_print_from_their_menus(string key) // built (#205)
+    {
+        var item = CalibMenu.Menu.FindItem($"RPT-03-{key}")!.Value.Item;
+        Assert.Equal(($"reports/calib/record/{key}", true), (CalibMenu.Menu.HrefOf(item), item.NewTab));
     }
 }

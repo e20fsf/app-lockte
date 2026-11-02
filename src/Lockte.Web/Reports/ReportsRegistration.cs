@@ -2,6 +2,7 @@ using Lockte.Hr;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
 using Lockte.Web.Reports.Calib;
+using Lockte.Web.Reports.Calib;
 using Lockte.Web.Reports.Hr;
 using Lockte.Web.Reports.Order;
 using Lockte.Web.Reports.Order.Qa;
@@ -69,6 +70,7 @@ public static class ReportsRegistration
         reports.MapReceiptReports(); // รายงานการรับวัตถุดิบตามแผนก/ชื่อ/ผู้ขาย (วัตถุดิบ #258)
         reports.MapSupplierDocumentReports(); // ทะเบียนผู้ขาย ASL และหนังสือมุ่งมั่น (วัตถุดิบ #264)
         reports.MapListReports(); // รายชื่อวัตถุดิบและผู้ขาย (วัตถุดิบ #263)
+        reports.MapCalibRecordReports(); // แบบฟอร์มบันทึกผลการสอบเทียบ (สอบเทียบ #205)
         reports.MapCalibStickerReports(); // สติกเกอร์ติดเครื่องมือวัด (สอบเทียบ #201)
         reports.MapCalibPlanReports(); // แผนการสอบเทียบ (สอบเทียบ #202)
         reports.MapCalibRegisterReports(); // บัญชีรายชื่อเครื่องมือวัด (สอบเทียบ #203)
