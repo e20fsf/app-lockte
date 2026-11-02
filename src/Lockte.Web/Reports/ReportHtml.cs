@@ -9,6 +9,8 @@ public enum Paper
     A4Landscape,
     A5Portrait,
     A5Landscape,
+    /// <summary>US Letter (215.9 × 279.4 mm): the paper of ใบเสร็จรับเงินขายของเก่า (เงินสดย่อย RPT-06).</summary>
+    LetterPortrait,
 }
 
 /// <summary>What a printed document is: its title (as the legacy report printed it), paper, and เลขเอกสารควบคุม.</summary>
@@ -53,6 +55,7 @@ public static class ReportHtml
         Paper.A4Landscape => "A4 landscape",
         Paper.A5Portrait => "A5 portrait",
         Paper.A5Landscape => "A5 landscape",
+        Paper.LetterPortrait => "Letter portrait",
         _ => throw new ArgumentOutOfRangeException(nameof(paper)),
     };
 
@@ -63,6 +66,7 @@ public static class ReportHtml
         Paper.A4Landscape => (297, 210),
         Paper.A5Portrait => (148, 210),
         Paper.A5Landscape => (210, 148),
+        Paper.LetterPortrait => (215.9, 279.4),
         _ => throw new ArgumentOutOfRangeException(nameof(paper)),
     };
 

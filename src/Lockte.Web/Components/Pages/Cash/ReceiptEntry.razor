@@ -6,6 +6,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject NavigationManager Navigation
+@inject IJSRuntime Js
 
 @* พิมพ์ใบเสร็จรับเงินขายของเก่า (SCR-09, BR-011–BR-014): the screen offers the next เลขที่; keyed head (วันที่, ผู้ซื้อ — picked from the register or typed) and lines (รายการ picked or typed, the
    หน่วย follows the pick). "พิมพ์" saves the receipt and its lines in one go and takes the number — two people offered the same number do not both get it. "กลับเมนูเดิม" saves nothing and uses
@@ -142,9 +143,10 @@
         }
     }
 
-    /// <summary>The receipt is saved: the screen is ready for the next one.</summary>
+    /// <summary>The receipt is saved and opened as a PDF in a new tab (RPT-06); the screen is ready for the next one.</summary>
     private async Task AfterSavedAsync(ScrapReceiptSaveResult saved)
     {
+        await Js.InvokeVoidAsync("open", $"reports/cash/receipt?id={saved.Id}", "_blank"); // RPT-06
         (buyerName, address, tel, buyerId) = (null, null, null, null);
         lines = NewLines();
         date = DateTime.Today;
