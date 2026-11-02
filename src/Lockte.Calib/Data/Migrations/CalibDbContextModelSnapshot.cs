@@ -83,6 +83,30 @@ namespace Lockte.Calib.Data.Migrations
                         .HasDefaultValue("QMR")
                         .HasAnnotation("Lockte:AuditName", "ผู้ตรวจสอบ (แผน)");
 
+                    b.Property<string>("PressureGaugeLimit")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("±10 kg/cm²")
+                        .HasAnnotation("Lockte:AuditName", "ขีดจำกัด (บันทึกผลเพรสเซอร์เกจ)");
+
+                    b.Property<string>("PressureGaugeName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("Pressure Gauge")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อเครื่องมือ (บันทึกผลเพรสเซอร์เกจ)");
+
+                    b.Property<string>("PressureGaugeRange")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("50 - 150 Kg/cm²")
+                        .HasAnnotation("Lockte:AuditName", "พิกัดใช้งาน (บันทึกผลเพรสเซอร์เกจ)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -98,6 +122,30 @@ namespace Lockte.Calib.Data.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)")
                         .HasAnnotation("Lockte:AuditName", "ความกว้างสติกเกอร์ (ซม.)");
+
+                    b.Property<string>("TempControlLimit")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("±10 °C")
+                        .HasAnnotation("Lockte:AuditName", "ขีดจำกัด (บันทึกผลตัวควบคุมอุณหภูมิ)");
+
+                    b.Property<string>("TempControlName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("Temp Control")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อเครื่องมือ (บันทึกผลตัวควบคุมอุณหภูมิ)");
+
+                    b.Property<string>("TempControlRange")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("190 - 210 °C")
+                        .HasAnnotation("Lockte:AuditName", "พิกัดใช้งาน (บันทึกผลตัวควบคุมอุณหภูมิ)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");

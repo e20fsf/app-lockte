@@ -22,6 +22,13 @@ public static class CalibSettingsDefaults
     public const string PlanReviewer = "QMR";
     public const string PlanNote = "เครื่องทดสอบแรงเสียดทาน สอบเทียบที่โรงงาน มีรายละเอียดดังนี้ 1.ความเร็วรอบมอเตอร์ 500 rpm 2.ตัวควบคุมอุณหภูมิ (temp control) 100,150,200,250,300,350 3. แรงกด 125 Kgs.";
     public const string ExternalRegisterNote = "เครื่องทดสอบแรงเสียดทาน สอบเทียบที่โรงงาน มีรายละเอียดดังนี้ 1.ความเร็วรอบมอเตอร์ 500 rpm 2.ตัวควบคุมอุณหภูมิ (temp control) 100,150,200,250 3. แรงกด 125 Kgs.";
+    /// <summary>RPT-03 ของเพรสเซอร์เกจและตัวควบคุมอุณหภูมิ: แบบคงที่ทุกเครื่อง (Q-13) — ค่าตามที่ตัวอย่างพิมพ์ ไม่ตรงพิกัดของทุกเครื่อง.</summary>
+    public const string PressureGaugeName = "Pressure Gauge";
+    public const string PressureGaugeRange = "50 - 150 Kg/cm²";
+    public const string PressureGaugeLimit = "±10 kg/cm²";
+    public const string TempControlName = "Temp Control";
+    public const string TempControlRange = "190 - 210 °C";
+    public const string TempControlLimit = "±10 °C";
 }
 
 public sealed record CalibSettingsDto(
@@ -33,6 +40,12 @@ public sealed record CalibSettingsDto(
     string PlanReviewer,
     string PlanNote,
     string ExternalRegisterNote,
+    string PressureGaugeName,
+    string PressureGaugeRange,
+    string PressureGaugeLimit,
+    string TempControlName,
+    string TempControlRange,
+    string TempControlLimit,
     byte[]? RowVersion);
 
 /// <summary>
@@ -48,7 +61,13 @@ public sealed record CalibSettingsInput(
     string? PlanResponsible = null,
     string? PlanReviewer = null,
     string? PlanNote = null,
-    string? ExternalRegisterNote = null);
+    string? ExternalRegisterNote = null,
+    string? PressureGaugeName = null,
+    string? PressureGaugeRange = null,
+    string? PressureGaugeLimit = null,
+    string? TempControlName = null,
+    string? TempControlRange = null,
+    string? TempControlLimit = null);
 
 /// <summary>The public, read-only face of ค่าตั้งค่า (ADR 0002). Writes go through <see cref="CalibSettingsRegistry"/>.</summary>
 public sealed class CalibSettingsDirectory(CalibDbContext db)
@@ -59,9 +78,10 @@ public sealed class CalibSettingsDirectory(CalibDbContext db)
         return row is null
             ? new CalibSettingsDto(CalibSettingsDefaults.StickerWidthCm, CalibSettingsDefaults.StickerHeightCm, CalibSettingsDefaults.PlanExternalMonth,
                 CalibSettingsDefaults.PlanInternalMonth, CalibSettingsDefaults.PlanResponsible, CalibSettingsDefaults.PlanReviewer, CalibSettingsDefaults.PlanNote,
-                CalibSettingsDefaults.ExternalRegisterNote, null)
+                CalibSettingsDefaults.ExternalRegisterNote, CalibSettingsDefaults.PressureGaugeName, CalibSettingsDefaults.PressureGaugeRange, CalibSettingsDefaults.PressureGaugeLimit,
+                CalibSettingsDefaults.TempControlName, CalibSettingsDefaults.TempControlRange, CalibSettingsDefaults.TempControlLimit, null)
             : new CalibSettingsDto(row.StickerWidthCm, row.StickerHeightCm, row.PlanExternalMonth, row.PlanInternalMonth, row.PlanResponsible, row.PlanReviewer, row.PlanNote,
-                row.ExternalRegisterNote, row.RowVersion);
+                row.ExternalRegisterNote, row.PressureGaugeName, row.PressureGaugeRange, row.PressureGaugeLimit, row.TempControlName, row.TempControlRange, row.TempControlLimit, row.RowVersion);
     }
 }
 
@@ -86,6 +106,8 @@ public sealed class CalibSettingsRegistry(CalibDbContext db)
         var externalNote = Clean(input.ExternalRegisterNote);
         if (responsible?.Length > ShortTextLength || reviewer?.Length > ShortTextLength) errors.Add($"ผู้รับผิดชอบและผู้ตรวจสอบยาวได้ไม่เกิน {ShortTextLength} ตัว");
         if (note?.Length > NoteLength || externalNote?.Length > NoteLength) errors.Add($"หมายเหตุยาวได้ไม่เกิน {NoteLength} ตัว");
+        if (new[] { input.PressureGaugeName, input.PressureGaugeRange, input.PressureGaugeLimit, input.TempControlName, input.TempControlRange, input.TempControlLimit }.Any(t => t?.Trim().Length > ShortTextLength))
+            errors.Add($"ข้อความของแบบฟอร์มบันทึกผลยาวได้ไม่เกิน {ShortTextLength} ตัว");
         if (errors.Count > 0) return new ServiceResult(false, errors);
 
         var row = await db.Settings.FirstOrDefaultAsync();
@@ -103,6 +125,12 @@ public sealed class CalibSettingsRegistry(CalibDbContext db)
         if (input.PlanReviewer is not null) row.PlanReviewer = reviewer ?? "";
         if (input.PlanNote is not null) row.PlanNote = note ?? "";
         if (input.ExternalRegisterNote is not null) row.ExternalRegisterNote = externalNote ?? "";
+        if (input.PressureGaugeName is not null) row.PressureGaugeName = Clean(input.PressureGaugeName) ?? "";
+        if (input.PressureGaugeRange is not null) row.PressureGaugeRange = Clean(input.PressureGaugeRange) ?? "";
+        if (input.PressureGaugeLimit is not null) row.PressureGaugeLimit = Clean(input.PressureGaugeLimit) ?? "";
+        if (input.TempControlName is not null) row.TempControlName = Clean(input.TempControlName) ?? "";
+        if (input.TempControlRange is not null) row.TempControlRange = Clean(input.TempControlRange) ?? "";
+        if (input.TempControlLimit is not null) row.TempControlLimit = Clean(input.TempControlLimit) ?? "";
         await db.SaveChangesAsync();
         return ServiceResult.Ok(row.Id);
     }
