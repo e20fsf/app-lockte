@@ -190,7 +190,8 @@ public sealed class LeaveTests(LocalDbFixture db)
         await AddAsync(Leave(employee, Day(9, 2), 0.375, "2", true) with { DailyWage = 333.5 });
         await AddAsync(Leave(employee, Day(9, 3), 1, "8", false));
 
-        Assert.Equal([(400.0, 200.0), (333.5, 0.375 * 333.5), (400.0, 0.0)], (await ListAsync(employee)).Select(r => (r.DailyWage, r.Pay)));
+        // #354: a typed 333.5 is whole baht 334 before PAY = 0.375 × 334 is worked out
+        Assert.Equal([(400.0, 200.0), (334.0, 0.375 * 334), (400.0, 0.0)], (await ListAsync(employee)).Select(r => (r.DailyWage, r.Pay)));
     }
 
     [Fact] // BR-021 ⚠ kept: ลางานได้ค่าแรง only sets rows whose PAY = 0, so a later edit keeps the first PAY

@@ -52,11 +52,12 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
         if (row is null)
         {
             // #277: without the right to see ค่าแรง, the screen's wage is masked: take it from the register.
-            row = db.Leaves.Add(new Leave { DailyWage = pay.CanViewPay ? input.DailyWage ?? employee.DailyWage : employee.DailyWage }).Entity;
+            // #354: the wage is whole baht before PAY is worked out from it, as it will be when read back
+            row = db.Leaves.Add(new Leave { DailyWage = Rounding.RndA(pay.CanViewPay ? input.DailyWage ?? employee.DailyWage : employee.DailyWage) }).Entity;
         }
         else if (pay.CanViewPay && input.DailyWage is { } wage)
         {
-            row.DailyWage = wage;
+            row.DailyWage = Rounding.RndA(wage);
         }
         row.Employee = employee;
         row.RecordedOn = input.RecordedOn ?? (row.Id == 0 ? Today : row.RecordedOn);
