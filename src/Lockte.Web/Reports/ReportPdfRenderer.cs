@@ -72,6 +72,9 @@ public sealed class ReportPdfRenderer(IOptions<ReportOptions> options, ILogger<R
             page.SetDefaultTimeout(timeout);
             var (width, height) = ReportHtml.PageMillimetres(paper);
             await page.SetViewportSizeAsync(Pixels(width - 2 * ReportHtml.MarginSide), Pixels(height - ReportHtml.MarginTop - ReportHtml.MarginBottom));
+            // SetContent keeps the window of a pooled page: without this a ระดับ A form (which defines no lockteFitToPage) would run the one
+            // left by the last แบบกลาง report and be zoomed down to that report's printable width (#346, #348).
+            await page.EvaluateAsync("() => { delete window.lockteFitToPage; }");
             await page.SetContentAsync(html, new() { WaitUntil = WaitUntilState.Load, Timeout = timeout });
             await page.EvaluateAsync("async () => { await document.fonts.ready; window.lockteFitToPage?.(); }");
             var pdf = await page.PdfAsync(new() { PreferCSSPageSize = true, PrintBackground = true });

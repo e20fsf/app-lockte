@@ -30,13 +30,27 @@
                 <ChildContent>
                 <MudButton Href="@OnboardingReports.RosterHref(departmentId, shiftId)" Target="_blank" Variant="Variant.Filled" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+                <MudButton Href="@(OnboardingReports.RosterHref(departmentId, shiftId) + "&format=xlsx")" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (รายชื่อแผนก)</MudButton>
                 <MudButton Href="@($"{OnboardingReports.Base}/register")" Target="_blank" Variant="Variant.Outlined"
                            StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงาน</MudButton>
+                <MudButton Href="@($"{OnboardingReports.Base}/register?current=true")" Target="_blank" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงานที่มีอยู่ปัจจุบัน</MudButton>
+                <MudButton Href="@($"{OnboardingReports.Base}/register?format=xlsx")" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (ทะเบียนประวัติ)</MudButton>
+                <MudButton Href="@($"{OnboardingReports.Base}/register?current=true&format=xlsx")" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (ทะเบียนประวัติปัจจุบัน)</MudButton>
                 </ChildContent>
                 <NotAllowed><MudText Typo="Typo.caption">พิมพ์รายชื่อแผนกและทะเบียนประวัติไม่ได้ — ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
             </PayView>
             <MudButton Href="@($"{OnboardingReports.Base}/working")" Target="_blank" Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อพนักงานทั้งหมด</MudButton>
+            <MudButton Href="@($"{OnboardingReports.Base}/working?format=xlsx")" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (รายชื่อทั้งหมด)</MudButton>
+            <MudButton Href="@($"{OnboardingReports.Base}/on-probation")" Target="_blank" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อพนักงานที่ยังไม่บรรจุ</MudButton>
+            <MudButton Href="@($"{OnboardingReports.Base}/on-probation?format=xlsx")" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (ยังไม่บรรจุ)</MudButton>
         </MudStack>
         <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Style="align-self:flex-start">กลับเมนูเดิม</MudButton>
     </MudStack>

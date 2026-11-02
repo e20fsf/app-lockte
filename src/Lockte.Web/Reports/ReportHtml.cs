@@ -98,6 +98,7 @@ public static class ReportHtml
         + "td{padding:0 4pt;vertical-align:top;overflow-wrap:anywhere}"
         + "tr{break-inside:avoid}"
         + ".num{text-align:right;white-space:nowrap}"
+        + ".nw{white-space:nowrap}"
         + ".total td{border-top:1pt solid #000;padding-top:2pt}"
         + ".end{border-bottom:3pt double #000;height:2pt}"
         + ".no-data{text-align:center;margin-top:12mm;font-size:16pt}";

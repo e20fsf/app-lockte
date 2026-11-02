@@ -90,10 +90,14 @@ public sealed class OnboardingDirectory(HrDbContext db, EmployeeDirectory employ
         return new WorkingEmployeeList(lines, rows.Count(e => e.Sex == "M"), rows.Count(e => e.Sex == "F"));
     }
 
-    /// <summary>ทะเบียนประวัติพนักงาน (BR-073): every employee, those who resigned too, by รหัส.</summary>
-    public async Task<IReadOnlyList<EmployeeRegisterLine>> GetRegisterAsync()
+    /// <summary>
+    /// ทะเบียนประวัติพนักงาน (BR-073): every employee, those who resigned too, by รหัส; <paramref name="currentOnly"/> (#345) leaves out
+    /// those who resigned — "ทำงานอยู่" as in รายชื่อพนักงานทั้งหมด (ไม่มีวันลาออก).
+    /// </summary>
+    public async Task<IReadOnlyList<EmployeeRegisterLine>> GetRegisterAsync(bool currentOnly = false)
     {
-        var rows = await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub).OrderBy(e => e.Code).ThenBy(e => e.Id).ToListAsync();
+        var rows = await db.Employees.AsNoTracking().Where(e => !e.IsMigrationStub && (!currentOnly || e.ResignDate == null))
+            .OrderBy(e => e.Code).ThenBy(e => e.Id).ToListAsync();
         var departments = (await org.GetDepartmentsAsync()).ToDictionary(d => d.Id, d => d.Name);
         return rows.Select(e => new EmployeeRegisterLine(e.Code, e.Name, e.BirthDate,
             e.Sex switch { "F" => "หญิง", "M" => "ชาย", _ => null }, e.Nationality, e.RegisteredAddress, e.CurrentAddress,

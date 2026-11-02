@@ -19,10 +19,21 @@ public sealed class GovernmentFormDataTests(LocalDbFixture db)
         return result.Id!.Value;
     }
 
-    private async Task<IReadOnlyList<InsuredPersonLine>> RegisterAsync(string tag)
+    private async Task<IReadOnlyList<InsuredPersonLine>> RegisterAsync(string tag, bool currentOnly = false)
     {
         await using var scope = db.Scope("hr1");
-        return (await scope.Get<GovernmentFormDirectory>().ListInsuredPersonsAsync()).Where(l => l.Name.EndsWith(tag)).ToList();
+        return (await scope.Get<GovernmentFormDirectory>().ListInsuredPersonsAsync(currentOnly)).Where(l => l.Name.EndsWith(tag)).ToList();
+    }
+
+    [Fact] // #349 เฉพาะพนักงานปัจจุบัน: คนลาออกไม่อยู่ในทะเบียน
+    public async Task The_current_register_leaves_out_those_who_resigned()
+    {
+        var tag = " " + Guid.NewGuid().ToString("N")[..6];
+        await AddAsync(new() { Name = "นายยังอยู่" + tag, StartDate = new(2024, 10, 18), DailyWage = 372 });
+        await AddAsync(new() { Name = "นายลาออก" + tag, StartDate = new(2021, 1, 6), DailyWage = 331, ResignDate = new(2021, 1, 7) });
+
+        Assert.Equal(2, (await RegisterAsync(tag)).Count);
+        Assert.Equal(["นายยังอยู่" + tag], (await RegisterAsync(tag, currentOnly: true)).Select(l => l.Name));
     }
 
     [Fact] // ทุกแถวรวมคนลาออก เรียงเลขบัตร (ไม่มีเลขบัตรขึ้นก่อน) แล้ววันเริ่มงาน · ค่าจ้าง = เงินเดือน ถ้า ≠ 0 ไม่อย่างนั้นค่าแรง/วัน
