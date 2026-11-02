@@ -2,8 +2,9 @@
 @using Lockte.Web.Reports.Forms
 @* RPT-50 ใบลางาน (รายงาน พิมพ์ใบลางาน, BR-065): ระดับ A on A5 landscape. Top: who and when, ประเภท บรรจุ/รอบรรจุ
    (X by วันนี้ − START < 90) and the two entitlement texts; the frame: วันลาสะสมของปีนี้ by ประเภทการลา and ใบเตือน;
-   below, the part filled in by hand. The leave types are the legacy 16 (Q-47 — the user's marked changes to SR 7/9 —
-   is not decided; #41 keeps the legacy types for now). *@
+   below, the part filled in by hand. The leave types are <see cref="LeaveTypes.Codes"/>: the legacy 16 with SR 9 and SR 7 replaced
+   by 17 ลาคลอดบุตรกรณีพิเศษ and 18 ลาช่วยเหลือคู่สมรสคลอดบุตร (#346, Q-47); the boxes carry * / ** and the full text with the
+   days and the pay is printed below them, as the user marked it on the sample. *@
 <FormPage>
     <FormText X="98.85" Base="11.3" Size="14" Bold="true" Anchor="FormAnchor.Center" Text="@ReportHtml.Company" />
     <FormText X="98.8" Base="16.2" Size="14" Bold="true" Anchor="FormAnchor.Center" Text="ใบลางาน" />
@@ -87,7 +88,7 @@
     {
         for (var row = 0; row < 4; row++)
         {
-            var type = (column * 4 + row + 1).ToString();
+            var type = LeaveTypes.Codes[column * 4 + row];
             var line = RowBases[row];
             <FormText X="TotalLabelX[column]" Base="line" Size="12" Text="@TotalLabels[column * 4 + row]" />
             <FormText X="TotalValueX[column]" Base="line" Size="12" Anchor="FormAnchor.Right"
@@ -117,6 +118,9 @@
     <FormText X="11.6" Base="114.8" Size="14" Text="ได้รับค่าจ้าง" />
     <FormBox X1="33.2" Y1="111.7" X2="36.5" Y2="115.6" />
     <FormText X="38.6" Base="114.8" Size="14" Text="ไม่ได้รับค่าจ้าง" />
+    @* #346 (Q-47): the user's marked-up sample — the two new types, in full, as the notes of the boxes marked * and ** *@
+    <FormText X="68.0" Base="113.8" Size="11" Text="@($"* ลาคลอดบุตรกรณีพิเศษ {LeaveTypes.SpecialMaternityDays} วัน จ่าย 50%")" />
+    <FormText X="68.0" Base="118.8" Size="11" Text="@($"** ลาช่วยเหลือคู่สมรสคลอดบุตร {LeaveTypes.SpouseMaternityDays} วัน จ่าย 100%")" />
     <FormDots X1="12.7" X2="36.3" Y="126.6" />
     <FormText X="15.6" Base="131.6" Size="14" Text="หัวหน้าแผนก" />
     <FormDots X1="61.4" X2="85.2" Y="127.5" />
@@ -137,8 +141,8 @@
     private static readonly string[] TotalLabels =
     [
         "ลากิจ", "ลาป่วยมีใบรับรองแพทย์", "ลาป่วยไม่มีใบรับรองแพทย์", "ลาคลอด",
-        "ลาอุบัติเหตุในงาน", "ลาพักร้อน", "ลาอื่นฯ", "ขาดงาน",
-        "ลากิจฉุกเฉิน", "ลาเพื่อระดมพล", "ลาเพื่อการศึกษาฝึกอบรมของบริษัท", "ลาทำหมัน",
+        "ลาอุบัติเหตุในงาน", "ลาพักร้อน", "ลาช่วยเหลือคู่สมรส", "ขาดงาน",
+        "ลาคลอดบุตรกรณีพิเศษ", "ลาเพื่อระดมพล", "ลาเพื่อการศึกษาฝึกอบรมของบริษัท", "ลาทำหมัน",
         "ลากิจโดยไม่ได้แจ้งก่อนล่วงหน้า", "ลากิจเกินกำหนด", "ลาเพื่อการศึกษาฝึกอบรมส่วนตัว", "ลาป่วยเป็นโรคระบาด",
     ];
     private static readonly double[] TickBases = [75.3, 80.3, 85.2, 90.2];
@@ -146,8 +150,8 @@
     private static readonly string[] TickLabels =
     [
         "ลากิจ", "ลาป่วยมีใบรับรองแพทย์", "ลาป่วยไม่มีใบรับรองแพทย์", "ลาคลอด",
-        "ลาอุบัติเหตุในงาน", "ลาพักร้อน", "ลาอื่นๆ", "ขาดงาน",
-        "ลากิจฉุกเฉิน", "ลาเพื่อระดมพล", "ลาเพื่อการศึกษาฝึกอบรมของบริษัท", "ลาทำหมัน",
+        "ลาอุบัติเหตุในงาน", "ลาพักร้อน", "ลาช่วยเหลือคู่สมรส **", "ขาดงาน",
+        "ลาคลอดบุตรกรณีพิเศษ *", "ลาเพื่อระดมพล", "ลาเพื่อการศึกษาฝึกอบรมของบริษัท", "ลาทำหมัน",
         "ลากิจโดยไม่ได้แจ้งก่อนล่วงหน้า", "ลากิจเกินกำหนด", "ลาเพื่อการศึกษาฝึกอบรมส่วนตัว", "ลาป่วยเป็นโรคระบาด",
     ];
 

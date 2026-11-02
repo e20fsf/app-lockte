@@ -24,7 +24,7 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
     /// saves nothing (the legacy cleared SUM_D and Macro1 deleted the row). ⚠ kept: an edit that leaves Y/N as it was
     /// is not checked again, even with more days. "ใช้ไปแล้ว" = the employee's other ได้ค่าแรง rows whose FROM_D is in
     /// the calendar year of this row's FROM_D (Q-27, instead of the legacy LEAVE table emptied once a year).
-    /// BR-021: a ได้ค่าแรง row whose PAY is still 0 gets PAY = SUM_D × SALA_DAY (ไม่ปัด); ⚠ kept: a PAY once set stays.
+    /// BR-021: a ได้ค่าแรง row whose PAY is still 0 gets PAY = SUM_D × SALA_DAY (ไม่ปัด) × <see cref="LeaveTypes.PayRate"/> (50% for SR 17, #346); ⚠ kept: a PAY once set stays.
     /// Unlike the legacy, a row needs dates in order, SUM_D above 0 and an SR of T-ประเภทการลางาน.
     /// </summary>
     public async Task<LeaveSaveResult> SaveAsync(LeaveInput input)
@@ -67,7 +67,7 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
         row.Type = type;
         row.Paid = input.Paid;
         row.Remark = string.IsNullOrWhiteSpace(input.Remark) ? null : input.Remark.Trim();
-        if (row.Paid == true && row.Pay == 0) row.Pay = row.Days * row.DailyWage;
+        if (row.Paid == true && row.Pay == 0) row.Pay = row.Days * row.DailyWage * LeaveTypes.PayRate(row.Type);
         await db.SaveChangesAsync();
         return new(ServiceResult.Ok(row.Id), quota);
     }
@@ -105,10 +105,16 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
         if (days <= 0) return ServiceResult.Fail("จำนวนวันต้องมากกว่า 0");
         if (string.IsNullOrWhiteSpace(input.Type)) return ServiceResult.Fail("กรุณาเลือกประเภทการลา");
         if (!LeaveTypes.Names.ContainsKey(input.Type.Trim())) return ServiceResult.Fail("ไม่พบประเภทการลานี้");
+        // #346: ลากิจฉุกเฉิน / ลาอื่นๆ are no longer keyed; a saved row of those types can still be edited as it is (its type unchanged).
+        if (LeaveTypes.Retired.Contains(input.Type.Trim()) && !await KeepsRetiredTypeAsync(input))
+            return ServiceResult.Fail($"ประเภท {LeaveTypes.Names[input.Type.Trim()]} เลิกใช้แล้ว ใช้ {LeaveTypes.Names[input.Type.Trim() == "9" ? "17" : "18"]} แทน");
         if (input.Remark?.Trim().Length > RemarkLength) return ServiceResult.Fail($"เหตุผลยาวได้ไม่เกิน {RemarkLength} ตัวอักษร");
         if (!await db.Employees.AnyAsync(e => e.Id == employeeId)) return ServiceResult.Fail("ไม่พบพนักงานที่เลือก");
         return null;
     }
+
+    private async Task<bool> KeepsRetiredTypeAsync(LeaveInput input)
+        => input.Id is { } id && await db.Leaves.AnyAsync(l => l.Id == id && l.Type == input.Type!.Trim());
 
     /// <summary>ใช้ไปแล้ว of BR-020 by SR: the employee's ได้ค่าแรง days of the calendar year, without the row being saved.</summary>
     private async Task<Dictionary<string, double>> UsedPaidDaysAsync(int employeeId, int year, int? exceptId)

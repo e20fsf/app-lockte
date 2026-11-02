@@ -63,7 +63,7 @@ public sealed class LeaveTests(LocalDbFixture db)
     {
         var employee = await NewEmployeeAsync();
         await AddAsync(Leave(employee, Day(2, 2), 3, "1", true, Day(2, 4)));
-        await AddAsync(Leave(employee, Day(3, 9), 2, "9", true, Day(3, 10)));
+        await AddAsync(Leave(employee, Day(3, 9), 2, "1", true, Day(3, 10)));
 
         var result = await SaveAsync(Leave(employee, Day(5, 4), 1, "1", true));
 
@@ -80,7 +80,7 @@ public sealed class LeaveTests(LocalDbFixture db)
         var employee = await NewEmployeeAsync();
         await AddAsync(Leave(employee, Day(1, 12), 5.5, "1", true, Day(1, 17)));
 
-        var result = await SaveAsync(Leave(employee, Day(6, 1), 1, "9", true));
+        var result = await SaveAsync(Leave(employee, Day(6, 1), 1, "1", true));
 
         Assert.False(result.Save.Succeeded);
         Assert.Equal(new LeaveQuotaCheck(false, "ไม่สามารถบันทึกได้ เนื่องจากลากิจได้ค่าแรงเกิน 6 วัน"), result.Quota);
@@ -133,7 +133,7 @@ public sealed class LeaveTests(LocalDbFixture db)
 
         Assert.Equal(new LeaveQuotaCheck(true, Saved), (await SaveAsync(Leave(employee, Day(1, 1), 6, "1", true))).Quota);
         Assert.Equal(new LeaveQuotaCheck(false, "ไม่สามารถบันทึกได้ เนื่องจากลากิจได้ค่าแรงเกิน 6 วัน"),
-            (await SaveAsync(Leave(employee, Day(12, 31), 0.125, "9", true))).Quota);
+            (await SaveAsync(Leave(employee, Day(12, 31), 0.125, "1", true))).Quota);
         Assert.Equal([Day(1, 1)], (await ListAsync(employee)).Select(r => r.FromDate));
     }
 
@@ -230,7 +230,10 @@ public sealed class LeaveTests(LocalDbFixture db)
         Assert.Equal(["กรุณากรอกจำนวนวัน"], (await SaveAsync(ok with { Days = null })).Save.Errors);
         Assert.Equal(["จำนวนวันต้องมากกว่า 0"], (await SaveAsync(ok with { Days = 0 })).Save.Errors);
         Assert.Equal(["กรุณาเลือกประเภทการลา"], (await SaveAsync(ok with { Type = " " })).Save.Errors);
-        Assert.Equal(["ไม่พบประเภทการลานี้"], (await SaveAsync(ok with { Type = "17" })).Save.Errors);
+        Assert.Equal(["ไม่พบประเภทการลานี้"], (await SaveAsync(ok with { Type = "99" })).Save.Errors);
+        // #346: the retired types are not keyed any more
+        Assert.Equal(["ประเภท ลากิจฉุกเฉิน เลิกใช้แล้ว ใช้ ลาคลอดบุตรกรณีพิเศษ แทน"], (await SaveAsync(ok with { Type = "9" })).Save.Errors);
+        Assert.Equal(["ประเภท ลาอื่นๆ เลิกใช้แล้ว ใช้ ลาช่วยเหลือคู่สมรสคลอดบุตร แทน"], (await SaveAsync(ok with { Type = "7" })).Save.Errors);
         Assert.Single((await SaveAsync(ok with { Remark = new string('ก', 29) })).Save.Errors, e => e.Contains("28"));
         var invalidPaid = await SaveAsync(ok with { Days = null, Paid = true });
         Assert.Null(invalidPaid.Quota); // not checked: the row is not valid yet
@@ -255,20 +258,21 @@ public sealed class LeaveTests(LocalDbFixture db)
     {
         var employee = await NewEmployeeAsync(sex: "M", start: Today.AddDays(-100), dailyWage: 500);
         await AddAsync(Leave(employee, Day(1, 5), 1.5, "1", true));
-        await AddAsync(Leave(employee, Day(1, 6), 1, "9", true));
+        await AddAsync(Leave(employee, Day(1, 6), 1, "5", true));
         await AddAsync(Leave(employee, Day(2, 1), 2, "2", true));
         await AddAsync(Leave(employee, Day(2, 2), 4, "3", false));
         await AddAsync(Leave(employee, Day(2, 1, Year - 1), 3, "2", true));
 
         var summary = await SummaryAsync(employee);
 
-        Assert.Equal(new Dictionary<string, double> { ["1"] = 1.5, ["9"] = 1, ["2"] = 2 }, summary.PaidDaysByType.ToDictionary());
+        Assert.Equal(new Dictionary<string, double> { ["1"] = 1.5, ["5"] = 1, ["2"] = 2 }, summary.PaidDaysByType.ToDictionary());
         Assert.Equal((4.5, 4.5 * 500), (summary.PaidDays, summary.PaidPay));
         Assert.Equal(
-            [("ลากิจ", 2.5, 6.0, (string?)null), ("ลาป่วย", 2, 30, null), ("ลาพักร้อน", 0, 12, "ยังไม่มีพักร้อน"),
-             ("ลาคลอด", 0, 60, "เพศชายลาคลอดไม่ได้"), ("ลาเพื่อระดมพล", 0, 60, null)],
+            [("ลากิจ", 1.5, 6.0, (string?)null), ("ลาป่วย", 2, 30, null), ("ลาพักร้อน", 0, 12, "ยังไม่มีพักร้อน"),
+             ("ลาคลอด", 0, 60, "เพศชายลาคลอดไม่ได้"), ("ลาเพื่อระดมพล", 0, 60, null),
+             ("ลาคลอดบุตรกรณีพิเศษ", 0, 15, null), ("ลาช่วยเหลือคู่สมรสคลอดบุตร", 0, 15, null)],
             summary.Quotas.Select(q => (q.Name, q.Used, q.Limit, q.Note)));
-        Assert.Equal(3.5, summary.Quotas[0].Left);
+        Assert.Equal(4.5, summary.Quotas[0].Left);
     }
 
     [Fact] // BR-022 (SCR-31): ลบการลาของพนักงานที่ FROM_D อยู่ในช่วง DATE_F–DATE_T

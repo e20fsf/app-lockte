@@ -18,7 +18,8 @@ public static class OnboardingReports
     public static string HiringFormHref(int employeeId, DateOnly? appliedOn, DateOnly? interviewedOn)
         => $"{Base}/{employeeId}/hiring-form?applied={Iso(appliedOn)}&interviewed={Iso(interviewedOn)}";
 
-    public static string ContractHref(int employeeId) => $"{Base}/{employeeId}/contract";
+    /// <summary>The contract of an employee; <paramref name="kind"/> <c>daily</c> / <c>monthly</c> (#351) picks the form, none = the one of the employee's ประเภท.</summary>
+    public static string ContractHref(int employeeId, string? kind = null) => $"{Base}/{employeeId}/contract" + (kind is null ? "" : "?kind=" + kind);
 
     public static string ProbationApprovalHref(int employeeId, ProbationApprovalInput input)
         => $"{Base}/{employeeId}/probation-approval?section={Uri.EscapeDataString(input.Section ?? "")}&due={Iso(input.DueOn)}&return={Iso(input.ReturnBy)}";
@@ -93,15 +94,16 @@ public static class OnboardingReports
         });
 
         // RPT-56 สัญญาจ้างแรงงานรายเดือน (ประเภท รายเดือน) / รายวัน (everyone else): ระดับ A, A4 ตั้ง.
-        employees.MapGet("/{id:int}/contract", async (int id, HttpContext http, OnboardingDirectory directory, DocumentNumberService numbers,
+        employees.MapGet("/{id:int}/contract", async (int id, string? kind, HttpContext http, OnboardingDirectory directory, DocumentNumberService numbers,
             ReportPrinter printer, TimeProvider clock, CancellationToken ct) =>
         {
             if (await directory.GetEmployeeAsync(id) is not { } employee) return Results.NotFound("ไม่พบพนักงาน");
-            var key = employee.IsMonthly ? DocumentKeys.MonthlyContract : DocumentKeys.DailyContract;
-            var page = OnboardingForms.Contract(employee, employee.IsMonthly, DateOnly.FromDateTime(clock.GetLocalNow().DateTime),
+            var monthly = ContractIsMonthly(kind, employee.IsMonthly);
+            var key = monthly ? DocumentKeys.MonthlyContract : DocumentKeys.DailyContract;
+            var page = OnboardingForms.Contract(employee, monthly, DateOnly.FromDateTime(clock.GetLocalNow().DateTime),
                 await numbers.PrintedTextAsync(key));
             return Pdf(http, await printer.PrintFormAsync(OnboardingForms.ContractTitle, [page], ct),
-                $"สัญญาจ้างแรงงาน{(employee.IsMonthly ? "รายเดือน" : "รายวัน")} {employee.Code}");
+                $"สัญญาจ้างแรงงาน{(monthly ? "รายเดือน" : "รายวัน")} {employee.Code}");
         });
 
         // RPT-22 (SCR-06 "พิมพ์"): ใบนำส่งเอกสาร, ใบประเมินทดลองงาน, ใบขอบรรจุ — ระดับ A, A5 ตั้ง, the three as one PDF in
@@ -123,6 +125,12 @@ public static class OnboardingReports
             return Pdf(http, await printer.PrintFormAsync(OnboardingForms.ProbationTitle, pages, ct), $"{OnboardingForms.ProbationTitle} {employee.Code}");
         });
     }
+
+    /// <summary><c>?kind=monthly</c> / <c>daily</c> chooses the contract; anything else follows the employee's ประเภท (as before).</summary>
+    public static bool ContractIsMonthly(string? kind, bool employeeIsMonthly)
+        => string.Equals(kind, "monthly", StringComparison.OrdinalIgnoreCase) ? true
+            : string.Equals(kind, "daily", StringComparison.OrdinalIgnoreCase) ? false
+            : employeeIsMonthly;
 
     private static bool IsExcel(string? format) => string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase);
 
