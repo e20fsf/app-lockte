@@ -11,9 +11,9 @@ else
     <style>table.grid th,table.grid td{border:0.75pt solid #000;padding:1pt 3pt}</style>
     <table class="grid">
         <colgroup>
-            <col style="width:3%" /><col style="width:4.5%" /><col style="width:11%" /><col style="width:6%" /><col style="width:3.5%" />
-            <col style="width:4.5%" /><col style="width:15%" /><col style="width:15%" /><col style="width:6%" /><col style="width:6%" />
-            <col style="width:6.5%" /><col style="width:7%" /><col style="width:6.5%" /><col style="width:5.5%" />
+            <col style="width:2.5%" /><col style="width:4%" /><col style="width:13%" /><col style="width:6.5%" /><col style="width:3%" />
+            <col style="width:4%" /><col style="width:13%" /><col style="width:13%" /><col style="width:5%" /><col style="width:6.5%" />
+            <col style="width:6%" /><col style="width:6.5%" /><col style="width:6%" /><col style="width:6.5%" />
         </colgroup>
         <thead>
             <tr>
@@ -29,18 +29,18 @@ else
                 <tr>
                     <td class="num">@(i + 1)</td>
                     <td>@l.Code</td>
-                    <td>@l.Name</td>
-                    <td>@(l.BirthDate is { } b ? ReportText.Date(b) : null)</td>
+                    <td class="nw">@l.Name</td>
+                    <td class="nw">@(l.BirthDate is { } b ? ReportText.Date(b) : null)</td>
                     <td>@l.Sex</td>
                     <td>@l.Nationality</td>
                     <td>@l.RegisteredAddress</td>
                     <td>@l.CurrentAddress</td>
                     <td>@l.Education</td>
-                    <td>@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
+                    <td class="nw">@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
                     <td>@l.Position</td>
                     <td>@l.DepartmentName</td>
                     <td class="num">@ReportText.Decimal2(l.Wage)</td>
-                    <td>@(l.ResignDate is { } r ? ReportText.Date(r) : null)</td>
+                    <td class="nw">@(l.ResignDate is { } r ? ReportText.Date(r) : null)</td>
                 </tr>
             }
         </tbody>
@@ -49,6 +49,9 @@ else
 
 @code {
     public const string Title = "ทะเบียนประวัติพนักงาน";
+
+    /// <summary>#345: the register of those still working only.</summary>
+    public const string CurrentTitle = "ทะเบียนประวัติพนักงานที่มีอยู่ปัจจุบัน";
 
     [Parameter, EditorRequired] public IReadOnlyList<EmployeeRegisterLine> Lines { get; set; } = [];
 }

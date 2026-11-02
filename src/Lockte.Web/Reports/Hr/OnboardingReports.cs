@@ -71,12 +71,15 @@ public static class OnboardingReports
         });
 
         // RPT-21 ทะเบียนประวัติพนักงาน: A4 นอน, shrunk to the page (D-4).
-        employees.MapGet("/register", async (HttpContext http, OnboardingDirectory directory, ReportPrinter printer, CancellationToken ct) =>
+        employees.MapGet("/register", async (bool? current, string? format, HttpContext http, OnboardingDirectory directory, ReportPrinter printer, CancellationToken ct) =>
         {
-            var pdf = await printer.PrintAsync<EmployeeRegisterView>(EmployeeRegisterView.Title, Paper.A4Landscape,
-                new() { [nameof(EmployeeRegisterView.Lines)] = await directory.GetRegisterAsync() },
+            var title = current == true ? EmployeeRegisterView.CurrentTitle : EmployeeRegisterView.Title;
+            var lines = await directory.GetRegisterAsync(current == true);
+            if (IsExcel(format)) return Excel(EmployeeListTables.Register(lines, title));
+            var pdf = await printer.PrintAsync<EmployeeRegisterView>(title, Paper.A4Landscape,
+                new() { [nameof(EmployeeRegisterView.Lines)] = lines },
                 AccountClaims.DisplayNameOf(http.User), cancellationToken: ct);
-            return Pdf(http, pdf, EmployeeRegisterView.Title);
+            return Pdf(http, pdf, title);
         });
 
         // RPT-56 แบบฟอร์มการรับพนักงานเข้าทดลองงาน: ระดับ A, A4 ตั้ง.

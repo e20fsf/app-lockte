@@ -95,3 +95,31 @@ public sealed class EmployeeListTableTests
         Assert.Contains("<v>48</v>", sheet); // อายุ 47.5 → 48
     }
 }
+
+/// <summary>#345 ทะเบียนประวัติพนักงาน without a database.</summary>
+public sealed class EmployeeRegisterTableTests
+{
+    private static readonly EmployeeRegisterLine Line = new("T214", "นางสาวเมตตาลักษณ์ อยู่สมบูรณ์พูนสุขเจริญ", new(1979, 1, 2), "หญิง", "ไทย", "124 หมู่ 8", "101/10 หมู่ 3",
+        "ป.6", new(2002, 12, 10), "หัวหน้า", "ตกแต่ง", 17020.26, new(2026, 1, 1));
+
+    [Fact] // ชื่อ + วันเกิด + วันเริ่มทำงาน + วันสิ้นสุดสัญญา ไม่ตกบรรทัด
+    public async Task Name_and_the_three_dates_are_kept_on_one_line()
+    {
+        var html = await ReportBody.RenderAsync<EmployeeRegisterView>(new() { [nameof(EmployeeRegisterView.Lines)] = new List<EmployeeRegisterLine> { Line } });
+
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(html, "<td class=\"nw\">").Count);
+    }
+
+    [Fact]
+    public void The_excel_is_the_register_with_the_given_title()
+    {
+        var table = EmployeeListTables.Register([Line], EmployeeRegisterView.CurrentTitle);
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(XlsxWriter.Write(table)));
+        var sheet = new StreamReader(zip.GetEntry("xl/worksheets/sheet1.xml")!.Open()).ReadToEnd();
+
+        Assert.Equal(14, table.Columns.Count);
+        Assert.Contains(EmployeeRegisterView.CurrentTitle, sheet);
+        Assert.Contains("<v>17020.26</v>", sheet);
+        Assert.Contains("<t xml:space=\"preserve\">1/1/2569</t>", sheet);
+    }
+}

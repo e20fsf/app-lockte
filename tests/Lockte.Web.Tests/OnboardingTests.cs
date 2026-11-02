@@ -167,5 +167,11 @@ public sealed class OnboardingTests(LocalDbFixture db)
         var r = Assert.Single(register, l => l.Code == daily.Code);
         Assert.Equal(("หญิง", 372.0, Today.AddDays(-3)), (r.Sex, r.Wage, r.ResignDate));
         Assert.Null(Assert.Single(register, l => l.Code == unknown.Code).Sex);
+
+        // #345 currentOnly: ลาออกแล้วไม่อยู่ในทะเบียนปัจจุบัน
+        var current = await AsHrAsync(s => s.Get<OnboardingDirectory>().GetRegisterAsync(currentOnly: true));
+        Assert.Contains(current, l => l.Code == monthly.Code);
+        Assert.DoesNotContain(current, l => l.Code == daily.Code);
+        Assert.All(current, l => Assert.Null(l.ResignDate));
     }
 }

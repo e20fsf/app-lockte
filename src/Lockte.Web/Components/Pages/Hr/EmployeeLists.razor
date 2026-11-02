@@ -34,6 +34,12 @@
                            StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (รายชื่อแผนก)</MudButton>
                 <MudButton Href="@($"{OnboardingReports.Base}/register")" Target="_blank" Variant="Variant.Outlined"
                            StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงาน</MudButton>
+                <MudButton Href="@($"{OnboardingReports.Base}/register?current=true")" Target="_blank" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงานที่มีอยู่ปัจจุบัน</MudButton>
+                <MudButton Href="@($"{OnboardingReports.Base}/register?format=xlsx")" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (ทะเบียนประวัติ)</MudButton>
+                <MudButton Href="@($"{OnboardingReports.Base}/register?current=true&format=xlsx")" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (ทะเบียนประวัติปัจจุบัน)</MudButton>
                 </ChildContent>
                 <NotAllowed><MudText Typo="Typo.caption">พิมพ์รายชื่อแผนกและทะเบียนประวัติไม่ได้ — ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
             </PayView>
