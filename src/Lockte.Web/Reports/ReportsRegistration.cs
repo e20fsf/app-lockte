@@ -84,6 +84,7 @@ public static class ReportsRegistration
         reports.MapCashVoucherReports(); // ใบสำคัญจ่ายเงิน (เงินสดย่อย #234)
         reports.MapCashReceiptReports(); // ใบเสร็จรับเงินขายของเก่า (เงินสดย่อย #238)
         reports.MapCashExpenseSummaryReports(); // สรุปค่าใช้จ่ายเงินสดย่อย โรงงาน (เงินสดย่อย #242)
+        reports.MapCashPurchaseListReports(); // รายการซื้อของเงินสดย่อย (เงินสดย่อย #243)
         reports.MapCashRemittanceReports(); // ใบสรุปยอดส่งสำนักงาน และยอดรอนำส่ง (เงินสดย่อย #240)
 
         // RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13): A4 ตั้ง, no document number.

@@ -40,7 +40,7 @@ public static class CashMenu
         ]),
         new(Reports, "พิมพ์รายงาน", 1,
         [
-            new("พิมพ์รายงานการซื้อของ", Code: "SCR-05-purchases"),
+            new("พิมพ์รายงานการซื้อของ", Code: "SCR-05-purchases", Page: "cash/ranges/purchases"), // built (#243)
             new("พิมพ์สรุปประจำเดือน", Code: "SCR-06"),
         ]),
     ]);
