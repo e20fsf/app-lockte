@@ -14,6 +14,16 @@ internal sealed class CalibSettings : IAudited
     public decimal StickerWidthCm { get; set; }
     /// <summary>สูงของสติกเกอร์ (ซม.).</summary>
     public decimal StickerHeightCm { get; set; }
+    /// <summary>เดือนที่ระบายสีของสอบเทียบภายนอกในแผนการสอบเทียบ (RPT-01), 1–12.</summary>
+    public int PlanExternalMonth { get; set; } = CalibSettingsDefaults.PlanExternalMonth;
+    /// <summary>เดือนของสอบเทียบภายใน.</summary>
+    public int PlanInternalMonth { get; set; } = CalibSettingsDefaults.PlanInternalMonth;
+    public string PlanResponsible { get; set; } = CalibSettingsDefaults.PlanResponsible;
+    public string PlanReviewer { get; set; } = CalibSettingsDefaults.PlanReviewer;
+    /// <summary>หมายเหตุท้ายแผนการสอบเทียบ (เครื่องทดสอบแรงเสียดทาน).</summary>
+    public string PlanNote { get; set; } = CalibSettingsDefaults.PlanNote;
+    /// <summary>หมายเหตุท้ายบัญชีรายชื่อสอบเทียบภายนอก.</summary>
+    public string ExternalRegisterNote { get; set; } = CalibSettingsDefaults.ExternalRegisterNote;
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

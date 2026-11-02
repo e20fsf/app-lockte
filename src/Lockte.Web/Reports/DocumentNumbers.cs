@@ -80,12 +80,20 @@ public static class DocumentKeys
     public const string IncomingInspection = "RPT-06-P";
     /// <summary>RPT-32 ทะเบียนผู้ขาย (Approved Supplier List) (#264).</summary>
     public const string ApprovedSupplierList = "RPT-32-P";
+    /// <summary>RPT-01 แผนการสอบเทียบ (สอบเทียบ #202).</summary>
+    public const string CalibPlan = "RPT-01-C";
+    /// <summary>RPT-02 บัญชีรายชื่อเครื่องมือวัด สอบเทียบภายใน 5 ชนิด (#203).</summary>
+    public const string CalibRegisterInternal = "RPT-02-C-I";
+    /// <summary>RPT-02 บัญชีรายชื่อเครื่องมือวัด สอบเทียบภายนอก (#204).</summary>
+    public const string CalibRegisterExternal = "RPT-02-C-E";
+    /// <summary>RPT-03 แบบฟอร์มบันทึกผลการสอบเทียบ (#205).</summary>
+    public const string CalibRecord = "RPT-03-C";
 
     public static IReadOnlyList<string> All { get; } =
     [
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
         InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2, MoldRegister, SaleOrder,
-        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield, PurchRequest, PurchaseOrder, SupplierEvaluation, SupplierAnnualEvaluation, IncomingRecord, IncomingInspection, ApprovedSupplierList,
+        DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield, PurchRequest, PurchaseOrder, SupplierEvaluation, SupplierAnnualEvaluation, IncomingRecord, IncomingInspection, ApprovedSupplierList, CalibPlan, CalibRegisterInternal, CalibRegisterExternal, CalibRecord,
         .. Lockte.Calib.JigInspectionSeed.Documents.Select(d => d.Key),
     ];
 }

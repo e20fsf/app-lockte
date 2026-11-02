@@ -1,0 +1,30 @@
+@using Lockte.Web.Reports.Calib
+@* RPT-01 แผนการสอบเทียบ (PC-QA009-2/2547 ฉบับที่ 2), ระดับ B on A4 นอน: two fixed rows — สอบเทียบภายนอก and สอบเทียบภายใน, 1 ครั้ง / ปี, ผู้รับผิดชอบ, ผู้ตรวจสอบ and the 12 months, the month of each
+   round shaded green (print-samples: กค. and สค.). The months, the names and the note are settings; the sheet reads no instrument. Under the table the note about the friction tester and the
+   sign boxes (จัดเตรียมโดย / ตรวจสอบโดย / อนุมัติโดย). *@
+<table class="plan">
+    <colgroup><col style="width:4%" /><col style="width:16%" /><col style="width:9%" /><col style="width:9%" /><col style="width:9%" />@for (var m = 1; m <= 12; m++){<col style="width:4.5%" />}</colgroup>
+    <thead>
+        <tr><th>ที่</th><th>กิจกรรม</th><th>ระยะเวลา</th><th>ผู้รับผิดชอบ</th><th>ผู้ตรวจสอบ</th>@foreach (var name in PlanReport.MonthNames){<th>@name</th>}</tr>
+    </thead>
+    <tbody>
+        @foreach (var (row, index) in Rows.Select((r, i) => (r, i)))
+        {
+            <tr>
+                <td class="num">@(index + 1)</td><td>@row.Activity</td><td>1 ครั้ง / ปี</td><td>@Report.Responsible</td><td>@Report.Reviewer</td>
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <td class="@(m == row.Month ? "planned" : null)" style="@(m == row.Month ? "background:#9fd89f" : null)">&nbsp;</td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+<p style="margin-top:6mm">หมายเหตุ: @Report.Note</p>
+<Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["จัดเตรียมโดย", "ตรวจสอบโดย", "อนุมัติโดย"])" />
+
+@code {
+    [Parameter, EditorRequired] public PlanReport Report { get; set; } = null!;
+
+    private IEnumerable<(string Activity, int Month)> Rows => [("สอบเทียบภายนอก", Report.ExternalMonth), ("สอบเทียบภายใน", Report.InternalMonth)];
+}

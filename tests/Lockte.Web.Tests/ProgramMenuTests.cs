@@ -103,7 +103,7 @@ public sealed class ProgramMenuTests
     {
         Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8], CalibMenu.Menu.Pages.Select(p => p.Number));
         Assert.Equal(
-            [("แผนการสอบเทียบ", null), ("สอบเทียบภายนอก", 2), ("สอบเทียบภายใน", 3)],
+            [("แผนการสอบเทียบ", null), ("สอบเทียบภายนอก", 2), ("สอบเทียบภายใน", 3), ("ตั้งค่าสอบเทียบ", null)],
             CalibMenu.Menu.Find(ProgramMenu.Main)!.Items.Select(i => (i.Text, i.SubMenu)));
         Assert.Equal(
             ["เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์", "เพรสเซอร์เกจ", "เครื่องชั่ง", "JIG", "ตัวควบคุมอุณหภูมิ (TEMP CONTROL)"],
@@ -124,7 +124,7 @@ public sealed class ProgramMenuTests
         Assert.All([CalibMenu.Caliper, CalibMenu.PressureGauge, CalibMenu.Scale, CalibMenu.Jig, CalibMenu.TempControl],
             n => Assert.Equal(CalibMenu.Internal, CalibMenu.Menu.Find(n)!.Back));
 
-        Assert.Equal("calib/RPT-01", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("RPT-01")!.Value.Item));
+        Assert.Equal("calib/RPT-02-ext", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("RPT-02-ext")!.Value.Item));
         Assert.Equal("calib/SCR-05", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-05")!.Value.Item));
         Assert.Equal("calib/menu/7", CalibMenu.HrefOf(CalibMenu.Jig));
         Assert.Equal("calib", CalibMenu.HrefOf(ProgramMenu.Main));
@@ -196,4 +196,12 @@ public sealed class ProgramMenuTests
     [InlineData("tc")]
     public void Sticker_screens_are_opened_by_their_menu_items(string key) // built (#201)
         => Assert.Equal($"calib/stickers/{key}", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem($"SCR-04-{key}")!.Value.Item));
+
+    [Fact]
+    public void The_plan_prints_from_the_main_menu_in_a_new_tab_and_the_settings_have_a_screen() // built (#202)
+    {
+        var plan = CalibMenu.Menu.FindItem("RPT-01")!.Value.Item;
+        Assert.Equal(("reports/calib/plan", true), (CalibMenu.Menu.HrefOf(plan), plan.NewTab));
+        Assert.Equal("calib/settings", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SETTINGS")!.Value.Item));
+    }
 }

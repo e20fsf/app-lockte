@@ -70,6 +70,7 @@ public static class ReportsRegistration
         reports.MapSupplierDocumentReports(); // ทะเบียนผู้ขาย ASL และหนังสือมุ่งมั่น (วัตถุดิบ #264)
         reports.MapListReports(); // รายชื่อวัตถุดิบและผู้ขาย (วัตถุดิบ #263)
         reports.MapCalibStickerReports(); // สติกเกอร์ติดเครื่องมือวัด (สอบเทียบ #201)
+        reports.MapCalibPlanReports(); // แผนการสอบเทียบ (สอบเทียบ #202)
         reports.MapMaterialStockReports(); // STOCK CARD และรายงานการตัด STOCK (วัตถุดิบ #262)
         reports.MapResaleAndSmallOrderReports(); // ซื้อมาขายไป และใบสั่งซื้อต่ำกว่าเกณฑ์ (วัตถุดิบ #261)
         reports.MapMaterialYearReports(); // การซื้อวัตถุดิบรายปีตามชื่อ 12 เดือน (วัตถุดิบ #260)

@@ -25,9 +25,10 @@ public static class CalibMenu
     [
         new(1, "เมนูหลัก", null,
         [
-            new("แผนการสอบเทียบ", Code: "RPT-01"),
+            new("แผนการสอบเทียบ", Code: "RPT-01", Page: "reports/calib/plan", NewTab: true),
             new("สอบเทียบภายนอก", SubMenu: External), // สอบเทียบภานนอก (สะกดตามต้นฉบับ)
             new("สอบเทียบภายใน", SubMenu: Internal), // สอบเทียบภานใน (สะกดตามต้นฉบับ)
+            new("ตั้งค่าสอบเทียบ", Code: "SETTINGS", Page: "calib/settings"), // not in the legacy: the fixed texts, months and sticker size it had in its reports (#202)
         ]),
         new(External, "สอบเทียบภายนอก", 1,
         [
