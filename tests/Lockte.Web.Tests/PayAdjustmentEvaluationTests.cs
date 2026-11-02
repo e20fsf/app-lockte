@@ -255,7 +255,7 @@ public sealed class PayAdjustmentEvaluationTests(LocalDbFixture db)
         var head = await NewEmployeeAsync(department, position: "หัวหน้าแผนก");
         var none = await NewEmployeeAsync(department);
         await LeaveAsync(staff, D(year, 2, 2), 1.5, "1");
-        await LeaveAsync(staff, D(year, 2, 3), 2, "9"); // ลากิจฉุกเฉิน: not on the sheet (the box is SumOf1)
+        await LeaveAsync(staff, D(year, 2, 3), 2, "17"); // ลาคลอดบุตรกรณีพิเศษ: not on the sheet (the box is SumOf1)
         await LeaveAsync(staff, D(year, 2, 4), 1, "2");
         await LeaveAsync(staff, D(year, 2, 5), 0.5, "3");
         await LeaveAsync(staff, D(year, 2, 6), 1, "8");

@@ -105,10 +105,16 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
         if (days <= 0) return ServiceResult.Fail("จำนวนวันต้องมากกว่า 0");
         if (string.IsNullOrWhiteSpace(input.Type)) return ServiceResult.Fail("กรุณาเลือกประเภทการลา");
         if (!LeaveTypes.Names.ContainsKey(input.Type.Trim())) return ServiceResult.Fail("ไม่พบประเภทการลานี้");
+        // #346: ลากิจฉุกเฉิน / ลาอื่นๆ are no longer keyed; a saved row of those types can still be edited as it is (its type unchanged).
+        if (LeaveTypes.Retired.Contains(input.Type.Trim()) && !await KeepsRetiredTypeAsync(input))
+            return ServiceResult.Fail($"ประเภท {LeaveTypes.Names[input.Type.Trim()]} เลิกใช้แล้ว ใช้ {LeaveTypes.Names[input.Type.Trim() == "9" ? "17" : "18"]} แทน");
         if (input.Remark?.Trim().Length > RemarkLength) return ServiceResult.Fail($"เหตุผลยาวได้ไม่เกิน {RemarkLength} ตัวอักษร");
         if (!await db.Employees.AnyAsync(e => e.Id == employeeId)) return ServiceResult.Fail("ไม่พบพนักงานที่เลือก");
         return null;
     }
+
+    private async Task<bool> KeepsRetiredTypeAsync(LeaveInput input)
+        => input.Id is { } id && await db.Leaves.AnyAsync(l => l.Id == id && l.Type == input.Type!.Trim());
 
     /// <summary>ใช้ไปแล้ว of BR-020 by SR: the employee's ได้ค่าแรง days of the calendar year, without the row being saved.</summary>
     private async Task<Dictionary<string, double>> UsedPaidDaysAsync(int employeeId, int year, int? exceptId)
