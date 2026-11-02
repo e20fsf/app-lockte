@@ -15,6 +15,8 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> option
 
     public DbSet<UserLastProgram> LastPrograms => Set<UserLastProgram>();
 
+    public DbSet<EditLock> EditLocks => Set<EditLock>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -45,6 +47,13 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> option
             p.HasKey(x => x.UserId);
             p.Property(x => x.Program).HasMaxLength(UserLastProgram.ProgramLength);
             p.HasOne<AppUser>().WithOne().HasForeignKey<UserLastProgram>(x => x.UserId);
+        });
+        builder.Entity<EditLock>(l =>
+        {
+            l.Property(x => x.Key).HasMaxLength(EditLock.KeyLength).IsRequired();
+            l.HasIndex(x => x.Key).IsUnique();
+            l.Property(x => x.UserName).HasMaxLength(256).IsRequired();
+            l.Property(x => x.DisplayName).HasMaxLength(100).IsRequired();
         });
         builder.ApplyLockteConventions();
     }

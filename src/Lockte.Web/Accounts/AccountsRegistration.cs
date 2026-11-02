@@ -94,6 +94,7 @@ public static class AccountsRegistration
         services.AddScoped<AccountService>();
         services.AddScoped<UserAdminService>();
         services.AddScoped<LastProgramService>();
+        services.AddScoped<EditLockService>();
         return services;
     }
 }

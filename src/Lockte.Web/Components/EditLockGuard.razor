@@ -1,0 +1,119 @@
+@using Lockte.SharedKernel
+@using Lockte.Web.Accounts
+@implements IAsyncDisposable
+@inject ScopedServices Services
+@inject AuthenticationStateProvider Auth
+@inject IDialogService Dialogs
+
+@* #343 ล็อกการแก้ไข: put this on an edit page next to the record that is open. It takes the lock of <Key> for the signed-in user, keeps it with a
+   heartbeat while the page is open, frees it when the page or the record is left, and — when someone else holds it — tells who (an alert and a
+   message box), reports it through LockedChanged so the page can switch its inputs off, and lets an admin free it. A null Key = nothing open. *@
+@if (holder is not null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-2">
+        ผู้ใช้ <b>@holder.DisplayName</b> กำลังแก้ไขรายการนี้อยู่ (ตั้งแต่ @Since(holder)) — ต้องรอให้บันทึกหรือออกจากหน้าแก้ไขก่อน ตอนนี้เปิดดูได้อย่างเดียว
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="RetryAsync" Class="ml-2">ลองอีกครั้ง</MudButton>
+        @if (isAdmin)
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" OnClick="ForceAsync" Class="ml-2">ปลดล็อก (admin)</MudButton>
+        }
+    </MudAlert>
+}
+
+@code {
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>True while someone else holds the record: the page should not let this user save.</summary>
+    [Parameter] public EventCallback<bool> LockedChanged { get; set; }
+
+    private string? held;
+    private string? asked;
+    private EditLockHolder? holder;
+    private string userName = "", displayName = "";
+    private bool isAdmin;
+    private Timer? timer;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Key == asked) return;
+        await ReleaseAsync();
+        asked = Key;
+        holder = null;
+        if (Key is null)
+        {
+            await LockedChanged.InvokeAsync(false);
+            return;
+        }
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        (userName, displayName, isAdmin) = (user.Identity?.Name ?? "", AccountClaims.DisplayNameOf(user), AccountClaims.IsAdmin(user));
+        await AcquireAsync(announce: true);
+    }
+
+    private async Task AcquireAsync(bool announce)
+    {
+        var key = Key!;
+        var result = await Services.RunAsync<EditLockService, EditLockResult>(s => s.AcquireAsync(key, userName, displayName));
+        if (result.Granted)
+        {
+            held = key;
+            holder = null;
+            timer ??= new Timer(_ => _ = InvokeAsync(BeatAsync), null, EditLockService.HeartbeatEvery, EditLockService.HeartbeatEvery);
+        }
+        else
+        {
+            held = null;
+            holder = result.Holder ?? new EditLockHolder("", "ผู้ใช้อื่น", DateTimeOffset.UtcNow);
+            if (announce)
+                _ = Dialogs.ShowMessageBoxAsync("มีผู้แก้ไขอยู่",
+                    $"ผู้ใช้ {holder.DisplayName} กำลังแก้ไขรายการนี้อยู่ ต้องรอให้บันทึกก่อน — ตอนนี้เปิดดูได้อย่างเดียว", yesText: "ตกลง");
+        }
+        await LockedChanged.InvokeAsync(!result.Granted);
+        StateHasChanged();
+    }
+
+    /// <summary>The page is still open; if the lock was taken away meanwhile (an admin freed it) try to get it back, else it is someone else's now.</summary>
+    private async Task BeatAsync()
+    {
+        if (held is not { } key) return;
+        try
+        {
+            if (await Services.RunAsync<EditLockService, bool>(s => s.HeartbeatAsync(key, userName))) return;
+            await AcquireAsync(announce: true);
+        }
+        catch (Exception)
+        {
+            // The database is not reachable this time; the next beat tries again.
+        }
+    }
+
+    private Task RetryAsync() => AcquireAsync(announce: false);
+
+    private async Task ForceAsync()
+    {
+        if (Key is not { } key) return;
+        await Services.RunAsync<EditLockService, bool>(s => s.ForceReleaseAsync(key));
+        await AcquireAsync(announce: false);
+    }
+
+    private async Task ReleaseAsync()
+    {
+        if (held is not { } key) return;
+        held = null;
+        try
+        {
+            await Services.RunAsync<EditLockService, bool>(async s => { await s.ReleaseAsync(key, userName); return true; });
+        }
+        catch (Exception)
+        {
+            // Not reachable: the lock lapses by itself in two minutes.
+        }
+    }
+
+    private static string Since(EditLockHolder h) => h.Since.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiDate.Culture);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (timer is not null) await timer.DisposeAsync();
+        await ReleaseAsync();
+    }
+}

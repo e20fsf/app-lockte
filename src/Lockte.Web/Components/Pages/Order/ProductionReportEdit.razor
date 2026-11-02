@@ -43,9 +43,10 @@
     }
 </MudPaper>
 
+<EditLockGuard Key="@(report is null ? null : EditLockKeys.ProductionReport(report.Id))" LockedChanged="@(v => locked = v)" />
 @if (report is not null && department is not null)
 {
-    <MudPaper Class="pa-4 mt-4" Outlined="true" Style="overflow-x:auto">
+    <MudPaper Class="@("pa-4 mt-4" + (locked ? " lk-readonly" : ""))" Outlined="true" Style="overflow-x:auto">
         <MudText Typo="Typo.h6" Class="mb-2">ใบรายงาน @report.ReportNo แผนก@(department.Name)</MudText>
         @if (report.InStock)
         {
@@ -108,7 +109,7 @@
             </RowTemplate>
         </MudTable>
         <MudStack Row="true" Spacing="2" Class="mt-3">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Save">บันทึก</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || locked" StartIcon="@Icons.Material.Filled.Save">บันทึก</MudButton>
         </MudStack>
     </MudPaper>
 }
@@ -133,6 +134,8 @@
     private List<MoldDto> molds = [];
     private readonly List<Row> rows = [];
     private bool busy;
+    /// <summary>#343: someone else has this production report open for editing (<see cref="EditLockGuard"/>).</summary>
+    private bool locked;
 
     protected override async Task OnInitializedAsync()
     {
