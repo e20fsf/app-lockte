@@ -186,7 +186,7 @@ public sealed class OnboardingFormTests
 
         Assert.DoesNotContain("รายชื่อพนักงานแผนกประกอบ", html); // the title is the page header (#344), not repeated above the table
         Assert.Contains("18,665.00", html);
-        Assert.Contains("622.17", html);
+        Assert.Contains(">622<", html); // #354: ค่าแรง/วัน as whole baht
         Assert.Contains("ชาย 1 คน", html);
         Assert.Contains("อายุเฉลี่ย 50", html); // (54 + 45) / 2 = 49.5 → 50
         Assert.Equal("50", EmployeeListText.Whole(49.5));

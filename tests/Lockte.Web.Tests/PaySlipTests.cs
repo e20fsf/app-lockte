@@ -131,7 +131,7 @@ public sealed class PaySlipTests
         Assert.Equal("16/9/2569", TextAt(page, 120.96, 23.18));
         Assert.Equal(("27/8/2569", "11/9/2569"), (TextAt(page, 46.86, 29.5), TextAt(page, 71.53, 29.5)));
         Assert.Equal(("16", "2", "0", "14"), (TextAt(page, 101.53, 29.5), TextAt(page, 123.46, 29.5), TextAt(page, 143.07, 29.5), TextAt(page, 165.86, 29.5)));
-        Assert.Equal("400.00", TextAt(page, 159.95, 35.52));
+        Assert.Equal("400", TextAt(page, 159.95, 35.52)); // #354: a whole wage prints without satang
         Assert.Equal(("14.0", "1.0", "3.5"), (TextAt(page, 34.47, 56.49), TextAt(page, 41.84, 56.49), TextAt(page, 72.54, 56.49)));
         Assert.Equal(("5,600", "263"), (TextAt(page, 113.76, 56.49), TextAt(page, 153.94, 56.49)));
         // #180: เงินสงเคราะห์ลูกจ้าง, บริษัท, รวมเงินสะสม, then โบนัส, ค่าพักร้อน, รวมค่าแรง, เงินได้สุทธิ (= 5,863 − 15)

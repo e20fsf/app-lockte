@@ -1,3 +1,4 @@
+using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,7 +56,9 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             e.Property(x => x.Duty).HasMaxLength(255).HasAuditName("หน้าที่");
             e.Property(x => x.EmployeeType).HasAuditName("ประเภท");
             e.Property(x => x.Salary).HasAuditName("เงินเดือน");
-            e.Property(x => x.DailyWage).HasAuditName("ค่าแรง/วัน");
+            // #354 (UAT-18): ค่าแรง/วัน is a whole number of baht (half up) wherever it is read or written — rounded here, once, so the
+            // screens, the documents and the pay calculation all use the same value.
+            e.Property(x => x.DailyWage).HasConversion(v => Rounding.RndA(v), v => Rounding.RndA(v)).HasAuditName("ค่าแรง/วัน");
             e.Property(x => x.ShiftId).HasAuditName("กะ");
             e.Property(x => x.HotAllowance).HasAuditName("ได้ HOT");
             e.Property(x => x.BankAccountTtb).HasMaxLength(10).HasAuditName("บัญชีทหารไทย");
@@ -136,7 +139,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             l.Property(x => x.Type).HasMaxLength(LeaveTypes.Length).HasAuditName("ประเภท");
             l.Property(x => x.Paid).HasAuditName("ได้ค่าแรง");
             l.Property(x => x.Remark).HasMaxLength(LeaveRegistry.RemarkLength).HasAuditName("เหตุผล");
-            l.Property(x => x.DailyWage).HasAuditName("ค่าแรง/วัน");
+            l.Property(x => x.DailyWage).HasConversion(v => Rounding.RndA(v), v => Rounding.RndA(v)).HasAuditName("ค่าแรง/วัน");
             l.Property(x => x.Pay).HasAuditName("จ่ายค่าแรง");
             l.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             l.HasIndex(x => new { x.EmployeeId, x.FromDate });

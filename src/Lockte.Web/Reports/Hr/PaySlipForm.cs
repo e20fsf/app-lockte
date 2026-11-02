@@ -79,7 +79,7 @@ public static class PaySlipForm
         const double who = 35.52;
         T(32.98, who, "รหัสพนักงาน"); T(49.82, who, s.Code);
         T(65.59, who, "ชื่อ-นามสกุล"); T(81.44, who, s.Name, fit: 116.2 - 81.44);
-        T(116.98, who, "ค่าแรงเดือนละหรือวันละ"); T(159.95, who, Forms.FormFormat.Standard(s.Rate, 2), TextAnchor.End); T(161.43, who, "บาท");
+        T(116.98, who, "ค่าแรงเดือนละหรือวันละ"); T(159.95, who, Forms.FormFormat.Standard(s.Rate, s.Rate % 1 == 0 ? 0 : 2), TextAnchor.End); T(161.43, who, "บาท");
 
         // ตาราง: เวลาทำงาน | ค่าแรง, then the deductions and totals
         foreach (var y in new[] { 38.25, 45.23, 52.22, 58.21, 65.21, 73.2 }) H(Left, Right, y);

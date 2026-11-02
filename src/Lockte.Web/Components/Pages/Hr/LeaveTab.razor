@@ -16,7 +16,7 @@
             <MudSelectItem T="int" Value="y">@(y + 543)</MudSelectItem>
         }
     </MudSelect>
-    <MudText Typo="Typo.body2">ค่าแรง/วัน <b><PayView>@Employee.DailyWage.ToString("#,##0.00")</PayView></b></MudText>
+    <MudText Typo="Typo.body2">ค่าแรง/วัน <b><PayView>@Employee.DailyWage.ToString("#,##0")</PayView></b></MudText>
     <MudText Typo="Typo.caption">โควตานับรอบปีปฏิทิน 1 ม.ค.–31 ธ.ค. ตามวันเริ่มลา</MudText>
 </MudStack>
 
@@ -83,7 +83,7 @@
                     <td>@row.Type @row.TypeName</td>
                     <td>@PaidText(row.Paid)</td>
                     <td>@row.Remark</td>
-                    <td style="text-align:right"><PayView>@row.DailyWage.ToString("#,##0.00")</PayView></td>
+                    <td style="text-align:right"><PayView>@row.DailyWage.ToString("#,##0")</PayView></td>
                     <td style="text-align:right"><PayView>@row.Pay.ToString("#,##0.00")</PayView></td>
                     <td></td>
                 </tr>
