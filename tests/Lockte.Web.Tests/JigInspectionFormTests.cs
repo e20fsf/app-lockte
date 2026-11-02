@@ -100,4 +100,46 @@ public sealed class JigInspectionFormTests(ChromiumFixture chromium)
     [Fact]
     public void The_file_name_has_underscores_for_commas()
         => Assert.Equal("JIG วัดศูนย์ 052_063", JigInspectionForm.FileName(Sheet(JigSheetType.ZeroCheck, "052,063")));
+
+    [Fact] // AC-14 (RPT-06): K125 → WI-QA049-35/2560, P1 Diameter 12.00, P2 Length 9.00 (not `>`), P3 Wide 9.00
+    public void The_k125_grinding_sheet_has_its_number_and_three_points()
+    {
+        var svg = Svg(Sheet(JigSheetType.Grinding, "K125"), null, "WI-QA049-35/2560 ฉบับที่ 2");
+        foreach (var text in new[] { ">รายงานการตรวจสอบ JIG กรอก้ามเบรก<", ">WI-QA049-35/2560 ฉบับที่ 2<", ">K125<", ">Diameter 12.00 ± 0.20 mm.<", ">Length 9.00 ± 0.20 mm.<", ">Wide 9.00 ± 0.20 mm.<", ">P3<" })
+            Assert.Contains(text, svg);
+        Assert.DoesNotContain(">P4<", svg, StringComparison.Ordinal);
+        Assert.DoesNotContain("รายงานการตรวจสอบ JIG วัดศูนย์", svg, StringComparison.Ordinal);
+    }
+
+    [Fact] // `>15.00` (143: `>13.00`) has no ±
+    public void A_greater_than_length_prints_without_a_tolerance()
+    {
+        var click = Svg(Sheet(JigSheetType.Grinding, "CLICK"));
+        Assert.Contains(">Length >15.00<", click);
+        Assert.Contains(">Diameter 9.00 ± 0.20 mm.<", click);
+        Assert.Contains(">Length >13.00<", Svg(Sheet(JigSheetType.Grinding, "143")));
+    }
+
+    [Fact]
+    public void The_name_of_the_jig_is_printed_on_every_grinding_sheet_233_061_and_143_included()
+        => Assert.All(JigInspectionSeed.Sheets.Where(s => s.Type == JigSheetType.Grinding), s => Assert.Contains($">{s.Title}<", Svg(Sheet(JigSheetType.Grinding, s.ModelKey))));
+
+    [Fact] // 19 sheets, none for 068, 168, PIN GAUGE, TAPER GAUGE
+    public void There_is_no_grinding_sheet_for_the_four_models_without_one()
+    {
+        var models = JigInspectionSeed.Sheets.Where(s => s.Type == JigSheetType.Grinding).Select(s => s.ModelKey).ToList();
+        Assert.Equal(19, models.Count);
+        foreach (var none in new[] { "068", "168", "PIN GAUGE", "TAPER GAUGE" }) Assert.DoesNotContain(none, models);
+    }
+
+    [Fact]
+    public async Task A_grinding_sheet_is_one_page_and_its_file_name_says_grinding()
+    {
+        var sheet = Sheet(JigSheetType.Grinding, "K125");
+        var page = JigInspectionForm.Page(sheet, new JigImageData(FakePng, "image/png"), "WI-QA049-35/2560 ฉบับที่ 2");
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(JigInspectionForm.TitleOf(sheet), [page]), page.Paper);
+        Keep("calib-jig-grinding-K125", pdf);
+        Assert.Equal(1, Pages(pdf));
+        Assert.Equal("JIG กรอ K125", JigInspectionForm.FileName(sheet));
+    }
 }

@@ -4,7 +4,7 @@
 @inject ScopedServices Services
 
 @* เลือก JIG ที่ต้องการพิมพ์ (SCR-05): one button for every sheet of the model of JIG, opening its PDF in a new tab. The buttons are made from the sheets QA maintains (#199), so a model added
-   there appears here. "JIG วัดศูนย์" is RPT-05 (23 sheets including PIN GAUGE and TAPER GAUGE). *@
+   there appears here. "JIG วัดศูนย์" is RPT-05 (23 sheets including PIN GAUGE and TAPER GAUGE), "JIG กรอ" RPT-06 (19 sheets, none for 068, 168, PIN and TAPER). *@
 <PageTitle>เลือก JIG ที่ต้องการพิมพ์ — LOCKTE</PageTitle>
 <h1 class="mb-4">เลือก JIG ที่ต้องการพิมพ์</h1>
 
@@ -18,6 +18,15 @@ else
         <MudText Typo="Typo.h6" Class="mb-2">JIG วัดศูนย์</MudText>
         <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
             @foreach (var sheet in sheets.Where(s => s.Type == JigSheetType.ZeroCheck))
+            {
+                <MudButton Variant="Variant.Outlined" Href="@($"reports/calib/jig/{sheet.Id}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print">@sheet.ModelKey</MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
+        <MudText Typo="Typo.h6" Class="mb-2">JIG กรอ</MudText>
+        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+            @foreach (var sheet in sheets.Where(s => s.Type == JigSheetType.Grinding))
             {
                 <MudButton Variant="Variant.Outlined" Href="@($"reports/calib/jig/{sheet.Id}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print">@sheet.ModelKey</MudButton>
             }

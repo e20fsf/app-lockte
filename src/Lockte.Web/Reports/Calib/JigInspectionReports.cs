@@ -10,7 +10,7 @@ public static class JigInspectionReports
         reports.MapGet("/calib/jig/{id:int}", async (int id, JigSheetDirectory sheets, JigImageDirectory images, DocumentNumberService numbers, ReportPrinter printer, HttpContext http,
             CancellationToken cancellationToken) =>
         {
-            if (await sheets.GetAsync(id) is not { } sheet || sheet.Type != JigSheetType.ZeroCheck) return Results.NotFound("ไม่พบแบบตรวจ JIG");
+            if (await sheets.GetAsync(id) is not { } sheet) return Results.NotFound("ไม่พบแบบตรวจ JIG");
             var page = JigInspectionForm.Page(sheet, await images.GetAsync(sheet.Id), await numbers.PrintedTextAsync(sheet.DocumentKey));
             return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(JigInspectionForm.TitleOf(sheet), [page], cancellationToken), JigInspectionForm.FileName(sheet));
         });
