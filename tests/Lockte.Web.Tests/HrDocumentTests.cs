@@ -197,13 +197,13 @@ public sealed class HrDocumentTests(LocalDbFixture db)
         var data = (await AsHrAsync(s => s.Get<HrDocumentDirectory>().GetSeveranceAsync(employee.Id, SeveranceScale.Legacy, " ป่วยบ่อย ")))!;
 
         Assert.Equal(400, data.CompensationDays);
-        Assert.Equal(208100m, data.Compensation); // 400 × 520.25
+        Assert.Equal(208000m, data.Compensation); // 400 × 520 — the wage 520.25 is whole baht (#354); Access paid 208,100
         Assert.Equal("ป่วยบ่อย", data.Reason);
-        Assert.Equal(520.25, data.DailyWage);
+        Assert.Equal(520.0, data.DailyWage);
 
         var scale = new SeveranceScale([1, 2, 3, 4, 5, 7], SeveranceScale.Legacy.Lines);
         var custom = (await AsHrAsync(s => s.Get<HrDocumentDirectory>().GetSeveranceAsync(employee.Id, scale, null)))!;
-        Assert.Equal(3642m, custom.Compensation); // 7 × 520.25 = 3641.75 → 3642
+        Assert.Equal(3640m, custom.Compensation); // 7 × 520
     }
 
     [Fact] // BR-070: monthly → SALARY, daily → SA_DAY × 26; texts as the legacy query joined them; age = Int((Now − BORN)/365)

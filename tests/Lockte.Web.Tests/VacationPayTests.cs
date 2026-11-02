@@ -109,7 +109,7 @@ public sealed class VacationPayTests(LocalDbFixture db)
 
         Assert.Null(line.DepartmentName);
         Assert.Equal(5.125, line.UsedDays);
-        Assert.Equal(0.875 * 881.87, line.Amount, 9);
+        Assert.Equal(0.875 * 882, line.Amount, 9); // the wage is whole baht (#354): 881.87 → 882; the amount itself stays unrounded (771.75)
     }
 
     [Fact] // ⚠ คิวรี 1 GROUP BY SUM_D, FROM_D, TO_D, ID: ใบที่วันที่และจำนวนวันเท่ากันนับครั้งเดียวแม้คนละประเภท
