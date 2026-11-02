@@ -15,7 +15,7 @@ public sealed class QaSpecMigrationTests(MigrationDbFixture db) : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-qa-spec-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private string Folder => Directory.CreateDirectory(Path.Combine(work.FullName, "reports")).FullName;
 

@@ -12,11 +12,7 @@ public sealed class YearCloseKitTests : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-year-close-test-");
 
-    public void Dispose()
-    {
-        OleDbConnection.ReleaseObjectPool();
-        work.Delete(recursive: true);
-    }
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private static string SqlFolder()
     {

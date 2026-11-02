@@ -10,7 +10,6 @@ namespace Lockte.Web.Tests;
 public sealed class LotTraceTests(LocalDbFixture db)
 {
     private static int year = 2800;
-    private static int counter = Random.Shared.Next(10000, 60000);
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
@@ -43,7 +42,7 @@ public sealed class LotTraceTests(LocalDbFixture db)
 
     private async Task LineAsync(string department, int machine, DateOnly date, int product, string? lot, string? material1, string? material2 = null, decimal good = 100, decimal? reject = 5)
     {
-        var no = department + Interlocked.Increment(ref counter).ToString("00000");
+        var no = TestCodes.ProductionNumber(department);
         var saved = await AsAsync(s => s.Get<ProductionReportRegistry>().SaveAsync(new ProductionReportInput(null, null, department, date, no, machine,
             [new ProductionReportLineInput(null, null, product, null, null, null, 8m, material1, material2, good, reject, null, null, lot)]), ProductionSaveMode.Save));
         Assert.True(saved.Succeeded, string.Join(" ", saved.Errors));

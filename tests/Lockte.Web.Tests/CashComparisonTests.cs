@@ -164,7 +164,7 @@ public sealed class CashComparisonRunTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await db.DisposeAsync();
-        work.Delete(recursive: true);
+        TestFiles.DeleteScratch(work);
     }
 
     /// <summary>What the old reports would have given on the demo set, written in the shape of <c>export_cash_baseline.py</c>; the sums are those of acceptance.md.</summary>

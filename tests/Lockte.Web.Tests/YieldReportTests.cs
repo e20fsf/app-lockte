@@ -10,7 +10,6 @@ namespace Lockte.Web.Tests;
 public sealed class YieldReportTests(LocalDbFixture db)
 {
     private static int year = 2900;
-    private static int counter = Random.Shared.Next(10000, 60000);
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
@@ -45,7 +44,7 @@ public sealed class YieldReportTests(LocalDbFixture db)
 
     private async Task LineAsync(string department, int? machine, DateOnly date, int product, decimal good, decimal? reject)
     {
-        var no = department + Interlocked.Increment(ref counter).ToString("00000");
+        var no = TestCodes.ProductionNumber(department);
         var saved = await AsAsync(s => s.Get<ProductionReportRegistry>().SaveAsync(new ProductionReportInput(null, null, department, date, no, machine,
             [new ProductionReportLineInput(null, null, product, null, null, null, 8m, null, null, good, reject, null, null, null)]), ProductionSaveMode.Save));
         Assert.True(saved.Succeeded, string.Join(" ", saved.Errors));

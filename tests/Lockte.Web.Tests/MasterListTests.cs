@@ -41,7 +41,7 @@ public sealed class MasterListTests(LocalDbFixture db)
     public async Task Customers_are_listed_by_code_with_address_credit_and_territory()
     {
         var prefix = Unique("94-");
-        var territory = await AsAsync(s => SavedAsync(s.Get<SalesTerritoryRegistry>().SaveAsync(new SalesTerritoryInput(null, "L" + Guid.NewGuid().ToString("N")[..3], "เขตรายการ", null, null))));
+        var territory = await AsAsync(s => SavedAsync(s.Get<SalesTerritoryRegistry>().SaveAsync(new SalesTerritoryInput(null, TestCodes.Territory(), "เขตรายการ", null, null))));
         await AsAsync(s => SavedAsync(s.Get<CustomerRegistry>().SaveAsync(new CustomerInput(null, prefix + "B", "ลูกค้า ข", null, CreditDays: 0))));
         await AsAsync(s => SavedAsync(s.Get<CustomerRegistry>().SaveAsync(new CustomerInput(null, prefix + "A", "ลูกค้า ก", null, CreditDays: 60,
             Address: "1 หมู่ 2", District: "เมือง", Province: "จังหวัดทดสอบ", PostalCode: "10000", Phone1: "081", Phone2: "082", SalesTerritoryId: territory))));

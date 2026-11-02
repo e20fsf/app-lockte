@@ -9,10 +9,9 @@ namespace Lockte.Web.Tests;
 [Collection(LocalDbCollection.Name)]
 public sealed class SalesOrderEntryTests(LocalDbFixture db)
 {
-    private static int counter = Random.Shared.Next(0x100, 0x700);
 
     /// <summary>A territory code of its own (at most 4 characters), so the numbers of one test never meet another's.</summary>
-    private static string TerritoryCode() => "N" + Interlocked.Increment(ref counter).ToString("X3");
+    private static string TerritoryCode() => TestCodes.Territory();
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 

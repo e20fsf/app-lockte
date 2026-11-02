@@ -20,7 +20,7 @@ public sealed class HistoryMigrationTests(MigrationDbFixture db) : IDisposable
 
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-history-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private static DateTime T(int hour, int minute, bool nextDay = false) => FakeLegacyFile.Time(hour, minute, nextDay);
 

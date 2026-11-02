@@ -16,7 +16,7 @@ public sealed class WarningMigrationTests(MigrationDbFixture db) : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-warning-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     /// <summary>
     /// A warning of this round and two of rounds before (one with a แผนก that is not in T-แผนก, one without ระดับ), a blank

@@ -14,7 +14,6 @@ namespace Lockte.Web.Tests;
 [Collection(LocalDbCollection.Name)]
 public sealed class ExportSummaryByTypeTests(LocalDbFixture db)
 {
-    private static int counter = Random.Shared.Next(0x100, 0x700); // "V" + 3 hex digits stays within the 4-character territory code
     private static int year = Random.Shared.Next(9100, 9800);
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
@@ -37,7 +36,7 @@ public sealed class ExportSummaryByTypeTests(LocalDbFixture db)
 
     private async Task<Setup> NewSetupAsync()
     {
-        string TerritoryCode() => "V" + Interlocked.Increment(ref counter).ToString("X3");
+        string TerritoryCode() => TestCodes.Territory();
         var (code1, code2) = (TerritoryCode(), TerritoryCode());
         var t1 = await AsAsync(s => SavedAsync(s.Get<SalesTerritoryRegistry>().SaveAsync(new SalesTerritoryInput(null, code1, "เขตทดสอบหนึ่ง", null, null))));
         var t2 = await AsAsync(s => SavedAsync(s.Get<SalesTerritoryRegistry>().SaveAsync(new SalesTerritoryInput(null, code2, "เขตทดสอบสอง", null, null))));

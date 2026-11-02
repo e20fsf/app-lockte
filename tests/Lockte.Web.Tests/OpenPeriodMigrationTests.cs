@@ -18,7 +18,7 @@ public sealed class OpenPeriodMigrationTests(MigrationDbFixture db) : IDisposabl
 
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-open-period-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private static DateTime Day(DateOnly date) => date.ToDateTime(TimeOnly.MinValue);
 
