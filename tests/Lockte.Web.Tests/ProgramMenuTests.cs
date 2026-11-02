@@ -288,6 +288,7 @@ public sealed class ProgramMenuTests
         Assert.Equal("cash/scrap-buyers", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-07-edit")!.Value.Item));
         Assert.Equal("cash/scrap-items/new", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-08-add")!.Value.Item));
         Assert.Equal("cash/scrap-items", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-08-edit")!.Value.Item));
-        Assert.Equal("cash/SCR-03", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-03")!.Value.Item)); // not built yet: the placeholder
+        Assert.Equal("cash/expenses", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-03")!.Value.Item)); // built (#232)
+        Assert.Equal("cash/SCR-04", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-04")!.Value.Item)); // not built yet: the placeholder
     }
 }
