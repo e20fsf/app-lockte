@@ -38,6 +38,7 @@
     {
         ["expense"] = new("พิมพ์สรุปค่าใช้จ่ายเงินสดย่อย", "reports/cash/expense-summary", ProgramMenu.Main, true),
         ["purchases"] = new("พิมพ์รายงานการซื้อของ", "reports/cash/purchases", CashMenu.Reports, false),
+        ["scrap"] = new("รายงานยอดขายของเก่า", "reports/cash/scrap-sales", CashMenu.Receipts, false),
     };
 
     [Parameter] public string Kind { get; set; } = "";
