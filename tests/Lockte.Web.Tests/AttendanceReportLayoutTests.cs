@@ -94,7 +94,7 @@ public sealed class AttendanceReportLayoutTests
         Assert.Contains(">ได้<", html);
         Assert.Contains(">8:00<", html);
         Assert.Contains(">วันจันทร์<", html);
-        Assert.Contains("ค่าแรง/วัน 400.00", html);
+        Assert.Contains("ค่าแรง/วัน 400<", html);
     }
 
     [Fact] // RPT-33: เดือนจากช่วงวันที่ (D-5), 15 ประเภท, %การลา ทศนิยม 2

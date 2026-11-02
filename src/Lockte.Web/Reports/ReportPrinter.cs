@@ -50,6 +50,9 @@ public static class ReportText
     /// <summary>วันที่ในตาราง: d/M/yyyy พ.ศ.</summary>
     public static string Date(DateOnly date) => ThaiDate.Format(date);
 
+    /// <summary>ค่าแรง/วัน (#354): whole baht, thousands separated (the stored wage is already whole, see HrDbContext).</summary>
+    public static string Wage(double value) => Math.Round((decimal)value, 0, MidpointRounding.AwayFromZero).ToString("#,##0", ThaiDate.Culture);
+
     /// <summary>
     /// Two decimals with thousands separators, as Access's Format: the Double read to 15 digits (decimal), then half away
     /// from zero (13.9375 → 13.94, 2.675 → 2.68).

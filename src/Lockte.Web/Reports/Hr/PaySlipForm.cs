@@ -26,6 +26,15 @@ public static class PaySlipForm
     private const double Left = 26.77, Right = 187.85;
 
     /// <summary>The rules between the ten columns of the totals row, left to right (ATM … เงินได้สุทธิ).</summary>
+    /// <summary>
+    /// #353: the rule under the totals heads sat at 65.21, where the second line of "กองทุนสงเคราะห์ / ลูกจ้าง (0.25%)" stood on it; it
+    /// moved down to give two lines of 10 pt room (the values row below keeps its place).
+    /// </summary>
+    private const double TotalsHeadBottom = 66.6;
+
+    /// <summary>The rules between the thirteen columns of the time and wage heads (วันปกติ … OTวันหยุด), left to right.</summary>
+    private static readonly double[] HeadEdges = [Left, 36.66, 44.57, 56.41, 66.29, 77.19, 92.98, 106.82, 120.68, 134.49, 144.37, 155.23, 172.07, Right];
+
     private static readonly double[] TotalsEdges = [Left, 37.63, 52.0, 73.0, 94.0, 112.0, 122.5, 133.0, 148.0, 164.5, Right];
 
     private static readonly Lazy<byte[]> Logo = new(() =>
@@ -79,10 +88,10 @@ public static class PaySlipForm
         const double who = 35.52;
         T(32.98, who, "รหัสพนักงาน"); T(49.82, who, s.Code);
         T(65.59, who, "ชื่อ-นามสกุล"); T(81.44, who, s.Name, fit: 116.2 - 81.44);
-        T(116.98, who, "ค่าแรงเดือนละหรือวันละ"); T(159.95, who, Forms.FormFormat.Standard(s.Rate, 2), TextAnchor.End); T(161.43, who, "บาท");
+        T(116.98, who, "ค่าแรงเดือนละหรือวันละ"); T(159.95, who, Forms.FormFormat.Standard(s.Rate, s.Rate % 1 == 0 ? 0 : 2), TextAnchor.End); T(161.43, who, "บาท");
 
         // ตาราง: เวลาทำงาน | ค่าแรง, then the deductions and totals
-        foreach (var y in new[] { 38.25, 45.23, 52.22, 58.21, 65.21, 73.2 }) H(Left, Right, y);
+        foreach (var y in new[] { 38.25, 45.23, 52.22, 58.21, TotalsHeadBottom, 73.2 }) H(Left, Right, y);
         V(Left, 38.24, 73.25);
         V(Right, 38.24, 73.25);
         V(106.82, 38.24, 58.2);
@@ -91,10 +100,10 @@ public static class PaySlipForm
 
         T(60.64, 43.52, "เวลาทำงาน"); T(144.82, 43.52, "ค่าแรง");
         const double heads = 50.52, values = 56.49;
-        T(27.03, heads, "วันปกติ"); T(37.63, heads, "วันลา"); T(45.09, heads, "วันอาทิตย์"); T(57.21, heads, "วันหยุด");
-        T(67.28, heads, "OTปกติ"); T(77.44, heads, "OTวันอาทิตย์"); T(93.97, heads, "OTวันหยุด");
-        T(108.86, heads, "วันปกติ"); T(121.9, heads, "วันอาทิตย์"); T(134.74, heads, "วันหยุด");
-        T(145.34, heads, "OTปกติ"); T(156.22, heads, "OTวันอาทิตย์"); T(173.03, heads, "OTวันหยุด");
+        // Each head is centred in its column and squeezed into it when wider (#353: "OTวันอาทิตย์" ran into the rules)
+        string[] names = ["วันปกติ", "วันลา", "วันอาทิตย์", "วันหยุด", "OTปกติ", "OTวันอาทิตย์", "OTวันหยุด", "วันปกติ", "วันอาทิตย์", "วันหยุด", "OTปกติ", "OTวันอาทิตย์", "OTวันหยุด"];
+        for (var c = 0; c < names.Length; c++)
+            T((HeadEdges[c] + HeadEdges[c + 1]) / 2, heads, names[c], TextAnchor.Middle, fit: HeadEdges[c + 1] - HeadEdges[c] - 1.2);
         T(34.47, values, Hours(s.Normal), TextAnchor.End); T(41.84, values, Hours(s.PaidLeave), TextAnchor.End);
         T(52.11, values, Hours(s.Sunday), TextAnchor.End); T(63.05, values, Hours(s.Holiday), TextAnchor.End);
         T(72.54, values, Hours(s.Overtime), TextAnchor.End); T(86.29, values, Hours(s.SundayOvertime), TextAnchor.End);
@@ -107,12 +116,12 @@ public static class PaySlipForm
 
         // The totals row of today's slip (photo of lot 4, #180): the legacy ค่าแรงค้างงวดก่อน gives way to the เงินสงเคราะห์ and the
         // รวมเงินสะสม; ประกันสังคม and ภาษี stay blank (Q-02); เงินได้สุทธิ = รวมค่าแรง − เงินสงเคราะห์ลูกจ้าง.
-        const double headOne = 63.51, headUp = 61.6, headDown = 65.6, totals = 70.5;
+        const double headOne = 63.9, headUp = 62.2, headDown = 65.5, totals = 70.5, headSmall = 10;
         void Head(int column, string? first, string? second = null)
         {
             double x0 = TotalsEdges[column], x1 = TotalsEdges[column + 1], middle = (x0 + x1) / 2, fit = x1 - x0 - 1;
             if (second is null) T(middle, headOne, first, TextAnchor.Middle, fit: fit);
-            else { T(middle, headUp, first, TextAnchor.Middle, fit: fit); T(middle, headDown, second, TextAnchor.Middle, fit: fit); }
+            else { T(middle, headUp, first, TextAnchor.Middle, headSmall, fit); T(middle, headDown, second, TextAnchor.Middle, headSmall, fit); }
         }
         void Value(int column, decimal value) => T((TotalsEdges[column] + TotalsEdges[column + 1]) / 2, totals, ReportText.Baht(value), TextAnchor.Middle);
         Head(0, "ATM"); Head(1, "ประกันสังคม"); Head(2, "กองทุนสงเคราะห์", "ลูกจ้าง (0.25%)"); Head(3, "กองทุนสงเคราะห์", "บริษัท (0.25%)");

@@ -44,18 +44,20 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
         if (input.Paid is { } paid && (row is null || row.Paid != paid))
         {
             var used = paid ? await UsedPaidDaysAsync(employeeId, from.Year, row?.Id) : new Dictionary<string, double>();
-            quota = LeaveQuota.Check(type, paid, days, used, employee.Sex, LeaveQuota.HasVacation(employee.StartDate, Today));
+            quota = LeaveQuota.Check(type, paid, days, used, employee.Sex, LeaveQuota.HasVacation(employee.StartDate, Today),
+                LeaveQuota.PersonalLimit(employee.StartDate, from), LeaveQuota.VacationEntitlement(employee.StartDate, from));
             if (!quota.CanSave) return new(ServiceResult.Fail(quota.Message!), quota);
         }
 
         if (row is null)
         {
             // #277: without the right to see ค่าแรง, the screen's wage is masked: take it from the register.
-            row = db.Leaves.Add(new Leave { DailyWage = pay.CanViewPay ? input.DailyWage ?? employee.DailyWage : employee.DailyWage }).Entity;
+            // #354: the wage is whole baht before PAY is worked out from it, as it will be when read back
+            row = db.Leaves.Add(new Leave { DailyWage = Rounding.RndA(pay.CanViewPay ? input.DailyWage ?? employee.DailyWage : employee.DailyWage) }).Entity;
         }
         else if (pay.CanViewPay && input.DailyWage is { } wage)
         {
-            row.DailyWage = wage;
+            row.DailyWage = Rounding.RndA(wage);
         }
         row.Employee = employee;
         row.RecordedOn = input.RecordedOn ?? (row.Id == 0 ? Today : row.RecordedOn);

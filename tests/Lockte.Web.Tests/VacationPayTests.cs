@@ -109,7 +109,7 @@ public sealed class VacationPayTests(LocalDbFixture db)
 
         Assert.Null(line.DepartmentName);
         Assert.Equal(5.125, line.UsedDays);
-        Assert.Equal(0.875 * 881.87, line.Amount, 9);
+        Assert.Equal(0.875 * 882, line.Amount, 9); // the wage is whole baht (#354): 881.87 → 882; the amount itself stays unrounded (771.75)
     }
 
     [Fact] // ⚠ คิวรี 1 GROUP BY SUM_D, FROM_D, TO_D, ID: ใบที่วันที่และจำนวนวันเท่ากันนับครั้งเดียวแม้คนละประเภท
@@ -170,7 +170,7 @@ public sealed class VacationPayReportLayoutTests(ChromiumFixture chromium)
         var html = await HtmlAsync<VacationPayReportView>(new() { ["Report"] = Report });
 
         Assert.Equal("รายชื่อพนักงานจ่ายคืนเงินพักร้อนประจำปี 2569", VacationPayReportView.TitleOf(Report));
-        Assert.Contains(">881.87<", html);
+        Assert.Contains(">882<", html); // 881.87: ค่าแรง/วัน as whole baht (#354)
         Assert.Contains(">0.88<", html); // 0.875
         Assert.Contains(">772<", html);  // 771.63
         Assert.Contains(">294<", html);  // 294.02

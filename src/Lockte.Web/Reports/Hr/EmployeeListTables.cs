@@ -28,7 +28,7 @@ public static class EmployeeListTables
              new("(เดือน)", SummaryFormat.Integer), new("อายุ", SummaryFormat.Integer), new("เงินเดือน", SummaryFormat.Money), new("รายวัน", SummaryFormat.Money)],
             roster.Lines.Select((l, i) => new object?[]
             {
-                i + 1, l.Code, l.Name, Date(l.StartDate), l.Position, l.ServiceYears, l.ServiceMonths, l.Age, Money(l.Salary), Money(l.DailyWage),
+                i + 1, l.Code, l.Name, Date(l.StartDate), l.Position, l.ServiceYears, l.ServiceMonths, l.Age, Money(l.Salary), Wage(l.DailyWage),
             }).ToList(),
             [null, $"รวม {roster.Lines.Count} คน   ชาย {roster.Male} คน   หญิง {roster.Female} คน", null, null, null, null, null, Whole(roster.AverageAge), null, null]);
 
@@ -54,6 +54,9 @@ public static class EmployeeListTables
             }).ToList());
 
     private static string? Date(DateOnly? date) => date is { } d ? ReportText.Date(d) : null;
+
+    /// <summary>ค่าแรง/วัน as a whole number (#354).</summary>
+    private static decimal Wage(double value) => Math.Round((decimal)value, 0, MidpointRounding.AwayFromZero);
 
     private static decimal Money(double value) => Math.Round((decimal)value, 2, MidpointRounding.AwayFromZero);
 

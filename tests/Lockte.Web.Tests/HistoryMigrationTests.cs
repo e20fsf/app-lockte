@@ -90,7 +90,7 @@ public sealed class HistoryMigrationTests(MigrationDbFixture db) : IDisposable
         Assert.Equal(
             [
                 (new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 5), new TimeOnly(8, 0), new TimeOnly(17, 0),
-                    0.375, "3", (bool?)false, (string?)null, 10.4, 0.0),
+                    0.375, "3", (bool?)false, (string?)null, 10.0, 0.0), // SALA_DAY 10.4 is whole baht in the new table (#354)
                 (new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 2), new DateOnly(2026, 3, 2), new TimeOnly(8, 0), new TimeOnly(17, 0),
                     1.0, "1", true, "ธุระสมมุติ", 520.0, 520.0),
             ],

@@ -117,4 +117,41 @@ public sealed class LeaveQuotaTests
     [InlineData("18", 1)]
     [InlineData("1", 1)]
     public void The_pay_rate_of_a_type(string type, double rate) => Assert.Equal(rate, LeaveTypes.PayRate(type));
+
+    [Theory] // #347 ลากิจ: 3 วัน until a year is worked (365 days counting the first), then 6; a blank START is the legacy 6
+    [InlineData("2026-01-10", "2026-01-09", 3)] // before the start
+    [InlineData("2025-11-04", "2026-11-02", 3)] // one day short of the anniversary (the day before the start date a year on)
+    [InlineData("2025-11-03", "2026-11-02", 6)] // the anniversary
+    [InlineData("2025-11-02", "2026-11-02", 6)]
+    [InlineData("2020-01-01", "2026-11-02", 6)]
+    [InlineData(null, "2026-11-02", 6)]
+    public void Personal_leave_is_three_days_until_a_year_is_worked(string? start, string on, double expected)
+        => Assert.Equal(expected, LeaveQuota.PersonalLimit(start is null ? null : DateOnly.Parse(start, System.Globalization.CultureInfo.InvariantCulture), DateOnly.Parse(on, System.Globalization.CultureInfo.InvariantCulture)));
+
+    [Theory] // #347 พักร้อน by the announcement of 25 มิ.ย. 2562: none, then 6 + 0.5 × (13 − month) in the year of the anniversary, then 6
+    [InlineData("2018-05-18", "2019-05-16", 0)]   // day before the anniversary
+    [InlineData("2018-05-18", "2019-05-17", 10)]  // the announcement's example: 6 + 4
+    [InlineData("2018-05-18", "2019-12-31", 10)]
+    [InlineData("2018-05-18", "2020-01-01", 6)]
+    [InlineData("2024-01-15", "2025-01-14", 12)]  // January starters: 6 + 6
+    [InlineData("2024-12-31", "2025-12-30", 6.5)] // December: 6 + 0.5
+    [InlineData("2026-03-01", "2026-11-02", 0)]
+    [InlineData(null, "2026-11-02", 6)]
+    public void Vacation_entitlement_follows_the_announcement(string? start, string on, double expected)
+        => Assert.Equal(expected, LeaveQuota.VacationEntitlement(start is null ? null : DateOnly.Parse(start, System.Globalization.CultureInfo.InvariantCulture), DateOnly.Parse(on, System.Globalization.CultureInfo.InvariantCulture)));
+
+    [Fact] // #347: the checks use the employee's limits and say them in the message
+    public void The_checks_use_the_limits_of_the_employee()
+    {
+        Assert.Equal(new LeaveQuotaCheck(false, "ไม่สามารถบันทึกได้ เนื่องจากลากิจได้ค่าแรงเกิน 3 วัน"),
+            LeaveQuota.Check("1", true, 1, new Dictionary<string, double> { ["1"] = 2.5 }, "F", true, personalDays: 3));
+        Assert.True(LeaveQuota.Check("1", true, 0.5, new Dictionary<string, double> { ["1"] = 2.5 }, "F", true, personalDays: 3).CanSave); // exactly 3
+        Assert.Equal(new LeaveQuotaCheck(false, "ไม่สามารถบันทึกได้ เนื่องจากลาพักร้อนเกิน 10 วัน"),
+            LeaveQuota.Check("6", true, 1, new Dictionary<string, double> { ["6"] = 9.5 }, "F", true, vacationDays: 10));
+        Assert.True(LeaveQuota.Check("6", true, 0.5, new Dictionary<string, double> { ["6"] = 9.5 }, "F", true, vacationDays: 10).CanSave);
+        Assert.Equal(new LeaveQuotaCheck(false, "ไม่สามารถบันทึกได้ เนื่องจากยังไม่มีพักร้อน"),
+            LeaveQuota.Check("6", true, 1, new Dictionary<string, double>(), "F", true, vacationDays: 0));
+        Assert.Equal(new LeaveQuotaCheck(false, "ไม่สามารถบันทึกได้ เนื่องจากลาพักร้อนเกิน 6.5 วัน"),
+            LeaveQuota.Check("6", true, 1, new Dictionary<string, double> { ["6"] = 6 }, "F", true, vacationDays: 6.5));
+    }
 }

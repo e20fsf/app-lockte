@@ -2,7 +2,7 @@
 @* RPT-32 การลางานของพนักงาน (รายงาน ลางานรายคน, print-samples.md): ระดับ B on A5 นอน — แถบ รหัสพนักงาน ชื่อ-นามสกุล
    เข้าทำงาน ค่าแรง/วัน; (ลำดับ) วัน ตั้งแต่วันที่ ถึงวันที่ เวลา ถึงเวลา วันลา ("0.50 วัน") ประเภท ค่าแรง (ได้/ไม่ได้)
    จ่ายค่าแรง เหตุผล; ท้าย "รวม" Σ วันลา and Σ จ่ายค่าแรง. Rows from LeaveReportDirectory.GetEmployeeReportAsync (BR-064). *@
-<p class="sub">รหัสพนักงาน @Report.EmployeeCode&emsp;ชื่อ-นามสกุล @Report.EmployeeName&emsp;เข้าทำงาน @(Report.StartDate is { } start ? ReportText.Date(start) : "")&emsp;ค่าแรง/วัน @ReportText.Decimal2(Report.DailyWage)</p>
+<p class="sub">รหัสพนักงาน @Report.EmployeeCode&emsp;ชื่อ-นามสกุล @Report.EmployeeName&emsp;เข้าทำงาน @(Report.StartDate is { } start ? ReportText.Date(start) : "")&emsp;ค่าแรง/วัน @ReportText.Wage(Report.DailyWage)</p>
 <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)</p>
 @if (Report.Lines.Count == 0)
 {

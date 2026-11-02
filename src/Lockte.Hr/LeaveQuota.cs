@@ -82,15 +82,37 @@ public static class LeaveQuota
     /// then <paramref name="days"/> + the group's used days ≤ its limit. SR 16 (and any SR not in the legacy Select
     /// Case) shows no message and is saved without a limit (⚠ kept).
     /// </summary>
+    /// <param name="personalDays">#347: ลากิจได้ค่าแรง of the employee on the leave's date (<see cref="PersonalLimit"/>); null = the legacy 6.</param>
+    /// <param name="vacationDays">#347: สิทธิพักร้อน of the year of the leave (<see cref="VacationEntitlement"/>, 0 = none yet); null = hasVacation and the legacy 12.</param>
     public static LeaveQuotaCheck Check(string type, bool paid, double days, IReadOnlyDictionary<string, double> usedPaidDays,
-        string? sex, bool hasVacation)
+        string? sex, bool hasVacation, double? personalDays = null, double? vacationDays = null)
     {
         if (!paid || Unlimited.Contains(type)) return new(true, SaveMessage);
         if (NeverPaid.TryGetValue(type, out var never)) return new(false, never);
         if (Limits.FirstOrDefault(l => l.Types.Contains(type)) is not { } limit) return new(true, null);
-        if (type == "6" && !hasVacation) return new(false, NoVacationMessage);
+        if (type == "6" && !(vacationDays is { } v ? v > 0 : hasVacation)) return new(false, NoVacationMessage);
         if (type == "4" && sex != "F") return new(false, MaleMaternityMessage);
-        return days + limit.Used(usedPaidDays) <= limit.Days ? new(true, SaveMessage) : new(false, limit.OverMessage);
+        var ceiling = limit.Types[0] switch { "1" => personalDays ?? limit.Days, "6" => vacationDays ?? limit.Days, _ => limit.Days };
+        return days + limit.Used(usedPaidDays) <= ceiling ? new(true, SaveMessage) : new(false, limit.OverMessageFor(ceiling));
+    }
+
+    /// <summary>
+    /// ลากิจได้ค่าแรง (#347, answer of 2026-11-02): 3 วัน from the first day, 6 วัน once the employee has worked a year (อายุงาน ≥ 365 วัน as
+    /// on the ใบลา, <see cref="HrDocumentDirectory.PersonalLeaveText"/>); a blank START is the legacy's 6.
+    /// </summary>
+    public static double PersonalLimit(DateOnly? startDate, DateOnly on)
+        => startDate is { } start && on.DayNumber - start.DayNumber + 1 < 365 ? 3 : 6;
+
+    /// <summary>
+    /// สิทธิพักร้อน of the calendar year of <paramref name="on"/> by the announcement of 25 มิ.ย. 2562: none until a year is worked (the day
+    /// before the start date a year on); in the calendar year of that anniversary 6 + 0.5 × (13 − month of START) — the share of the first
+    /// year, once; 6 in every later year. A blank START is entitled to 6 (the legacy, <see cref="HasVacation"/>).
+    /// </summary>
+    public static double VacationEntitlement(DateOnly? startDate, DateOnly on)
+    {
+        if (startDate is not { } start) return VacationPay.Entitlement;
+        if (on.DayNumber - start.DayNumber + 1 < 365) return 0;
+        return on.Year - start.Year > 1 ? VacationPay.Entitlement : VacationPay.Entitlement + 0.5 * (13 - start.Month);
     }
 
     /// <summary>อายุงาน ≥ 365 วัน (คิวรี สรุปการลา00): DateDiff("d", START, Date()) ≥ 365; a blank START counts as YES (⚠ kept).</summary>
@@ -101,5 +123,9 @@ public static class LeaveQuota
 /// <summary>One limit of BR-020: the days of <see cref="Types"/> ได้ค่าแรง together may reach <see cref="Days"/>.</summary>
 public sealed record LeaveQuotaRule(string Name, IReadOnlyList<string> Types, double Days, string OverMessage)
 {
+    /// <summary>The message with the ceiling of this employee in place of the rule's own days (3 / 6 ลากิจ, the สิทธิพักร้อน of the year).</summary>
+    public string OverMessageFor(double ceiling)
+        => ceiling == Days ? OverMessage : OverMessage.Replace($"{Days:0.#} วัน", $"{ceiling:0.#} วัน");
+
     public double Used(IReadOnlyDictionary<string, double> usedPaidDays) => Types.Sum(t => usedPaidDays.GetValueOrDefault(t));
 }

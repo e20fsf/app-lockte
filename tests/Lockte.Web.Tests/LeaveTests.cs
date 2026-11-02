@@ -190,7 +190,8 @@ public sealed class LeaveTests(LocalDbFixture db)
         await AddAsync(Leave(employee, Day(9, 2), 0.375, "2", true) with { DailyWage = 333.5 });
         await AddAsync(Leave(employee, Day(9, 3), 1, "8", false));
 
-        Assert.Equal([(400.0, 200.0), (333.5, 0.375 * 333.5), (400.0, 0.0)], (await ListAsync(employee)).Select(r => (r.DailyWage, r.Pay)));
+        // #354: a typed 333.5 is whole baht 334 before PAY = 0.375 × 334 is worked out
+        Assert.Equal([(400.0, 200.0), (334.0, 0.375 * 334), (400.0, 0.0)], (await ListAsync(employee)).Select(r => (r.DailyWage, r.Pay)));
     }
 
     [Fact] // BR-021 ⚠ kept: ลางานได้ค่าแรง only sets rows whose PAY = 0, so a later edit keeps the first PAY
@@ -268,11 +269,11 @@ public sealed class LeaveTests(LocalDbFixture db)
         Assert.Equal(new Dictionary<string, double> { ["1"] = 1.5, ["5"] = 1, ["2"] = 2 }, summary.PaidDaysByType.ToDictionary());
         Assert.Equal((4.5, 4.5 * 500), (summary.PaidDays, summary.PaidPay));
         Assert.Equal(
-            [("ลากิจ", 1.5, 6.0, (string?)null), ("ลาป่วย", 2, 30, null), ("ลาพักร้อน", 0, 12, "ยังไม่มีพักร้อน"),
+            [("ลากิจ", 1.5, 3.0, (string?)null), ("ลาป่วย", 2, 30, null), ("ลาพักร้อน", 0, 0, "ยังไม่มีพักร้อน"), // 100 days of work: ลากิจ 3, no พักร้อน yet (#347)
              ("ลาคลอด", 0, 60, "เพศชายลาคลอดไม่ได้"), ("ลาเพื่อระดมพล", 0, 60, null),
              ("ลาคลอดบุตรกรณีพิเศษ", 0, 15, null), ("ลาช่วยเหลือคู่สมรสคลอดบุตร", 0, 15, null)],
             summary.Quotas.Select(q => (q.Name, q.Used, q.Limit, q.Note)));
-        Assert.Equal(4.5, summary.Quotas[0].Left);
+        Assert.Equal(1.5, summary.Quotas[0].Left);
     }
 
     [Fact] // BR-022 (SCR-31): ลบการลาของพนักงานที่ FROM_D อยู่ในช่วง DATE_F–DATE_T
