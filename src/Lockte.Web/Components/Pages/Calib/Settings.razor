@@ -1,0 +1,105 @@
+@page "/calib/settings"
+@attribute [Authorize]
+@using Lockte.Calib
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@using Lockte.Web.Reports.Calib
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* ตั้งค่าสอบเทียบ (#202): what the legacy reports had typed in — the months of the plan (Q-03), its responsible and checking parties, the notes about the friction tester, and the size of a
+   sticker (Q-14). Until saved the values of the legacy print samples apply. *@
+<PageTitle>ตั้งค่าสอบเทียบ — LOCKTE</PageTitle>
+<h1 class="mb-4">ตั้งค่าสอบเทียบ</h1>
+
+@if (form is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
+        <MudText Typo="Typo.h6">แผนการสอบเทียบ (RPT-01)</MudText>
+        <MudStack Row="true" Spacing="2" Class="mt-2" Wrap="Wrap.Wrap">
+            <MudSelect T="int" @bind-Value="form.ExternalMonth" Label="เดือนสอบเทียบภายนอก" Style="max-width:14rem">
+                @foreach (var (month, name) in Months){<MudSelectItem T="int" Value="month">@name</MudSelectItem>}
+            </MudSelect>
+            <MudSelect T="int" @bind-Value="form.InternalMonth" Label="เดือนสอบเทียบภายใน" Style="max-width:14rem">
+                @foreach (var (month, name) in Months){<MudSelectItem T="int" Value="month">@name</MudSelectItem>}
+            </MudSelect>
+            <MudTextField @bind-Value="form.Responsible" Label="ผู้รับผิดชอบ" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.Reviewer" Label="ผู้ตรวจสอบ" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+        </MudStack>
+        <MudTextField @bind-Value="form.PlanNote" Label="หมายเหตุท้ายแผนการสอบเทียบ" Lines="3" MaxLength="CalibSettingsRegistry.NoteLength" Class="mt-2" />
+    </MudPaper>
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
+        <MudText Typo="Typo.h6">บัญชีรายชื่อเครื่องมือวัด สอบเทียบภายนอก (RPT-02)</MudText>
+        <MudTextField @bind-Value="form.ExternalNote" Label="หมายเหตุท้ายบัญชี" Lines="3" MaxLength="CalibSettingsRegistry.NoteLength" Class="mt-2" />
+    </MudPaper>
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
+        <MudText Typo="Typo.h6">สติกเกอร์ (RPT-04)</MudText>
+        <MudStack Row="true" Spacing="2" Class="mt-2">
+            <MudNumericField T="decimal" @bind-Value="form.StickerWidthCm" Label="กว้าง (ซม.)" Min="0.5m" Max="21m" Style="max-width:10rem" />
+            <MudNumericField T="decimal" @bind-Value="form.StickerHeightCm" Label="สูง (ซม.)" Min="0.5m" Max="29.7m" Style="max-width:10rem" />
+        </MudStack>
+    </MudPaper>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+}
+
+<MudButton Href="@CalibMenu.HrefOf(ProgramMenu.Main)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private static readonly (int, string)[] Months =
+        PlanReport.MonthNames.Select((name, i) => (i + 1, name)).ToArray();
+
+    private Form? form;
+    private byte[]? rowVersion;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var s = await Services.RunAsync<CalibSettingsDirectory, CalibSettingsDto>(d => d.GetAsync());
+        rowVersion = s.RowVersion;
+        form = new Form
+        {
+            StickerWidthCm = s.StickerWidthCm, StickerHeightCm = s.StickerHeightCm, ExternalMonth = s.PlanExternalMonth, InternalMonth = s.PlanInternalMonth,
+            Responsible = s.PlanResponsible, Reviewer = s.PlanReviewer, PlanNote = s.PlanNote, ExternalNote = s.ExternalRegisterNote,
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var f = form!;
+            var input = new CalibSettingsInput(f.StickerWidthCm, f.StickerHeightCm, rowVersion, f.ExternalMonth, f.InternalMonth, f.Responsible ?? "", f.Reviewer ?? "", f.PlanNote ?? "", f.ExternalNote ?? "");
+            var result = await Services.RunAsync<CalibSettingsRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add("บันทึกแล้ว", Severity.Success);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await LoadAsync();
+        }
+    }
+
+    private sealed class Form
+    {
+        public decimal StickerWidthCm { get; set; }
+        public decimal StickerHeightCm { get; set; }
+        public int ExternalMonth { get; set; }
+        public int InternalMonth { get; set; }
+        public string? Responsible { get; set; }
+        public string? Reviewer { get; set; }
+        public string? PlanNote { get; set; }
+        public string? ExternalNote { get; set; }
+    }
+}

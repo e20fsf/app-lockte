@@ -39,6 +39,50 @@ namespace Lockte.Calib.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<string>("ExternalRegisterNote")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasDefaultValue("เครื่องทดสอบแรงเสียดทาน สอบเทียบที่โรงงาน มีรายละเอียดดังนี้ 1.ความเร็วรอบมอเตอร์ 500 rpm 2.ตัวควบคุมอุณหภูมิ (temp control) 100,150,200,250 3. แรงกด 125 Kgs.")
+                        .HasAnnotation("Lockte:AuditName", "หมายเหตุท้ายบัญชีสอบเทียบภายนอก");
+
+                    b.Property<int>("PlanExternalMonth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(7)
+                        .HasAnnotation("Lockte:AuditName", "เดือนสอบเทียบภายนอก (แผน)");
+
+                    b.Property<int>("PlanInternalMonth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(8)
+                        .HasAnnotation("Lockte:AuditName", "เดือนสอบเทียบภายใน (แผน)");
+
+                    b.Property<string>("PlanNote")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasDefaultValue("เครื่องทดสอบแรงเสียดทาน สอบเทียบที่โรงงาน มีรายละเอียดดังนี้ 1.ความเร็วรอบมอเตอร์ 500 rpm 2.ตัวควบคุมอุณหภูมิ (temp control) 100,150,200,250,300,350 3. แรงกด 125 Kgs.")
+                        .HasAnnotation("Lockte:AuditName", "หมายเหตุท้ายแผนการสอบเทียบ");
+
+                    b.Property<string>("PlanResponsible")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("QA")
+                        .HasAnnotation("Lockte:AuditName", "ผู้รับผิดชอบ (แผน)");
+
+                    b.Property<string>("PlanReviewer")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("QMR")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ตรวจสอบ (แผน)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()

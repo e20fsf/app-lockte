@@ -28,6 +28,12 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             s.ToTable("Settings");
             s.Property(x => x.StickerWidthCm).HasPrecision(5, 2).HasAuditName("ความกว้างสติกเกอร์ (ซม.)");
             s.Property(x => x.StickerHeightCm).HasPrecision(5, 2).HasAuditName("ความสูงสติกเกอร์ (ซม.)");
+            s.Property(x => x.PlanExternalMonth).HasDefaultValue(CalibSettingsDefaults.PlanExternalMonth).HasAuditName("เดือนสอบเทียบภายนอก (แผน)");
+            s.Property(x => x.PlanInternalMonth).HasDefaultValue(CalibSettingsDefaults.PlanInternalMonth).HasAuditName("เดือนสอบเทียบภายใน (แผน)");
+            s.Property(x => x.PlanResponsible).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.PlanResponsible).HasAuditName("ผู้รับผิดชอบ (แผน)");
+            s.Property(x => x.PlanReviewer).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.PlanReviewer).HasAuditName("ผู้ตรวจสอบ (แผน)");
+            s.Property(x => x.PlanNote).HasMaxLength(CalibSettingsRegistry.NoteLength).HasDefaultValue(CalibSettingsDefaults.PlanNote).HasAuditName("หมายเหตุท้ายแผนการสอบเทียบ");
+            s.Property(x => x.ExternalRegisterNote).HasMaxLength(CalibSettingsRegistry.NoteLength).HasDefaultValue(CalibSettingsDefaults.ExternalRegisterNote).HasAuditName("หมายเหตุท้ายบัญชีสอบเทียบภายนอก");
         });
 
         modelBuilder.Entity<Instrument>(i =>
