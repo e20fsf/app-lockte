@@ -5,9 +5,6 @@ using Lockte.Web.Accounts;
 
 namespace Lockte.Web.Reports.Cash;
 
-/// <summary>One line of RPT-09: a line of a receipt with the date, number and buyer of its receipt.</summary>
-public sealed record ScrapSaleRow(DateOnly Date, string No, int Seq, string ItemName, decimal Qty, string? Unit, decimal UnitPrice, decimal Amount, string BuyerName);
-
 /// <summary>RPT-09: the lines sold in a range of dates, with the sum and the number of lines.</summary>
 public sealed record ScrapSalesReport(DateOnly From, DateOnly To, IReadOnlyList<ScrapSaleRow> Rows)
 {
@@ -27,9 +24,7 @@ public static class ScrapSalesReports
 
     /// <summary>The lines of the receipts dated in the range, cancelled ones not counted, in the order of the print.</summary>
     public static ScrapSalesReport Build(DateOnly from, DateOnly to, IEnumerable<ScrapReceiptDto> receipts)
-        => new(from, to, from > to ? [] : receipts.Where(r => !r.IsCancelled && r.Date >= from && r.Date <= to)
-            .OrderBy(r => r.Date).ThenBy(r => ScrapReceiptMath.SortKey(r.No))
-            .SelectMany(r => r.Lines.OrderBy(l => l.Seq).Select(l => new ScrapSaleRow(r.Date, r.No, l.Seq, l.ItemName, l.Qty, l.Unit, l.UnitPrice, l.Amount, r.BuyerName))).ToList());
+        => new(from, to, CashReportRows.Sales(from, to, receipts));
 
     /// <summary>The month of ถึงวันที่ with its Buddhist year (<c>กันยายน 2569</c>).</summary>
     public static string MonthOf(DateOnly to) => to.ToString("MMMM yyyy", ThaiDate.Culture);
