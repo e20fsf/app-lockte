@@ -13,6 +13,15 @@ public sealed record DepartmentLeaveReport(DateOnly From, DateOnly To, string? D
     /// <summary>The 16 columns, in the order of T-ประเภทการลางาน.</summary>
     public static IReadOnlyList<string> Types => LeaveTypes.Codes;
 
+    /// <summary>
+    /// ทุกแผนก (#355): the lines in groups by แผนก (by name), for the per-แผนก totals above the รวมทั้งหมด of the company; one group when the
+    /// report is of a single แผนก or the lines have no แผนก.
+    /// </summary>
+    public IReadOnlyList<IGrouping<string?, DepartmentLeaveLine>> ByDepartment
+        => DepartmentName is null && Lines.Any(l => l.DepartmentName is not null)
+            ? [.. Lines.GroupBy(l => l.DepartmentName).OrderBy(g => g.Key, StringComparer.Ordinal)]
+            : [];
+
     /// <summary>Σ of one SR over the lines.</summary>
     public double TotalOf(string type) => Lines.Sum(l => l.DaysOf(type));
 
@@ -20,11 +29,16 @@ public sealed record DepartmentLeaveReport(DateOnly From, DateOnly To, string? D
     public double Total => Lines.Sum(l => l.Total);
 
     /// <summary>คิดเป็นเปอร์เซ็นต์: Σ / EMP_QTY / DATE_QTY × 100; null without จำนวนวันทำงาน or คน.</summary>
-    public double? Percent(double days) => WorkDays is > 0 && Employees > 0 ? days / Employees / WorkDays.Value * 100 : null;
+    public double? Percent(double days) => PercentOf(days, Employees);
+
+    /// <summary>The same share for <paramref name="employees"/> people — the headcount of one แผนก in the report of ทุกแผนก (#355).</summary>
+    public double? PercentOf(double days, int employees) => WorkDays is > 0 && employees > 0 ? days / employees / WorkDays.Value * 100 : null;
 }
 
 /// <summary>A line of RPT-31: รหัส ชื่อ-นามสกุล เริ่มทำงาน, วันลา by SR (0 when none) and รวม = SR 1–15 (Expr1, not 16).</summary>
-public sealed record DepartmentLeaveLine(string EmployeeCode, string EmployeeName, DateOnly? StartDate, IReadOnlyDictionary<string, double> Days)
+/// <param name="DepartmentName">The employee's แผนก (#355): the report of ทุกแผนก is grouped and totalled by it.</param>
+public sealed record DepartmentLeaveLine(string EmployeeCode, string EmployeeName, DateOnly? StartDate, IReadOnlyDictionary<string, double> Days,
+    string? DepartmentName = null)
 {
     public double DaysOf(string type) => Days.GetValueOrDefault(type);
 

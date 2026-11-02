@@ -35,23 +35,65 @@ else
             </tr>
         </thead>
         <tbody>
-            @for (var i = 0; i < Report.Lines.Count; i++)
+            @{ var number = 0; }
+            @if (Report.ByDepartment.Count == 0)
             {
-                var line = Report.Lines[i];
-                <tr>
-                    <td class="num">@(i + 1)</td>
-                    <td>@line.EmployeeCode</td>
-                    <td>@line.EmployeeName</td>
-                    <td class="num">@(line.StartDate is { } start ? ReportText.Date(start) : "")</td>
-                    @foreach (var type in DepartmentLeaveReport.Types)
+                @foreach (var line in Report.Lines)
+                {
+                    <tr>
+                        <td class="num">@(++number)</td>
+                        <td>@line.EmployeeCode</td>
+                        <td>@line.EmployeeName</td>
+                        <td class="num">@(line.StartDate is { } start ? ReportText.Date(start) : "")</td>
+                        @foreach (var type in DepartmentLeaveReport.Types)
+                        {
+                            <td class="num">@ReportText.Decimal1(line.DaysOf(type))</td>
+                        }
+                        <td class="num">@ReportText.Decimal1(line.Total)</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                @* #355 ทุกแผนก: each แผนก with its own รวม and เปอร์เซ็นต์, then the รวมทั้งหมด of every แผนก below *@
+                @foreach (var group in Report.ByDepartment)
+                {
+                    var members = group.ToList();
+                    <tr><td colspan="@(5 + DepartmentLeaveReport.Types.Count)"><b>แผนก@(group.Key)</b></td></tr>
+                    @foreach (var line in members)
                     {
-                        <td class="num">@ReportText.Decimal1(line.DaysOf(type))</td>
+                        <tr>
+                            <td class="num">@(++number)</td>
+                            <td>@line.EmployeeCode</td>
+                            <td>@line.EmployeeName</td>
+                            <td class="num">@(line.StartDate is { } start ? ReportText.Date(start) : "")</td>
+                            @foreach (var type in DepartmentLeaveReport.Types)
+                            {
+                                <td class="num">@ReportText.Decimal1(line.DaysOf(type))</td>
+                            }
+                            <td class="num">@ReportText.Decimal1(line.Total)</td>
+                        </tr>
                     }
-                    <td class="num">@ReportText.Decimal1(line.Total)</td>
-                </tr>
+                    <tr>
+                        <td colspan="4"><b>รวมแผนก@(group.Key)</b>&emsp;@members.Count&ensp;<b>คน</b></td>
+                        @foreach (var type in DepartmentLeaveReport.Types)
+                        {
+                            <td class="num">@ReportText.Decimal1(members.Sum(l => l.DaysOf(type)))</td>
+                        }
+                        <td class="num">@ReportText.Decimal1(members.Sum(l => l.Total))</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4"><b>คิดเป็นเปอร์เซ็นต์</b></td>
+                        @foreach (var type in DepartmentLeaveReport.Types)
+                        {
+                            <td class="num">@ReportText.Percent(Report.PercentOf(members.Sum(l => l.DaysOf(type)), members.Count))</td>
+                        }
+                        <td class="num">@ReportText.Percent(Report.PercentOf(members.Sum(l => l.Total), members.Count))</td>
+                    </tr>
+                }
             }
             <tr>
-                <td colspan="4"><b>รวมทั้งหมด</b>&emsp;@Report.Employees&ensp;<b>คน</b></td>
+                <td colspan="4"><b>@(Report.ByDepartment.Count == 0 ? "รวมทั้งหมด" : "รวมทั้งหมดทุกแผนก")</b>&emsp;@Report.Employees&ensp;<b>คน</b></td>
                 @foreach (var type in DepartmentLeaveReport.Types)
                 {
                     <td class="num">@ReportText.Decimal1(Report.TotalOf(type))</td>

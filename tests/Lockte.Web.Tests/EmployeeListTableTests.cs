@@ -123,3 +123,76 @@ public sealed class EmployeeRegisterTableTests
         Assert.Contains("<t xml:space=\"preserve\">1/1/2569</t>", sheet);
     }
 }
+
+/// <summary>#355 รายงานการลางานแผนก: ทุกแผนก has each แผนก's รวม and the รวมทั้งหมด of the company, and the same rows as Excel.</summary>
+public sealed class DepartmentLeaveAllTests
+{
+    private static readonly DateOnly From = new(2026, 11, 1);
+    private static readonly DateOnly To = new(2026, 11, 30);
+
+    private static DepartmentLeaveReport All(int? workDays = 20) => new(From, To, null, 3, workDays,
+    [
+        new("A001", "นาย ก", new(2020, 1, 1), new Dictionary<string, double> { ["1"] = 2, ["2"] = 1 }, "ประกอบ"),
+        new("A002", "นาย ข", null, new Dictionary<string, double> { ["1"] = 1 }, "ตกแต่ง"),
+        new("A003", "นาย ค", null, new Dictionary<string, double> { ["2"] = 0.5 }, "ประกอบ"),
+    ]);
+
+    private static string Sheet(SummaryTable table)
+    {
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(XlsxWriter.Write(table)));
+        return new StreamReader(zip.GetEntry("xl/worksheets/sheet1.xml")!.Open()).ReadToEnd();
+    }
+
+    [Fact]
+    public void The_groups_are_by_department_name_and_a_single_department_has_none()
+    {
+        Assert.Equal(["ตกแต่ง", "ประกอบ"], All().ByDepartment.Select(g => g.Key));
+        Assert.Empty(All() with { DepartmentName = "ประกอบ" } is var one ? one.ByDepartment : []);
+        Assert.Equal(1.0 / 2 / 20 * 100, All().PercentOf(1, 2));
+    }
+
+    [Fact]
+    public async Task The_report_prints_each_department_total_and_the_total_of_all()
+    {
+        var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<DepartmentLeaveReportView>(new() { ["Report"] = All() }));
+
+        Assert.Contains("รวมแผนกประกอบ", html);
+        Assert.Contains("รวมแผนกตกแต่ง", html);
+        Assert.Contains("รวมทั้งหมดทุกแผนก", html);
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(html, "คิดเป็นเปอร์เซ็นต์").Count); // two แผนก and the company
+        Assert.Contains(">3.0<", html); // company: SR1 = 2 + 1
+    }
+
+    [Fact] // a single แผนก keeps the legacy form: one รวมทั้งหมด
+    public async Task A_single_department_keeps_one_total()
+    {
+        var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<DepartmentLeaveReportView>(new() { ["Report"] = All() with { DepartmentName = "ประกอบ" } }));
+
+        Assert.DoesNotContain("รวมทั้งหมดทุกแผนก", html);
+        Assert.DoesNotContain("รวมแผนก", html);
+        Assert.Contains("รวมทั้งหมด", html);
+    }
+
+    [Fact] // Excel = the report: department groups, the same days, the grand total
+    public void The_excel_is_the_report()
+    {
+        var table = DepartmentLeaveTable.Build(All());
+        var sheet = Sheet(table);
+
+        Assert.Equal(5 + 16 + 1, table.Columns.Count);
+        Assert.Contains("รวมแผนกประกอบ 2 คน", sheet);
+        Assert.Contains("รวมทั้งหมดทุกแผนก 3 คน", sheet);
+        Assert.Contains("<v>3</v>", sheet); // SR 1 of the company
+        Assert.Contains("<v>4.5</v>", sheet); // รวม of the company: 2 + 1 + 1 + 0.5
+        Assert.Equal("รวมทั้งหมดทุกแผนก 3 คน", table.Rows[^1][1]);
+    }
+
+    [Fact] // no จำนวนวันทำงาน: no percent rows, the total row is last
+    public void Without_work_days_there_are_no_percents()
+    {
+        var table = DepartmentLeaveTable.Build(All(workDays: null));
+
+        Assert.DoesNotContain(table.Rows, r => Equals(r[1], "คิดเป็นเปอร์เซ็นต์"));
+        Assert.Equal("รวมทั้งหมดทุกแผนก 3 คน", table.TotalRow![1]);
+    }
+}

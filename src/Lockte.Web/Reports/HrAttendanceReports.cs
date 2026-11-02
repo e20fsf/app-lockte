@@ -24,12 +24,15 @@ public static class HrAttendanceReports
                 "ใบเตือน " + Iso(report.From), cancellationToken);
         });
 
-        // RPT-31 รายงานการลางานแผนก (เมนู 17): ?department= one แผนก (none = ทุกแผนก), ?employees= จำนวนคน, ?workDays= จำนวนวันทำงาน
-        reports.MapGet("/hr/leave/department", async (DateOnly? from, DateOnly? to, int? department, int? employees, int? workDays,
+        // RPT-31 รายงานการลางานแผนก (เมนู 17; ?format=xlsx = Excel): ?department= one แผนก (none = ทุกแผนก), ?employees= จำนวนคน, ?workDays= จำนวนวันทำงาน
+        reports.MapGet("/hr/leave/department", async (DateOnly? from, DateOnly? to, int? department, int? employees, int? workDays, string? format,
             HttpContext http, LeaveReportDirectory leave, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (Range(from, to) is { } bad) return bad;
             var report = await leave.GetDepartmentReportAsync(from!.Value, to!.Value, department, employees, workDays);
+            if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase)) // #355: the same rows as a sheet
+                return Results.File(Order.XlsxWriter.Write(DepartmentLeaveTable.Build(report)), Order.XlsxWriter.ContentType,
+                    DepartmentLeaveReportView.TitleOf(report) + ".xlsx");
             return await PrintAsync<DepartmentLeaveReportView>(http, printer, DepartmentLeaveReportView.TitleOf(report), Paper.A4Landscape, report,
                 "ลางานแผนก " + (report.DepartmentName ?? "ทั้งหมด") + " " + Iso(report.From), cancellationToken);
         });

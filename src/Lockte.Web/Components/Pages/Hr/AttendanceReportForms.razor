@@ -78,6 +78,8 @@
         @if (Kind == "leave-department")
         {
             <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/leave/list")" Target="_blank" Disabled="@(Problem is not null)">พิมพ์ลางานตามวันที่</MudButton>
+            <MudButton Variant="Variant.Outlined" Href="@(Problem is null ? PdfUrl() + "&format=xlsx" : "")" Disabled="@(Problem is not null)"
+                       StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel</MudButton>
         }
     </MudStack>
 </MudPaper>

@@ -26,7 +26,8 @@ public sealed class LeaveReportDirectory(HrDbContext db, OrgDirectory org)
     /// <param name="employees">จำนวนคน typed on the form; null = the แผนก's working employees (DEP_AfterUpdate).</param>
     public async Task<DepartmentLeaveReport> GetDepartmentReportAsync(DateOnly from, DateOnly to, int? departmentId, int? employees, int? workDays)
     {
-        var people = await Working(departmentId).Select(e => new { e.Id, e.Code, e.Name, e.StartDate }).ToListAsync();
+        var people = await Working(departmentId).Select(e => new { e.Id, e.Code, e.Name, e.StartDate, e.DepartmentId }).ToListAsync();
+        var departmentNames = await DepartmentNamesAsync();
         var leaves = await Within(from, to).Where(l => l.Employee.ResignDate == null && l.Employee.DepartmentId != null
                 && (departmentId == null || l.Employee.DepartmentId == departmentId))
             .GroupBy(l => new { l.EmployeeId, l.Type })
@@ -35,7 +36,8 @@ public sealed class LeaveReportDirectory(HrDbContext db, OrgDirectory org)
         var byEmployee = leaves.ToLookup(l => l.EmployeeId);
         var lines = people.OrderBy(p => p.Code, StringComparer.Ordinal)
             .Select(p => new DepartmentLeaveLine(p.Code, p.Name, p.StartDate,
-                byEmployee[p.Id].Where(l => LeaveTypes.Names.ContainsKey(l.Type)).ToDictionary(l => l.Type, l => l.Days)))
+                byEmployee[p.Id].Where(l => LeaveTypes.Names.ContainsKey(l.Type)).ToDictionary(l => l.Type, l => l.Days),
+                p.DepartmentId is { } d ? departmentNames.GetValueOrDefault(d) : null))
             .ToList();
         return new DepartmentLeaveReport(from, to, await DepartmentNameAsync(departmentId), employees ?? people.Count, workDays, lines);
     }
