@@ -1,0 +1,122 @@
+@page "/cash/expenses/edit"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject IJSRuntime Js
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+@* แก้ไข/ลบบันทึกค่าใช้จ่ายเงินสดย่อย (SCR-04, BR-004): ระบุวันที่ → every line of that day, each editable by the rules of SCR-03; รวม = the sum of the amounts shown. A line is deleted with the
+   ปุ่มลบ and a confirmation — not by setting the quantity to 0 or clearing the name and leaving the screen, which deleted without a word (Q-10). The tick (the legacy "พิมพ์" = Y) marks the
+   lines for the voucher (#234); it is kept while the screen is open, so lines of several days can be ticked by changing the date. *@
+<PageTitle>แก้ไข ลบบันทึกค่าใช้จ่ายเงินสดย่อย — LOCKTE</PageTitle>
+<h1 class="mb-4">แก้ไข ลบบันทึกค่าใช้จ่ายเงินสดย่อยและพิมพ์ใบสำคัญจ่ายเงิน</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudDatePicker Editable="true" Date="date" DateChanged="OnDateAsync" Label="ระบุวันที่ที่ต้องการแก้ไข" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:20rem" />
+</MudPaper>
+
+@if (date is not null)
+{
+    @if (editing is not null)
+    {
+        <ExpenseLineEditor Date="editing.Date" Line="editing" Types="types" Suggestions="suggestions" AllowDelete="true" OnSaved="ReloadAsync" OnCleared="ClearEditing" />
+    }
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">บรรทัดของวันที่ @ThaiDate.Format(DateOnly.FromDateTime(date.Value))</MudText>
+        <MudTable Items="lines" Dense="true" Hover="true" Loading="lines is null" T="ExpenseLineDto" Breakpoint="Breakpoint.None">
+            <HeaderContent><MudTh>พิมพ์</MudTh><MudTh>เลขที่</MudTh><MudTh>รายการ</MudTh><MudTh Style="text-align:right">จำนวน</MudTh><MudTh>หน่วย</MudTh><MudTh Style="text-align:right">ราคา</MudTh><MudTh Style="text-align:right">จำนวนเงิน</MudTh><MudTh>ประเภท</MudTh><MudTh></MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd><MudCheckBox T="bool" Value="@selected.Contains(context.Id)" ValueChanged="@((bool on) => Tick(context.Id, on))" Dense="true" /></MudTd>
+                <MudTd>@context.VoucherNo</MudTd>
+                <MudTd>@context.Name</MudTd>
+                <MudTd Style="text-align:right">@context.Qty.ToString("0.###")</MudTd>
+                <MudTd>@context.Unit</MudTd>
+                <MudTd Style="text-align:right">@context.UnitPrice.ToString("N2")</MudTd>
+                <MudTd Style="text-align:right">@context.Amount.ToString("N2")</MudTd>
+                <MudTd>@context.ExpenseTypeName</MudTd>
+                <MudTd><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => editing = context)" aria-label="แก้ไข" /></MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTd colspan="6" Style="text-align:right"><b>รวม</b></MudTd>
+                <MudTd Style="text-align:right"><b>@ExpenseLineMath.Total(lines ?? []).ToString("N2")</b></MudTd>
+                <MudTd colspan="2"></MudTd>
+            </FooterContent>
+            <NoRecordsContent><MudText>ไม่มีบรรทัดของวันนี้</MudText></NoRecordsContent>
+        </MudTable>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-3" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrintAsync" StartIcon="@Icons.Material.Filled.Print">พิมพ์ใบสำคัญจ่าย</MudButton>
+            <MudText>@(selected.Count > 0 ? $"เลือกไว้ {selected.Count} บรรทัด" : "ติ๊กช่อง \"พิมพ์\" ของบรรทัดที่จะออกใบสำคัญจ่าย")</MudText>
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@CashMenu.HrefOf(ProgramMenu.Main)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? date = DateTime.Today;
+    private IReadOnlyList<ExpenseTypeDto> types = [];
+    private IReadOnlyList<ExpenseItemSuggestion> suggestions = [];
+    private IReadOnlyList<ExpenseLineDto>? lines;
+    private ExpenseLineDto? editing;
+    private readonly HashSet<int> selected = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        types = await Services.RunAsync<ExpenseTypeDirectory, IReadOnlyList<ExpenseTypeDto>>(d => d.ListActiveAsync());
+        await ReloadAsync();
+    }
+
+    private async Task OnDateAsync(DateTime? value)
+    {
+        date = value;
+        await ReloadAsync();
+    }
+
+    private void ClearEditing() => editing = null;
+
+    /// <summary>
+    /// พิมพ์ใบสำคัญจ่าย (RPT-01): the ticked lines, from every day ticked, as one voucher in a new tab. Nothing ticked is told, not printed as a blank voucher; lines of more than one
+    /// (date, number) are printed too, with the head of the first, after a warning (assumption ข, AC-21).
+    /// </summary>
+    private async Task PrintAsync()
+    {
+        if (selected.Count == 0)
+        {
+            Snackbar.Add("กรุณาติ๊กเลือกบรรทัดที่จะพิมพ์ใบสำคัญจ่ายก่อน", Severity.Warning);
+            return;
+        }
+        var ids = selected.ToList();
+        var chosen = await Services.RunAsync<ExpenseLineDirectory, IReadOnlyList<ExpenseLineDto>>(d => d.GetManyAsync(ids));
+        if (chosen.Count == 0)
+        {
+            Snackbar.Add("ไม่พบบรรทัดที่เลือก (อาจถูกลบไปแล้ว)", Severity.Warning);
+            return;
+        }
+        if (Lockte.Web.Reports.Cash.PaymentVoucherForm.MixesVouchers(chosen))
+        {
+            var go = await Dialogs.ShowMessageBoxAsync("เลือกบรรทัดจากหลายเลขที่หรือหลายวันที่",
+                $"บรรทัดที่เลือกมีหลายเลขที่/วันที่ ใบสำคัญจ่ายจะออกเป็นใบเดียว หัวใบใช้เลขที่ {chosen[0].VoucherNo} วันที่ {ThaiDate.Format(chosen[0].Date)} ของบรรทัดแรก — พิมพ์ต่อหรือไม่?",
+                yesText: "พิมพ์", cancelText: "กลับไปเลือกใหม่");
+            if (go != true) return;
+        }
+        await Js.InvokeVoidAsync("open", "reports/cash/voucher?ids=" + string.Join(",", chosen.Select(c => c.Id)), "_blank");
+    }
+
+    private void Tick(int id, bool on)
+    {
+        if (on) selected.Add(id);
+        else selected.Remove(id);
+    }
+
+    private async Task ReloadAsync()
+    {
+        editing = null;
+        suggestions = await Services.RunAsync<ExpenseLineDirectory, IReadOnlyList<ExpenseItemSuggestion>>(d => d.SuggestionsAsync());
+        if (date is not { } d) { lines = []; return; }
+        var day = DateOnly.FromDateTime(d);
+        lines = await Services.RunAsync<ExpenseLineDirectory, IReadOnlyList<ExpenseLineDto>>(x => x.ListByDateAsync(day));
+    }
+}

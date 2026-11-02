@@ -64,7 +64,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
           --program purch-history = ย้ายประวัติของ วัตถุดิบ.accdb (ผลประเมินผู้ขาย) หลัง purch-master บนฐานข้อมูลเดียวกัน; จับคู่ชื่อผู้ขาย→รหัสด้วยชื่อ หรือ kind supplier-name ในตารางจับคู่ (ตารางนี้มีชื่อจริง เก็บนอก git)
           --program calib = ย้ายข้อมูลหลักของ สอบเทียบ.accdb: เครื่องมือวัด 6 ชนิดและบริษัทที่สอบเทียบ (--map ใช้ kind calib-department, calibrator, calib-date; ไฟล์จับคู่ผู้สอบเทียบเก็บนอก git) · --jig-images <โฟลเดอร์จาก tools/calib-jig-images> โหลดรูป JIG ต่อท้าย
         Lockte.Migration --program cash --source <เงินสดย่อย.accdb> --connection "<SQL Server connection string>" --confirm <database> --out <folder> [--map <code-map.csv>]
-          ย้ายข้อมูลหลักของ เงินสดย่อย.accdb: ประเภทค่าใช้จ่าย (ชื่อที่บรรทัดค่าใช้จ่ายใช้แต่ทะเบียนไม่มี → ประเภทเลิกใช้), ผู้ซื้อของเก่า, ชนิดของเก่า · --map ใช้ kind cash-expense-type เพื่อรวมชื่อที่สะกดต่าง (ไฟล์จับคู่มีชื่อจริง เก็บนอก git) · ลบแล้วโหลดใหม่ รันซ้ำได้
+          ย้ายเงินสดย่อย.accdb: ประเภทค่าใช้จ่าย (ชื่อที่บรรทัดค่าใช้จ่ายใช้แต่ทะเบียนไม่มี → ประเภทเลิกใช้), ผู้ซื้อของเก่า, ชนิดของเก่า, แล้วบรรทัดค่าใช้จ่าย (ซื้อของเงินสด ทุกแถว เก็บจำนวนเงินตามต้นทาง) · --map ใช้ kind cash-expense-type เพื่อรวมชื่อที่สะกดต่าง (ไฟล์จับคู่มีชื่อจริง เก็บนอก git) · ลบแล้วโหลดใหม่ รันซ้ำได้
         Lockte.Migration --program compare-calib --baseline <folder ของ tools/baseline/export_calib_baseline.py> --connection "<SQL Server connection string>" --out <folder>
           เทียบเครื่องมือวัดที่ย้ายแล้วกับบัญชีรายชื่อ (RPT-02) ของ Access ทีละแถว + ด่าน AC-01…14 (อ่านอย่างเดียว) → calib-compare.csv, calib-gate.csv, calib-summary.md (ข้อมูลจริง ห้าม commit)
           --program purch-master = ย้ายข้อมูลหลักของ วัตถุดิบ.accdb: ผู้ขาย วัตถุดิบ ตัวเลือก และ prefix เลขที่ใบขอซื้อของแผนก (รันหลังโปรแกรมพนักงาน/ORDER; ฐานข้อมูลต้องยังไม่มีเอกสารจัดซื้อ; ใช้กับฐานข้อมูลทดสอบแยกชื่อเท่านั้น)
@@ -129,7 +129,7 @@ public static class MigrationTool
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
             .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>().AddScoped<QaSpecImport>().AddScoped<QaSpecMigration>()
-            .AddScoped<CalibMasterImport>().AddScoped<CalibMasterDataMigration>().AddScoped<CashMasterImport>().AddScoped<CashMasterDataMigration>().AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>().AddScoped<PurchDocumentMigration>()
+            .AddScoped<CalibMasterImport>().AddScoped<CalibMasterDataMigration>().AddScoped<CashMasterImport>().AddScoped<CashMasterDataMigration>().AddScoped<CashExpenseLineImport>().AddScoped<CashExpenseLineMigration>().AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>().AddScoped<PurchDocumentMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -221,7 +221,7 @@ public sealed class MigrationUser : ICurrentUser
 public static class CashMigrationTool
 {
     /// <summary>
-    /// The master-data run of เงินสดย่อย (#231): reads a copy of <paramref name="sourceFile"/>, deletes and loads the expense types, the scrap buyers and the scrap kinds, and writes the DQ report, the
+    /// The run of เงินสดย่อย (#231, #236): reads a copy of <paramref name="sourceFile"/>, deletes and loads the expense types, the scrap buyers and the scrap kinds, then the expense lines, and writes the DQ report, the
     /// row counts and the code map used into <paramref name="outputFolder"/> (real data: kept outside git).
     /// </summary>
     [SupportedOSPlatform("windows")]
@@ -231,6 +231,7 @@ public static class CashMigrationTool
         var legacy = LegacyDatabase.ReadCashFile(sourceFile);
         await using var scope = services.CreateAsyncScope();
         var report = await scope.ServiceProvider.GetRequiredService<CashMasterDataMigration>().RunAsync(legacy, map);
+        await scope.ServiceProvider.GetRequiredService<CashExpenseLineMigration>().RunAsync(legacy, map, report); // บรรทัดค่าใช้จ่าย (#236)
         report.WriteTo(outputFolder);
         return report;
     }

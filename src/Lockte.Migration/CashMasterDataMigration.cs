@@ -50,7 +50,7 @@ public sealed class CashMasterDataMigration(
     public const string UsedTypeTable = "ซื้อของเงินสด.TYPE";
     public const string BuyerTable = "ผู้ซื้อของเก่า";
     public const string ItemTable = "รายชื่อของเก่า";
-    private const string LinesTable = "ซื้อของเงินสด";
+    private const string LinesTable = CashExpenseLineMigration.LinesTable;
     private const string ReceiptsTable = "ขายของเก่า";
     private const string TypeRule = "DQ-Q05";
     private const string LineBreakRule = "DQ-Q27";
@@ -110,7 +110,7 @@ public sealed class CashMasterDataMigration(
             var (rows, withBreak) = lines.GetValueOrDefault(name);
             lines[name] = (rows + 1, withBreak + (CashMigrationRules.HasLineBreak(raw) ? 1 : 0));
         }
-        if (blankRows > 0) report.Notes.Add($"บรรทัดค่าใช้จ่าย {blankRows} แถวไม่มีประเภท (ตั๋ว 08 ตัดสินว่าจะโหลดอย่างไร)");
+        if (blankRows > 0) report.Notes.Add($"บรรทัดค่าใช้จ่าย {blankRows} แถวไม่มีประเภท — ไม่โหลด (รายงานในขั้นบรรทัดค่าใช้จ่าย)");
 
         var inRegistry = new HashSet<string>(known, StringComparer.OrdinalIgnoreCase);
         var retired = Count(UsedTypeTable, "cash.ExpenseTypes (เลิกใช้)", lines.Keys.Count(name => !known.Contains(name)));

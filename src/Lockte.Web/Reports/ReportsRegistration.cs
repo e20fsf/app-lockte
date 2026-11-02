@@ -81,6 +81,7 @@ public static class ReportsRegistration
         reports.MapReceiptSummaryReports(); // สรุปการรับวัตถุดิบ รายเดือน/รายปี/แยกแผนก (วัตถุดิบ #259)
         reports.MapCashExpenseTypeReports(); // รายการค่าใช้จ่ายต่างๆ (เงินสดย่อย #229)
         reports.MapCashScrapListReports(); // รายชื่อผู้ซื้อและชนิดของเก่า (เงินสดย่อย #230)
+        reports.MapCashVoucherReports(); // ใบสำคัญจ่ายเงิน (เงินสดย่อย #234)
 
         // RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13): A4 ตั้ง, no document number.
         reports.MapGet("/hr/pay-periods/{id:int}/time", async (int id, HttpContext http, PayPeriodDirectory periods, ReportPrinter printer,
