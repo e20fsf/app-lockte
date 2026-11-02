@@ -245,4 +245,38 @@ public sealed class ProgramMenuTests
     [Fact]
     public void The_jig_print_screen_is_opened_from_the_jig_menu() // built (#207)
         => Assert.Equal("calib/jig-print", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-05")!.Value.Item));
+
+    [Fact]
+    public void Cash_menus_are_the_three_legacy_switchboard_pages_without_the_left_out_items()
+    {
+        Assert.Equal([1, 2, 3], CashMenu.Menu.Pages.Select(p => p.Number));
+        Assert.Equal(
+            [("เพิ่ม,แก้ไข,ลบและพิมพ์รายการค่าใช้จ่าย", null), ("บันทึกค่าใช้จ่ายเงินสดย่อย", null), ("แก้ไข,ลบบันทึกค่าใช้จ่ายเงินสดย่อยและพิมพ์ใบสำคัญจ่ายเงิน", null),
+             ("พิมพ์สรุปค่าใช้จ่ายเงินสดย่อย", null), ("พิมพ์รายการซื้อของ", 3), ("พิมพ์ใบเสร็จรับเงินขายของเก่า", 2)],
+            CashMenu.Menu.Find(ProgramMenu.Main)!.Items.Select(i => (i.Text, i.SubMenu)));
+        Assert.Equal(7, CashMenu.Menu.Find(CashMenu.Receipts)!.Items.Count);
+        Assert.Equal(2, CashMenu.Menu.Find(CashMenu.Reports)!.Items.Count);
+
+        var texts = CashMenu.Menu.Pages.SelectMany(p => p.Items.Select(i => i.Text).Append(p.Title)).ToList();
+        Assert.DoesNotContain(texts, t => t.Contains("ลบข้อมูลปีที่แล้ว") || t.Contains("ย้ายข้อมูลกลับ") || t.Contains("จบโปรแกรม"));
+        Assert.DoesNotContain(texts, t => t.Contains("ออฟฟิ") || t.Contains("คงค้าง") || t.Contains("ค้างส่ง") || t.Contains("เบิก")); // CONTEXT.md: นำส่งสำนักงาน, ยอดรอนำส่ง
+        Assert.Contains("พิมพ์ตัดยอดนำส่งสำนักงานและยอดรอนำส่ง", texts);
+    }
+
+    [Fact]
+    public void Cash_menus_return_to_the_main_menu_and_open_their_own_placeholders()
+    {
+        Assert.Equal(1, CashMenu.Menu.Find(CashMenu.Receipts)!.Back);
+        Assert.Equal(1, CashMenu.Menu.Find(CashMenu.Reports)!.Back);
+        Assert.Equal(
+            ["SCR-07-add", "SCR-07-edit", "SCR-08-add", "SCR-08-edit", "SCR-09", "SCR-12", "SCR-05-scrap"],
+            CashMenu.Menu.Find(CashMenu.Receipts)!.Items.Select(i => i.Code));
+        Assert.Equal(["SCR-05-purchases", "SCR-06"], CashMenu.Menu.Find(CashMenu.Reports)!.Items.Select(i => i.Code));
+
+        Assert.Equal("cash/menu/2", CashMenu.HrefOf(CashMenu.Receipts));
+        Assert.Equal("cash", CashMenu.HrefOf(ProgramMenu.Main));
+        Assert.Same(CashMenu.Menu, ProgramMenus.Of("cash/menu/3"));
+        Assert.Same(CashMenu.Menu, ProgramMenus.Of("cash/SCR-12"));
+        Assert.Contains(CashMenu.Menu, ProgramMenus.All);
+    }
 }

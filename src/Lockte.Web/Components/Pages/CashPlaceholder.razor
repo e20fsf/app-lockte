@@ -1,0 +1,9 @@
+@page "/cash/{Code}"
+@attribute [Authorize]
+
+<ScreenPlaceholder Program="CashMenu.Menu" Code="@Code" />
+
+@code {
+    [Parameter]
+    public string Code { get; set; } = "";
+}
