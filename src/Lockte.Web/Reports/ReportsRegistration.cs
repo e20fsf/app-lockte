@@ -71,6 +71,7 @@ public static class ReportsRegistration
         reports.MapSupplierDocumentReports(); // ทะเบียนผู้ขาย ASL และหนังสือมุ่งมั่น (วัตถุดิบ #264)
         reports.MapListReports(); // รายชื่อวัตถุดิบและผู้ขาย (วัตถุดิบ #263)
         reports.MapCalibRecordReports(); // แบบฟอร์มบันทึกผลการสอบเทียบ (สอบเทียบ #205)
+        reports.MapCalibJigInspectionReports(); // รายงานการตรวจสอบ JIG (สอบเทียบ #207)
         reports.MapCalibStickerReports(); // สติกเกอร์ติดเครื่องมือวัด (สอบเทียบ #201)
         reports.MapCalibPlanReports(); // แผนการสอบเทียบ (สอบเทียบ #202)
         reports.MapCalibRegisterReports(); // บัญชีรายชื่อเครื่องมือวัด (สอบเทียบ #203)

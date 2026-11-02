@@ -1,0 +1,35 @@
+@page "/calib/jig-print"
+@attribute [Authorize]
+@using Lockte.Calib
+@inject ScopedServices Services
+
+@* เลือก JIG ที่ต้องการพิมพ์ (SCR-05): one button for every sheet of the model of JIG, opening its PDF in a new tab. The buttons are made from the sheets QA maintains (#199), so a model added
+   there appears here. "JIG วัดศูนย์" is RPT-05 (23 sheets including PIN GAUGE and TAPER GAUGE). *@
+<PageTitle>เลือก JIG ที่ต้องการพิมพ์ — LOCKTE</PageTitle>
+<h1 class="mb-4">เลือก JIG ที่ต้องการพิมพ์</h1>
+
+@if (sheets is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
+        <MudText Typo="Typo.h6" Class="mb-2">JIG วัดศูนย์</MudText>
+        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+            @foreach (var sheet in sheets.Where(s => s.Type == JigSheetType.ZeroCheck))
+            {
+                <MudButton Variant="Variant.Outlined" Href="@($"reports/calib/jig/{sheet.Id}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print">@sheet.ModelKey</MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+}
+
+<MudButton Href="@CalibMenu.HrefOf(CalibMenu.Jig)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<JigSheetDto>? sheets;
+
+    protected override async Task OnInitializedAsync()
+        => sheets = await Services.RunAsync<JigSheetDirectory, IReadOnlyList<JigSheetDto>>(d => d.ListAsync());
+}

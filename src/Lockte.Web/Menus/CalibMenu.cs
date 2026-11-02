@@ -75,7 +75,7 @@ public static class CalibMenu
             new("เพิ่มรายชื่อ JIG", Code: "SCR-02-jig", Page: "calib/instruments/jig/new"),
             new("แก้ไขและลบรายชื่อ JIG", Code: "SCR-03-jig", Page: "calib/instruments/jig"),
             new("บัญชีรายชื่อ JIG", Code: "RPT-02-jig", Page: "reports/calib/register/jig", NewTab: true),
-            new("พิมพ์บันทึกการตรวจสอบ JIG", Code: "SCR-05"),
+            new("พิมพ์บันทึกการตรวจสอบ JIG", Code: "SCR-05", Page: "calib/jig-print"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-jig", Page: "calib/stickers/jig"),
             new("แก้ไขแบบตรวจ JIG", Code: "JIG-SHEETS", Page: "calib/jig-sheets"), // not in the legacy: the values its 42 reports had typed in (#199)
         ]),

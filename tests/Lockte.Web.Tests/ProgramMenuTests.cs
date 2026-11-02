@@ -124,7 +124,7 @@ public sealed class ProgramMenuTests
         Assert.All([CalibMenu.Caliper, CalibMenu.PressureGauge, CalibMenu.Scale, CalibMenu.Jig, CalibMenu.TempControl],
             n => Assert.Equal(CalibMenu.Internal, CalibMenu.Menu.Find(n)!.Back));
 
-        Assert.Equal("calib/SCR-05", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-05")!.Value.Item));
+        Assert.Equal("calib/ABC", CalibMenu.Menu.HrefOf(new MenuItem("an item whose screen is not built", Code: "ABC"))); // a placeholder is found by its code
         Assert.Equal("calib/menu/7", CalibMenu.HrefOf(CalibMenu.Jig));
         Assert.Equal("calib", CalibMenu.HrefOf(ProgramMenu.Main));
         Assert.Same(CalibMenu.Menu, ProgramMenus.Of("calib/menu/4"));
@@ -241,4 +241,8 @@ public sealed class ProgramMenuTests
         var item = CalibMenu.Menu.FindItem($"RPT-03-{key}")!.Value.Item;
         Assert.Equal(($"reports/calib/record/{key}", true), (CalibMenu.Menu.HrefOf(item), item.NewTab));
     }
+
+    [Fact]
+    public void The_jig_print_screen_is_opened_from_the_jig_menu() // built (#207)
+        => Assert.Equal("calib/jig-print", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-05")!.Value.Item));
 }
