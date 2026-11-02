@@ -119,7 +119,7 @@ public sealed class OnboardingTests(LocalDbFixture db)
         var shiftA = await ShiftAsync("A");
         var shiftB = await ShiftAsync("B");
         var department = await NewDepartmentAsync();
-        var start = Today.AddMonths(-27).AddDays(-3); // 27 month boundaries → 2 ปี 3 เดือน
+        var start = new DateOnly(Today.AddMonths(-27).Year, Today.AddMonths(-27).Month, 1); // 27 month boundaries → 2 ปี 3 เดือน (the 1st: AddDays(-3) crossed into the month before on days 1-3 and made it 28)
         var first = await AddAsync(new EmployeeInput
         {
             Code = NewCode(), Name = "นายหนึ่ง", Sex = "M", DepartmentId = department.Id, ShiftId = shiftA.Id, StartDate = start,
