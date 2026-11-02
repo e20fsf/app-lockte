@@ -91,7 +91,7 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     /// <summary>
     /// The tables of <c>เงินสดย่อย.accdb</c> (#231): the three registers, and — to tell which of their values the data uses — the expense lines and the receipt lines (loaded by #236 and #241).
     /// </summary>
-    public static IReadOnlyList<string> CashTables { get; } = ["ค่าใช้จ่ายต่างๆ", "ผู้ซื้อของเก่า", "รายชื่อของเก่า", "ซื้อของเงินสด", "ขายของเก่า"];
+    public static IReadOnlyList<string> CashTables { get; } = ["ค่าใช้จ่ายต่างๆ", "ผู้ซื้อของเก่า", "รายชื่อของเก่า", "ซื้อของเงินสด", "ขายของเก่า", "ขายของเก่า1", "ขายของเก่า2"];
 
     public static IReadOnlyList<string> CalibMasterDataTables { get; } = ["ภายนอก", "CALIPER", "PRESSURE GAUGE", "เครื่องชั่ง", "ตัวควบคุมอุณหภูมิ", "jig", "บริษัทที่สอบเทียบ"];
 

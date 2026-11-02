@@ -106,12 +106,28 @@ public static class FakeCashFile
             ("DATE", "DATETIME"), ("NO", "TEXT(50)"), ("NAMED", "TEXT(100)"), ("ADDRESS", "TEXT(255)"), ("TEL", "TEXT(50)"), ("SUF", "SINGLE"), ("NAMES", "TEXT(255)"), ("UNIT", "TEXT(50)"),
             ("QTY", "SINGLE"), ("U_PRICE", "SINGLE"), ("AMOUNT", "SINGLE"), ("MARK", "TEXT(50)"), ("CODE", "TEXT(50)"),
         ],
+        // the receipt lines still waiting to be sent, and the lines of the last closing: the same columns, no CODE
+        ["ขายของเก่า1"] =
+        [
+            ("DATE", "DATETIME"), ("NO", "TEXT(50)"), ("NAMED", "TEXT(100)"), ("ADDRESS", "TEXT(255)"), ("TEL", "TEXT(50)"), ("SUF", "SINGLE"), ("NAMES", "TEXT(255)"), ("UNIT", "TEXT(50)"),
+            ("QTY", "SINGLE"), ("U_PRICE", "SINGLE"), ("AMOUNT", "SINGLE"), ("MARK", "TEXT(50)"),
+        ],
+        ["ขายของเก่า2"] =
+        [
+            ("DATE", "DATETIME"), ("NO", "TEXT(50)"), ("NAMED", "TEXT(100)"), ("ADDRESS", "TEXT(255)"), ("TEL", "TEXT(50)"), ("SUF", "SINGLE"), ("NAMES", "TEXT(255)"), ("UNIT", "TEXT(50)"),
+            ("QTY", "SINGLE"), ("U_PRICE", "SINGLE"), ("AMOUNT", "SINGLE"), ("MARK", "TEXT(50)"), ("from_no", "TEXT(50)"), ("to_no", "TEXT(50)"),
+        ],
     };
 
     public static FakeLegacyFile Empty() => new(Schema);
 
     public static FakeLegacyFile WithLine(this FakeLegacyFile file, string? type)
         => file.Row("ซื้อของเงินสด", ("DATE", new DateTime(2026, 9, 1)), ("SUF", "09/01"), ("NAME", "ของตัวอย่าง"), ("QTY", 1.0), ("AMOUNT", 100.0), ("TYPE", type));
+
+    /// <summary>A line of a receipt in <paramref name="table"/> (<c>ขายของเก่า</c>, <c>ขายของเก่า1</c> or <c>ขายของเก่า2</c>); the numbers are Single, as in the legacy.</summary>
+    public static FakeLegacyFile WithReceiptLine(this FakeLegacyFile file, string table, string no, DateTime? date, string? buyer, float? seq, string? item, float? qty, float? price, float? amount,
+        string? address = "ที่อยู่ตัวอย่าง", string? tel = "000-000-0000", string? unit = "กก.", string? mark = null)
+        => file.Row(table, ("DATE", date), ("NO", no), ("NAMED", buyer), ("ADDRESS", address), ("TEL", tel), ("SUF", seq), ("NAMES", item), ("UNIT", unit), ("QTY", qty), ("U_PRICE", price), ("AMOUNT", amount), ("MARK", mark));
 
     public static FakeLegacyFile WithExpense(this FakeLegacyFile file, DateTime? date, string? voucher, string? name, double qty, double price, double amount, string? type, string? unit = "ชิ้น")
         => file.Row("ซื้อของเงินสด", ("DATE", date), ("SUF", voucher), ("NAME", name), ("QTY", qty), ("UNIT", unit), ("U_PRICE", price), ("AMOUNT", amount), ("TYPE", type));
@@ -246,6 +262,76 @@ public sealed class CashMigrationTests(MigrationDbFixture db) : IDisposable
         Assert.Contains(report.Exceptions, e => e.Table == "ซื้อของเงินสด" && e.Problem.Contains("ประเภท", StringComparison.Ordinal) && e.Action == MigrationReport.NotLoaded);
         Assert.Contains(report.Notes, n => n.StartsWith("จำนวนเงิน ≠ จำนวน × ราคา", StringComparison.Ordinal));
         Assert.Contains(report.Notes, n => n.StartsWith("ยอดตามชื่อดิบ 'ค่าน้ำมัน'", StringComparison.Ordinal));
+    }
+
+    [Fact] // AC-23, AC-24, AC-01: the receipts, their lines and their state
+    public async Task Loads_the_receipts_with_their_lines_and_works_the_state_out_from_the_waiting_table()
+    {
+        var file = FakeCashFile.Empty()
+            .Row("ผู้ซื้อของเก่า", ("NAMED", "คุณตัวอย่าง ก"), ("ADDRESS", "ที่อยู่ทะเบียน"), ("TEL", "000-111-1111"))
+            .Row("รายชื่อของเก่า", ("NAMES", "เศษเหล็ก"), ("UNIT", "กก."));
+        var (d1, d2) = (new DateTime(2026, 9, 5), new DateTime(2026, 9, 8));
+        // 69025 and 69026 were sent before the migration (69026 is the last closing); 69027–69029 and 69031 wait
+        file.WithReceiptLine("ขายของเก่า", "69025", d1, "คุณตัวอย่าง ก", 1, "เศษเหล็ก", 10, 2, 20)
+            .WithReceiptLine("ขายของเก่า", "69026", d1, "คุณตัวอย่าง ก", 1, "เศษเหล็ก", 5, 2, 10)
+            .WithReceiptLine("ขายของเก่า", "69027", d2, "คุณตัวอย่าง  ก", 1, "เศษเหล็ก", 100, 10, 1000) // a repeated blank in the name: still the register's buyer
+            .WithReceiptLine("ขายของเก่า", "69027", d2, "คุณตัวอย่าง ก", 2, "เศษเหล็ก", 36, 10, 360)
+            // 69028: the second line has another date and another buyer; a Single with noise (0.33000001), a line with no item, and a repeated ลำดับที่
+            .WithReceiptLine("ขายของเก่า", "69028", d2, "คุณตัวอย่าง ข", 2, "น้ำมันเก่า", 0.33f, 3, 1, unit: "ถัง")
+            .WithReceiptLine("ขายของเก่า", "69028", d1, "คุณตัวอย่าง ค", 1, "ถังเหล็ก", 1, 99, 99, unit: "ใบ")
+            .WithReceiptLine("ขายของเก่า", "69028", d2, "คุณตัวอย่าง ข", 3, null, 1, 5, 5)
+            .WithReceiptLine("ขายของเก่า", "69028", d2, "คุณตัวอย่าง ข", 2, "ซ้ำ", 1, 5, 5)
+            // 69029: the sum of its amounts is 100.125, which Access cuts to 100.12 — the lines are 50.13 + 50.00 here
+            .WithReceiptLine("ขายของเก่า", "69029", d2, "คุณตัวอย่าง ข", 1, "เศษเหล็ก", 1, 50.125f, 50.125f)
+            .WithReceiptLine("ขายของเก่า", "69029", d2, "คุณตัวอย่าง ข", 2, "เศษเหล็ก", 1, 50, 50)
+            .WithReceiptLine("ขายของเก่า", "69031", d2, "คุณตัวอย่าง ข", 1, "เศษเหล็ก", 1, 7, 7); // 69030 was never issued
+        foreach (var (no, line) in new[] { ("69027", 1), ("69027", 2), ("69028", 1), ("69029", 1), ("69029", 2), ("69031", 1) })
+            file.WithReceiptLine("ขายของเก่า1", no, d2, "คุณตัวอย่าง ข", line, "เศษเหล็ก", 1, 1, no == "69027" && line == 1 ? 1000 : no == "69027" ? 360 : no == "69029" ? 50 : 1, mark: "Y");
+        file.WithReceiptLine("ขายของเก่า2", "69026", d1, "คุณตัวอย่าง ก", 1, "เศษเหล็ก", 5, 2, 10);
+        var source = file.Save(Path.Combine(work.FullName, "เงินสดย่อย.accdb"));
+
+        var report = await RunAsync(source);
+
+        Assert.True(report.Balanced, string.Join("; ", report.Tables.Where(t => !t.Balanced).Select(t => $"{t.LegacyTable} {t.SourceRows}/{t.Excluded}/{t.Rejected}/{t.Loaded}/{t.InDatabase}"))
+            + " " + string.Join("; ", report.MonthlyTotals.Where(m => !m.Balanced).Select(m => $"{m.Table} {m.Month} {m.Expected}/{m.InDatabase}")));
+        var receipts = report.Tables.Single(t => t.LegacyTable == "ขายของเก่า (ใบ)");
+        Assert.Equal((6, 0, 6), (receipts.SourceRows, receipts.Rejected, receipts.Loaded));
+        var lines = report.Tables.Single(t => t.LegacyTable == "ขายของเก่า (บรรทัด)");
+        Assert.Equal((11, 2, 9), (lines.SourceRows, lines.Rejected, lines.Loaded)); // the line with no item and the repeated ลำดับที่ are left out
+
+        await using var scope = db.Scope();
+        var directory = scope.Get<ScrapReceiptDirectory>();
+        var r27 = (await directory.GetByNoAsync("69027"))!;
+        Assert.Equal((new DateOnly(2026, 9, 8), "คุณตัวอย่าง ก", 1360m, false), (r27.Date, r27.BuyerName, r27.Total, r27.IsRemitted));
+        Assert.NotNull(r27.ScrapBuyerId); // the name matches the register once the blanks are cleaned
+        Assert.NotNull(r27.Lines[0].ScrapItemId);
+
+        var r28 = (await directory.GetByNoAsync("69028"))!;
+        Assert.Equal((new DateOnly(2026, 9, 5), "คุณตัวอย่าง ค"), (r28.Date, r28.BuyerName)); // the head of the line with the lowest ลำดับที่
+        Assert.Null(r28.ScrapBuyerId); // not in the register: the name stays, no entry is made
+        Assert.Equal(["ถังเหล็ก", "น้ำมันเก่า"], r28.Lines.Select(l => l.ItemName));
+        Assert.Equal(0.33m, r28.Lines[1].Qty); // Single without the noise
+        Assert.Equal(100m, r28.Total);
+
+        var r29 = (await directory.GetByNoAsync("69029"))!;
+        Assert.Equal((100.13m, 100.13m), (r29.Lines.Sum(l => l.Amount), r29.Total));
+        Assert.Contains(report.Exceptions, e => e.Key == "69029" && e.Rule == "AC-24" && e.Problem.Contains("100.12", StringComparison.Ordinal));
+
+        // the state: the numbers above the last closing (69026) wait, the others were sent in the one closing the migration made
+        var waiting = (await scope.Get<ScrapRemittanceDirectory>().UnremittedAsync()).Select(r => r.No).ToList();
+        Assert.Equal(["69027", "69028", "69029", "69031"], waiting);
+        var r25 = (await directory.GetByNoAsync("69025"))!;
+        Assert.True(r25.IsRemitted);
+        var closing = (await scope.Get<ScrapRemittanceDirectory>().GetAsync(r25.RemittanceId!.Value))!;
+        Assert.Equal(("69025", "69026", "migration", new DateOnly(2026, 9, 5)), (closing.FromNo, closing.ToNo, closing.MadeBy, closing.MadeOn));
+        Assert.Equal(["69025", "69026"], closing.Receipts.Select(r => r.No));
+
+        Assert.Contains(report.Exceptions, e => e.Key == "69028" && e.Rule == "DQ-Q16" && e.Problem.Contains("วันที่ต่างกัน", StringComparison.Ordinal));
+        Assert.Contains(report.Exceptions, e => e.Key == "69028" && e.Rule == "DQ-Q16" && e.Problem.Contains("ชื่อผู้ซื้อต่างกัน", StringComparison.Ordinal));
+        Assert.Contains(report.Exceptions, e => e.Key == "คุณตัวอย่าง ข" && e.Rule == "DQ-Q30");
+        Assert.Contains(report.Exceptions, e => e.Key == "69030" && e.Problem.Contains("ขาดในลำดับ", StringComparison.Ordinal));
+        Assert.DoesNotContain(report.Exceptions, e => e.Rule == "AC-23" && e.Problem.Contains("เลขตัดยอดล่าสุด", StringComparison.Ordinal)); // waiting and above the last closing: the two agree
+        Assert.Contains(report.Notes, n => n.StartsWith("นำส่งก่อนย้ายข้อมูล: 2 ใบ", StringComparison.Ordinal));
     }
 
     [Fact]
