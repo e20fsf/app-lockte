@@ -1,0 +1,113 @@
+@page "/calib/stickers/{Key}"
+@attribute [Authorize]
+@using Lockte.Calib
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ProtectedLocalStorage Storage
+@inject IJSRuntime Js
+
+@* พิมพ์สติกเกอร์ติดเครื่องมือวัด (SCR-04 → RPT-04, BR-010): หมายเลขเครื่อง as a pattern (* any characters, ? one, # one digit), the date calibrated and the date due (typed — never
+   worked out, never checked against each other). What was typed last is remembered per kind in this browser (the legacy kept one row for all five screens). *@
+@if (info is null)
+{
+    <MudAlert Severity="Severity.Error">ไม่รู้จักชนิดเครื่องมือวัด</MudAlert>
+}
+else
+{
+    <PageTitle>พิมพ์สติกเกอร์ติดเครื่องมือวัด — LOCKTE</PageTitle>
+    <h1 class="mb-4">พิมพ์สติกเกอร์ติดเครื่องมือวัด</h1>
+    <MudText Typo="Typo.subtitle1" Class="mb-2">@InstrumentDirectory.KindName(info.Kind)</MudText>
+    <MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+        <MudAutocomplete T="string" @bind-Value="pattern" Label="หมายเลขเครื่อง" SearchFunc="SearchAsync" CoerceValue="true" CoerceText="true" Clearable="true"
+                         HelperText="ถ้าต้องการทั้งหมดใส่ *" MaxLength="InstrumentRegistry.CodeLength" />
+        <MudDatePicker Editable="true" @bind-Date="cal" Label="วันที่สอบเทียบ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Class="mt-2" />
+        <MudDatePicker Editable="true" @bind-Date="due" Label="วันที่ต้องสอบเทียบครั้งต่อไป" HelperText="1 ปีนับจากวันที่สอบเทียบ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Class="mt-2" />
+        @if (dateMissing)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mt-3">กรุณากรอกวันที่สอบเทียบและวันที่ต้องสอบเทียบครั้งต่อไป</MudAlert>
+        }
+        @if (notFound)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mt-3">ไม่พบเครื่องมือวัด</MudAlert>
+        }
+        <MudStack Row="true" Class="mt-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrintAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        </MudStack>
+    </MudPaper>
+    <MudButton Href="@CalibMenu.HrefOf(info.MenuNumber)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+}
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+
+    private InstrumentKindInfo? info;
+    private string? pattern;
+    private DateTime? cal;
+    private DateTime? due;
+    private bool notFound;
+    private bool dateMissing;
+    private bool busy;
+    private IReadOnlyList<string> codes = [];
+
+    private string StorageKey => "calib.sticker." + info!.Key;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        info = InstrumentKindInfo.Find(Key) is { Internal: true } k ? k : null;
+        if (info is null) return;
+        var kind = info.Kind;
+        codes = (await Services.RunAsync<InstrumentDirectory, IReadOnlyList<InstrumentDto>>(d => d.ListAsync(kind))).Select(i => i.Code).ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || info is null) return;
+        try
+        {
+            if (await Storage.GetAsync<string[]>(StorageKey) is { Success: true, Value: { Length: 3 } v })
+            {
+                pattern = v[0];
+                cal = DateTime.TryParse(v[1], System.Globalization.CultureInfo.InvariantCulture, out var c) ? c : null;
+                due = DateTime.TryParse(v[2], System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+                StateHasChanged();
+            }
+        }
+        catch (Exception)
+        {
+            // nothing remembered (or unreadable): start empty
+        }
+    }
+
+    private Task<IEnumerable<string>> SearchAsync(string? text, CancellationToken token)
+        => Task.FromResult(codes.Where(c => string.IsNullOrEmpty(text) || c.Contains(text, StringComparison.OrdinalIgnoreCase)));
+
+    private async Task PrintAsync()
+    {
+        notFound = false;
+        dateMissing = cal is null || due is null;
+        if (dateMissing) return;
+        busy = true;
+        try
+        {
+            var kind = info!.Kind;
+            var text = pattern;
+            var found = await Services.RunAsync<InstrumentDirectory, IReadOnlyList<InstrumentDto>>(d => d.FindByPatternAsync(kind, text));
+            try
+            {
+                await Storage.SetAsync(StorageKey, new[] { text ?? "", cal!.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), due!.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) });
+            }
+            catch (Exception)
+            {
+                // remembering is a convenience only
+            }
+            if (found.Count == 0) { notFound = true; return; }
+            var url = $"/reports/calib/stickers/{info.Key}?id={Uri.EscapeDataString(text ?? "")}&cal={cal!.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}&due={due!.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)}";
+            await Js.InvokeVoidAsync("open", url, "_blank");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

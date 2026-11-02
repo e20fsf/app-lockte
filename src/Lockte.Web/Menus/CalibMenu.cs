@@ -51,7 +51,7 @@ public static class CalibMenu
             new("แก้ไขและลบเครื่องมือวัด", Code: "SCR-03-caliper", Page: "calib/instruments/caliper"),
             new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-caliper"),
             new("พิมพ์บันทึกผลการสอบเทียบ", Code: "RPT-03-caliper"),
-            new("พิมพ์สติกเกอร์", Code: "SCR-04-caliper"),
+            new("พิมพ์สติกเกอร์", Code: "SCR-04-caliper", Page: "calib/stickers/caliper"),
         ]),
         new(PressureGauge, "เพรสเซอร์เกจ", Internal,
         [
@@ -59,7 +59,7 @@ public static class CalibMenu
             new("แก้ไขและลบรายชื่อเครื่องมือวัด", Code: "SCR-03-pg", Page: "calib/instruments/pg"),
             new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-pg"),
             new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-pg"),
-            new("พิมพ์สติกเกอร์", Code: "SCR-04-pg"),
+            new("พิมพ์สติกเกอร์", Code: "SCR-04-pg", Page: "calib/stickers/pg"),
         ]),
         new(Scale, "เครื่องชั่ง", Internal,
         [
@@ -67,7 +67,7 @@ public static class CalibMenu
             new("แก้ไขและลบรายชื่อเครื่องชั่ง", Code: "SCR-03-scale", Page: "calib/instruments/scale"),
             new("บัญชีรายชื่อเครื่องชั่ง", Code: "RPT-02-scale"),
             new("พิมพ์บันทึกผลการสอบเทียบ", Code: "RPT-03-scale"),
-            new("พิมพ์สติกเกอร์", Code: "SCR-04-scale"),
+            new("พิมพ์สติกเกอร์", Code: "SCR-04-scale", Page: "calib/stickers/scale"),
         ]),
         new(Jig, "JIG", Internal,
         [
@@ -75,7 +75,7 @@ public static class CalibMenu
             new("แก้ไขและลบรายชื่อ JIG", Code: "SCR-03-jig", Page: "calib/instruments/jig"),
             new("บัญชีรายชื่อ JIG", Code: "RPT-02-jig"),
             new("พิมพ์บันทึกการตรวจสอบ JIG", Code: "SCR-05"),
-            new("พิมพ์สติกเกอร์", Code: "SCR-04-jig"),
+            new("พิมพ์สติกเกอร์", Code: "SCR-04-jig", Page: "calib/stickers/jig"),
             new("แก้ไขแบบตรวจ JIG", Code: "JIG-SHEETS", Page: "calib/jig-sheets"), // not in the legacy: the values its 42 reports had typed in (#199)
         ]),
         new(TempControl, "ตัวควบคุมอุณหภูมิ (TEMP CONTROL)", Internal,
@@ -84,7 +84,7 @@ public static class CalibMenu
             new("แก้ไขและลบรายชื่อตัวควบคุมอุณหภูมิ", Code: "SCR-03-tc", Page: "calib/instruments/tc"),
             new("บัญชีรายชื่อตัวควบคุมอุณหภูมิ", Code: "RPT-02-tc"),
             new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-tc"),
-            new("พิมพ์สติกเกอร์", Code: "SCR-04-tc"),
+            new("พิมพ์สติกเกอร์", Code: "SCR-04-tc", Page: "calib/stickers/tc"),
         ]),
     ]);
 }

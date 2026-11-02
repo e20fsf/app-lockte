@@ -187,4 +187,13 @@ public sealed class ProgramMenuTests
         Assert.Equal("calib/instruments/ext/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-ext")!.Value.Item));
         Assert.Equal("calib/instruments/ext", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-03-ext")!.Value.Item));
     }
+
+    [Theory]
+    [InlineData("caliper")]
+    [InlineData("pg")]
+    [InlineData("scale")]
+    [InlineData("jig")]
+    [InlineData("tc")]
+    public void Sticker_screens_are_opened_by_their_menu_items(string key) // built (#201)
+        => Assert.Equal($"calib/stickers/{key}", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem($"SCR-04-{key}")!.Value.Item));
 }
