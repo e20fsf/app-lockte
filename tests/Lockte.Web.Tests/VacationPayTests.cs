@@ -170,7 +170,7 @@ public sealed class VacationPayReportLayoutTests(ChromiumFixture chromium)
         var html = await HtmlAsync<VacationPayReportView>(new() { ["Report"] = Report });
 
         Assert.Equal("รายชื่อพนักงานจ่ายคืนเงินพักร้อนประจำปี 2569", VacationPayReportView.TitleOf(Report));
-        Assert.Contains(">881.87<", html);
+        Assert.Contains(">882<", html); // 881.87: ค่าแรง/วัน as whole baht (#354)
         Assert.Contains(">0.88<", html); // 0.875
         Assert.Contains(">772<", html);  // 771.63
         Assert.Contains(">294<", html);  // 294.02
