@@ -117,11 +117,13 @@ if (options.Program == MigrationOptions.PurchHistoryProgram)
 }
 if (options.Program == MigrationOptions.CashProgram)
 {
+    await GoLiveGuard.EnsureNotLiveAsync(options.ConnectionString); // a run deletes the master data and the receipts: never on a database people work in
+    var cashWatch = System.Diagnostics.Stopwatch.StartNew();
     var cashReport = await CashMigrationTool.RunAsync(services, options.SourceFile, options.CodeMapFile, options.OutputFolder);
     foreach (var table in cashReport.Tables)
         Console.WriteLine($"{table.LegacyTable,-22} → {table.NewTable,-30} ต้นทาง {table.SourceRows,5}  โหลด {table.Loaded,5}  DQ {table.Rejected,4}  ไม่ย้าย {table.Excluded,4}  ในฐานข้อมูล {table.InDatabase,5}  {(table.Balanced ? "ตรง" : "ไม่ตรง")}");
     foreach (var note in cashReport.Notes) Console.WriteLine(note);
-    Console.WriteLine($"ข้อยกเว้น DQ {cashReport.Exceptions.Count} รายการ — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    Console.WriteLine($"ข้อยกเว้น DQ {cashReport.Exceptions.Count} รายการ ใช้เวลา {cashWatch.Elapsed.TotalSeconds:0.#} วินาที — รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return cashReport.Balanced ? 0 : 1;
 }
 if (options.Program == MigrationOptions.CalibProgram)

@@ -51,6 +51,10 @@ public sealed class CashMigrationRulesTests
         Assert.Null(error);
         Assert.Equal(MigrationOptions.CashProgram, options!.Program);
         Assert.Contains("--program cash", MigrationOptions.Usage);
+
+        var (all, allError) = MigrationOptions.Parse(["--program", "all", "--employee", "e.accdb", "--order", "o.accdb", "--cash", "c.accdb", "--connection", "Server=x;Database=D1", "--confirm", "D1", "--out", "out"]);
+        Assert.Null(allError);
+        Assert.Equal("c.accdb", all!.CashFile); // the third program of the one command
     }
 }
 
