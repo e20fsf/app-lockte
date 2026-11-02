@@ -23,7 +23,13 @@ param(
     [Parameter(Mandatory)] [string] $AdminPassword,
     [string] $Out = (Join-Path $env:TEMP 'lockte-uat-report'),
     [switch] $RemoveStockDuplicates,
-    [string] $CodeMap
+    [string] $CodeMap,
+    # สอบเทียบ (#210): ไฟล์สำเนา สอบเทียบ.accdb, ไฟล์จับคู่ (ชื่อผู้สอบเทียบ — เก็บใต้ source/ นอก git), โฟลเดอร์รูป JIG จาก tools/calib-jig-images
+    [string] $Calib,
+    [string] $CalibMap,
+    [string] $JigImages,
+    # ข้อตัดสิน Q-25 (2026-10-29): ข้อมูลจริงของสอบเทียบโหลดเข้าฐานทดสอบได้ — ต้องใส่ switch นี้ชัดเจน ไม่ใส่ = ต้องเป็นไฟล์ fake
+    [switch] $AllowRealCalib
 )
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..\..')
@@ -32,6 +38,10 @@ if ($Database -notmatch '^Lockte\w*(Uat|Test|Dev)$' -or $Database -eq 'Lockte') 
 foreach ($file in @($Employee, $Order)) {
     if (-not (Test-Path $file)) { throw "ไม่พบไฟล์ $file" }
     if ((Split-Path $file -Leaf) -notmatch 'fake') { throw "ไฟล์ '$file' ไม่ใช่ไฟล์ข้อมูลปลอม (ชื่อต้องมี fake) — ห้ามใช้ข้อมูลจริงกับฐานทดสอบ" }
+}
+if ($Calib) {
+    if (-not (Test-Path $Calib)) { throw "ไม่พบไฟล์ $Calib" }
+    if ((Split-Path $Calib -Leaf) -notmatch 'fake' -and -not $AllowRealCalib) { throw "ไฟล์ '$Calib' ไม่ใช่ไฟล์ข้อมูลปลอม (ชื่อต้องมี fake) — ข้อมูลจริงของสอบเทียบโหลดได้ด้วย -AllowRealCalib (ข้อตัดสิน Q-25) เฉพาะฐานทดสอบที่ผู้ใช้รับรู้" }
 }
 $server = $env:LOCKTE_UAT_SQL
 if ([string]::IsNullOrWhiteSpace($server)) { throw 'ตั้ง env LOCKTE_UAT_SQL (connection string ของเซิร์ฟเวอร์ ไม่ใส่ Database) ก่อน' }
@@ -66,5 +76,15 @@ if ($RemoveStockDuplicates) { $arguments += @('--remove-stock-duplicates', 'yes'
 if ($CodeMap) { $arguments += @('--map', (Resolve-Path $CodeMap)) }
 dotnet run @arguments | Out-Host
 if ($LASTEXITCODE -ne 0) { Write-Warning 'มีตารางที่นับไม่ตรง — ดูรายงานก่อนใช้ฐานนี้' }
+
+if ($Calib) {
+    Write-Host '3b/4 ย้ายข้อมูลสอบเทียบ (เครื่องมือวัด, บริษัทที่สอบเทียบ, รูป JIG)'
+    $calibArguments = @('--project', (Join-Path $root 'src\Lockte.Migration'), '-c', 'Release', '--', '--program', 'calib', '--source', (Resolve-Path $Calib),
+        '--connection', $connection, '--confirm', $Database, '--out', (Join-Path $Out 'calib'))
+    if ($CalibMap) { $calibArguments += @('--map', (Resolve-Path $CalibMap)) }
+    if ($JigImages) { $calibArguments += @('--jig-images', (Resolve-Path $JigImages)) }
+    dotnet run @calibArguments | Out-Host
+    if ($LASTEXITCODE -ne 0) { Write-Warning 'สอบเทียบ: มีตารางที่นับไม่ตรง — ดูรายงานใน calib\dq-exceptions.csv ก่อนใช้ฐานนี้' }
+}
 
 Write-Host ("4/4 เสร็จใน {0:0.0} นาที — รายงาน: {1}" -f $watch.Elapsed.TotalMinutes, (Join-Path $Out 'summary.md'))
