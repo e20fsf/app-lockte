@@ -1,4 +1,5 @@
 @using Lockte.Hr
+@using Lockte.Web.Reports.Hr
 @* #350–#352: the print buttons of the legacy EMPLO screen (image13: พิมพ์แบบ คร2 / สัญญาจ้างรายวัน / สัญญาจ้างรายเดือน / ฟอร์มการรับพนักงาน)
    for the employee open on SCR-03. Every one of these documents carries เงินเดือน / ค่าแรง (#277, ADR 0004), so they are all
    behind ViewPay; whoever may not see pay is told so instead of getting a button. *@
@@ -6,6 +7,12 @@
     <PayView>
         <ChildContent>
             <MudButton Href="@($"hr/employees/{Employee.Id}/kor2")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">พิมพ์แบบ คร.2</MudButton>
+            <MudButton Href="@OnboardingReports.ContractHref(Employee.Id, "daily")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">พิมพ์สัญญาจ้างรายวัน</MudButton>
+            <MudButton Href="@OnboardingReports.ContractHref(Employee.Id, "monthly")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">พิมพ์สัญญาจ้างรายเดือน</MudButton>
+            @if (ContractHint is { } hint)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Style="flex-basis:100%">@hint</MudAlert>
+            }
         </ChildContent>
         <NotAllowed><MudText Typo="Typo.caption">พิมพ์เอกสารของพนักงานไม่ได้ — ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
     </PayView>
@@ -13,4 +20,12 @@
 
 @code {
     [Parameter, EditorRequired] public EmployeeDto Employee { get; set; } = default!;
+
+    /// <summary>#351: both contracts can be printed for anyone, but the employee ประเภท says which one is expected (a hint, not a block).</summary>
+    private string? ContractHint => Employee.EmployeeType switch
+    {
+        EmployeeTypes.Monthly => "พนักงานคนนี้เป็นประเภทรายเดือน — ใช้สัญญาจ้างรายเดือน",
+        null => "พนักงานคนนี้ยังไม่ระบุประเภท — ตรวจสอบก่อนเลือกสัญญาจ้างรายวัน / รายเดือน",
+        _ => "พนักงานคนนี้เป็นประเภทรายวัน — ใช้สัญญาจ้างรายวัน",
+    };
 }
