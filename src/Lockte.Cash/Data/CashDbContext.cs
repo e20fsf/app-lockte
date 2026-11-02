@@ -1,0 +1,56 @@
+using Lockte.SharedKernel.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Lockte.Cash.Data;
+
+/// <summary>
+/// module เงินสดย่อย (ADR 0002): เงินสดย่อย, ใบสำคัญจ่าย/ค่าใช้จ่าย, ผู้ซื้อของเก่า, ใบเสร็จขายของเก่า, การนำส่งสำนักงาน — writes only to schema <c>cash</c>.
+/// Entities are internal: other modules read through the directories.
+/// </summary>
+public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : ModuleDbContext(options, Schema)
+{
+    public const string Schema = "cash";
+
+    internal DbSet<CashSettings> Settings => Set<CashSettings>();
+    internal DbSet<ExpenseType> ExpenseTypes => Set<ExpenseType>();
+    internal DbSet<ScrapBuyer> ScrapBuyers => Set<ScrapBuyer>();
+    internal DbSet<ScrapItem> ScrapItems => Set<ScrapItem>();
+
+    protected override void ConfigureModel(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CashSettings>(s =>
+        {
+            s.HasAuditName("ค่าตั้งค่าเงินสดย่อย");
+            s.ToTable("Settings");
+            s.Property(x => x.LastRemittedReceiptNo).HasMaxLength(CashSettings.ReceiptNoLength).HasAuditName("เลขที่ใบเสร็จสุดท้ายที่ตัดยอดนำส่งแล้ว");
+        });
+
+        modelBuilder.Entity<ExpenseType>(t =>
+        {
+            t.HasAuditName("ประเภทค่าใช้จ่าย");
+            t.ToTable("ExpenseTypes");
+            t.Property(x => x.Name).HasMaxLength(ExpenseTypeRegistry.NameLength).HasAuditName("ชื่อค่าใช้จ่าย");
+            t.Property(x => x.IsActive).HasAuditName("ใช้งาน");
+            t.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ScrapBuyer>(b =>
+        {
+            b.HasAuditName("ผู้ซื้อของเก่า");
+            b.ToTable("ScrapBuyers");
+            b.Property(x => x.Name).HasMaxLength(ScrapBuyerRegistry.NameLength).HasAuditName("ชื่อผู้ซื้อ");
+            b.Property(x => x.Address).HasMaxLength(ScrapBuyerRegistry.AddressLength).HasAuditName("ที่อยู่");
+            b.Property(x => x.Tel).HasMaxLength(ScrapBuyerRegistry.TelLength).HasAuditName("เบอร์โทรศัพท์");
+            b.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ScrapItem>(i =>
+        {
+            i.HasAuditName("ชนิดของเก่า");
+            i.ToTable("ScrapItems");
+            i.Property(x => x.Name).HasMaxLength(ScrapItemRegistry.NameLength).HasAuditName("ชื่อของเก่า");
+            i.Property(x => x.Unit).HasMaxLength(ScrapItemRegistry.UnitLength).HasAuditName("หน่วย");
+            i.HasIndex(x => x.Name).IsUnique();
+        });
+    }
+}

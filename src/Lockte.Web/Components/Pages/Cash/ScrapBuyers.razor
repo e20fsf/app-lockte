@@ -1,0 +1,133 @@
+@page "/cash/scrap-buyers"
+@page "/cash/scrap-buyers/new"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+
+@* ผู้ซื้อของเก่า (SCR-07, BR-010): "เพิ่มข้อมูลผู้ซื้อ" (/new: ชื่อ ที่อยู่ เบอร์โทรศัพท์, "ผู้ซื้อต่อไป", พิมพ์) and "แก้ไขรายชื่อผู้ซื้อ" (pick the buyer from a list of ชื่อ / ที่อยู่ / โทร, edit
+   it or delete it with a button and a confirmation — not by clearing the name). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+@if (!adding)
+{
+    <MudPaper Class="pa-4 mb-4" Outlined="true">
+        <MudSelect T="ScrapBuyerDto" Value="selected" ValueChanged="Pick" Label="ชื่อผู้ซื้อ" ToStringFunc="@(b => b?.Name)" Clearable="true">
+            @foreach (var b in buyers ?? [])
+            {
+                <MudSelectItem T="ScrapBuyerDto" Value="b">@b.Name · @b.Address · @b.Tel</MudSelectItem>
+            }
+        </MudSelect>
+    </MudPaper>
+}
+
+@if (adding || selected is not null)
+{
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.Name" Label="ชื่อผู้ซื้อ" MaxLength="ScrapBuyerRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อผู้ซื้อ" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.Tel" Label="เบอร์โทรศัพท์" MaxLength="ScrapBuyerRegistry.TelLength" HelperText="หลายเบอร์คั่นด้วย ," /></MudItem>
+            <MudItem xs="12"><MudTextField @bind-Value="form.Address" Label="ที่อยู่" MaxLength="ScrapBuyerRegistry.AddressLength" /></MudItem>
+        </MudGrid>
+        <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">@(adding ? "ผู้ซื้อต่อไป" : "บันทึก")</MudButton>
+            @if (!adding)
+            {
+                <MudSpacer />
+                <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบผู้ซื้อนี้</MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+}
+
+<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Variant="Variant.Outlined" Href="reports/cash/scrap-buyers" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    <MudButton Href="@CashMenu.HrefOf(CashMenu.Receipts)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    private IReadOnlyList<ScrapBuyerDto>? buyers;
+    private ScrapBuyerDto? selected;
+    private Form form = new();
+    private bool adding;
+    private bool busy;
+
+    private string Title => adding ? "เพิ่มข้อมูลผู้ซื้อของเก่า" : "แก้ไขรายชื่อผู้ซื้อของเก่า";
+
+    protected override async Task OnInitializedAsync()
+    {
+        adding = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').EndsWith("/new", StringComparison.OrdinalIgnoreCase);
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+        => buyers = await Services.RunAsync<ScrapBuyerDirectory, IReadOnlyList<ScrapBuyerDto>>(d => d.ListAsync());
+
+    private void Pick(ScrapBuyerDto? buyer)
+    {
+        selected = buyer;
+        form = buyer is null ? new() : new() { Name = buyer.Name, Address = buyer.Address, Tel = buyer.Tel };
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new ScrapBuyerInput(selected?.Id, form.Name, form.Address, form.Tel, selected?.RowVersion);
+            var result = await Services.RunAsync<ScrapBuyerRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            Pick(null);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            Pick(null);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบผู้ซื้อของเก่า", $"ลบผู้ซื้อ {selected!.Name}? (ใบเสร็จที่ออกแล้วยังแสดงชื่อและที่อยู่เดิม)", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (selected!.Id, selected.RowVersion);
+            var result = await Services.RunAsync<ScrapBuyerRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            Pick(null);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            Pick(null);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class Form
+    {
+        public string? Name { get; set; }
+        public string? Address { get; set; }
+        public string? Tel { get; set; }
+    }
+}

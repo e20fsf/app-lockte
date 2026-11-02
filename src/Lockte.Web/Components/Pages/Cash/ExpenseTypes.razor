@@ -1,0 +1,154 @@
+@page "/cash/expense-types"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* ประเภทค่าใช้จ่าย (SCR-02, BR-001): เพิ่ม (ค่าใช้จ่ายต่างๆ), แก้ไข (ฟอร์ม1) and ลบ (ตาราง1) on one page — pick a row of the list to edit it, "รายการต่อไป" for a new one.
+   Unlike the legacy, editing renames the picked type (Q-07) and delete works: an unused type is deleted, a used one is retired (เลิกใช้) and can be brought back. *@
+<PageTitle>ประเภทค่าใช้จ่าย — LOCKTE</PageTitle>
+<h1 class="mb-4">ประเภทค่าใช้จ่าย</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">@(selected is null ? "เพิ่มรายการค่าใช้จ่าย" : $"แก้ไขรายการค่าใช้จ่าย {selected.Name}")</MudText>
+    <MudTextField @bind-Value="name" Label="ชื่อค่าใช้จ่าย" MaxLength="ExpenseTypeRegistry.NameLength" Immediate="true" />
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">รายการต่อไป</MudButton>
+        @if (selected is not null)
+        {
+            <MudSpacer />
+            @if (selected.IsActive)
+            {
+                <MudButton OnClick="@(() => SetActiveAsync(false))" Disabled="busy" StartIcon="@Icons.Material.Filled.PauseCircle">เลิกใช้</MudButton>
+            }
+            else
+            {
+                <MudButton OnClick="@(() => SetActiveAsync(true))" Disabled="busy" StartIcon="@Icons.Material.Filled.PlayCircle">เปิดใช้อีกครั้ง</MudButton>
+            }
+            <MudButton Color="Color.Error" OnClick="RemoveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบรายการนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-2">รายการค่าใช้จ่ายต่างๆ</MudText>
+    <MudTable Items="types" Dense="true" Hover="true" Loading="types is null" T="ExpenseTypeDto" Breakpoint="Breakpoint.None"
+              OnRowClick="@((TableRowClickEventArgs<ExpenseTypeDto> e) => Pick(e.Item!))">
+        <HeaderContent><MudTh>รายการ</MudTh><MudTh>สถานะ</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@(context.IsActive ? "ใช้งาน" : "เลิกใช้")</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>ยังไม่มีประเภทค่าใช้จ่าย</MudText></NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Variant="Variant.Outlined" Href="reports/cash/expense-types" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์ค่าใช้จ่ายต่างๆ</MudButton>
+    <MudButton Href="@CashMenu.HrefOf(ProgramMenu.Main)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    private IReadOnlyList<ExpenseTypeDto>? types;
+    private ExpenseTypeDto? selected;
+    private string? name;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+        => types = await Services.RunAsync<ExpenseTypeDirectory, IReadOnlyList<ExpenseTypeDto>>(d => d.ListAllAsync());
+
+    private void New()
+    {
+        selected = null;
+        name = null;
+    }
+
+    private void Pick(ExpenseTypeDto type)
+    {
+        selected = type;
+        name = type.Name;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new ExpenseTypeInput(selected?.Id, name, selected?.RowVersion);
+            var result = await Services.RunAsync<ExpenseTypeRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task SetActiveAsync(bool active)
+    {
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (selected!.Id, selected.RowVersion);
+            var result = await Services.RunAsync<ExpenseTypeRegistry, ServiceResult>(r => r.SetActiveAsync(id, active, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(active ? "เปิดใช้อีกครั้งแล้ว" : "เลิกใช้แล้ว (ไม่อยู่ในรายการเลือก แต่บรรทัดเดิมและรายงานยังแสดงชื่อนี้)", Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบรายการค่าใช้จ่าย", $"ลบรายการ {selected!.Name}?", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (selected!.Id, selected.RowVersion);
+            var outcome = await Services.RunAsync<ExpenseTypeRegistry, ExpenseTypeRemoval>(r => r.RemoveAsync(id, rowVersion));
+            Snackbar.Add(outcome switch
+            {
+                ExpenseTypeRemoval.Deleted => "ลบแล้ว",
+                ExpenseTypeRemoval.Retired => "มีบรรทัดค่าใช้จ่ายใช้รายการนี้อยู่ จึงเปลี่ยนเป็นเลิกใช้แทน (ไม่อยู่ในรายการเลือก แต่บรรทัดเดิมและรายงานยังแสดงชื่อนี้)",
+                _ => "ไม่พบรายการนี้แล้ว",
+            }, outcome == ExpenseTypeRemoval.NotFound ? Severity.Warning : Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+}

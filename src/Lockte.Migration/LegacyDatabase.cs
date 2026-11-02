@@ -88,6 +88,11 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     public static IReadOnlyList<string> PurchHistoryTables { get; } = ["ประเมินผู้ขาย", "Stock", "PO_RECEI4", "PO_RECEI5"];
 
     /// <summary>The tables of <c>สอบเทียบ.accdb</c> the migration reads (209): the six instrument tables and the lookup of the companies. `วันที่ CAL` and `Switchboard Items` are not moved.</summary>
+    /// <summary>
+    /// The tables of <c>เงินสดย่อย.accdb</c> (#231): the three registers, and — to tell which of their values the data uses — the expense lines and the receipt lines (loaded by #236 and #241).
+    /// </summary>
+    public static IReadOnlyList<string> CashTables { get; } = ["ค่าใช้จ่ายต่างๆ", "ผู้ซื้อของเก่า", "รายชื่อของเก่า", "ซื้อของเงินสด", "ขายของเก่า"];
+
     public static IReadOnlyList<string> CalibMasterDataTables { get; } = ["ภายนอก", "CALIPER", "PRESSURE GAUGE", "เครื่องชั่ง", "ตัวควบคุมอุณหภูมิ", "jig", "บริษัทที่สอบเทียบ"];
 
     /// <summary>The balances carried forward by every cut are moved from 1 Jan 2025 (#267); the older ones and the history of the issues (P_ADDST) are not.</summary>
@@ -159,6 +164,15 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         => ReadCopy(accdbPath, (connection, tables, counts) =>
         {
             foreach (var table in PurchMasterDataTables)
+                tables[table] = Read(connection, table, null);
+        });
+
+    /// <summary>The tables of <c>เงินสดย่อย.accdb</c> (#231), read from a copy the same way.</summary>
+    [SupportedOSPlatform("windows")]
+    public static LegacyDatabase ReadCashFile(string accdbPath)
+        => ReadCopy(accdbPath, (connection, tables, counts) =>
+        {
+            foreach (var table in CashTables)
                 tables[table] = Read(connection, table, null);
         });
 

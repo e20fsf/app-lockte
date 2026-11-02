@@ -1,0 +1,9 @@
+@page "/cash/menu/{Number:int}"
+@attribute [Authorize]
+
+<MenuView Program="CashMenu.Menu" Number="Number" />
+
+@code {
+    [Parameter]
+    public int Number { get; set; }
+}

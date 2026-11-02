@@ -51,7 +51,13 @@ public static class CodeKinds
     /// <summary>The decision on a registration date the rules do not cover (<c>PG-DC107/2565</c> has the year 4722, Q-08): legacy = หมายเลขเครื่อง, code = the date as <c>yyyy-MM-dd</c>.</summary>
     public const string CalibDate = "calib-date";
 
-    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift, ProductionEmployee, SalesRepresentative, SupplierName, StockEmployee, CalibDepartment, Calibrator, CalibDate];
+    /// <summary>
+    /// A name in <c>ซื้อของเงินสด.TYPE</c> (cleaned of blanks and line breaks, #231) → the name of the expense type it belongs to, for a spelling that differs from the register's
+    /// (<c>(1 ฒง 494)</c> / <c>(1ฒง 494 )</c>). The file holds real names: keep it outside git.
+    /// </summary>
+    public const string CashExpenseType = "cash-expense-type";
+
+    public static IReadOnlyList<string> All { get; } = [Department, Customer, Shift, ProductionEmployee, SalesRepresentative, SupplierName, StockEmployee, CalibDepartment, Calibrator, CalibDate, CashExpenseType];
 }
 
 /// <summary>

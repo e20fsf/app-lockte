@@ -1,0 +1,23 @@
+@* RPT-05 รายการค่าใช้จ่ายต่างๆ, ระดับ B on A4 ตั้ง: ลำดับ, รายการ. *@
+@if (Report.Names.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:12%" /><col style="width:88%" /></colgroup>
+        <thead><tr><th class="num">ลำดับ</th><th>รายการ</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Names.Count; i++)
+            {
+                <tr><td class="num">@(i + 1)</td><td>@Report.Names[i]</td></tr>
+            }
+            <tr><td colspan="2" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ExpenseTypeListReport Report { get; set; } = null!;
+}

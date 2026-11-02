@@ -91,15 +91,15 @@ public sealed class ProgramMenu(string key, string title, string root, string me
 }
 
 /// <summary>
-/// The programs a staff user chooses between after login (หน้าเลือกโปรแกรม), all in one app (ADR 0002). วัตถุดิบ is the third and สอบเทียบ the fourth;
-/// เงินสดย่อย comes in a later phase.
+/// The programs a staff user chooses between after login (หน้าเลือกโปรแกรม), all in one app (ADR 0002). วัตถุดิบ is the third, สอบเทียบ the fourth and
+/// เงินสดย่อย the fifth.
 /// </summary>
 public static class ProgramMenus
 {
     /// <summary>The program chooser; "/" sends the user to their last program, or here when there is none.</summary>
     public const string ChooserHref = "programs";
 
-    public static IReadOnlyList<ProgramMenu> All { get; } = [EmployeeMenu.Menu, OrderMenu.Menu, PurchMenu.Menu, CalibMenu.Menu];
+    public static IReadOnlyList<ProgramMenu> All { get; } = [EmployeeMenu.Menu, OrderMenu.Menu, PurchMenu.Menu, CalibMenu.Menu, CashMenu.Menu];
 
     public static ProgramMenu? Find(string? key) => All.FirstOrDefault(p => p.Key == key);
 

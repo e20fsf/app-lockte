@@ -1,0 +1,24 @@
+@* RPT-11 รายชื่อของเก่า, ระดับ B on A4 ตั้ง: ลำดับ, ชื่อ, หน่วย. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:12%" /><col style="width:64%" /><col style="width:24%" /></colgroup>
+        <thead><tr><th class="num">ลำดับ</th><th>ชื่อ</th><th>หน่วย</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var item = Report.Rows[i];
+                <tr><td class="num">@(i + 1)</td><td>@item.Name</td><td>@item.Unit</td></tr>
+            }
+            <tr><td colspan="3" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ScrapItemListReport Report { get; set; } = null!;
+}

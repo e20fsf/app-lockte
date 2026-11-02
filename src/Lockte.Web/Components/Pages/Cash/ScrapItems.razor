@@ -1,0 +1,131 @@
+@page "/cash/scrap-items"
+@page "/cash/scrap-items/new"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+
+@* รายชื่อของเก่า (SCR-08, BR-010): "เพิ่มรายชื่อของเก่า" (/new: ชื่อ หน่วย, "ของเก่าต่อไป", พิมพ์) and "แก้ไขรายชื่อของเก่า" (pick the kind, edit it or delete it with a button and a
+   confirmation — not by clearing the name). *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+@if (!adding)
+{
+    <MudPaper Class="pa-4 mb-4" Outlined="true">
+        <MudSelect T="ScrapItemDto" Value="selected" ValueChanged="Pick" Label="เลือกชื่อที่ต้องการแก้ไข" ToStringFunc="@(i => i?.Name)" Clearable="true">
+            @foreach (var i in items ?? [])
+            {
+                <MudSelectItem T="ScrapItemDto" Value="i">@i.Name · @i.Unit</MudSelectItem>
+            }
+        </MudSelect>
+    </MudPaper>
+}
+
+@if (adding || selected is not null)
+{
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="8"><MudTextField @bind-Value="form.Name" Label="ชื่อ" MaxLength="ScrapItemRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อของเก่า" /></MudItem>
+            <MudItem xs="12" sm="4"><MudTextField @bind-Value="form.Unit" Label="หน่วย" MaxLength="ScrapItemRegistry.UnitLength" /></MudItem>
+        </MudGrid>
+        <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">@(adding ? "ของเก่าต่อไป" : "บันทึก")</MudButton>
+            @if (!adding)
+            {
+                <MudSpacer />
+                <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบของเก่านี้</MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+}
+
+<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Variant="Variant.Outlined" Href="reports/cash/scrap-items" Target="_blank" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    <MudButton Href="@CashMenu.HrefOf(CashMenu.Receipts)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    private IReadOnlyList<ScrapItemDto>? items;
+    private ScrapItemDto? selected;
+    private Form form = new();
+    private bool adding;
+    private bool busy;
+
+    private string Title => adding ? "เพิ่มรายชื่อของเก่า" : "แก้ไขรายชื่อของเก่า";
+
+    protected override async Task OnInitializedAsync()
+    {
+        adding = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').EndsWith("/new", StringComparison.OrdinalIgnoreCase);
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+        => items = await Services.RunAsync<ScrapItemDirectory, IReadOnlyList<ScrapItemDto>>(d => d.ListAsync());
+
+    private void Pick(ScrapItemDto? item)
+    {
+        selected = item;
+        form = item is null ? new() : new() { Name = item.Name, Unit = item.Unit };
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new ScrapItemInput(selected?.Id, form.Name, form.Unit, selected?.RowVersion);
+            var result = await Services.RunAsync<ScrapItemRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            Pick(null);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            Pick(null);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบของเก่า", $"ลบของเก่า {selected!.Name}? (ใบเสร็จที่ออกแล้วยังแสดงชื่อและหน่วยเดิม)", yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion) = (selected!.Id, selected.RowVersion);
+            var result = await Services.RunAsync<ScrapItemRegistry, ServiceResult>(r => r.DeleteAsync(id, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("ลบแล้ว", Severity.Success);
+            Pick(null);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            Pick(null);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class Form
+    {
+        public string? Name { get; set; }
+        public string? Unit { get; set; }
+    }
+}

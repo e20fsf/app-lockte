@@ -2,7 +2,7 @@ using Lockte.Hr;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Accounts;
 using Lockte.Web.Reports.Calib;
-using Lockte.Web.Reports.Calib;
+using Lockte.Web.Reports.Cash;
 using Lockte.Web.Reports.Hr;
 using Lockte.Web.Reports.Order;
 using Lockte.Web.Reports.Order.Qa;
@@ -79,6 +79,8 @@ public static class ReportsRegistration
         reports.MapResaleAndSmallOrderReports(); // ซื้อมาขายไป และใบสั่งซื้อต่ำกว่าเกณฑ์ (วัตถุดิบ #261)
         reports.MapMaterialYearReports(); // การซื้อวัตถุดิบรายปีตามชื่อ 12 เดือน (วัตถุดิบ #260)
         reports.MapReceiptSummaryReports(); // สรุปการรับวัตถุดิบ รายเดือน/รายปี/แยกแผนก (วัตถุดิบ #259)
+        reports.MapCashExpenseTypeReports(); // รายการค่าใช้จ่ายต่างๆ (เงินสดย่อย #229)
+        reports.MapCashScrapListReports(); // รายชื่อผู้ซื้อและชนิดของเก่า (เงินสดย่อย #230)
 
         // RPT-01 เวลาทำงานรายคน (รายงาน คำนวณเวลาทำงาน13): A4 ตั้ง, no document number.
         reports.MapGet("/hr/pay-periods/{id:int}/time", async (int id, HttpContext http, PayPeriodDirectory periods, ReportPrinter printer,

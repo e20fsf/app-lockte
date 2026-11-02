@@ -1,4 +1,5 @@
 using Lockte.Calib;
+using Lockte.Cash;
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
@@ -29,5 +30,6 @@ public static class LockteDatabase
         await ProdModule.MigrateAsync(services);
         await PurchModule.MigrateAsync(services);
         await CalibModule.MigrateAsync(services);
+        await CashModule.MigrateAsync(services);
     }
 }

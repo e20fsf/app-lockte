@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using Lockte.Calib;
+using Lockte.Cash;
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
@@ -27,6 +28,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
     public const string PurchMasterProgram = "purch-master";
     /// <summary>The master data of <c>สอบเทียบ.accdb</c> (209): the six instrument tables, the calibration companies, and with <c>--jig-images</c> the pictures of the JIG sheets.</summary>
     public const string CalibProgram = "calib";
+    /// <summary>The master data of <c>เงินสดย่อย.accdb</c> (#231): ประเภทค่าใช้จ่าย, ผู้ซื้อของเก่า, ชนิดของเก่า.</summary>
+    public const string CashProgram = "cash";
     /// <summary>The history of <c>วัตถุดิบ.accdb</c> (#268 ผลประเมินผู้ขาย; documents and stock book in #266, #267), run after <see cref="PurchMasterProgram"/>.</summary>
     public const string PurchHistoryProgram = "purch-history";
     public const string QaSpecProgram = "qa-spec";
@@ -60,6 +63,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
           --program order = ย้ายข้อมูลหลักของ ผลผลิตและORDER.accdb (รันหลังย้ายข้อมูลโปรแกรมพนักงานลงฐานข้อมูลเดียวกัน)
           --program purch-history = ย้ายประวัติของ วัตถุดิบ.accdb (ผลประเมินผู้ขาย) หลัง purch-master บนฐานข้อมูลเดียวกัน; จับคู่ชื่อผู้ขาย→รหัสด้วยชื่อ หรือ kind supplier-name ในตารางจับคู่ (ตารางนี้มีชื่อจริง เก็บนอก git)
           --program calib = ย้ายข้อมูลหลักของ สอบเทียบ.accdb: เครื่องมือวัด 6 ชนิดและบริษัทที่สอบเทียบ (--map ใช้ kind calib-department, calibrator, calib-date; ไฟล์จับคู่ผู้สอบเทียบเก็บนอก git) · --jig-images <โฟลเดอร์จาก tools/calib-jig-images> โหลดรูป JIG ต่อท้าย
+        Lockte.Migration --program cash --source <เงินสดย่อย.accdb> --connection "<SQL Server connection string>" --confirm <database> --out <folder> [--map <code-map.csv>]
+          ย้ายข้อมูลหลักของ เงินสดย่อย.accdb: ประเภทค่าใช้จ่าย (ชื่อที่บรรทัดค่าใช้จ่ายใช้แต่ทะเบียนไม่มี → ประเภทเลิกใช้), ผู้ซื้อของเก่า, ชนิดของเก่า · --map ใช้ kind cash-expense-type เพื่อรวมชื่อที่สะกดต่าง (ไฟล์จับคู่มีชื่อจริง เก็บนอก git) · ลบแล้วโหลดใหม่ รันซ้ำได้
         Lockte.Migration --program compare-calib --baseline <folder ของ tools/baseline/export_calib_baseline.py> --connection "<SQL Server connection string>" --out <folder>
           เทียบเครื่องมือวัดที่ย้ายแล้วกับบัญชีรายชื่อ (RPT-02) ของ Access ทีละแถว + ด่าน AC-01…14 (อ่านอย่างเดียว) → calib-compare.csv, calib-gate.csv, calib-summary.md (ข้อมูลจริง ห้าม commit)
           --program purch-master = ย้ายข้อมูลหลักของ วัตถุดิบ.accdb: ผู้ขาย วัตถุดิบ ตัวเลือก และ prefix เลขที่ใบขอซื้อของแผนก (รันหลังโปรแกรมพนักงาน/ORDER; ฐานข้อมูลต้องยังไม่มีเอกสารจัดซื้อ; ใช้กับฐานข้อมูลทดสอบแยกชื่อเท่านั้น)
@@ -77,8 +82,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         }
         var connection = values.GetValueOrDefault("connection") ?? Environment.GetEnvironmentVariable(ConnectionVariable);
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or PurchHistoryProgram or CalibProgram or CalibCompareProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
-            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {PurchHistoryProgram}, {CalibProgram}, {CalibCompareProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
+        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or PurchHistoryProgram or CalibProgram or CashProgram or CalibCompareProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
+            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {PurchHistoryProgram}, {CalibProgram}, {CashProgram}, {CalibCompareProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
         var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram or CalibCompareProgram;
         if (!whole && values.GetValueOrDefault("source") is null) return (null, "ไม่ได้ระบุ --source");
         var source = values.GetValueOrDefault("source") ?? "";
@@ -124,7 +129,7 @@ public static class MigrationTool
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
             .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>().AddScoped<QaSpecImport>().AddScoped<QaSpecMigration>()
-            .AddScoped<CalibMasterImport>().AddScoped<CalibMasterDataMigration>().AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>().AddScoped<PurchDocumentMigration>()
+            .AddScoped<CalibMasterImport>().AddScoped<CalibMasterDataMigration>().AddScoped<CashMasterImport>().AddScoped<CashMasterDataMigration>().AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>().AddScoped<PurchDocumentMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -211,6 +216,24 @@ public static class PurchHistoryTool
 public sealed class MigrationUser : ICurrentUser
 {
     public string UserName => MigrationTool.UserName;
+}
+
+public static class CashMigrationTool
+{
+    /// <summary>
+    /// The master-data run of เงินสดย่อย (#231): reads a copy of <paramref name="sourceFile"/>, deletes and loads the expense types, the scrap buyers and the scrap kinds, and writes the DQ report, the
+    /// row counts and the code map used into <paramref name="outputFolder"/> (real data: kept outside git).
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static async Task<MigrationReport> RunAsync(IServiceProvider services, string sourceFile, string? codeMapFile, string outputFolder)
+    {
+        var map = codeMapFile is null ? CodeMap.Empty : CodeMap.Read(codeMapFile);
+        var legacy = LegacyDatabase.ReadCashFile(sourceFile);
+        await using var scope = services.CreateAsyncScope();
+        var report = await scope.ServiceProvider.GetRequiredService<CashMasterDataMigration>().RunAsync(legacy, map);
+        report.WriteTo(outputFolder);
+        return report;
+    }
 }
 
 public static class CalibMigrationTool
