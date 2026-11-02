@@ -139,7 +139,7 @@ public sealed class OnboardingTests(LocalDbFixture db)
         Assert.Equal((1, 1, 35.0), (all.Male, all.Female, all.AverageAge!.Value));
         Assert.Equal("รายชื่อพนักงานแผนก" + department.Name + "  กะA", shiftOnly.Title);
         var line = Assert.Single(shiftOnly.Lines);
-        Assert.Equal((first.Code, start, "หัวหน้า", 2, 3, 40, 18665.0, 622.17),
+        Assert.Equal((first.Code, start, "หัวหน้า", 2, 3, 40, 18665.0, 622.0), // ค่าแรง/วัน 622.17 is whole baht (#354)
             (line.Code, line.StartDate, line.Position, line.ServiceYears, line.ServiceMonths, line.Age, line.Salary, line.DailyWage));
         var everyone = await directory(null, shiftB.Id);
         Assert.StartsWith("รายชื่อพนักงานทั้งหมด  กะB", everyone.Title);

@@ -175,8 +175,9 @@ public sealed class PayAdjustmentEvaluationTests(LocalDbFixture db)
         Assert.Empty(monthly);
         Assert.Equal([elsewhere.Code], everyone.Select(l => l.Code)); // on the report of all แผนก only (decided 2026-10-21)
         var line = Assert.Single(daily);
-        Assert.Equal((noStart.Code, (double?)null, 6.0, 25.0, 412.0, 438.0), (line.Code, line.ServiceYears, line.Rate, line.Increase, line.Wage, line.NewWage));
-        Assert.Equal(412.5, (await AsHrAsync(s => s.Get<EmployeeDirectory>().GetAsync(noStart.Id)))!.DailyWage);
+        // #354: 412.5 is whole baht 413 once saved; 413 × 6 % = 24.78 → 25, 413 + 25 = 438
+        Assert.Equal((noStart.Code, (double?)null, 6.0, 25.0, 413.0, 438.0), (line.Code, line.ServiceYears, line.Rate, line.Increase, line.Wage, line.NewWage));
+        Assert.Equal(413.0, (await AsHrAsync(s => s.Get<EmployeeDirectory>().GetAsync(noStart.Id)))!.DailyWage); // as saved (whole baht), not changed by the report
     }
 
     private static async Task<string> RenderAsync<TView>(Dictionary<string, object?> parameters) where TView : IComponent
