@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using Lockte.Calib;
 using Lockte.Hr;
 using Lockte.Org;
 using Lockte.Prod;
@@ -18,12 +19,14 @@ namespace Lockte.Migration;
 /// <c>employee</c>); run it after the employee program's migration on the same database.
 /// </summary>
 public sealed record MigrationOptions(string SourceFile, string ConnectionString, string? CodeMapFile, string OutputFolder, string Program = MigrationOptions.EmployeeProgram, bool RemoveStockDuplicates = false,
-    string? EmployeeFile = null, string? OrderFile = null, string? QaDefinitionsFolder = null, string? BaselineFolder = null, DateOnly? CutDate = null, DateOnly? PeriodFrom = null, bool Calculate = false)
+    string? EmployeeFile = null, string? OrderFile = null, string? QaDefinitionsFolder = null, string? BaselineFolder = null, DateOnly? CutDate = null, DateOnly? PeriodFrom = null, bool Calculate = false, string? JigImagesFolder = null)
 {
     public const string EmployeeProgram = "employee";
     public const string OrderProgram = "order";
     /// <summary>The master data of <c>วัตถุดิบ.accdb</c> (#217): ผู้ขาย, วัตถุดิบ, the lists, the prefix of each แผนก.</summary>
     public const string PurchMasterProgram = "purch-master";
+    /// <summary>The master data of <c>สอบเทียบ.accdb</c> (209): the six instrument tables, the calibration companies, and with <c>--jig-images</c> the pictures of the JIG sheets.</summary>
+    public const string CalibProgram = "calib";
     /// <summary>The history of <c>วัตถุดิบ.accdb</c> (#268 ผลประเมินผู้ขาย; documents and stock book in #266, #267), run after <see cref="PurchMasterProgram"/>.</summary>
     public const string PurchHistoryProgram = "purch-history";
     public const string QaSpecProgram = "qa-spec";
@@ -54,6 +57,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
           --program qa-spec = สกัดสเปคตรวจ QA จากโฟลเดอร์นิยามรายงานที่กู้ไว้ (--source เป็นโฟลเดอร์ reports_decompiled; ผลอยู่ในฐานข้อมูลและ <folder> เท่านั้น ห้าม commit)
           --program order = ย้ายข้อมูลหลักของ ผลผลิตและORDER.accdb (รันหลังย้ายข้อมูลโปรแกรมพนักงานลงฐานข้อมูลเดียวกัน)
           --program purch-history = ย้ายประวัติของ วัตถุดิบ.accdb (ผลประเมินผู้ขาย) หลัง purch-master บนฐานข้อมูลเดียวกัน; จับคู่ชื่อผู้ขาย→รหัสด้วยชื่อ หรือ kind supplier-name ในตารางจับคู่ (ตารางนี้มีชื่อจริง เก็บนอก git)
+          --program calib = ย้ายข้อมูลหลักของ สอบเทียบ.accdb: เครื่องมือวัด 6 ชนิดและบริษัทที่สอบเทียบ (--map ใช้ kind calib-department, calibrator, calib-date; ไฟล์จับคู่ผู้สอบเทียบเก็บนอก git) · --jig-images <โฟลเดอร์จาก tools/calib-jig-images> โหลดรูป JIG ต่อท้าย
           --program purch-master = ย้ายข้อมูลหลักของ วัตถุดิบ.accdb: ผู้ขาย วัตถุดิบ ตัวเลือก และ prefix เลขที่ใบขอซื้อของแผนก (รันหลังโปรแกรมพนักงาน/ORDER; ฐานข้อมูลต้องยังไม่มีเอกสารจัดซื้อ; ใช้กับฐานข้อมูลทดสอบแยกชื่อเท่านั้น)
           --remove-stock-duplicates yes = ตัดผลผลิตที่นับซ้ำใน P_ST ตาม Q-47 (ค่าเริ่มต้น: ไม่ตัด รายงานจำนวนอย่างเดียว)
           --connection ใช้ env LOCKTE_MIGRATION_SQL แทนได้ · รายงานเขียนลง <folder>
@@ -69,8 +73,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         }
         var connection = values.GetValueOrDefault("connection") ?? Environment.GetEnvironmentVariable(ConnectionVariable);
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or PurchHistoryProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
-            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {PurchHistoryProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
+        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or PurchHistoryProgram or CalibProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
+            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {PurchHistoryProgram}, {CalibProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
         var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram;
         if (!whole && values.GetValueOrDefault("source") is null) return (null, "ไม่ได้ระบุ --source");
         var source = values.GetValueOrDefault("source") ?? "";
@@ -99,7 +103,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         if (program is not (CompareProgram or ComparePeriodProgram) && !string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
         return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase),
-            values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa"), values.GetValueOrDefault("baseline"), cut, periodFrom, string.Equals(values.GetValueOrDefault("calculate"), "yes", StringComparison.OrdinalIgnoreCase)), null);
+            values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa"), values.GetValueOrDefault("baseline"), cut, periodFrom, string.Equals(values.GetValueOrDefault("calculate"), "yes", StringComparison.OrdinalIgnoreCase), values.GetValueOrDefault("jig-images")), null);
     }
 }
 
@@ -115,7 +119,7 @@ public static class MigrationTool
             .AddScoped<WarningMigration>().AddScoped<HrWarningImport>()
             .AddScoped<ProdDataReset>().AddScoped<OrgMachineReset>().AddScoped<OrderMasterDataMigration>()
             .AddScoped<SalesOrderImport>().AddScoped<OrderHistoryMigration>().AddScoped<ProductionReportImport>().AddScoped<ProductionReportMigration>().AddScoped<StockImport>().AddScoped<StockMigration>().AddScoped<QaSpecImport>().AddScoped<QaSpecMigration>()
-            .AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>().AddScoped<PurchDocumentMigration>()
+            .AddScoped<CalibMasterImport>().AddScoped<CalibMasterDataMigration>().AddScoped<PurchMasterImport>().AddScoped<PurchMasterDataMigration>().AddScoped<PurchHistoryImport>().AddScoped<PurchHistoryMigration>().AddScoped<PurchDocumentMigration>()
             .AddScoped<OrphanPayEmployeeMigration>().AddScoped<HrStubEmployeeImport>().AddScoped<PayHistoryMigration>().AddScoped<HrPayHistoryImport>();
 
     /// <summary>
@@ -202,4 +206,34 @@ public static class PurchHistoryTool
 public sealed class MigrationUser : ICurrentUser
 {
     public string UserName => MigrationTool.UserName;
+}
+
+public static class CalibMigrationTool
+{
+    /// <summary>
+    /// The master-data run of สอบเทียบ (209): reads a copy of <paramref name="sourceFile"/>, deletes and loads the instruments and the calibration companies, then — when <paramref name="jigImagesFolder"/> is
+    /// given — the pictures of the JIG sheets exported by <c>tools/calib-jig-images</c> (200), and writes the DQ report, the row counts and the code map used into <paramref name="outputFolder"/> (real
+    /// data: kept outside git).
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public static async Task<MigrationReport> RunAsync(IServiceProvider services, string sourceFile, string? codeMapFile, string outputFolder, string? jigImagesFolder = null)
+    {
+        var map = codeMapFile is null ? CodeMap.Empty : CodeMap.Read(codeMapFile);
+        var legacy = LegacyDatabase.ReadCalibFile(sourceFile);
+        await using var scope = services.CreateAsyncScope();
+        var report = await scope.ServiceProvider.GetRequiredService<CalibMasterDataMigration>().RunAsync(legacy, map);
+        if (jigImagesFolder is not null) await LoadJigImagesAsync(scope.ServiceProvider, jigImagesFolder, report);
+        report.WriteTo(outputFolder);
+        return report;
+    }
+
+    /// <summary>Loads the pictures and tells in the report how many sheets got one and which still have none (no names of people in it).</summary>
+    public static async Task LoadJigImagesAsync(IServiceProvider services, string folder, MigrationReport report)
+    {
+        var result = await services.GetRequiredService<JigImageRegistry>().ImportFolderAsync(folder);
+        report.Notes.Add($"รูป JIG: โหลด {result.Loaded} แบบ (รูปที่ไม่ซ้ำ {result.DistinctImages}) จากแมปปิ้ง {result.MappingRows} แถว · ไม่พบแบบ {result.SheetNotFound.Count} · ไฟล์มีปัญหา {result.FileProblems.Count} · แบบที่ยังไม่มีรูป {result.StillWithoutImage.Count}");
+        foreach (var problem in result.SheetNotFound) report.Add("รูป JIG", problem, "NF-06", "ไม่พบแบบตรวจที่ตรงกับแถวในแมปปิ้ง", MigrationReport.NotLoaded);
+        foreach (var problem in result.FileProblems) report.Add("รูป JIG", problem, "NF-06", "ไฟล์รูปมีปัญหา", MigrationReport.NotLoaded);
+        foreach (var sheet in result.StillWithoutImage) report.Add("รูป JIG", $"{(sheet.Type == JigSheetType.ZeroCheck ? "วัดศูนย์" : "กรอ")} {sheet.ModelKey}", "NF-06", "แบบนี้ยังไม่มีรูป JIG (พิมพ์ได้ด้วยกรอบว่าง)", "ไม่มีรูป");
+    }
 }

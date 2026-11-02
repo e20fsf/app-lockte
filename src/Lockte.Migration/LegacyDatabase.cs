@@ -87,6 +87,9 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
     /// <summary>The history tables of <c>วัตถุดิบ.accdb</c> that the migration reads (#268, and the ones the tickets after it add).</summary>
     public static IReadOnlyList<string> PurchHistoryTables { get; } = ["ประเมินผู้ขาย", "Stock", "PO_RECEI4", "PO_RECEI5"];
 
+    /// <summary>The tables of <c>สอบเทียบ.accdb</c> the migration reads (209): the six instrument tables and the lookup of the companies. `วันที่ CAL` and `Switchboard Items` are not moved.</summary>
+    public static IReadOnlyList<string> CalibMasterDataTables { get; } = ["ภายนอก", "CALIPER", "PRESSURE GAUGE", "เครื่องชั่ง", "ตัวควบคุมอุณหภูมิ", "jig", "บริษัทที่สอบเทียบ"];
+
     /// <summary>The balances carried forward by every cut are moved from 1 Jan 2025 (#267); the older ones and the history of the issues (P_ADDST) are not.</summary>
     public static readonly DateOnly PurchCutFrom = new(2025, 1, 1);
 
@@ -156,6 +159,15 @@ public sealed class LegacyDatabase(IReadOnlyDictionary<string, IReadOnlyList<Leg
         => ReadCopy(accdbPath, (connection, tables, counts) =>
         {
             foreach (var table in PurchMasterDataTables)
+                tables[table] = Read(connection, table, null);
+        });
+
+    /// <summary>The tables of <c>สอบเทียบ.accdb</c> (209), read from a copy the same way.</summary>
+    [SupportedOSPlatform("windows")]
+    public static LegacyDatabase ReadCalibFile(string accdbPath)
+        => ReadCopy(accdbPath, (connection, tables, counts) =>
+        {
+            foreach (var table in CalibMasterDataTables)
                 tables[table] = Read(connection, table, null);
         });
 
