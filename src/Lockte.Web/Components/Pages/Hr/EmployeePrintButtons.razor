@@ -1,0 +1,16 @@
+@using Lockte.Hr
+@* #350–#352: the print buttons of the legacy EMPLO screen (image13: พิมพ์แบบ คร2 / สัญญาจ้างรายวัน / สัญญาจ้างรายเดือน / ฟอร์มการรับพนักงาน)
+   for the employee open on SCR-03. Every one of these documents carries เงินเดือน / ค่าแรง (#277, ADR 0004), so they are all
+   behind ViewPay; whoever may not see pay is told so instead of getting a button. *@
+<MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mt-4">
+    <PayView>
+        <ChildContent>
+            <MudButton Href="@($"hr/employees/{Employee.Id}/kor2")" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print">พิมพ์แบบ คร.2</MudButton>
+        </ChildContent>
+        <NotAllowed><MudText Typo="Typo.caption">พิมพ์เอกสารของพนักงานไม่ได้ — ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
+    </PayView>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public EmployeeDto Employee { get; set; } = default!;
+}
