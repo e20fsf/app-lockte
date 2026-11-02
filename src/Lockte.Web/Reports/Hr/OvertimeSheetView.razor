@@ -11,6 +11,12 @@
     .ot-grid .c { text-align: center; white-space: nowrap; }
     .ot-foot { display: flex; justify-content: space-between; margin-top: 18pt; font-weight: bold; }
     .ot-sign { display: inline-block; width: 30mm; border-bottom: 0.75pt solid #000; }
+    /* #356: about 25 people on one A5 page — smaller type and rows, no row is ever cut (tr break-inside:avoid); a longer sheet goes on */
+    .ot-grid.compact { font-size: 10.5pt; line-height: 1.1; }
+    .ot-grid.compact th, .ot-grid.compact td { padding: 0 3pt; }
+    .ot-grid.compact td { height: 11.5pt; }
+    .ot-grid.compact td.n { white-space: nowrap; }
+    .ot-foot.compact { margin-top: 8pt; }
 </style>
 <div class="ot-head">
     <span>เรื่อง ขออนุมัติทำงานล่วงเวลา&emsp;แผนก @Sheet.DepartmentName</span>
@@ -22,7 +28,7 @@
 }
 else
 {
-    <table class="ot-grid">
+    <table class="@GridClass">
         <colgroup>
             <col style="width:6%" /><col style="width:10%" /><col style="width:32%" />
             <col style="width:11%" /><col style="width:11%" /><col style="width:13%" /><col style="width:17%" />
@@ -37,7 +43,7 @@ else
                 <tr>
                     <td class="c">@(i + 1)</td>
                     <td>@line.EmployeeCode</td>
-                    <td>@line.EmployeeName</td>
+                    <td class="n">@line.EmployeeName</td>
                     <td class="c">@Time(Sheet.WorkIn)</td>
                     <td class="c">@Time(Sheet.WorkOut)</td>
                     <td></td>
@@ -47,7 +53,7 @@ else
         </tbody>
     </table>
 }
-<div class="ot-foot">
+<div class="@FootClass">
     <span>ห้ามใส่รองเท้าแตะมาทำงาน ผู้ใดใส่มาไม่ให้ทำงานล่วงเวลา</span>
     <span>ผู้จัดการ <span class="ot-sign"></span></span>
 </div>
@@ -59,6 +65,15 @@ else
     public const Paper Paper = Lockte.Web.Reports.Paper.A5Portrait;
 
     [Parameter, EditorRequired] public OvertimeSheet Sheet { get; set; } = default!;
+
+    /// <summary>Lines up to which the legacy size fits an A5 page; more than this takes the compact look (#356).</summary>
+    public const int NormalLines = 14;
+
+    private bool Compact => Sheet.Lines.Count > NormalLines;
+
+    private string GridClass => Compact ? "ot-grid compact" : "ot-grid";
+
+    private string FootClass => Compact ? "ot-foot compact" : "ot-foot";
 
     /// <summary>Text73 of รายงาน OT: the day name from DATE, "วันอาทิตย์ที่" … "วันเสาร์ที่".</summary>
     private static string DayTitle(DateOnly date) => date.DayOfWeek switch

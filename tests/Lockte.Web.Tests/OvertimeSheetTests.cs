@@ -166,8 +166,8 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
         Assert.DoesNotContain(choices.Employees, e => e.Id == resigned.Id);
         Assert.Equal(choices.Employees.OrderBy(e => e.Code, StringComparer.Ordinal).Select(e => e.Code), choices.Employees.Select(e => e.Code));
         var shifts = await AsHrAsync(s => s.Get<OrgDirectory>().GetShiftsAsync());
-        Assert.Equal(shifts.Select(s => s.OvertimeIn).OfType<TimeOnly>().Distinct().Order(), choices.StartTimes);
-        Assert.Equal(shifts.Select(s => s.OvertimeOut).OfType<TimeOnly>().Distinct().Order(), choices.EndTimes);
+        Assert.Equal(OvertimeSheetRegistry.WithExtras(shifts.Select(s => s.OvertimeIn).OfType<TimeOnly>(), OvertimeSheetRegistry.ExtraStartTimes), choices.StartTimes); // + the extras (#356)
+        Assert.Equal(OvertimeSheetRegistry.WithExtras(shifts.Select(s => s.OvertimeOut).OfType<TimeOnly>(), OvertimeSheetRegistry.ExtraEndTimes), choices.EndTimes);
     }
 
     [Fact] // BR-012 #2 / BR-061: the people ไม่มาทำงาน that day are marked (GRED_2 = "NO" in the legacy), not hidden
