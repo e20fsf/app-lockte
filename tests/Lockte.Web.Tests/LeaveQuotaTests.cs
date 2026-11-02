@@ -44,6 +44,8 @@ public sealed class LeaveQuotaTests
     [InlineData("4", "4", 60, "ไม่สามารถบันทึกได้ เนื่องจากลาคลอดได้ค่าแรงเกิน 60 วัน")]
     [InlineData("10", "10", 60, "ไม่สามารถบันทึกได้ เนื่องจากลาได้ค่าแรงเกิน 60 วัน")]
     [InlineData("1", "9", 6, "ไม่สามารถบันทึกได้ เนื่องจากลากิจได้ค่าแรงเกิน 6 วัน")]
+    [InlineData("17", "17", 15, "ไม่สามารถบันทึกได้ เนื่องจากลาคลอดบุตรกรณีพิเศษได้ค่าแรงเกิน 15 วัน")] // #346
+    [InlineData("18", "18", 15, "ไม่สามารถบันทึกได้ เนื่องจากลาช่วยเหลือคู่สมรสคลอดบุตรได้ค่าแรงเกิน 15 วัน")] // #346
     public void Each_limited_type_counts_its_group_up_to_the_limit(string type, string usedType, double limit, string message)
     {
         Assert.Equal(new LeaveQuotaCheck(true, Saved), Check(type, true, 0.5, new() { [usedType] = limit - 0.5 }));
@@ -96,4 +98,23 @@ public sealed class LeaveQuotaTests
     [InlineData(null, true)]
     public void A_year_of_work_is_365_days_counted_to_today(string? start, bool expected)
         => Assert.Equal(expected, LeaveQuota.HasVacation(start is null ? null : DateOnly.Parse(start, CultureInfo.InvariantCulture), new DateOnly(2026, 10, 19)));
+
+    [Fact] // #346 (Q-47): 17 and 18 take the places of 9 and 7; the old two keep their names but are not offered
+    public void The_new_types_replace_the_old_two_in_the_list()
+    {
+        Assert.Equal("ลาคลอดบุตรกรณีพิเศษ", LeaveTypes.Names["17"]);
+        Assert.Equal("ลาช่วยเหลือคู่สมรสคลอดบุตร", LeaveTypes.Names["18"]);
+        Assert.Equal(16, LeaveTypes.Codes.Count);
+        Assert.Equal(("18", "17", "16"), (LeaveTypes.Codes[6], LeaveTypes.Codes[8], LeaveTypes.Codes[^1]));
+        Assert.DoesNotContain("7", LeaveTypes.Codes);
+        Assert.DoesNotContain("9", LeaveTypes.Codes);
+        Assert.All(LeaveTypes.Retired, c => Assert.Equal(c == "7" ? "ลาอื่นๆ" : "ลากิจฉุกเฉิน", LeaveTypes.Names[c]));
+        Assert.All(LeaveTypes.Codes.Concat(LeaveTypes.Retired), c => Assert.True(c.Length <= LeaveTypes.Length));
+    }
+
+    [Theory] // จ่าย 50% only for ลาคลอดบุตรกรณีพิเศษ
+    [InlineData("17", 0.5)]
+    [InlineData("18", 1)]
+    [InlineData("1", 1)]
+    public void The_pay_rate_of_a_type(string type, double rate) => Assert.Equal(rate, LeaveTypes.PayRate(type));
 }

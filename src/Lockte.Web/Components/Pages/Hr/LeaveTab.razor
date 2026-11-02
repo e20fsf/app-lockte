@@ -51,7 +51,7 @@
         วันลาได้ค่าแรงทั้งปี @Days(summary.PaidDays) วัน · รวมค่าแรง <PayView>@summary.PaidPay.ToString("#,##0.00")</PayView> บาท
         @if (summary.PaidDaysByType.Count > 0)
         {
-            <span> · @string.Join(", ", LeaveTypes.Codes.Where(summary.PaidDaysByType.ContainsKey).Select(c => $"{LeaveTypes.Names[c]} {Days(summary.PaidDaysByType[c])}"))</span>
+            <span> · @string.Join(", ", LeaveTypes.Codes.Concat(LeaveTypes.Retired).Where(summary.PaidDaysByType.ContainsKey).Select(c => $"{LeaveTypes.Names[c]} {Days(summary.PaidDaysByType[c])}"))</span>
         }
     </MudText>
 }

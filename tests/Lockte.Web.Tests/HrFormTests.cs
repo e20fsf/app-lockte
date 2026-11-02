@@ -85,6 +85,21 @@ public sealed class HrFormTests(ChromiumFixture chromium)
         Assert.Contains("ลาป่วยเป็นโรคระบาด", text);
     }
 
+    [Fact] // #346 (Q-47): the new types in the frame and the boxes, the full text and the pay under them; the old two are gone from the form
+    public async Task The_leave_form_shows_the_two_new_types_instead_of_the_old_two()
+    {
+        var form = Leave with { DaysByType = new Dictionary<string, double> { ["17"] = 3.5, ["18"] = 2 } };
+        var text = Text(await Html<LeaveFormView>(new() { ["Form"] = form, ["PrintedAt"] = new DateTime(2026, 10, 15, 11, 16, 0) }));
+
+        Assert.Contains("ลาคลอดบุตรกรณีพิเศษ", text);
+        Assert.Contains("ลาช่วยเหลือคู่สมรส", text);
+        Assert.Contains("* ลาคลอดบุตรกรณีพิเศษ 15 วัน จ่าย 50%", text);
+        Assert.Contains("** ลาช่วยเหลือคู่สมรสคลอดบุตร 15 วัน จ่าย 100%", text);
+        Assert.Contains("3.5", text);
+        Assert.DoesNotContain("ลากิจฉุกเฉิน", text);
+        Assert.DoesNotContain("ลาอื่น", text);
+    }
+
     [Fact] // RPT-55: date, reason and the names in brackets
     public async Task The_resignation_letter_prints_the_typed_date_and_reason()
     {

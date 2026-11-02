@@ -1,6 +1,10 @@
 namespace Lockte.Hr;
 
-/// <summary>ประเภทการลา (SR of การลา, T-ประเภทการลางาน): codes 1–16 with their legacy names (data-model).</summary>
+/// <summary>
+/// ประเภทการลา (SR of การลา, T-ประเภทการลางาน): codes 1–16 with their legacy names (data-model) and, since #346 (Q-47), 17 and 18
+/// which the user's marked-up ใบลางาน put in place of 9 (ลากิจฉุกเฉิน) and 7 (ลาอื่นๆ). 7 and 9 are <see cref="Retired"/>:
+/// no longer offered when keying a leave, their names kept for the rows already saved.
+/// </summary>
 public static class LeaveTypes
 {
     public const int Length = 2;
@@ -12,10 +16,23 @@ public static class LeaveTypes
         ["10"] = "ลาเพื่อระดมพล", ["11"] = "ลาเพื่อการศึกษาฝึกอบรมของบริษัท", ["12"] = "ลาทำหมัน",
         ["13"] = "ลากิจโดยไม่ได้แจ้งก่อนล่วงหน้า", ["14"] = "ลากิจเกินกำหนด", ["15"] = "ลาเพื่อการศึกษาฝึกอบรมส่วนตัว",
         ["16"] = "ลาป่วยเป็นโรคระบาด",
+        ["17"] = "ลาคลอดบุตรกรณีพิเศษ", ["18"] = "ลาช่วยเหลือคู่สมรสคลอดบุตร",
     };
 
-    /// <summary>Codes in their legacy order 1–16 (the dropdown of SCR-30).</summary>
-    public static IReadOnlyList<string> Codes { get; } = [.. Names.Keys];
+    /// <summary>ลากิจฉุกเฉิน (9) and ลาอื่นๆ (7): replaced by 17 and 18 on the form; old rows keep their code.</summary>
+    public static IReadOnlySet<string> Retired { get; } = new HashSet<string> { "7", "9" };
+
+    /// <summary>
+    /// The types on offer, in the order of the form and the reports (SCR-30 dropdown, RPT-31 columns, the ใบลา): the legacy 1–16 with 17 in
+    /// the place of 9 and 18 in the place of 7. SR 16 stays last (the totals are the first 15).
+    /// </summary>
+    public static IReadOnlyList<string> Codes { get; } = ["1", "2", "3", "4", "5", "6", "18", "8", "17", "10", "11", "12", "13", "14", "15", "16"];
+
+    /// <summary>ค่าแรงระหว่างลา as a share of the daily wage: 50% for ลาคลอดบุตรกรณีพิเศษ, full for every other.</summary>
+    public static double PayRate(string type) => type == "17" ? 0.5 : 1;
+
+    /// <summary>The ceilings of the two new types, in days (ได้ค่าแรง).</summary>
+    public const int SpecialMaternityDays = 15, SpouseMaternityDays = 15;
 }
 
 /// <summary>
@@ -45,6 +62,8 @@ public static class LeaveQuota
         new("ลาพักร้อน", ["6"], 12, "ไม่สามารถบันทึกได้ เนื่องจากลาพักร้อนเกิน 12 วัน"),
         new("ลาคลอด", ["4"], 60, "ไม่สามารถบันทึกได้ เนื่องจากลาคลอดได้ค่าแรงเกิน 60 วัน"),
         new("ลาเพื่อระดมพล", ["10"], 60, "ไม่สามารถบันทึกได้ เนื่องจากลาได้ค่าแรงเกิน 60 วัน"),
+        new("ลาคลอดบุตรกรณีพิเศษ", ["17"], LeaveTypes.SpecialMaternityDays, "ไม่สามารถบันทึกได้ เนื่องจากลาคลอดบุตรกรณีพิเศษได้ค่าแรงเกิน 15 วัน"),
+        new("ลาช่วยเหลือคู่สมรสคลอดบุตร", ["18"], LeaveTypes.SpouseMaternityDays, "ไม่สามารถบันทึกได้ เนื่องจากลาช่วยเหลือคู่สมรสคลอดบุตรได้ค่าแรงเกิน 15 วัน"),
     ];
 
     private static readonly Dictionary<string, string> NeverPaid = new()
