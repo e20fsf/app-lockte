@@ -86,3 +86,47 @@ public sealed class OvertimeSheetReportTests(ChromiumFixture chromium)
         return n;
     }
 }
+
+/// <summary>#356 (UAT-20): the extra times of the two boxes and about 25 people on one A5 page.</summary>
+[Collection(ChromiumCollection.Name)]
+public sealed class OvertimeSheetLargeTests(ChromiumFixture chromium)
+{
+    private static string Hm(TimeOnly t) => t.ToString("HH:mm", CultureInfo.InvariantCulture);
+
+    [Fact] // เวลาเข้า / เวลาออก: the shifts' times and the extras, each once, in time order
+    public void The_times_are_the_shifts_and_the_extras_without_repeats()
+    {
+        var start = OvertimeSheetRegistry.WithExtras([new(17, 20), new(5, 30)], OvertimeSheetRegistry.ExtraStartTimes).Select(Hm);
+        var end = OvertimeSheetRegistry.WithExtras([new(20, 10), new(20, 20), new(8, 10)], OvertimeSheetRegistry.ExtraEndTimes).Select(Hm);
+
+        Assert.Equal(["05:30", "15:00", "15:20", "16:00", "17:00", "17:20"], start);
+        Assert.Equal(["08:10", "15:00", "16:00", "17:00", "18:00", "18:20", "19:00", "20:00", "20:10", "20:20"], end);
+    }
+
+    private async Task<int> PagesAsync(int people)
+    {
+        var lines = Enumerable.Range(1, people).Select(i => new OvertimeSheetLine($"A{i:D3}", "นางสาวสมหญิง ตัวอย่างนามสกุล " + i, i % 3 == 0 ? "งานเร่งด่วนส่งของลูกค้า" : null)).ToList();
+        var sheet = new OvertimeSheet(new DateOnly(2026, 11, 3), "ประกอบ", new(17, 20), new(20, 20), "O1", lines);
+        var body = await ReportBody.RenderAsync<OvertimeSheetView>(new() { [nameof(OvertimeSheetView.Sheet)] = sheet });
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+        var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(html, OvertimeSheetView.Paper));
+        return Regex.Matches(pdf, @"/Type /Page\b").Count;
+    }
+
+    [Fact] // 25 people on one page; 60 go on to more pages without cutting a row
+    public async Task Twenty_five_people_print_on_one_page()
+    {
+        Assert.Equal(1, await PagesAsync(25));
+        Assert.True(await PagesAsync(60) > 1);
+    }
+
+    [Fact] // the legacy size for a short sheet, the compact look above it
+    public async Task Only_a_long_sheet_is_compact()
+    {
+        var small = new OvertimeSheet(new DateOnly(2026, 11, 3), null, new(17, 20), new(20, 20), "O1", [new("A001", "ก", null)]);
+        var big = small with { Lines = Enumerable.Range(1, OvertimeSheetView.NormalLines + 1).Select(i => new OvertimeSheetLine($"A{i:D3}", "ข", null)).ToList() };
+
+        Assert.DoesNotContain("class=\"ot-grid compact\"", await ReportBody.RenderAsync<OvertimeSheetView>(new() { ["Sheet"] = small }));
+        Assert.Contains("class=\"ot-grid compact\"", await ReportBody.RenderAsync<OvertimeSheetView>(new() { ["Sheet"] = big }));
+    }
+}

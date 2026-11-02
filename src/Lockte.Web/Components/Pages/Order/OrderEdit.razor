@@ -50,9 +50,10 @@
     }
 </MudPaper>
 
+<EditLockGuard Key="@(order is null ? null : EditLockKeys.Order(order.Id))" LockedChanged="@(v => locked = v)" />
 @if (order is not null)
 {
-    <MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudPaper Class="@("pa-4 mt-4" + (locked ? " lk-readonly" : ""))" Outlined="true">
         <MudText Typo="Typo.h6" Class="mb-2">เลขที่ @order.OrderNo @(side == OrderSide.History ? "(ประวัติการรับ ORDER)" : "(ยอดค้างส่ง)")</MudText>
         <MudGrid Spacing="2">
             <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="orderDate" Label="วันที่ในใบ ORDER" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
@@ -108,9 +109,9 @@
             <MudText>ยอดรวม <b>@total.ToString("N2")</b> บาท</MudText>
         </MudStack>
         <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || locked">บันทึก</MudButton>
             <MudSpacer />
-            <MudButton Color="Color.Error" OnClick="DeleteOrderAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.DeleteForever">ลบ ORDER ใบนี้ทั้งใบ</MudButton>
+            <MudButton Color="Color.Error" OnClick="DeleteOrderAsync" Disabled="busy || locked" StartIcon="@Icons.Material.Filled.DeleteForever">ลบ ORDER ใบนี้ทั้งใบ</MudButton>
         </MudStack>
     </MudPaper>
 }
@@ -136,6 +137,9 @@
     private string remark = "";
     private int? territoryId;
     private bool busy;
+
+    /// <summary>#343: someone else has this ORDER open for editing (<see cref="EditLockGuard"/>).</summary>
+    private bool locked;
 
     private OrderSide side => Mode == "history" ? OrderSide.History : OrderSide.Outstanding;
 

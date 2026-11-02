@@ -16,6 +16,18 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
     /// <summary>T-OT.MEMO size.</summary>
     public const int MemoLength = 255;
 
+    /// <summary>
+    /// เวลาเข้า / เวลาออก offered besides the OT times of the shifts (#356, UAT-20): the one place these are listed. The box still takes
+    /// any other time typed.
+    /// </summary>
+    public static IReadOnlyList<TimeOnly> ExtraStartTimes { get; } = [new(15, 20), new(15, 0), new(16, 0), new(17, 0)];
+
+    public static IReadOnlyList<TimeOnly> ExtraEndTimes { get; } = [new(18, 20), new(15, 0), new(16, 0), new(17, 0), new(18, 0), new(19, 0), new(20, 0)];
+
+    /// <summary>The times of the shifts and the extras, each once, earliest first.</summary>
+    public static IReadOnlyList<TimeOnly> WithExtras(IEnumerable<TimeOnly> shiftTimes, IEnumerable<TimeOnly> extras)
+        => [.. shiftTimes.Concat(extras).Distinct().Order()];
+
     public async Task<OvertimeSheetChoices> GetChoicesAsync(DateOnly date)
     {
         var dayBefore = date.AddDays(-1);
@@ -35,8 +47,8 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
             .ToList();
         var shifts = await org.GetShiftsAsync();
         return new OvertimeSheetChoices(employees,
-            shifts.Select(s => s.OvertimeIn).OfType<TimeOnly>().Distinct().Order().ToList(),
-            shifts.Select(s => s.OvertimeOut).OfType<TimeOnly>().Distinct().Order().ToList());
+            WithExtras(shifts.Select(s => s.OvertimeIn).OfType<TimeOnly>(), ExtraStartTimes),
+            WithExtras(shifts.Select(s => s.OvertimeOut).OfType<TimeOnly>(), ExtraEndTimes));
     }
 
     /// <summary>

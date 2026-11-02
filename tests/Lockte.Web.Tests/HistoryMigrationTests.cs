@@ -201,4 +201,25 @@ public sealed class HistoryMigrationTests(MigrationDbFixture db) : IDisposable
         Assert.False(report.WorkTMatches);
         Assert.Contains("D001", File.ReadAllText(Path.Combine(work.FullName, "out", MigrationReport.WorkTFile)));
     }
+
+    [Fact] // #370: a leave of the retired types 7 / 9 is loaded as it is and goes to the DQ report for HR
+    public async Task Leave_of_a_retired_type_is_loaded_and_reported()
+    {
+        var legacy = FakeLegacyFile.Standard()
+            .Row("LEAVE_ADD", ("DATE", new DateTime(2026, 2, 1)), ("ID", "O001"), ("FROM_D", new DateTime(2026, 2, 2)),
+                ("TO_D", new DateTime(2026, 2, 2)), ("SUM_D", 1f), ("SR", "9"), ("SAL", "N"))
+            .Row("LEAVE_ADD", ("DATE", new DateTime(2026, 2, 5)), ("ID", "O001"), ("FROM_D", new DateTime(2026, 2, 6)),
+                ("TO_D", new DateTime(2026, 2, 6)), ("SUM_D", 0.5f), ("SR", "1"), ("SAL", "N"));
+
+        var report = await RunAsync(legacy, "retired");
+
+        var o001 = await EmployeeIdAsync("O001");
+        var leaves = await ReadAsync(s => s.Get<LeaveDirectory>().ListOfEmployeeAsync(o001, 2026));
+        Assert.Equal(["9", "1"], leaves.Select(l => l.Type));
+        var dq = Assert.Single(report.Exceptions, e => e.Problem.Contains("เลิกใช้แล้ว"));
+        Assert.Equal("LEAVE_ADD", dq.Table);
+        Assert.Contains("'9'", dq.Problem);
+        Assert.Contains("ลากิจฉุกเฉิน", dq.Problem);
+        Assert.Contains("ไม่แปลงรหัส", dq.Action);
+    }
 }

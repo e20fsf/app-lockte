@@ -55,9 +55,10 @@
     }
 </MudPaper>
 
+<EditLockGuard Key="@(editing is null ? null : EditLockKeys.Delivery(editing.Id))" LockedChanged="@(v => locked = v)" />
 @if (editing is not null)
 {
-    <MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudPaper Class="@("pa-4 mt-4" + (locked ? " lk-readonly" : ""))" Outlined="true">
         <MudText Typo="Typo.h6" Class="mb-2">แก้รายการส่ง เลขที่ ORDER @editing.OrderNo ลำดับ @editing.LineNo</MudText>
         <MudGrid Spacing="2">
             <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.DeliveryDate" Label="วันที่ส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
@@ -84,9 +85,9 @@
             <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.DueDate" Label="กำหนดส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
         </MudGrid>
         <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || locked">บันทึก</MudButton>
             <MudSpacer />
-            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Delete">ลบรายการส่งนี้</MudButton>
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy || locked" StartIcon="@Icons.Material.Filled.Delete">ลบรายการส่งนี้</MudButton>
         </MudStack>
     </MudPaper>
 }
@@ -104,6 +105,8 @@
     private string? searchOrder;
     private DateTime? searchDate = DateTime.Today;
     private bool busy;
+    /// <summary>#343: someone else has this delivery open for editing (<see cref="EditLockGuard"/>).</summary>
+    private bool locked;
 
     private string Title => Mode switch
     {
