@@ -64,6 +64,16 @@ if (options.Program == MigrationOptions.CompareProgram)
     Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return results.All(r => r.Passed) ? 0 : 1;
 }
+if (options.Program == MigrationOptions.CalibCompareProgram)
+{
+    Console.WriteLine($"เทียบสอบเทียบกับ baseline ใน {options.BaselineFolder} …");
+    var comparison = await CalibComparison.RunAsync(services, options.BaselineFolder!);
+    CalibComparison.WriteTo(options.OutputFolder, comparison);
+    foreach (var gate in comparison.Gate)
+        Console.WriteLine($"{gate.Id,-9} {(gate.Passed is null ? "ตรวจด้วยตา" : gate.Passed.Value ? "ผ่าน" : "ไม่ผ่าน"),-11} {gate.Check} — ควรได้ {gate.Expected} ได้ {gate.Actual}");
+    Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return comparison.Passed ? 0 : 1;
+}
 if (options.Program == MigrationOptions.ComparePeriodProgram)
 {
     if (options.Calculate) await GoLiveGuard.EnsureNotLiveAsync(options.ConnectionString);
