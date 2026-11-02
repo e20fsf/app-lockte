@@ -268,11 +268,11 @@ public sealed class LeaveTests(LocalDbFixture db)
         Assert.Equal(new Dictionary<string, double> { ["1"] = 1.5, ["5"] = 1, ["2"] = 2 }, summary.PaidDaysByType.ToDictionary());
         Assert.Equal((4.5, 4.5 * 500), (summary.PaidDays, summary.PaidPay));
         Assert.Equal(
-            [("ลากิจ", 1.5, 6.0, (string?)null), ("ลาป่วย", 2, 30, null), ("ลาพักร้อน", 0, 12, "ยังไม่มีพักร้อน"),
+            [("ลากิจ", 1.5, 3.0, (string?)null), ("ลาป่วย", 2, 30, null), ("ลาพักร้อน", 0, 0, "ยังไม่มีพักร้อน"), // 100 days of work: ลากิจ 3, no พักร้อน yet (#347)
              ("ลาคลอด", 0, 60, "เพศชายลาคลอดไม่ได้"), ("ลาเพื่อระดมพล", 0, 60, null),
              ("ลาคลอดบุตรกรณีพิเศษ", 0, 15, null), ("ลาช่วยเหลือคู่สมรสคลอดบุตร", 0, 15, null)],
             summary.Quotas.Select(q => (q.Name, q.Used, q.Limit, q.Note)));
-        Assert.Equal(4.5, summary.Quotas[0].Left);
+        Assert.Equal(1.5, summary.Quotas[0].Left);
     }
 
     [Fact] // BR-022 (SCR-31): ลบการลาของพนักงานที่ FROM_D อยู่ในช่วง DATE_F–DATE_T

@@ -44,7 +44,8 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
         if (input.Paid is { } paid && (row is null || row.Paid != paid))
         {
             var used = paid ? await UsedPaidDaysAsync(employeeId, from.Year, row?.Id) : new Dictionary<string, double>();
-            quota = LeaveQuota.Check(type, paid, days, used, employee.Sex, LeaveQuota.HasVacation(employee.StartDate, Today));
+            quota = LeaveQuota.Check(type, paid, days, used, employee.Sex, LeaveQuota.HasVacation(employee.StartDate, Today),
+                LeaveQuota.PersonalLimit(employee.StartDate, from), LeaveQuota.VacationEntitlement(employee.StartDate, from));
             if (!quota.CanSave) return new(ServiceResult.Fail(quota.Message!), quota);
         }
 

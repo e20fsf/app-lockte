@@ -35,7 +35,13 @@ public sealed class LeaveDirectory(HrDbContext db, TimeProvider clock, IPayAcces
             .Select(e => new { e.Sex, e.StartDate }).FirstAsync();
         var days = byType.ToDictionary(t => t.Key, t => t.Days);
         var hasVacation = LeaveQuota.HasVacation(employee.StartDate, DateOnly.FromDateTime(clock.GetLocalNow().DateTime));
-        var quotas = LeaveQuota.Limits.Select(l => new LeaveQuotaLine(l.Name, l.Used(days), l.Days, l.Types[0] switch
+        var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
+        var quotas = LeaveQuota.Limits.Select(l => new LeaveQuotaLine(l.Name, l.Used(days), l.Types[0] switch
+        {
+            "1" => LeaveQuota.PersonalLimit(employee.StartDate, today), // 3 until a year is worked (#347)
+            "6" => LeaveQuota.VacationEntitlement(employee.StartDate, today),
+            _ => l.Days,
+        }, l.Types[0] switch
         {
             "6" when !hasVacation => "ยังไม่มีพักร้อน",
             "4" when employee.Sex != "F" => "เพศชายลาคลอดไม่ได้",
