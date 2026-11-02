@@ -12,6 +12,7 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
     public const string Schema = "cash";
 
     internal DbSet<CashSettings> Settings => Set<CashSettings>();
+    internal DbSet<ExpenseType> ExpenseTypes => Set<ExpenseType>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -20,6 +21,15 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
             s.HasAuditName("ค่าตั้งค่าเงินสดย่อย");
             s.ToTable("Settings");
             s.Property(x => x.LastRemittedReceiptNo).HasMaxLength(CashSettings.ReceiptNoLength).HasAuditName("เลขที่ใบเสร็จสุดท้ายที่ตัดยอดนำส่งแล้ว");
+        });
+
+        modelBuilder.Entity<ExpenseType>(t =>
+        {
+            t.HasAuditName("ประเภทค่าใช้จ่าย");
+            t.ToTable("ExpenseTypes");
+            t.Property(x => x.Name).HasMaxLength(ExpenseTypeRegistry.NameLength).HasAuditName("ชื่อค่าใช้จ่าย");
+            t.Property(x => x.IsActive).HasAuditName("ใช้งาน");
+            t.HasIndex(x => x.Name).IsUnique();
         });
     }
 }

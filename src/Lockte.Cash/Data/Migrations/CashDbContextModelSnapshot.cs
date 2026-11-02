@@ -65,6 +65,56 @@ namespace Lockte.Cash.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "ค่าตั้งค่าเงินสดย่อย");
                 });
 
+            modelBuilder.Entity("Lockte.Cash.Data.ExpenseType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ใช้งาน");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อค่าใช้จ่าย");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ExpenseTypes", "cash");
+
+                    b.HasAnnotation("Lockte:AuditName", "ประเภทค่าใช้จ่าย");
+                });
+
             modelBuilder.Entity("Lockte.SharedKernel.Persistence.HistoryRecord", b =>
                 {
                     b.Property<long>("Id")

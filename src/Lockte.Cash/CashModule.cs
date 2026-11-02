@@ -13,6 +13,8 @@ public static class CashModule
         services.AddModuleDbContext<CashDbContext>(connectionString, CashDbContext.Schema);
         services.AddScoped<CashSettingsDirectory>();
         services.AddScoped<CashSettingsRegistry>();
+        services.AddScoped<ExpenseTypeDirectory>();
+        services.AddScoped<ExpenseTypeRegistry>();
         return services;
     }
 
