@@ -34,7 +34,7 @@ public static class CalibMenu
         [
             new("เพิ่มเครื่องมือวัด", Code: "SCR-02-ext", Page: "calib/instruments/ext/new"),
             new("แก้ไขและลบเครื่องมือวัด", Code: "SCR-03-ext", Page: "calib/instruments/ext"),
-            new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-ext"),
+            new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-ext", Page: "reports/calib/register/ext", NewTab: true),
             new("พิมพ์ฟอร์มบันทึกผลการสอบเทียบ", Code: "RPT-03-ext"),
             new("เพิ่มรายชื่อบริษัทที่สอบเทียบ", Code: "SCR-06", Page: "calib/providers"),
         ]),

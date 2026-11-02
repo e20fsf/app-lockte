@@ -50,6 +50,39 @@ public sealed class RegisterViewTests
         => Assert.Contains("ไม่มีข้อมูล", await RenderAsync(new RegisterReport(InstrumentKind.Scale, [], null)));
 }
 
+/// <summary>The external register (#204): the company in full, the fixed note, the first sign box "จัดทำโดย".</summary>
+public sealed class ExternalRegisterViewTests
+{
+    private static InstrumentDto External(string code, string? provider)
+        => new(1, InstrumentKind.External, code, "GAUGE BLOCK (5 mm)", new DateOnly(2012, 10, 1), "Mitutoyo", 1, "QA", "ประกันคุณภาพ", [], [], "5", null, "0.05", "MM", null, null, null, 9, provider,
+            null, null, "สอบเทียบที่โรงงาน", [1]);
+
+    private static async Task<string> RenderAsync(RegisterReport report)
+        => System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<RegisterView>(new() { ["Report"] = report }));
+
+    [Fact] // the sample cut the name to `Quality Calibratio` (D-1); here it prints whole
+    public async Task The_company_is_printed_in_full_and_the_note_under_the_sign_boxes()
+    {
+        var company = "Quality Calibration Co.,Ltd.";
+        var html = await RenderAsync(new RegisterReport(InstrumentKind.External, [External("GB-QA001/2551", company), External("Q01-1", null)], CalibSettingsDefaults.ExternalRegisterNote));
+        Assert.Contains($">{company}<", html);
+        Assert.Contains(">Q01-1<", html); // a code without a year is accepted
+        Assert.Contains("จัดทำโดย", html);
+        Assert.Contains("100,150,200,250 3.", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("350", html, StringComparison.Ordinal);
+        Assert.True(html.IndexOf("จัดทำโดย", StringComparison.Ordinal) < html.IndexOf("เครื่องทดสอบแรงเสียดทาน", StringComparison.Ordinal));
+        Assert.Equal(2, html.Split("<td class=\"num\">").Length - 1);
+    }
+
+    [Fact]
+    public void The_external_register_has_its_own_title_and_control_number()
+    {
+        Assert.Equal("บัญชีรายชื่อเครื่องมือวัด(สอบเทียบภายนอก)", RegisterReports.TitleOf(InstrumentKind.External));
+        Assert.Equal(DocumentKeys.CalibRegisterExternal, RegisterReports.DocumentKeyOf(InstrumentKind.External));
+        Assert.Equal(DocumentKeys.CalibRegisterInternal, RegisterReports.DocumentKeyOf(InstrumentKind.Scale));
+    }
+}
+
 /// <summary>The rows RPT-02 takes (AC-12, #203): one kind, in order of หมายเลขเครื่อง, a deleted instrument not among them.</summary>
 [Collection(LocalDbCollection.Name)]
 public sealed class RegisterDataTests(LocalDbFixture db)

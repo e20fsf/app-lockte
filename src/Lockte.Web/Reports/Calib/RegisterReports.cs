@@ -28,7 +28,7 @@ public static class RegisterReports
         reports.MapGet("/calib/register/{kind}", async (string kind, InstrumentDirectory instruments, CalibSettingsDirectory settings, HttpContext http, ReportPrinter printer,
             CancellationToken cancellationToken) =>
         {
-            if (InstrumentKindInfo.Find(kind) is not { } info || !info.Internal) return Results.NotFound("ไม่พบชนิดเครื่องมือวัด");
+            if (InstrumentKindInfo.Find(kind) is not { } info) return Results.NotFound("ไม่พบชนิดเครื่องมือวัด");
             var rows = await instruments.ListAsync(info.Kind);
             var note = info.Kind == InstrumentKind.External ? (await settings.GetAsync()).ExternalRegisterNote : null;
             var report = new RegisterReport(info.Kind, rows, note);
