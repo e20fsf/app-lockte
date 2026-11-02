@@ -18,6 +18,7 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
     internal DbSet<CalibrationProvider> CalibrationProviders => Set<CalibrationProvider>();
     internal DbSet<JigInspectionSheet> JigInspectionSheets => Set<JigInspectionSheet>();
     internal DbSet<JigInspectionPoint> JigInspectionPoints => Set<JigInspectionPoint>();
+    internal DbSet<JigImage> JigImages => Set<JigImage>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -76,6 +77,8 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             s.Property(x => x.Title).HasMaxLength(JigSheetRegistry.TitleLength).HasAuditName("ชื่อ JIG บนแบบ");
             s.Property(x => x.DocumentKey).HasMaxLength(40).HasAuditName("รหัสเลขเอกสารควบคุม");
             s.Property(x => x.DocumentNo).HasAuditName("เลขที่ในเอกสาร");
+            s.Property(x => x.ImageId).HasAuditName("รูป JIG");
+            s.HasOne(x => x.Image).WithMany().HasForeignKey(x => x.ImageId).OnDelete(DeleteBehavior.Restrict);
             s.HasIndex(x => new { x.Type, x.ModelKey }).IsUnique();
             s.HasIndex(x => x.DocumentKey).IsUnique();
             s.HasMany(x => x.Points).WithOne(x => x.Sheet).HasForeignKey(x => x.SheetId).OnDelete(DeleteBehavior.Cascade);
@@ -91,6 +94,15 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             p.Property(x => x.Tolerance).HasConversion<string>().HasMaxLength(20).HasAuditName("พิกัด");
             p.Property(x => x.ToleranceValue).HasPrecision(8, 2).HasAuditName("ค่าพิกัด ± (mm)");
             p.HasIndex(x => new { x.SheetId, x.SortOrder });
+        });
+
+        modelBuilder.Entity<JigImage>(i =>
+        {
+            i.HasAuditName("รูป JIG");
+            i.Property(x => x.ContentType).HasMaxLength(50).HasAuditName("ชนิดไฟล์รูป");
+            i.Property(x => x.Sha256).HasMaxLength(64).HasAuditName("SHA-256");
+            i.Property(x => x.Data).HasAuditName("รูป").IsSecret(); // history says the picture changed, never stores its bytes
+            i.HasIndex(x => x.Sha256).IsUnique();
         });
     }
 }

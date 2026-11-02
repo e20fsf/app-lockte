@@ -19,6 +19,9 @@ internal sealed class JigInspectionSheet : IAudited
     /// <summary>เลขที่ในเอกสาร <c>WI-QA049-n</c>, the order SCR-05 lists them in.</summary>
     public int DocumentNo { get; set; }
     public List<JigInspectionPoint> Points { get; set; } = [];
+    /// <summary>รูป JIG; null until one is loaded (a sheet without one still prints, with an empty frame).</summary>
+    public int? ImageId { get; set; }
+    public JigImage? Image { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
@@ -52,4 +55,25 @@ internal sealed class JigInspectionPoint : IAudited
     public byte[] RowVersion { get; set; } = [];
 
     string IHasBusinessKey.BusinessKey => $"{(Sheet?.ModelKey ?? SheetId.ToString(System.Globalization.CultureInfo.InvariantCulture))} {Label}";
+}
+
+/// <summary>
+/// รูป JIG ของแบบตรวจ: the drawing printed on a sheet (the legacy kept it as an OLE object in each report). One image serves every sheet that shares
+/// it. Kept as data of the app, never committed to the repository (Q-28 ข้อ 1).
+/// </summary>
+internal sealed class JigImage : IAudited
+{
+    public int Id { get; set; }
+    public string ContentType { get; set; } = "";
+    /// <summary>SHA-256 of <see cref="Data"/> in hex: the same picture is stored once.</summary>
+    public string Sha256 { get; set; } = "";
+    public byte[] Data { get; set; } = [];
+
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+
+    string IHasBusinessKey.BusinessKey => Sha256[..Math.Min(8, Sha256.Length)];
 }

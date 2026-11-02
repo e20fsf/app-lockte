@@ -287,6 +287,64 @@ namespace Lockte.Calib.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "เครื่องจักรของเครื่องมือวัด");
                 });
 
+            modelBuilder.Entity("Lockte.Calib.Data.JigImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "ชนิดไฟล์รูป");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)")
+                        .HasAnnotation("Lockte:AuditName", "รูป")
+                        .HasAnnotation("Lockte:Secret", true);
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasAnnotation("Lockte:AuditName", "SHA-256");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Sha256")
+                        .IsUnique();
+
+                    b.ToTable("JigImages", "calib");
+
+                    b.HasAnnotation("Lockte:AuditName", "รูป JIG");
+                });
+
             modelBuilder.Entity("Lockte.Calib.Data.JigInspectionPoint", b =>
                 {
                     b.Property<int>("Id")
@@ -387,6 +445,10 @@ namespace Lockte.Calib.Data.Migrations
                         .HasColumnType("int")
                         .HasAnnotation("Lockte:AuditName", "เลขที่ในเอกสาร");
 
+                    b.Property<int?>("ImageId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "รูป JIG");
+
                     b.Property<string>("ModelKey")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -423,6 +485,8 @@ namespace Lockte.Calib.Data.Migrations
 
                     b.HasIndex("DocumentKey")
                         .IsUnique();
+
+                    b.HasIndex("ImageId");
 
                     b.HasIndex("Type", "ModelKey")
                         .IsUnique();
@@ -517,6 +581,16 @@ namespace Lockte.Calib.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Sheet");
+                });
+
+            modelBuilder.Entity("Lockte.Calib.Data.JigInspectionSheet", b =>
+                {
+                    b.HasOne("Lockte.Calib.Data.JigImage", "Image")
+                        .WithMany()
+                        .HasForeignKey("ImageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Image");
                 });
 
             modelBuilder.Entity("Lockte.Calib.Data.Instrument", b =>

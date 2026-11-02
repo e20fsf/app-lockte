@@ -14,7 +14,7 @@ public sealed record JigPointDto(int Id, string Label, JigPointKind Kind, decima
 }
 
 /// <summary>แบบตรวจ JIG as the screens and the reports (#207 #208) read it: the points in print order.</summary>
-public sealed record JigSheetDto(int Id, JigSheetType Type, string ModelKey, string Title, string DocumentKey, int DocumentNo, IReadOnlyList<JigPointDto> Points, byte[] RowVersion);
+public sealed record JigSheetDto(int Id, JigSheetType Type, string ModelKey, string Title, string DocumentKey, int DocumentNo, bool HasImage, IReadOnlyList<JigPointDto> Points, byte[] RowVersion);
 
 /// <summary>One point on the edit screen; <see cref="Id"/> null = a new point. Existing points carry their rowversion as loaded.</summary>
 public sealed record JigPointInput(int? Id, string Label, JigPointKind Kind, decimal Value, JigToleranceKind Tolerance, decimal? ToleranceValue, byte[]? RowVersion);
@@ -40,7 +40,7 @@ public sealed class JigSheetDirectory(CalibDbContext db)
         return await db.JigInspectionSheets.AsNoTracking().Include(s => s.Points).FirstOrDefaultAsync(s => s.Type == type && s.ModelKey.ToUpper() == key) is { } s ? ToDto(s) : null;
     }
 
-    private static JigSheetDto ToDto(JigInspectionSheet s) => new(s.Id, s.Type, s.ModelKey, s.Title, s.DocumentKey, s.DocumentNo,
+    private static JigSheetDto ToDto(JigInspectionSheet s) => new(s.Id, s.Type, s.ModelKey, s.Title, s.DocumentKey, s.DocumentNo, s.ImageId != null,
         s.Points.OrderBy(p => p.SortOrder).Select(p => new JigPointDto(p.Id, p.Label, p.Kind, p.Value, p.Tolerance, p.ToleranceValue, p.RowVersion)).ToList(), s.RowVersion);
 }
 
