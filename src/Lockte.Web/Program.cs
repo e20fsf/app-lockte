@@ -52,6 +52,8 @@ if (args is ["reset-admin", .. var rest])
     return await ResetAdminCommand.RunAsync(app.Services, rest);
 if (args is ["seed-purch-fake"])
     return await Lockte.Web.Seeding.SeedPurchFakeCommand.RunAsync(app.Services);
+if (args is ["seed-cash-fake"])
+    return await Lockte.Web.Seeding.SeedCashFakeCommand.RunAsync(app.Services);
 
 if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
     await LockteDatabase.MigrateAsync(app.Services);
