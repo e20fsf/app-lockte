@@ -191,6 +191,11 @@ public sealed class HistoryMigration(HrHistoryImport import, EmployeeDirectory e
                     Reject(tally, table, key, Other, $"ประเภทการลา '{type}' ไม่อยู่ใน T-ประเภทการลางาน");
                     continue;
                 }
+                // #370: ลากิจฉุกเฉิน / ลาอื่นๆ were replaced by 17 / 18 on the ใบลา (#346); the row is loaded with its own code, but the report
+                // columns and the ใบลา no longer show it — HR decides what to do with it, the code is not mapped by the tool.
+                if (LeaveTypes.Retired.Contains(type))
+                    report.Add(table, key, Other, $"ประเภทการลา '{type}' ({LeaveTypes.Names[type]}) เลิกใช้แล้ว — แทนด้วย 17 ลาคลอดบุตรกรณีพิเศษ / 18 ลาช่วยเหลือคู่สมรสคลอดบุตร",
+                        "โหลดตามเดิมด้วยรหัสเดิม ไม่แปลงรหัส — ไม่อยู่ในคอลัมน์ของรายงานสรุปการลาและใบลา ให้ HR ตรวจ");
                 if (row.Number("SUM_D") is not { } days)
                 {
                     Reject(tally, table, key, Other, "ไม่มีจำนวนวันลา (SUM_D) — ระบบเดิมลบแถวนี้ตอนปิดฟอร์ม (BR-051)");
