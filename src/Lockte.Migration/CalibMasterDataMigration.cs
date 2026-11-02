@@ -145,18 +145,18 @@ public sealed class CalibMasterDataMigration(
         var fix = CalibMigrationRules.FixDate(value);
         if (fix.Changed)
         {
-            report.Add(table, code, DateRule, $"วันที่ขึ้นบัญชี {value:yyyy-MM-dd} → {fix.Date:yyyy-MM-dd} ({fix.Rule})", "แก้อัตโนมัติ");
+            report.Add(table, code, DateRule, $"วันที่ขึ้นบัญชี {Iso(value)} → {Iso(fix.Date)} ({fix.Rule})", "แก้อัตโนมัติ");
             return fix.Date;
         }
         if (!fix.IsUndecided) return fix.Date;
         var decided = map.Find(CodeKinds.CalibDate, code)?.Code;
         if (decided is not null && DateOnly.TryParseExact(decided, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var chosen))
         {
-            report.Add(table, code, DateRule, $"วันที่ขึ้นบัญชี {value:yyyy-MM-dd} → {chosen:yyyy-MM-dd} (ตามตารางจับคู่)", "ตามคำตัดสิน");
+            report.Add(table, code, DateRule, $"วันที่ขึ้นบัญชี {Iso(value)} → {Iso(chosen)} (ตามตารางจับคู่)", "ตามคำตัดสิน");
             Use(CodeKinds.CalibDate, code, decided, null);
             return chosen;
         }
-        report.Add(table, code, DateRule, $"วันที่ขึ้นบัญชี {value:yyyy-MM-dd} ปีนี้ไม่เข้ากฎแปลง — เว้นว่างรอคำตัดสิน (ใส่ {CodeKinds.CalibDate},{code},<yyyy-MM-dd> ในตารางจับคู่)", MigrationReport.LoadedBlank);
+        report.Add(table, code, DateRule, $"วันที่ขึ้นบัญชี {Iso(value)} ปีนี้ไม่เข้ากฎแปลง — เว้นว่างรอคำตัดสิน (ใส่ {CodeKinds.CalibDate},{code},<yyyy-MM-dd> ในตารางจับคู่)", MigrationReport.LoadedBlank);
         Use(CodeKinds.CalibDate, code, "", null);
         return null;
     }
@@ -238,6 +238,11 @@ public sealed class CalibMasterDataMigration(
     }
 
     private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+    /// <summary>A date in the report text as <c>yyyy-MM-dd</c> in the Gregorian calendar whatever the culture of the thread (th-TH would print the Buddhist year).</summary>
+    private static string Iso(DateTime date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static string Iso(DateOnly? date) => date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
 
     private static string AppendNote(string? note, string text) => note is null ? $"[{text}]" : $"{note} [{text}]";
 
