@@ -363,6 +363,10 @@ namespace Lockte.Cash.Data.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasAnnotation("Lockte:AuditName", "เลขที่");
 
+                    b.Property<int?>("RemittanceId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "การนำส่ง (รหัสภายใน)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -387,6 +391,8 @@ namespace Lockte.Cash.Data.Migrations
 
                     b.HasIndex("No")
                         .IsUnique();
+
+                    b.HasIndex("RemittanceId");
 
                     b.HasIndex("ScrapBuyerId");
 
@@ -474,6 +480,65 @@ namespace Lockte.Cash.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "บรรทัดใบเสร็จขายของเก่า");
                 });
 
+            modelBuilder.Entity("Lockte.Cash.Data.ScrapRemittance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FromNo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasAnnotation("Lockte:AuditName", "ตั้งแต่เลขที่");
+
+                    b.Property<string>("MadeBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ทำ");
+
+                    b.Property<DateOnly>("MadeOn")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่ทำ");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ToNo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasAnnotation("Lockte:AuditName", "ถึงเลขที่");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ScrapRemittances", "cash");
+
+                    b.HasAnnotation("Lockte:AuditName", "การนำส่งสำนักงาน");
+                });
+
             modelBuilder.Entity("Lockte.SharedKernel.Persistence.HistoryRecord", b =>
                 {
                     b.Property<long>("Id")
@@ -552,10 +617,17 @@ namespace Lockte.Cash.Data.Migrations
 
             modelBuilder.Entity("Lockte.Cash.Data.ScrapReceipt", b =>
                 {
+                    b.HasOne("Lockte.Cash.Data.ScrapRemittance", "Remittance")
+                        .WithMany()
+                        .HasForeignKey("RemittanceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Lockte.Cash.Data.ScrapBuyer", null)
                         .WithMany()
                         .HasForeignKey("ScrapBuyerId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Remittance");
                 });
 
             modelBuilder.Entity("Lockte.Cash.Data.ScrapReceiptLine", b =>

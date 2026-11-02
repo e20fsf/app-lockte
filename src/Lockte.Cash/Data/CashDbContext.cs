@@ -18,6 +18,7 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
     internal DbSet<ExpenseLine> ExpenseLines => Set<ExpenseLine>();
     internal DbSet<ScrapReceipt> ScrapReceipts => Set<ScrapReceipt>();
     internal DbSet<ScrapReceiptLine> ScrapReceiptLines => Set<ScrapReceiptLine>();
+    internal DbSet<ScrapRemittance> ScrapRemittances => Set<ScrapRemittance>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -68,10 +69,23 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
             r.Property(x => x.CancelReason).HasMaxLength(ScrapReceiptRegistry.CancelReasonLength).HasAuditName("เหตุผลที่ยกเลิก");
             r.Property(x => x.CancelledBy).HasMaxLength(256).HasAuditName("ผู้ยกเลิก");
             r.Property(x => x.CancelledAt).HasAuditName("ยกเลิกเมื่อ");
+            r.Property(x => x.RemittanceId).HasAuditName("การนำส่ง (รหัสภายใน)");
+            r.HasOne(x => x.Remittance).WithMany().HasForeignKey(x => x.RemittanceId).OnDelete(DeleteBehavior.Restrict);
+            r.HasIndex(x => x.RemittanceId);
             r.HasIndex(x => x.No).IsUnique();
             r.HasIndex(x => x.Date);
             r.HasOne<ScrapBuyer>().WithMany().HasForeignKey(x => x.ScrapBuyerId).OnDelete(DeleteBehavior.SetNull);
             r.HasMany(x => x.Lines).WithOne(x => x.Receipt).HasForeignKey(x => x.ReceiptId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ScrapRemittance>(m =>
+        {
+            m.HasAuditName("การนำส่งสำนักงาน");
+            m.ToTable("ScrapRemittances");
+            m.Property(x => x.MadeOn).HasAuditName("วันที่ทำ");
+            m.Property(x => x.FromNo).HasMaxLength(ScrapReceiptMath.MaxNumberLength).HasAuditName("ตั้งแต่เลขที่");
+            m.Property(x => x.ToNo).HasMaxLength(ScrapReceiptMath.MaxNumberLength).HasAuditName("ถึงเลขที่");
+            m.Property(x => x.MadeBy).HasMaxLength(256).HasAuditName("ผู้ทำ");
         });
 
         modelBuilder.Entity<ScrapReceiptLine>(l =>

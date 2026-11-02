@@ -22,6 +22,9 @@ internal sealed class ScrapReceipt : IAudited
     public string? CancelReason { get; set; }
     public string? CancelledBy { get; set; }
     public DateTimeOffset? CancelledAt { get; set; }
+    /// <summary>The การนำส่ง this receipt was closed into (ตัดยอดนำส่ง); none = ยอดรอนำส่ง.</summary>
+    public int? RemittanceId { get; set; }
+    public ScrapRemittance? Remittance { get; set; }
 
     public List<ScrapReceiptLine> Lines { get; set; } = [];
 

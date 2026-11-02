@@ -10,8 +10,11 @@ public sealed record ScrapReceiptLineDto(int Id, int Seq, string ItemName, int? 
 
 /// <summary>A receipt as the screens and the print read it; <see cref="Total"/> is the amount printed (RND-A) and <see cref="TotalInWords"/> its words (RND-C).</summary>
 public sealed record ScrapReceiptDto(int Id, string No, DateOnly Date, string BuyerName, string? BuyerAddress, string? BuyerTel, int? ScrapBuyerId, bool IsCancelled,
-    string? CancelReason, string? CancelledBy, DateTimeOffset? CancelledAt, IReadOnlyList<ScrapReceiptLineDto> Lines, byte[] RowVersion)
+    string? CancelReason, string? CancelledBy, DateTimeOffset? CancelledAt, IReadOnlyList<ScrapReceiptLineDto> Lines, byte[] RowVersion, int? RemittanceId = null, DateOnly? RemittedOn = null)
 {
+    /// <summary>Whether the receipt has been closed into a การนำส่ง (ตัดยอดนำส่งแล้ว): it can still be edited, but not cancelled.</summary>
+    public bool IsRemitted => RemittanceId is not null;
+
     public decimal Total => ScrapReceiptMath.Total(Lines.Select(l => l.Amount));
 
     public string TotalInWords => ScrapReceiptMath.InWords(Total);
@@ -69,6 +72,9 @@ public static class ScrapReceiptMath
     /// <summary>The order of numbers: by year code, then by the running number as a number (so 691000 follows 69999, which text order would not give).</summary>
     public static (string Year, long Seq) SortKey(string no) => no.Length > 2 && no.All(char.IsAsciiDigit) ? (no[..2], long.Parse(no[2..], NumberStyles.None, CultureInfo.InvariantCulture)) : (no, 0);
 
+    /// <summary>The order of two numbers: year code, then the running number as a number. Negative when <paramref name="a"/> comes first.</summary>
+    public static int Compare(string a, string b) => Comparer<(string, long)>.Create((x, y) => x.Item1 != y.Item1 ? string.CompareOrdinal(x.Item1, y.Item1) : x.Item2.CompareTo(y.Item2)).Compare(SortKey(a), SortKey(b));
+
     /// <summary>
     /// RND-A of this program (<c>CutDecimal(x) = ((x*100) \ 1) / 100</c>): the sum to two decimals by banker's rounding — 100.125 → 100.12, 100.135 → 100.14. It is not the RND-A of the
     /// employee program (whole numbers, half up).
@@ -101,13 +107,16 @@ public sealed class ScrapReceiptDirectory(CashDbContext db)
     public async Task<IReadOnlyList<ScrapReceiptHeadDto>> ListNumbersAsync()
         => (await db.ScrapReceipts.AsNoTracking().Select(r => new ScrapReceiptHeadDto(r.Id, r.No, r.Date, r.BuyerName, r.IsCancelled)).ToListAsync()).OrderBy(r => ScrapReceiptMath.SortKey(r.No)).ToList();
 
-    private async Task<IReadOnlyList<ScrapReceiptDto>> ReadAsync(IQueryable<ScrapReceipt> receipts)
+    internal async Task<IReadOnlyList<ScrapReceiptDto>> ReadAsync(IQueryable<ScrapReceipt> receipts)
     {
         var heads = await receipts.ToListAsync();
+        var remittanceIds = heads.Where(h => h.RemittanceId is not null).Select(h => h.RemittanceId!.Value).Distinct().ToList();
+        var remitted = await db.ScrapRemittances.AsNoTracking().Where(r => remittanceIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, r => r.MadeOn);
         var ids = heads.Select(h => h.Id).ToList();
         var lines = (await db.ScrapReceiptLines.AsNoTracking().Where(l => ids.Contains(l.ReceiptId)).ToListAsync()).ToLookup(l => l.ReceiptId);
         return heads.Select(h => new ScrapReceiptDto(h.Id, h.No, h.Date, h.BuyerName, h.BuyerAddress, h.BuyerTel, h.ScrapBuyerId, h.IsCancelled, h.CancelReason, h.CancelledBy, h.CancelledAt,
-            lines[h.Id].OrderBy(l => l.Seq).Select(l => new ScrapReceiptLineDto(l.Id, l.Seq, l.ItemName, l.ScrapItemId, l.Unit, l.Qty, l.UnitPrice, l.Amount)).ToList(), h.RowVersion)).ToList();
+            lines[h.Id].OrderBy(l => l.Seq).Select(l => new ScrapReceiptLineDto(l.Id, l.Seq, l.ItemName, l.ScrapItemId, l.Unit, l.Qty, l.UnitPrice, l.Amount)).ToList(), h.RowVersion,
+            h.RemittanceId, h.RemittanceId is { } rid && remitted.TryGetValue(rid, out var madeOn) ? madeOn : null)).ToList();
     }
 }
 
@@ -218,6 +227,11 @@ public sealed class ScrapReceiptRegistry(CashDbContext db, ICurrentUser user, Ti
         if (receipt is null) return ServiceResult.Fail("ไม่พบใบเสร็จนี้แล้ว");
         receipt.ExpectRowVersion(loadedRowVersion);
         if (receipt.IsCancelled) return ServiceResult.Fail($"ใบเสร็จเลขที่ {receipt.No} ถูกยกเลิกไปแล้ว");
+        if (receipt.RemittanceId is { } remittanceId)
+        {
+            var madeOn = await db.ScrapRemittances.AsNoTracking().Where(r => r.Id == remittanceId).Select(r => (DateOnly?)r.MadeOn).FirstOrDefaultAsync();
+            return ServiceResult.Fail($"ใบเสร็จเลขที่ {receipt.No} นำส่งสำนักงานแล้ว{(madeOn is { } on ? $" (วันที่ {ThaiDate.Format(on)})" : "")} ยกเลิกไม่ได้");
+        }
         receipt.IsCancelled = true;
         receipt.CancelReason = text;
         receipt.CancelledBy = user.UserName;

@@ -1,0 +1,85 @@
+@page "/cash/remit"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject IJSRuntime Js
+
+@* พิมพ์ตัดยอดนำส่งสำนักงานและยอดรอนำส่ง (SCR-12, BR-016): choose ตั้งแต่เลขที่ / ถึงเลขที่ from the numbers issued (the last range is offered again). "พิมพ์" closes the receipts waiting in that
+   range into one การนำส่ง — numbers compared as numbers, cancelled receipts left out — and prints RPT-07; a range with nothing waiting changes nothing. "รายงานยอดรอนำส่ง" prints RPT-08. *@
+<PageTitle>พิมพ์ตัดยอดนำส่งสำนักงาน — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์ตัดยอดนำส่งสำนักงานและยอดรอนำส่ง</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudText>ยอดรอนำส่ง @waiting.Count ใบ รวม @ScrapReceiptMath.Total(waiting.Select(r => r.Total)).ToString("N2") บาท</MudText>
+</MudPaper>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6">
+            <MudSelect T="string" @bind-Value="fromNo" Label="ตั้งแต่เลขที่">
+                @foreach (var head in numbers) { <MudSelectItem T="string" Value="head.No">@head.No@(head.IsCancelled ? " [ยกเลิก]" : "")</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="string" @bind-Value="toNo" Label="ถึงเลขที่">
+                @foreach (var head in numbers) { <MudSelectItem T="string" Value="head.No">@head.No@(head.IsCancelled ? " [ยกเลิก]" : "")</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Spacing="2" Class="mt-3" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CloseAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="reports/cash/unremitted" Target="_blank" StartIcon="@Icons.Material.Filled.Print">รายงานยอดรอนำส่ง</MudButton>
+        <MudButton Href="@CashMenu.HrefOf(CashMenu.Receipts)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<ScrapReceiptHeadDto> numbers = [];
+    private IReadOnlyList<ScrapReceiptDto> waiting = [];
+    private string? fromNo;
+    private string? toNo;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        numbers = await Services.RunAsync<ScrapReceiptDirectory, IReadOnlyList<ScrapReceiptHeadDto>>(d => d.ListNumbersAsync());
+        if (await Services.RunAsync<ScrapRemittanceDirectory, (string, string)?>(d => d.LastRangeAsync()) is { } last) (fromNo, toNo) = last;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync() => waiting = await Services.RunAsync<ScrapRemittanceDirectory, IReadOnlyList<ScrapReceiptDto>>(d => d.UnremittedAsync());
+
+    private async Task CloseAsync()
+    {
+        if (fromNo is null || toNo is null)
+        {
+            Snackbar.Add("กรุณาเลือกเลขที่ตั้งแต่และถึง", Severity.Warning);
+            return;
+        }
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ตัดยอดนำส่ง", $"ตัดยอดใบเสร็จที่รอนำส่งตั้งแต่เลขที่ {fromNo} ถึง {toNo} ออกจากยอดรอนำส่ง?", yesText: "ตัดยอด", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var input = new ScrapRemittanceInput(fromNo, toNo);
+            var result = await Services.RunAsync<ScrapRemittanceRegistry, ScrapRemittanceResult>(r => r.CloseAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Warning);
+            if (!result.Succeeded) return;
+            Snackbar.Add($"ตัดยอดนำส่ง {result.Count} ใบ รวม {result.Total:N2} บาท", Severity.Success);
+            await Js.InvokeVoidAsync("open", $"reports/cash/remittance?id={result.Id}", "_blank"); // RPT-07
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+}

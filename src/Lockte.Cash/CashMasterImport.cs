@@ -13,6 +13,7 @@ public sealed class CashMasterImport(Data.CashDbContext db)
     {
         await db.ScrapReceiptLines.ExecuteDeleteAsync();
         await db.ScrapReceipts.ExecuteDeleteAsync();
+        await db.ScrapRemittances.ExecuteDeleteAsync();
         await db.ExpenseLines.ExecuteDeleteAsync();
         await db.ExpenseTypes.ExecuteDeleteAsync();
         await db.ScrapBuyers.ExecuteDeleteAsync();

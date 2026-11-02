@@ -19,6 +19,8 @@ public static class CashModule
         services.AddScoped<ExpenseLineRegistry>();
         services.AddScoped<ScrapReceiptDirectory>();
         services.AddScoped<ScrapReceiptRegistry>();
+        services.AddScoped<ScrapRemittanceDirectory>();
+        services.AddScoped<ScrapRemittanceRegistry>();
         services.AddScoped<ScrapBuyerDirectory>();
         services.AddScoped<ScrapBuyerRegistry>();
         services.AddScoped<ScrapItemDirectory>();

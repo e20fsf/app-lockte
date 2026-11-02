@@ -34,6 +34,11 @@
         </MudAlert>
     }
 
+    @if (receipt.IsRemitted)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">ใบนี้นำส่งแล้ว@(receipt.RemittedOn is { } sent ? $" วันที่ {ThaiDate.Format(sent)}" : "") การนำส่งเดิมไม่เปลี่ยน — แก้ใบได้ แต่ยกเลิกไม่ได้</MudAlert>
+    }
+
     <MudPaper Class="pa-4" Outlined="true">
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="3"><MudTextField Value="receipt.No" Label="เลขที่" ReadOnly="true" /></MudItem>
@@ -83,7 +88,10 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="PrintAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
         </MudStack>
+    }
 
+    @if (!receipt.IsCancelled && !receipt.IsRemitted)
+    {
         <MudPaper Class="pa-4 mt-4" Outlined="true">
             <MudText Typo="Typo.h6" Class="mb-2">ยกเลิกใบเสร็จ</MudText>
             <MudTextField @bind-Value="cancelReason" Label="เหตุผลที่ยกเลิก" MaxLength="ScrapReceiptRegistry.CancelReasonLength" />
