@@ -54,6 +54,40 @@ public sealed class CashMigrationRulesTests
     }
 }
 
+/// <summary>The rules of the migration of the expense lines (#236) that need neither a file nor a database.</summary>
+public sealed class CashLineRulesTests
+{
+    [Theory]
+    [InlineData("09/35", 9)]
+    [InlineData("12/100", 12)]
+    [InlineData("9/99", null)] // the legacy has these two wrong shapes
+    [InlineData("99//99", null)]
+    [InlineData("13/01", null)]
+    [InlineData("ก/01", null)]
+    public void The_month_of_a_voucher_number_is_read_from_the_two_digits_before_the_slash(string number, int? month) => Assert.Equal(month, CashLineRules.VoucherMonth(number));
+
+    [Fact]
+    public void A_double_of_access_is_read_to_the_digits_it_shows()
+    {
+        Assert.Equal(25.01m, CashLineRules.Decimal(25.01));
+        Assert.Equal(0.33m, CashLineRules.Decimal(0.33));
+        Assert.Equal((1000m, false), CashLineRules.Fit(1000m, 2));
+        Assert.Equal((12.35m, true), CashLineRules.Fit(12.345m, 2)); // half away from zero
+        Assert.Equal((2.5m, true), CashLineRules.Fit(2.4999m, 1));
+    }
+
+    [Theory] // the amount is kept as it was; this only tells how many differ
+    [InlineData("2", "40", "80", false)]
+    [InlineData("25.01", "0", "1000", true)] // fuel typed by amount
+    [InlineData("3", "40", "80", true)] // the quantity was edited after the amount (BR-002 #3)
+    [InlineData("1", "0.333", "0.33", false)]
+    public void An_amount_that_is_not_quantity_times_price_is_found(string qty, string price, string amount, bool differs)
+    {
+        decimal D(string s) => decimal.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(differs, CashLineRules.AmountDiffers(D(qty), D(price), D(amount)));
+    }
+}
+
 /// <summary>A made-up <c>เงินสดย่อย.accdb</c> with the legacy column types (data-model.md). Every name, address and number in it is fictional — the repo is public.</summary>
 [SupportedOSPlatform("windows")]
 public static class FakeCashFile
@@ -78,6 +112,9 @@ public static class FakeCashFile
 
     public static FakeLegacyFile WithLine(this FakeLegacyFile file, string? type)
         => file.Row("ซื้อของเงินสด", ("DATE", new DateTime(2026, 9, 1)), ("SUF", "09/01"), ("NAME", "ของตัวอย่าง"), ("QTY", 1.0), ("AMOUNT", 100.0), ("TYPE", type));
+
+    public static FakeLegacyFile WithExpense(this FakeLegacyFile file, DateTime? date, string? voucher, string? name, double qty, double price, double amount, string? type, string? unit = "ชิ้น")
+        => file.Row("ซื้อของเงินสด", ("DATE", date), ("SUF", voucher), ("NAME", name), ("QTY", qty), ("UNIT", unit), ("U_PRICE", price), ("AMOUNT", amount), ("TYPE", type));
 }
 
 /// <summary>เครื่องมือย้ายข้อมูล: ข้อมูลหลักของเงินสดย่อย (#231) — a made-up file in, the three registers out, the DQ report beside them.</summary>
@@ -159,6 +196,56 @@ public sealed class CashMigrationTests(MigrationDbFixture db) : IDisposable
         // the map the next run reads: every name the lines use and what it became
         Assert.Contains(report.CodeMapUsed, u => u.Kind == CodeKinds.CashExpenseType && u.Legacy == "ค่าซ่อม (1กก 123)" && u.Code == "ค่าซ่อม (1 กก 123)" && u.FromMap);
         Assert.Contains(report.CodeMapUsed, u => u.Kind == CodeKinds.CashExpenseType && u.Legacy == "ค่าขนส่ง" && u.Code == "ค่าขนส่ง" && !u.FromMap);
+    }
+
+    [Fact]
+    public async Task Loads_every_line_as_it_was_keeps_the_amounts_and_reports_the_odd_vouchers()
+    {
+        var file = FakeCashFile.Empty()
+            .Row("ค่าใช้จ่ายต่างๆ", ("CASH_NAME", "ค่าขนส่ง"))
+            .Row("ค่าใช้จ่ายต่างๆ", ("CASH_NAME", "ค่าน้ำมัน"));
+        file.WithExpense(new DateTime(2026, 9, 11), "09/36", "หัวสปริงเกอร์", 2, 40, 80, "ค่าขนส่ง") // quantity × price
+            .WithExpense(new DateTime(2026, 9, 11), "09/37", "น้ำมันดีเซล", 25.01, 0, 1000, "ค่าน้ำมัน", "ลิตร") // typed amount, price 0
+            .WithExpense(new DateTime(2026, 9, 12), "09/100", "ของเลขสามหลัก", 1, 10, 10, "ค่าขนส่ง") // three digits after the slash
+            .WithExpense(new DateTime(2026, 9, 12), "08/05", "เดือนในเลขที่ไม่ตรง", 1, 10, 10, "ค่าขนส่ง")
+            .WithExpense(new DateTime(2026, 9, 13), "9/99", "รูปเลขที่ผิด", 1, 10, 10, "ค่าขนส่ง")
+            .WithExpense(new DateTime(2026, 9, 14), "09/40", "เลขที่เดียวกันคนละวัน", 1, 5, 5, "ค่าขนส่ง")
+            .WithExpense(new DateTime(2026, 9, 15), "09/40", "เลขที่เดียวกันคนละวัน", 1, 5, 5, "ค่าน้ำมัน")
+            .WithExpense(new DateTime(2011, 9, 3), "09/01", "พิมพ์ปีผิด", 1, 7, 7, "ค่าขนส่ง")
+            .WithExpense(new DateTime(2026, 9, 16), "09/41", "ทศนิยมเกิน", 1, 0, 12.345, "ค่าขนส่ง")
+            .WithExpense(null, "09/42", "ไม่มีวันที่", 1, 1, 1, "ค่าขนส่ง") // the legacy deleted these on leaving the screen
+            .WithExpense(new DateTime(2026, 9, 16), "09/43", "ไม่มีประเภท", 1, 1, 1, null);
+        for (var i = 1; i <= 8; i++) file.WithExpense(new DateTime(2026, 10, 1), "10/01", $"รายการยาว{i}", 1, 1, 1, "ค่าขนส่ง"); // a voucher of 8 lines
+        var source = file.Save(Path.Combine(work.FullName, "เงินสดย่อย.accdb"));
+
+        var report = await RunAsync(source);
+
+        Assert.True(report.Balanced, string.Join("; ", report.Tables.Where(t => !t.Balanced).Select(t => $"{t.LegacyTable} {t.SourceRows}/{t.Excluded}/{t.Rejected}/{t.Loaded}/{t.InDatabase}"))
+            + " " + string.Join("; ", report.MonthlyTotals.Where(m => !m.Balanced).Select(m => $"{m.Month} {m.Expected}/{m.InDatabase}")));
+        var total = report.Tables.Single(t => t.LegacyTable == "ซื้อของเงินสด");
+        Assert.Equal((19, 2, 17, 17), (total.SourceRows, total.Rejected, total.Loaded, total.InDatabase));
+        Assert.Equal(1, report.Tables.Single(t => t.LegacyTable == "ซื้อของเงินสด ปี 2011").Loaded);
+
+        await using var scope = db.Scope();
+        var lines = await scope.Get<ExpenseLineDirectory>().ListAsync(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30));
+        Assert.Equal(80m, lines.Single(l => l.VoucherNo == "09/36").Amount);
+        var fuel = lines.Single(l => l.VoucherNo == "09/37");
+        Assert.Equal((25.01m, 0m, 1000m, "ลิตร", "ค่าน้ำมัน"), (fuel.Qty, fuel.UnitPrice, fuel.Amount, fuel.Unit, fuel.ExpenseTypeName)); // not worked out again
+        Assert.Contains(lines, l => l.VoucherNo == "09/100");
+        Assert.Equal(12.35m, lines.Single(l => l.VoucherNo == "09/41").Amount); // the one value with more than two decimals
+        Assert.Equal(new DateOnly(2011, 9, 3), (await scope.Get<ExpenseLineDirectory>().ListAsync(new DateOnly(2011, 1, 1), new DateOnly(2011, 12, 31))).Single().Date);
+        Assert.DoesNotContain(lines, l => l.Name is "ไม่มีวันที่" or "ไม่มีประเภท");
+
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-Q02" && e.Key == "2026-09-16 09/41" && e.Problem.Contains("12.35", StringComparison.Ordinal) && e.Problem.Contains("12.345", StringComparison.Ordinal));
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-Q06" && e.Key == "2011-09-03 09/01");
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-Q31" && e.Key == "2026-10-01 10/01" && e.Problem.Contains("8 บรรทัด", StringComparison.Ordinal));
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-Q03" && e.Key == "2026-09-12 08/05" && e.Problem.Contains("ไม่ตรงเดือน", StringComparison.Ordinal));
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-Q03" && e.Key == "2026-09-13 9/99" && e.Problem.Contains("ไม่ใช่รูป", StringComparison.Ordinal));
+        Assert.Contains(report.Exceptions, e => e.Rule == "DQ-Q03" && e.Key == "2026 09/40" && e.Problem.Contains("2 วันที่", StringComparison.Ordinal));
+        Assert.Contains(report.Exceptions, e => e.Table == "ซื้อของเงินสด" && e.Problem.Contains("วันที่", StringComparison.Ordinal) && e.Action == MigrationReport.NotLoaded);
+        Assert.Contains(report.Exceptions, e => e.Table == "ซื้อของเงินสด" && e.Problem.Contains("ประเภท", StringComparison.Ordinal) && e.Action == MigrationReport.NotLoaded);
+        Assert.Contains(report.Notes, n => n.StartsWith("จำนวนเงิน ≠ จำนวน × ราคา", StringComparison.Ordinal));
+        Assert.Contains(report.Notes, n => n.StartsWith("ยอดตามชื่อดิบ 'ค่าน้ำมัน'", StringComparison.Ordinal));
     }
 
     [Fact]
