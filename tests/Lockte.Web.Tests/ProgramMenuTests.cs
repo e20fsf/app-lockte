@@ -140,7 +140,7 @@ public sealed class ProgramMenuTests
         foreach (var (page, suffix) in new[] { (CalibMenu.Caliper, "caliper"), (CalibMenu.PressureGauge, "pg"), (CalibMenu.Scale, "scale"), (CalibMenu.TempControl, "tc") })
             Assert.Equal([$"SCR-02-{suffix}", $"SCR-03-{suffix}", $"RPT-02-{suffix}", $"RPT-03-{suffix}", $"SCR-04-{suffix}"],
                 CalibMenu.Menu.Find(page)!.Items.Select(i => i.Code));
-        Assert.Equal(["SCR-02-jig", "SCR-03-jig", "RPT-02-jig", "SCR-05", "SCR-04-jig"], CalibMenu.Menu.Find(CalibMenu.Jig)!.Items.Select(i => i.Code));
+        Assert.Equal(["SCR-02-jig", "SCR-03-jig", "RPT-02-jig", "SCR-05", "SCR-04-jig", "JIG-SHEETS"], CalibMenu.Menu.Find(CalibMenu.Jig)!.Items.Select(i => i.Code));
         Assert.Equal(["SCR-02-ext", "SCR-03-ext", "RPT-02-ext", "RPT-03-ext", "SCR-06"], CalibMenu.Menu.Find(CalibMenu.External)!.Items.Select(i => i.Code));
     }
 
@@ -175,5 +175,16 @@ public sealed class ProgramMenuTests
     {
         Assert.Equal("calib/instruments/jig/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-jig")!.Value.Item));
         Assert.Equal("calib/instruments/jig", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-03-jig")!.Value.Item));
+    }
+
+    [Fact]
+    public void The_calibration_company_screen_is_opened_from_the_external_menu() // built (#197)
+        => Assert.Equal("calib/providers", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-06")!.Value.Item));
+
+    [Fact]
+    public void External_instrument_screens_are_opened_by_their_menu_items() // built (#198)
+    {
+        Assert.Equal("calib/instruments/ext/new", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-02-ext")!.Value.Item));
+        Assert.Equal("calib/instruments/ext", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SCR-03-ext")!.Value.Item));
     }
 }

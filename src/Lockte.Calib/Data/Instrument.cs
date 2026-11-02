@@ -31,6 +31,8 @@ internal sealed class Instrument : IAudited
     public string? StandardUsed { get; set; }
     /// <summary>ผู้สอบเทียบ (ภายใน), an employee of module hr.</summary>
     public int? CalibratorEmployeeId { get; set; }
+    /// <summary>ผู้สอบเทียบ (ภายนอก), a บริษัทที่สอบเทียบ (supplier of purch).</summary>
+    public int? ProviderSupplierId { get; set; }
     /// <summary>แกน (mm) — JIG only (Q-06).</summary>
     public string? Axis { get; set; }
     /// <summary>คู่มือวิธีการที่ใช้เลขที่ — JIG only.</summary>

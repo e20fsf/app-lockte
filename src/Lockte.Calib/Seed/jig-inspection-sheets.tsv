@@ -1,0 +1,45 @@
+# แบบตรวจ JIG ตั้งต้น (specs/สอบเทียบ/reports.md RPT-05/06, print-samples.md) — ค่าเทคนิคเท่านั้น ไม่มีข้อมูลบุคคล
+# คอลัมน์ (คั่นด้วย tab): ชนิดแบบ(Z=วัดศูนย์ RPT-05, G=กรอ RPT-06) · รุ่น(ปุ่มใน SCR-05) · ชื่อ JIG บนแบบ · เลขที่ในเอกสาร WI-QA049-n · จุดวัด คั่นด้วย | แต่ละจุด ป้าย:ชนิด:ค่า:พิกัด
+# ชนิดจุด D=Diameter W=Wide M=Dimension L=Length · พิกัด pm=± 0.20 mm. gt=มากกว่า (>)
+Z	RX100	RX100,MATE U,BELL,087,200	1	P1:D:20.00:pm|P2:D:7.00:pm|P2.1:D:10.00:pm|P2.2:D:10.00:pm|P2.3:W:4.00:pm|P3:W:16.00:pm|P4:W:6.00:pm|P5:M:61.00:pm|P6:M:58.00:pm
+Z	V100	V100	2	P1:D:20.00:pm|P2:D:8.00:pm|P3:D:16.00:pm|P4:W:6.00:pm|P5:M:63.60:pm|P6:M:59.00:pm
+Z	052,063	052,063	3	P1:D:20.00:pm|P2:D:12.00:pm|P3:D:16.30:pm|P4:W:6.50:pm|P5:M:54.50:pm|P6:M:51.90:pm
+Z	CLICK	CLICK	4	P1:D:20.00:pm|P2:D:9.00:pm|P3:D:20.00:pm|P4:W:8.00:pm|P5:M:72.00:pm|P6:M:66.50:pm
+Z	NH50	NH50,SS50,098,029,048	5	P1:D:10.00:pm|P2:D:10.00:pm|P3:D:15.70:pm|P4:W:6.00:pm|P5:M:50.20:pm|P6:M:47.00:pm
+Z	A100	A100,GTO R,KAZE	6	P1:D:20.00:pm|P2:D:8.00:pm|P3:D:15.00:pm|P4:W:6.00:pm|P5:M:60.00:pm|P6:M:56.00:pm
+Z	K125	K125	7	P1:D:10.00:pm|P2:D:12.00:pm|P3:D:21.20:pm|P4:W:9.00:pm|P5:M:73.60:pm|P6:M:69.00:pm
+Z	JOG	JOG	8	P1:D:10.00:pm|P2:D:8.00:pm|P3:D:16.00:pm|P4:W:5.00:pm|P5:M:51.20:pm|P6:M:47.60:pm
+Z	C100	C100,WAVE110,043,XL078,078	9	P1:D:20.00:pm|P2:D:8.00:pm|P3:D:16.00:pm|P4:W:6.00:pm|P5:M:61.00:pm|P6:M:57.00:pm
+Z	233	233	10	P1:D:10.00:pm|P2:D:8.00:pm|P3:D:18.40:pm|P4:W:6.00:pm|P5:M:59.20:pm|P6:M:54.00:pm
+Z	DT100	DT100,105,SPACY	11	P1:D:20.00:pm|P2:D:9.00:pm|P3:D:15.00:pm|P4:W:6.00:pm|P5:M:69.30:pm|P6:M:66.50:pm
+Z	068	068	12	P1:D:20.00:pm|P2:D:12.00:pm|P3:D:20.00:pm|P4:W:6.00:pm|P5:M:75.00:pm|P6:M:71.00:pm
+Z	NOUVO	NOUVO	13	P1:D:20.00:pm|P2:D:9.00:pm|P3:D:19.00:pm|P4:W:6.20:pm|P5:M:71.20:pm|P6:M:66.50:pm
+Z	168	168	14	P1:D:10.00:pm|P2:D:15.00:pm|P3:D:21.20:pm|P4:W:12.00:pm|P5:M:79.00:pm|P6:M:75.60:pm
+Z	061	061	15	P1:D:20.00:pm|P2:D:12.00:pm|P3:D:16.00:pm|P4:W:6.00:pm|P5:M:61.00:pm|P6:M:58.90:pm
+Z	ATTILA	ATTILA	16	P1:D:20.00:pm|P2:D:9.00:pm|P3:D:16.40:pm|P4:W:6.00:pm|P5:M:72.00:pm|P6:M:68.80:pm
+Z	TACT	TACT	17	P1:D:8.00:pm|P2:D:8.00:pm|P3:D:15.80:pm|P4:W:6.00:pm|P5:M:42.60:pm|P6:M:38.80:pm
+Z	WING	WING	18	P1:D:14.00:pm|P2:L:8.00:pm|P3:L:21.00:pm|P4:W:8.00:pm|P5:L:69.60:pm|P6:L:73.90:pm
+Z	TS100	TS100	19	P1:D:20.00:pm|P2:D:8.00:pm|P3:D:17.00:pm|P4:W:6.00:pm|P5:M:70.20:pm|P6:M:66.00:pm
+Z	GTO F	GTO F,AR125	20	P1:D:20.00:pm|P2:D:8.00:pm|P3:D:16.20:pm|P4:W:8.00:pm|P5:M:70.00:pm|P6:M:66.00:pm
+Z	PIN GAUGE	PIN GAUGE	21	P1:D:11.50:pm
+Z	TAPER GAUGE	TAPER GAUGE	22	P1:D:47.00:pm|P2:D:50.00:pm
+Z	143	143	23	P1:D:20.00:pm|P2:D:10.00:pm|P3:D:14.90:pm|P4:W:6.00:pm|P5:M:49.50:pm|P6:M:48.00:pm
+G	RX100	RX100,MATE U,BELL,087,200	24	P1:D:10.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	V100	V100	27	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	052	052,063	28	P1:D:12.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	CLICK	CLICK	29	P1:D:9.00:pm|P2:L:15.00:gt|P3:W:8.00:pm
+G	NH50	NH50,SS50,029	31	P1:D:10.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	A100	A100,GTO'R,KAZE	32	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	K125	K125	35	P1:D:12.00:pm|P2:L:9.00:pm|P3:W:9.00:pm
+G	JOG	JOG	36	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:5.00:pm
+G	C100	C100,WAVE110,043,XL078,078	37	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	233	233	41	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	DT100	DT100,105,SPACY	42	P1:D:9.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	NOUVO	NOUVO	45	P1:D:9.00:pm|P2:L:15.00:gt|P3:W:6.20:pm
+G	061	061	47	P1:D:12.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	ATTILA	ATTILA	48	P1:D:9.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	TACT	TACT	49	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	WING	WING	50	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:8.00:pm
+G	TS100	TS100,147	51	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:6.00:pm
+G	GTO'F	GTO'F,AR125	54	P1:D:8.00:pm|P2:L:15.00:gt|P3:W:8.00:pm
+G	143	143	56	P1:D:10.00:pm|P2:L:13.00:gt|P3:W:6.00:pm

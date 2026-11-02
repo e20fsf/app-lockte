@@ -1,6 +1,7 @@
 @page "/calib/instruments/{Key}/new"
 @attribute [Authorize]
 @using Lockte.Calib
+@using Lockte.Org
 @using Lockte.SharedKernel
 @using Lockte.SharedKernel.Persistence
 @inject ScopedServices Services
@@ -34,11 +35,26 @@ else
     private InstrumentFormModel form = new();
     private InstrumentChoices choices = new([], [], [], [], [], [], []);
     private bool busy;
+    private int? defaultDepartment;
 
     protected override async Task OnParametersSetAsync()
     {
         info = InstrumentKindInfo.Find(Key);
-        if (info is not null) await ReloadChoicesAsync();
+        if (info is not null)
+        {
+            await ReloadChoicesAsync();
+            form = await NewFormAsync();
+        }
+    }
+
+    /// <summary>An empty form; the external kind starts with แผนกที่ใช้งาน = QA (SCR-02 ค่าเริ่มต้น, AC-06) when the organisation has that department.</summary>
+    private async Task<InstrumentFormModel> NewFormAsync()
+    {
+        var model = new InstrumentFormModel();
+        if (info!.Kind != InstrumentKind.External) return model;
+        var qa = await Services.RunAsync<OrgDirectory, DepartmentDto?>(async o => await o.FindDepartmentByCodeAsync("QA") ?? await o.FindDepartmentByNameAsync("QA"));
+        model.DepartmentId = defaultDepartment = qa?.Id;
+        return model;
     }
 
     private async Task ReloadChoicesAsync()
@@ -74,13 +90,23 @@ else
     private async Task NextAsync()
     {
         if (!await SaveAsync()) return;
-        form = new InstrumentFormModel();
+        form = await NewFormAsync();
         await ReloadChoicesAsync();
+    }
+
+    /// <summary>Nothing but the default department is set: as good as an untouched form.</summary>
+    private bool IsOnlyDefaults()
+    {
+        var department = form.DepartmentId;
+        form.DepartmentId = null;
+        var empty = form.IsEmpty;
+        form.DepartmentId = department;
+        return empty && department == defaultDepartment;
     }
 
     private async Task BackAsync()
     {
-        if (!form.IsEmpty && !await SaveAsync()) return;
+        if (!form.IsEmpty && !IsOnlyDefaults() && !await SaveAsync()) return;
         Navigation.NavigateTo(CalibMenu.HrefOf(info!.MenuNumber));
     }
 }

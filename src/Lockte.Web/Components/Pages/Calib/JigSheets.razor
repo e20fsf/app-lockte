@@ -1,0 +1,239 @@
+@page "/calib/jig-sheets"
+@attribute [Authorize]
+@using Lockte.Calib
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@using Lockte.Web.Reports
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* แก้แบบตรวจ JIG (#199, Q-15): the 23 sheets of RPT-05 and 19 of RPT-06 are data QA edits — the name on the sheet and the measuring points (add, delete,
+   reorder, change a value); the changes go to ประวัติการแก้ไข. The เลขเอกสารควบคุม of a sheet is edited on its own screen. *@
+<PageTitle>แก้ไขแบบตรวจ JIG — LOCKTE</PageTitle>
+<h1 class="mb-4">แก้ไขแบบตรวจ JIG</h1>
+
+@if (withoutImage.Count > 0)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-3">แบบที่ยังไม่มีรูป JIG: @string.Join(", ", withoutImage.Select(s => $"{(s.Type == JigSheetType.ZeroCheck ? "วัดศูนย์" : "กรอ")} {s.ModelKey}"))</MudAlert>
+}
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+        <MudSelect T="JigSheetType?" Value="type" ValueChanged="TypeChangedAsync" Label="ชนิดแบบ" Style="max-width:22rem">
+            <MudSelectItem T="JigSheetType?" Value="JigSheetType.ZeroCheck">JIG วัดศูนย์ก้ามเบรก, PIN/TAPER GAUGE (RPT-05)</MudSelectItem>
+            <MudSelectItem T="JigSheetType?" Value="JigSheetType.Grinding">JIG กรอก้ามเบรก (RPT-06)</MudSelectItem>
+        </MudSelect>
+        <MudSelect T="int?" Value="selectedId" ValueChanged="SelectAsync" Label="รุ่น" Clearable="true" Style="max-width:28rem">
+            @foreach (var s in sheets)
+            {
+                <MudSelectItem T="int?" Value="s.Id">@s.ModelKey  (@s.Title)</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+
+    @if (sheet is not null)
+    {
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-3" Wrap="Wrap.Wrap">
+            <MudTextField @bind-Value="title" Label="ชื่อ JIG บนแบบ" MaxLength="JigSheetRegistry.TitleLength" Style="max-width:32rem" />
+            <MudText>เลขเอกสาร: <b>@(documentText ?? sheet.DocumentKey)</b></MudText>
+            <MudButton Href="document-numbers" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit">แก้เลขเอกสารควบคุม</MudButton>
+        </MudStack>
+
+        <MudText Typo="Typo.subtitle1" Class="mt-3 mb-1">รูป JIG บนแบบ</MudText>
+        @if (image is not null)
+        {
+            <img src="data:@image.ContentType;base64,@Convert.ToBase64String(image.Data)" alt="รูป JIG" style="max-width:24rem;max-height:14rem;display:block" class="mb-2" />
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mb-1">แบบนี้ยังไม่มีรูป — ใบพิมพ์จะแสดงกรอบว่าง</MudText>
+        }
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <InputFile OnChange="PickImageAsync" accept="image/png,image/jpeg" />
+            @if (image is not null)
+            {
+                <MudButton OnClick="RemoveImageAsync" Disabled="busy">เอารูปออก</MudButton>
+            }
+        </MudStack>
+
+        <MudSimpleTable Dense="true" Class="mt-3" Style="overflow-x:auto">
+            <thead>
+                <tr><th>Point</th><th>ชนิดจุด</th><th>ค่าที่กำหนด (mm)</th><th>พิกัด</th><th>± (mm)</th><th></th></tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < points.Count; i++)
+                {
+                    var row = points[i];
+                    var index = i;
+                    <tr>
+                        <td><MudTextField @bind-Value="row.Label" MaxLength="JigSheetRegistry.LabelLength" Margin="Margin.Dense" Style="width:6rem" /></td>
+                        <td>
+                            <MudSelect T="JigPointKind" @bind-Value="row.Kind" Margin="Margin.Dense">
+                                <MudSelectItem T="JigPointKind" Value="JigPointKind.Diameter">Diameter</MudSelectItem>
+                                <MudSelectItem T="JigPointKind" Value="JigPointKind.Wide">Wide</MudSelectItem>
+                                <MudSelectItem T="JigPointKind" Value="JigPointKind.Dimension">Dimension</MudSelectItem>
+                                <MudSelectItem T="JigPointKind" Value="JigPointKind.Length">Length</MudSelectItem>
+                            </MudSelect>
+                        </td>
+                        <td><MudNumericField T="decimal" @bind-Value="row.Value" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" Style="width:8rem" /></td>
+                        <td>
+                            <MudSelect T="JigToleranceKind" @bind-Value="row.Tolerance" Margin="Margin.Dense">
+                                <MudSelectItem T="JigToleranceKind" Value="JigToleranceKind.PlusMinus">± (บวกลบ)</MudSelectItem>
+                                <MudSelectItem T="JigToleranceKind" Value="JigToleranceKind.GreaterThan">&gt; (มากกว่า)</MudSelectItem>
+                            </MudSelect>
+                        </td>
+                        <td>
+                            @if (row.Tolerance == JigToleranceKind.PlusMinus)
+                            {
+                                <MudNumericField T="decimal?" @bind-Value="row.ToleranceValue" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" Style="width:6rem" />
+                            }
+                        </td>
+                        <td>
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" Disabled="index == 0" OnClick="@(() => Move(index, -1))" aria-label="เลื่อนขึ้น" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" Disabled="index == points.Count - 1" OnClick="@(() => Move(index, 1))" aria-label="เลื่อนลง" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => points.RemoveAt(index))" aria-label="ลบจุด" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+        <MudStack Row="true" Spacing="2" Class="mt-3">
+            <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddPoint">เพิ่มจุดวัด</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        </MudStack>
+    }
+</MudPaper>
+
+<MudButton Href="@CalibMenu.HrefOf(CalibMenu.Jig)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private JigSheetType? type = JigSheetType.ZeroCheck;
+    private IReadOnlyList<JigSheetDto> sheets = [];
+    private int? selectedId;
+    private JigSheetDto? sheet;
+    private string? documentText;
+    private string title = "";
+    private List<PointRow> points = [];
+    private bool busy;
+    private JigImageData? image;
+    private IReadOnlyList<JigSheetRef> withoutImage = [];
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        var t = type;
+        sheets = await Services.RunAsync<JigSheetDirectory, IReadOnlyList<JigSheetDto>>(d => d.ListAsync(t));
+        withoutImage = await Services.RunAsync<JigImageDirectory, IReadOnlyList<JigSheetRef>>(d => d.GetSheetsWithoutImageAsync());
+    }
+
+    private async Task TypeChangedAsync(JigSheetType? value)
+    {
+        type = value;
+        selectedId = null;
+        sheet = null;
+        image = null;
+        await ReloadAsync();
+    }
+
+    private async Task SelectAsync(int? id)
+    {
+        selectedId = id;
+        sheet = null;
+        image = null;
+        if (id is not { } sheetId) return;
+        sheet = await Services.RunAsync<JigSheetDirectory, JigSheetDto?>(d => d.GetAsync(sheetId));
+        if (sheet is null) return;
+        title = sheet.Title;
+        points = sheet.Points.Select(p => new PointRow { Id = p.Id, Label = p.Label, Kind = p.Kind, Value = p.Value, Tolerance = p.Tolerance, ToleranceValue = p.ToleranceValue, RowVersion = p.RowVersion }).ToList();
+        image = await Services.RunAsync<JigImageDirectory, JigImageData?>(d => d.GetAsync(sheetId));
+        var key = sheet.DocumentKey;
+        documentText = await Services.RunAsync<DocumentNumberService, string?>(s => s.PrintedTextAsync(key));
+    }
+
+    private async Task PickImageAsync(InputFileChangeEventArgs e)
+    {
+        if (e.File.Size > JigImageRegistry.MaxBytes) { Snackbar.Add($"รูปใหญ่เกิน {JigImageRegistry.MaxBytes / 1024 / 1024} MB", Severity.Error); return; }
+        busy = true;
+        try
+        {
+            await using var stream = e.File.OpenReadStream(JigImageRegistry.MaxBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            var bytes = memory.ToArray();
+            var id = sheet!.Id;
+            var result = await Services.RunAsync<JigImageRegistry, ServiceResult>(r => r.SetAsync(id, bytes));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("เปลี่ยนรูปแล้ว", Severity.Success);
+            await ReloadAsync();
+            await SelectAsync(selectedId);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task RemoveImageAsync()
+    {
+        busy = true;
+        try
+        {
+            var id = sheet!.Id;
+            await Services.RunAsync<JigImageRegistry, ServiceResult>(r => r.ClearAsync(id));
+            await ReloadAsync();
+            await SelectAsync(selectedId);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void AddPoint() => points.Add(new PointRow { Label = $"P{points.Count + 1}", Kind = JigPointKind.Diameter, Tolerance = JigToleranceKind.PlusMinus, ToleranceValue = JigInspectionSeed.DefaultTolerance });
+
+    private void Move(int index, int by)
+    {
+        var row = points[index];
+        points.RemoveAt(index);
+        points.Insert(index + by, row);
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new JigSheetInput(sheet!.Id, title,
+                points.Select(p => new JigPointInput(p.Id, p.Label, p.Kind, p.Value, p.Tolerance, p.ToleranceValue, p.RowVersion)).ToList(), sheet.RowVersion);
+            var result = await Services.RunAsync<JigSheetRegistry, ServiceResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            await ReloadAsync();
+            await SelectAsync(selectedId);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            await SelectAsync(selectedId);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class PointRow
+    {
+        public int? Id { get; set; }
+        public string Label { get; set; } = "";
+        public JigPointKind Kind { get; set; }
+        public decimal Value { get; set; }
+        public JigToleranceKind Tolerance { get; set; }
+        public decimal? ToleranceValue { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

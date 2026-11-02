@@ -86,5 +86,6 @@ public static class DocumentKeys
         ProbationRequest, DocumentTransmittal, ProbationEvaluation, YearlyEvaluationDaily, YearlyEvaluationMonthly, LeaveForm,
         InsuredRegister, WorkCertificate, SalaryCertificate, ResignationLetter, ProbationForm, DailyContract, MonthlyContract, Kr2, MoldRegister, SaleOrder,
         DeliverySchedule, DeliveryReport, ShippingInspection, ManagerDelivery, ProductionSlip, MonthlyYield, PurchRequest, PurchaseOrder, SupplierEvaluation, SupplierAnnualEvaluation, IncomingRecord, IncomingInspection, ApprovedSupplierList,
+        .. Lockte.Calib.JigInspectionSeed.Documents.Select(d => d.Key),
     ];
 }

@@ -15,6 +15,10 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
     internal DbSet<CalibSettings> Settings => Set<CalibSettings>();
     internal DbSet<Instrument> Instruments => Set<Instrument>();
     internal DbSet<InstrumentMachine> InstrumentMachines => Set<InstrumentMachine>();
+    internal DbSet<CalibrationProvider> CalibrationProviders => Set<CalibrationProvider>();
+    internal DbSet<JigInspectionSheet> JigInspectionSheets => Set<JigInspectionSheet>();
+    internal DbSet<JigInspectionPoint> JigInspectionPoints => Set<JigInspectionPoint>();
+    internal DbSet<JigImage> JigImages => Set<JigImage>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -41,6 +45,7 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             i.Property(x => x.Unit).HasMaxLength(InstrumentRegistry.ShortTextLength).HasAuditName("หน่วย");
             i.Property(x => x.StandardUsed).HasMaxLength(InstrumentRegistry.TextLength).HasAuditName("หมายเลขเครื่องมือที่ใช้");
             i.Property(x => x.CalibratorEmployeeId).HasAuditName("ผู้สอบเทียบ");
+            i.Property(x => x.ProviderSupplierId).HasAuditName("บริษัทที่สอบเทียบ");
             i.Property(x => x.Axis).HasMaxLength(InstrumentRegistry.TextLength).HasAuditName("แกน (mm)");
             i.Property(x => x.ManualNo).HasMaxLength(InstrumentRegistry.ShortTextLength).HasAuditName("คู่มือวิธีการที่ใช้เลขที่");
             i.Property(x => x.Note).HasMaxLength(InstrumentRegistry.TextLength).HasAuditName("หมายเหตุ");
@@ -54,6 +59,50 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             m.HasAuditName("เครื่องจักรของเครื่องมือวัด");
             m.Property(x => x.MachineId).HasAuditName("เครื่องจักร");
             m.HasIndex(x => new { x.InstrumentId, x.MachineId }).IsUnique();
+        });
+
+        modelBuilder.Entity<CalibrationProvider>(p =>
+        {
+            p.HasAuditName("บริษัทที่สอบเทียบ");
+            p.Property(x => x.SupplierId).HasAuditName("ผู้ขาย");
+            p.Property(x => x.Name).HasMaxLength(255).HasAuditName("ชื่อบริษัท");
+            p.HasIndex(x => x.SupplierId).IsUnique();
+        });
+
+        modelBuilder.Entity<JigInspectionSheet>(s =>
+        {
+            s.HasAuditName("แบบตรวจ JIG");
+            s.Property(x => x.Type).HasConversion<string>().HasMaxLength(20).HasAuditName("ชนิดแบบ");
+            s.Property(x => x.ModelKey).HasMaxLength(100).HasAuditName("รุ่น");
+            s.Property(x => x.Title).HasMaxLength(JigSheetRegistry.TitleLength).HasAuditName("ชื่อ JIG บนแบบ");
+            s.Property(x => x.DocumentKey).HasMaxLength(40).HasAuditName("รหัสเลขเอกสารควบคุม");
+            s.Property(x => x.DocumentNo).HasAuditName("เลขที่ในเอกสาร");
+            s.Property(x => x.ImageId).HasAuditName("รูป JIG");
+            s.HasOne(x => x.Image).WithMany().HasForeignKey(x => x.ImageId).OnDelete(DeleteBehavior.Restrict);
+            s.HasIndex(x => new { x.Type, x.ModelKey }).IsUnique();
+            s.HasIndex(x => x.DocumentKey).IsUnique();
+            s.HasMany(x => x.Points).WithOne(x => x.Sheet).HasForeignKey(x => x.SheetId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<JigInspectionPoint>(p =>
+        {
+            p.HasAuditName("จุดวัดแบบตรวจ JIG");
+            p.Property(x => x.SortOrder).HasAuditName("ลำดับ");
+            p.Property(x => x.Label).HasMaxLength(JigSheetRegistry.LabelLength).HasAuditName("Point");
+            p.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20).HasAuditName("ชนิดจุด");
+            p.Property(x => x.Value).HasPrecision(8, 2).HasAuditName("ค่าที่กำหนด (mm)");
+            p.Property(x => x.Tolerance).HasConversion<string>().HasMaxLength(20).HasAuditName("พิกัด");
+            p.Property(x => x.ToleranceValue).HasPrecision(8, 2).HasAuditName("ค่าพิกัด ± (mm)");
+            p.HasIndex(x => new { x.SheetId, x.SortOrder });
+        });
+
+        modelBuilder.Entity<JigImage>(i =>
+        {
+            i.HasAuditName("รูป JIG");
+            i.Property(x => x.ContentType).HasMaxLength(50).HasAuditName("ชนิดไฟล์รูป");
+            i.Property(x => x.Sha256).HasMaxLength(64).HasAuditName("SHA-256");
+            i.Property(x => x.Data).HasAuditName("รูป").IsSecret(); // history says the picture changed, never stores its bytes
+            i.HasIndex(x => x.Sha256).IsUnique();
         });
     }
 }
