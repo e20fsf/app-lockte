@@ -110,6 +110,31 @@ public sealed class PaySlipTests
     private static string TextAt(FormPage page, double x, double y)
         => Assert.Single(Texts(page), t => Math.Abs(t.X - x) < 0.01 && Math.Abs(t.Y - y) < 0.01).Text;
 
+    /// <summary>#353: the table of a slip must not have a rule through any text — horizontal rules against the glyph box of a text (above the
+    /// baseline 0.75 em, below it 0.2 em), vertical rules against the squeezed width of a text that has one.</summary>
+    [Fact]
+    public void No_text_of_the_table_stands_on_a_rule()
+    {
+        var svg = PaySlipForm.Layout(Batch(1))[0].ToSvg();
+        double N(string v) => double.Parse(v, CultureInfo.InvariantCulture);
+        var rules = Regex.Matches(svg, "<line x1=\"([\\d.]+)\" y1=\"([\\d.]+)\" x2=\"([\\d.]+)\" y2=\"([\\d.]+)\" stroke-width=\"0.35\"/>")
+            .Select(m => (X1: N(m.Groups[1].Value), Y1: N(m.Groups[2].Value), X2: N(m.Groups[3].Value), Y2: N(m.Groups[4].Value))).ToList();
+        var texts = Regex.Matches(svg, "<text x=\"([\\d.]+)\" y=\"([\\d.]+)\" font-size=\"([\\d.]+)\"([^>]*)>([^<]*)</text>")
+            .Select(m => (X: N(m.Groups[1].Value), Y: N(m.Groups[2].Value), Size: N(m.Groups[3].Value), Middle: m.Groups[4].Value.Contains("text-anchor=\"middle\""),
+                Fit: Regex.Match(m.Groups[4].Value, "data-fit=\"([\\d.]+)\"") is { Success: true } f ? N(f.Groups[1].Value) : (double?)null, Text: m.Groups[5].Value))
+            .Where(t => t.Y is > 38.3 and < 73).ToList(); // the first slip's table
+
+        Assert.NotEmpty(texts);
+        foreach (var t in texts)
+        {
+            foreach (var h in rules.Where(r => r.Y1 == r.Y2 && t.X >= r.X1 && t.X <= r.X2))
+                Assert.False(h.Y1 > t.Y - 0.75 * t.Size * 25.4 / 72 && h.Y1 < t.Y + 0.2 * t.Size * 25.4 / 72, $"a rule at {h.Y1} runs through '{t.Text}' (baseline {t.Y})");
+            if (t.Middle && t.Fit is { } fit)
+                foreach (var v in rules.Where(r => r.X1 == r.X2 && t.Y > r.Y1 && t.Y < r.Y2))
+                    Assert.False(v.X1 > t.X - fit / 2 && v.X1 < t.X + fit / 2, $"a rule at x {v.X1} runs through '{t.Text}'");
+        }
+    }
+
     [Fact] // RPT-04: 3 ใบต่อหน้า A4, one every 95 mm
     public void Slips_print_three_to_a_page_95_mm_apart()
     {
