@@ -303,6 +303,242 @@ namespace Lockte.Cash.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "ชนิดของเก่า");
                 });
 
+            modelBuilder.Entity("Lockte.Cash.Data.ScrapReceipt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BuyerAddress")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "ที่อยู่");
+
+                    b.Property<string>("BuyerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อผู้ซื้อ");
+
+                    b.Property<string>("BuyerTel")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "เบอร์โทรศัพท์");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasAnnotation("Lockte:AuditName", "เหตุผลที่ยกเลิก");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasAnnotation("Lockte:AuditName", "ยกเลิกเมื่อ");
+
+                    b.Property<string>("CancelledBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ยกเลิก");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ยกเลิก");
+
+                    b.Property<string>("No")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่");
+
+                    b.Property<int?>("RemittanceId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "การนำส่ง (รหัสภายใน)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("ScrapBuyerId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ซื้อในทะเบียน (รหัสภายใน)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("No")
+                        .IsUnique();
+
+                    b.HasIndex("RemittanceId");
+
+                    b.HasIndex("ScrapBuyerId");
+
+                    b.ToTable("ScrapReceipts", "cash");
+
+                    b.HasAnnotation("Lockte:AuditName", "ใบเสร็จขายของเก่า");
+                });
+
+            modelBuilder.Entity("Lockte.Cash.Data.ScrapReceiptLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวนเงิน");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "รายการ");
+
+                    b.Property<decimal>("Qty")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
+                        .HasAnnotation("Lockte:AuditName", "จำนวน");
+
+                    b.Property<int>("ReceiptId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int?>("ScrapItemId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ชนิดในทะเบียน (รหัสภายใน)");
+
+                    b.Property<int>("Seq")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "ลำดับที่");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasAnnotation("Lockte:AuditName", "หน่วย");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)")
+                        .HasAnnotation("Lockte:AuditName", "ราคา");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScrapItemId");
+
+                    b.HasIndex("ReceiptId", "Seq")
+                        .IsUnique();
+
+                    b.ToTable("ScrapReceiptLines", "cash");
+
+                    b.HasAnnotation("Lockte:AuditName", "บรรทัดใบเสร็จขายของเก่า");
+                });
+
+            modelBuilder.Entity("Lockte.Cash.Data.ScrapRemittance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FromNo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasAnnotation("Lockte:AuditName", "ตั้งแต่เลขที่");
+
+                    b.Property<string>("MadeBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasAnnotation("Lockte:AuditName", "ผู้ทำ");
+
+                    b.Property<DateOnly>("MadeOn")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันที่ทำ");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ToNo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasAnnotation("Lockte:AuditName", "ถึงเลขที่");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ScrapRemittances", "cash");
+
+                    b.HasAnnotation("Lockte:AuditName", "การนำส่งสำนักงาน");
+                });
+
             modelBuilder.Entity("Lockte.SharedKernel.Persistence.HistoryRecord", b =>
                 {
                     b.Property<long>("Id")
@@ -377,6 +613,42 @@ namespace Lockte.Cash.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("ExpenseType");
+                });
+
+            modelBuilder.Entity("Lockte.Cash.Data.ScrapReceipt", b =>
+                {
+                    b.HasOne("Lockte.Cash.Data.ScrapRemittance", "Remittance")
+                        .WithMany()
+                        .HasForeignKey("RemittanceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Lockte.Cash.Data.ScrapBuyer", null)
+                        .WithMany()
+                        .HasForeignKey("ScrapBuyerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Remittance");
+                });
+
+            modelBuilder.Entity("Lockte.Cash.Data.ScrapReceiptLine", b =>
+                {
+                    b.HasOne("Lockte.Cash.Data.ScrapReceipt", "Receipt")
+                        .WithMany("Lines")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Lockte.Cash.Data.ScrapItem", null)
+                        .WithMany()
+                        .HasForeignKey("ScrapItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Receipt");
+                });
+
+            modelBuilder.Entity("Lockte.Cash.Data.ScrapReceipt", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

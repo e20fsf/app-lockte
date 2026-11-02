@@ -1,0 +1,179 @@
+@page "/cash/receipts"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+
+@* พิมพ์ใบเสร็จรับเงินขายของเก่า (SCR-09, BR-011–BR-014): the screen offers the next เลขที่; keyed head (วันที่, ผู้ซื้อ — picked from the register or typed) and lines (รายการ picked or typed, the
+   หน่วย follows the pick). "พิมพ์" saves the receipt and its lines in one go and takes the number — two people offered the same number do not both get it. "กลับเมนูเดิม" saves nothing and uses
+   no number (the legacy kept the lines and reused the number, BR-014). Lines with no รายการ are skipped. *@
+<PageTitle>พิมพ์ใบเสร็จรับเงินขายของเก่า — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์ใบเสร็จรับเงินขายของเก่าและอื่นๆ</h1>
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="no" Label="เลขที่" MaxLength="ScrapReceiptMath.MaxNumberLength" HelperText="แก้ได้ (ตัวเลข 5 หลักขึ้นไป ไม่ซ้ำ)" /></MudItem>
+        <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
+        <MudItem xs="12" sm="6">
+            <MudAutocomplete T="string" Value="buyerName" ValueChanged="OnBuyer" Label="ชื่อผู้ซื้อ" SearchFunc="@((t, _) => Task.FromResult(FindBuyers(t)))" CoerceValue="true" CoerceText="false"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxLength="ScrapReceiptRegistry.BuyerNameLength" />
+        </MudItem>
+        <MudItem xs="12" sm="9"><MudTextField @bind-Value="address" Label="ที่อยู่" MaxLength="ScrapReceiptRegistry.AddressLength" /></MudItem>
+        <MudItem xs="12" sm="3"><MudTextField @bind-Value="tel" Label="โทรฯ" MaxLength="ScrapReceiptRegistry.TelLength" /></MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudSimpleTable Dense="true" Style="overflow-x:auto">
+        <thead>
+            <tr><th style="width:5rem">ลำดับที่</th><th>รายการ</th><th style="width:7rem">จำนวน</th><th style="width:6rem">หน่วย</th><th style="width:7rem">ราคา</th><th style="width:8rem">จำนวนเงิน</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var line in lines)
+            {
+                <tr>
+                    <td><MudNumericField T="int?" @bind-Value="line.Seq" Min="1" HideSpinButtons="true" Margin="Margin.Dense" /></td>
+                    <td>
+                        <MudAutocomplete T="string" Value="line.ItemName" ValueChanged="@((string? v) => OnItem(line, v))" SearchFunc="@((t, _) => Task.FromResult(FindItems(t)))" CoerceValue="true"
+                                         CoerceText="false" Clearable="true" ResetValueOnEmptyText="true" Margin="Margin.Dense" MaxLength="ScrapReceiptRegistry.ItemNameLength" />
+                    </td>
+                    <td><MudNumericField T="decimal?" Value="line.Qty" ValueChanged="@((decimal? v) => { line.Qty = v; Recalculate(line); })" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" /></td>
+                    <td><MudTextField @bind-Value="line.Unit" Margin="Margin.Dense" MaxLength="ScrapReceiptRegistry.UnitLength" /></td>
+                    <td><MudNumericField T="decimal?" Value="line.UnitPrice" ValueChanged="@((decimal? v) => { line.UnitPrice = v; Recalculate(line); })" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" /></td>
+                    <td><MudNumericField T="decimal?" @bind-Value="line.Amount" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" Format="N2" /></td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2" Wrap="Wrap.Wrap">
+        <MudButton OnClick="AddLine" StartIcon="@Icons.Material.Filled.Add">เพิ่มบรรทัด</MudButton>
+        <MudSpacer />
+        <MudText><b>รวมทั้งหมด @Total.ToString("N2")</b> @ScrapReceiptMath.InWords(Total)</MudText>
+    </MudStack>
+</MudPaper>
+
+<MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+    <MudButton Variant="Variant.Outlined" Href="cash/receipts/edit" Disabled="busy" StartIcon="@Icons.Material.Filled.Edit">แก้ไข / พิมพ์ซ้ำ / ยกเลิกใบเสร็จ</MudButton>
+    <MudButton OnClick="BackAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    private string? no;
+    private DateTime? date = DateTime.Today;
+    private string? buyerName;
+    private string? address;
+    private string? tel;
+    private int? buyerId;
+    private List<LineModel> lines = NewLines();
+    private IReadOnlyList<ScrapBuyerDto> buyers = [];
+    private IReadOnlyList<ScrapItemDto> items = [];
+    private bool busy;
+
+    private decimal Total => ScrapReceiptMath.Total(lines.Where(l => !string.IsNullOrWhiteSpace(l.ItemName)).Select(l => l.Amount ?? 0m));
+
+    protected override async Task OnInitializedAsync()
+    {
+        buyers = await Services.RunAsync<ScrapBuyerDirectory, IReadOnlyList<ScrapBuyerDto>>(d => d.ListAsync());
+        items = await Services.RunAsync<ScrapItemDirectory, IReadOnlyList<ScrapItemDto>>(d => d.ListAsync());
+        await ProposeNumberAsync();
+    }
+
+    private async Task ProposeNumberAsync()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        no = await Services.RunAsync<ScrapReceiptDirectory, string>(d => d.NextNumberAsync(today));
+    }
+
+    private static List<LineModel> NewLines() => Enumerable.Range(1, 5).Select(i => new LineModel { Seq = i }).ToList();
+
+    private void AddLine() => lines.Add(new LineModel { Seq = lines.Count + 1 });
+
+    private IEnumerable<string> FindBuyers(string? text) => buyers.Select(b => b.Name).Where(n => string.IsNullOrWhiteSpace(text) || n.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)).Take(30);
+
+    private IEnumerable<string> FindItems(string? text) => items.Select(i => i.Name).Where(n => string.IsNullOrWhiteSpace(text) || n.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)).Take(30);
+
+    /// <summary>Picking a buyer fills the address and the phone (which can still be changed, BR-012); a name typed afresh keeps what is written.</summary>
+    private void OnBuyer(string? name)
+    {
+        buyerName = name;
+        if (name is not null && buyers.FirstOrDefault(b => b.Name == name) is { } picked)
+        {
+            (address, tel, buyerId) = (picked.Address, picked.Tel, picked.Id);
+        }
+        else buyerId = null;
+    }
+
+    private void OnItem(LineModel line, string? name)
+    {
+        line.ItemName = name;
+        if (name is not null && items.FirstOrDefault(i => i.Name == name) is { } picked) (line.Unit, line.ScrapItemId) = (picked.Unit, picked.Id);
+        else line.ScrapItemId = null;
+    }
+
+    /// <summary>Editing the price works the amount out (quantity × price, assumption ก); the amount can always be typed over.</summary>
+    private static void Recalculate(LineModel line)
+    {
+        if (line.Qty is { } q && line.UnitPrice is { } p && ExpenseLineMath.AmountOf(q, p) is { } amount) line.Amount = amount;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new ScrapReceiptInput(null, no, date is { } d ? DateOnly.FromDateTime(d) : null, buyerName, address, tel, buyerId,
+                lines.Select(l => new ScrapReceiptLineInput(l.Seq, l.ItemName, l.ScrapItemId, l.Unit, l.Qty, l.UnitPrice, l.Amount)).ToList(), null, DateOnly.FromDateTime(DateTime.Today));
+            var result = await Services.RunAsync<ScrapReceiptRegistry, ScrapReceiptSaveResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded)
+            {
+                if (result.NextNo is not null) no = result.NextNo; // someone printed this number first: offered the next
+                return;
+            }
+            Snackbar.Add($"ออกใบเสร็จเลขที่ {result.No} แล้ว", Severity.Success);
+            await AfterSavedAsync(result);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>The receipt is saved and opened as a PDF in a new tab (RPT-06); the screen is ready for the next one.</summary>
+    private async Task AfterSavedAsync(ScrapReceiptSaveResult saved)
+    {
+        await Js.InvokeVoidAsync("open", $"reports/cash/receipt?id={saved.Id}", "_blank"); // RPT-06
+        (buyerName, address, tel, buyerId) = (null, null, null, null);
+        lines = NewLines();
+        date = DateTime.Today;
+        await ProposeNumberAsync();
+    }
+
+    private bool HasEntry => lines.Any(l => !string.IsNullOrWhiteSpace(l.ItemName));
+
+    private async Task BackAsync()
+    {
+        if (HasEntry)
+        {
+            var leave = await Dialogs.ShowMessageBoxAsync("ออกโดยไม่พิมพ์", "มีรายการที่กรอกไว้ ถ้าออกตอนนี้จะไม่บันทึกใบเสร็จนี้และไม่ใช้เลขที่ — ออกหรือไม่?", yesText: "ออก", cancelText: "อยู่ต่อ");
+            if (leave != true) return;
+        }
+        Navigation.NavigateTo(CashMenu.HrefOf(CashMenu.Receipts));
+    }
+
+    private sealed class LineModel
+    {
+        public int? Seq { get; set; }
+        public string? ItemName { get; set; }
+        public int? ScrapItemId { get; set; }
+        public string? Unit { get; set; }
+        public decimal? Qty { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? Amount { get; set; }
+    }
+}

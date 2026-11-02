@@ -34,8 +34,8 @@ public static class CashMenu
             new("แก้ไขรายชื่อผู้ซื้อ", Code: "SCR-07-edit", Page: "cash/scrap-buyers"), // built (#230)
             new("เพิ่มรายชื่อของเก่า", Code: "SCR-08-add", Page: "cash/scrap-items/new"), // built (#230)
             new("แก้ไขรายชื่อของเก่า", Code: "SCR-08-edit", Page: "cash/scrap-items"), // built (#230)
-            new("พิมพ์ใบเสร็จ แก้ไขและยกเลิก", Code: "SCR-09"), // พิมพ์ใบเสร็จ,แก้ไขและลบข้อมูล
-            new("พิมพ์ตัดยอดนำส่งสำนักงานและยอดรอนำส่ง", Code: "SCR-12"), // พิมพ์ตัดยอดส่งออฟฟิสและยอดคงค้าง
+            new("พิมพ์ใบเสร็จ แก้ไขและยกเลิก", Code: "SCR-09", Page: "cash/receipts"), // พิมพ์ใบเสร็จ,แก้ไขและลบข้อมูล
+            new("พิมพ์ตัดยอดนำส่งสำนักงานและยอดรอนำส่ง", Code: "SCR-12", Page: "cash/remit"), // พิมพ์ตัดยอดส่งออฟฟิสและยอดคงค้าง
             new("รายงานยอดขายของเก่า", Code: "SCR-05-scrap"),
         ]),
         new(Reports, "พิมพ์รายงาน", 1,

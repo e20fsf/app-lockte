@@ -1,0 +1,24 @@
+@* RPT-08 ขายของเก่าและอื่นๆรอนำส่ง, ระดับ B on Letter ตั้ง: ลำดับ, เลขที่, จำนวนเงินต่อใบ, รวมทั้งหมด — only the numbers whose total is above 0, by number. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:15%" /><col style="width:45%" /><col style="width:40%" /></colgroup>
+        <thead><tr><th class="num">ลำดับ</th><th>เลขที่</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                <tr><td class="num">@(i + 1)</td><td>@Report.Rows[i].No</td><td class="num">@ReportText.Decimal2(Report.Rows[i].Total)</td></tr>
+            }
+            <tr><td></td><td><b>รวมทั้งหมด</b></td><td class="num"><b>@ReportText.Decimal2(Report.Total)</b></td></tr>
+            <tr><td colspan="3" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public Lockte.Web.Reports.Cash.UnremittedReport Report { get; set; } = null!;
+}
