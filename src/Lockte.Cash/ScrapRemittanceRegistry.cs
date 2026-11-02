@@ -66,9 +66,13 @@ public sealed class ScrapRemittanceRegistry(CashDbContext db, ICurrentUser user,
         if (taken.Count == 0) return Fail($"ไม่มีใบเสร็จรอนำส่งในช่วงเลขที่ {from} ถึง {to} — ไม่มีการเปลี่ยนแปลง");
 
         var remittance = new ScrapRemittance { MadeOn = input.MadeOn ?? DateOnly.FromDateTime(clock.GetLocalNow().DateTime), FromNo = from!, ToNo = to!, MadeBy = user.UserName };
+        // two saves in one transaction: the receipts must name the closing by its real number, or the history would record the temporary key EF holds before the first save
+        await using var transaction = await db.Database.BeginTransactionAsync();
         db.ScrapRemittances.Add(remittance);
-        foreach (var receipt in taken) receipt.Remittance = remittance;
         await db.SaveChangesAsync();
+        foreach (var receipt in taken) receipt.RemittanceId = remittance.Id;
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         return new ScrapRemittanceResult(true, [], remittance.Id, taken.Count, taken.Sum(r => ScrapReceiptMath.Total(r.Lines.Select(l => l.Amount))));
     }
 
