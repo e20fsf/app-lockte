@@ -50,7 +50,7 @@ public static class CalibMenu
         [
             new("เพิ่มรายชื่อเครื่องมือวัด", Code: "SCR-02-caliper", Page: "calib/instruments/caliper/new"),
             new("แก้ไขและลบเครื่องมือวัด", Code: "SCR-03-caliper", Page: "calib/instruments/caliper"),
-            new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-caliper"),
+            new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-caliper", Page: "reports/calib/register/caliper", NewTab: true),
             new("พิมพ์บันทึกผลการสอบเทียบ", Code: "RPT-03-caliper"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-caliper", Page: "calib/stickers/caliper"),
         ]),
@@ -58,7 +58,7 @@ public static class CalibMenu
         [
             new("เพิ่มรายชื่อเครื่องมือวัด", Code: "SCR-02-pg", Page: "calib/instruments/pg/new"),
             new("แก้ไขและลบรายชื่อเครื่องมือวัด", Code: "SCR-03-pg", Page: "calib/instruments/pg"),
-            new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-pg"),
+            new("บัญชีรายชื่อเครื่องมือวัด", Code: "RPT-02-pg", Page: "reports/calib/register/pg", NewTab: true),
             new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-pg"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-pg", Page: "calib/stickers/pg"),
         ]),
@@ -66,7 +66,7 @@ public static class CalibMenu
         [
             new("เพิ่มรายชื่อเครื่องชั่ง", Code: "SCR-02-scale", Page: "calib/instruments/scale/new"),
             new("แก้ไขและลบรายชื่อเครื่องชั่ง", Code: "SCR-03-scale", Page: "calib/instruments/scale"),
-            new("บัญชีรายชื่อเครื่องชั่ง", Code: "RPT-02-scale"),
+            new("บัญชีรายชื่อเครื่องชั่ง", Code: "RPT-02-scale", Page: "reports/calib/register/scale", NewTab: true),
             new("พิมพ์บันทึกผลการสอบเทียบ", Code: "RPT-03-scale"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-scale", Page: "calib/stickers/scale"),
         ]),
@@ -74,7 +74,7 @@ public static class CalibMenu
         [
             new("เพิ่มรายชื่อ JIG", Code: "SCR-02-jig", Page: "calib/instruments/jig/new"),
             new("แก้ไขและลบรายชื่อ JIG", Code: "SCR-03-jig", Page: "calib/instruments/jig"),
-            new("บัญชีรายชื่อ JIG", Code: "RPT-02-jig"),
+            new("บัญชีรายชื่อ JIG", Code: "RPT-02-jig", Page: "reports/calib/register/jig", NewTab: true),
             new("พิมพ์บันทึกการตรวจสอบ JIG", Code: "SCR-05"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-jig", Page: "calib/stickers/jig"),
             new("แก้ไขแบบตรวจ JIG", Code: "JIG-SHEETS", Page: "calib/jig-sheets"), // not in the legacy: the values its 42 reports had typed in (#199)
@@ -83,7 +83,7 @@ public static class CalibMenu
         [
             new("เพิ่มรายชื่อตัวควบคุมอุณหภูมิ", Code: "SCR-02-tc", Page: "calib/instruments/tc/new"),
             new("แก้ไขและลบรายชื่อตัวควบคุมอุณหภูมิ", Code: "SCR-03-tc", Page: "calib/instruments/tc"),
-            new("บัญชีรายชื่อตัวควบคุมอุณหภูมิ", Code: "RPT-02-tc"),
+            new("บัญชีรายชื่อตัวควบคุมอุณหภูมิ", Code: "RPT-02-tc", Page: "reports/calib/register/tc", NewTab: true),
             new("พิมพ์บันทึกการสอบเทียบ", Code: "RPT-03-tc"),
             new("พิมพ์สติกเกอร์", Code: "SCR-04-tc", Page: "calib/stickers/tc"),
         ]),

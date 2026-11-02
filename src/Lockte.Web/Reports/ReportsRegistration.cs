@@ -71,6 +71,7 @@ public static class ReportsRegistration
         reports.MapListReports(); // รายชื่อวัตถุดิบและผู้ขาย (วัตถุดิบ #263)
         reports.MapCalibStickerReports(); // สติกเกอร์ติดเครื่องมือวัด (สอบเทียบ #201)
         reports.MapCalibPlanReports(); // แผนการสอบเทียบ (สอบเทียบ #202)
+        reports.MapCalibRegisterReports(); // บัญชีรายชื่อเครื่องมือวัด (สอบเทียบ #203)
         reports.MapMaterialStockReports(); // STOCK CARD และรายงานการตัด STOCK (วัตถุดิบ #262)
         reports.MapResaleAndSmallOrderReports(); // ซื้อมาขายไป และใบสั่งซื้อต่ำกว่าเกณฑ์ (วัตถุดิบ #261)
         reports.MapMaterialYearReports(); // การซื้อวัตถุดิบรายปีตามชื่อ 12 เดือน (วัตถุดิบ #260)

@@ -1,0 +1,48 @@
+@using Lockte.Calib
+@* RPT-02 บัญชีรายชื่อเครื่องมือวัด, ระดับ B on A4 นอน: 12 columns — ที่ (running over the whole report), ชื่อเครื่องมือวัด, หมายเลขเครื่อง, วันที่ขึ้นบัญชี (d/m/yyyy พ.ศ.), ยี่ห้อ/ผู้ผลิต, แผนก (as `DC (D02)`),
+   พิกัดใช้งาน, ค่าความละเอียด, หน่วย, ขีดจำกัดที่ยอมรับได้ (± under it), ผู้สอบเทียบ, หมายเหตุ — in order of หมายเลขเครื่อง. A JIG prints its ชื่อ JIG and leaves ยี่ห้อ/พิกัด/ความละเอียด/หน่วย
+   empty (the legacy report had those headings but no data; แกน, คู่มือ and เวอร์เนียที่ใช้ are not printed). The sign boxes come once, after the last row; the note (external register) under them. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table style="font-size:.85em">
+        <colgroup><col style="width:3.5%" /><col style="width:13%" /><col style="width:12%" /><col style="width:8%" /><col style="width:8%" /><col style="width:8%" /><col style="width:8%" /><col style="width:7%" /><col style="width:5%" /><col style="width:8%" /><col style="width:12%" /><col style="width:7.5%" /></colgroup>
+        <thead>
+            <tr><th class="num">ที่</th><th>ชื่อเครื่องมือวัด</th><th>หมายเลขเครื่อง</th><th>วันที่ขึ้นบัญชี</th><th>ยี่ห้อ/ผู้ผลิต</th><th>แผนก</th><th>พิกัดใช้งาน</th><th>ค่าความละเอียด</th><th>หน่วย</th><th>ขีดจำกัดที่ยอมรับได้<br />±</th><th>ผู้สอบเทียบ</th><th>หมายเหตุ</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var r = Report.Rows[i];
+                var jig = r.Kind == InstrumentKind.Jig;
+                <tr>
+                    <td class="num">@(i + 1)</td>
+                    <td>@r.Name</td>
+                    <td>@r.Code</td>
+                    <td>@(r.RegisteredOn is { } d ? ReportText.Date(d) : null)</td>
+                    <td>@(jig ? null : r.Maker)</td>
+                    <td>@r.DepartmentText</td>
+                    <td>@(jig ? null : r.Range)</td>
+                    <td>@(jig ? null : r.Resolution)</td>
+                    <td>@(jig ? null : r.Unit)</td>
+                    <td>@r.Limit</td>
+                    <td>@(Report.External ? r.ProviderName : r.CalibratorName)</td>
+                    <td>@r.Note</td>
+                </tr>
+            }
+            <tr><td colspan="12" class="end"></td></tr>
+        </tbody>
+    </table>
+    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["จัดทำโดย", "ตรวจสอบโดย", "อนุมัติโดย"])" />
+    @if (!string.IsNullOrWhiteSpace(Report.Note))
+    {
+        <p style="margin-top:6mm">หมายเหตุ: @Report.Note</p>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public RegisterReport Report { get; set; } = null!;
+}

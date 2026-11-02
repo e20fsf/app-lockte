@@ -204,4 +204,16 @@ public sealed class ProgramMenuTests
         Assert.Equal(("reports/calib/plan", true), (CalibMenu.Menu.HrefOf(plan), plan.NewTab));
         Assert.Equal("calib/settings", CalibMenu.Menu.HrefOf(CalibMenu.Menu.FindItem("SETTINGS")!.Value.Item));
     }
+
+    [Theory]
+    [InlineData("caliper")]
+    [InlineData("pg")]
+    [InlineData("scale")]
+    [InlineData("jig")]
+    [InlineData("tc")]
+    public void The_internal_registers_print_from_their_menus_in_a_new_tab(string key) // built (#203)
+    {
+        var item = CalibMenu.Menu.FindItem($"RPT-02-{key}")!.Value.Item;
+        Assert.Equal(($"reports/calib/register/{key}", true), (CalibMenu.Menu.HrefOf(item), item.NewTab));
+    }
 }
