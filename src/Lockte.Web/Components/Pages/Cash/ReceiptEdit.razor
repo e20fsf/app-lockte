@@ -1,0 +1,238 @@
+@page "/cash/receipts/edit"
+@attribute [Authorize]
+@using Lockte.Cash
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+
+@* เลือกเลขที่ที่ต้องการแก้ไขหรือพิมพ์ใหม่ (SCR-10) และยกเลิกใบเสร็จ (SCR-11, BR-015, BR-017): every number issued, the cancelled ones marked; pick one to see its head and lines, all editable by the
+   rules of SCR-09 (the number is not). "บันทึก" saves with the old and new values in the history — the legacy saved when the row was left, without a trace. "พิมพ์" prints this receipt alone
+   (RPT-06). "ยกเลิกใบ" needs a reason and a confirmation and keeps the receipt and its number; a cancelled receipt cannot be edited or printed. There is no "ลบข้อมูลปีที่แล้ว" button here. *@
+<PageTitle>แก้ไข พิมพ์ซ้ำ ยกเลิกใบเสร็จขายของเก่า — LOCKTE</PageTitle>
+<h1 class="mb-4">เลือกเลขที่ที่ต้องการแก้ไขหรือพิมพ์ใหม่</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudSelect T="int?" Value="selectedId" ValueChanged="LoadAsync" Label="เลขที่">
+        @foreach (var head in numbers)
+        {
+            <MudSelectItem T="int?" Value="@((int?)head.Id)">@head.No · @ThaiDate.Format(head.Date) · @head.BuyerName@(head.IsCancelled ? " [ยกเลิก]" : "")</MudSelectItem>
+        }
+    </MudSelect>
+</MudPaper>
+
+@if (receipt is not null)
+{
+    @if (receipt.IsCancelled)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-4">
+            ใบเสร็จเลขที่ @receipt.No ถูกยกเลิกแล้ว@(receipt.CancelledAt is { } at ? $" เมื่อ {at.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiDate.Culture)}" : "")@(receipt.CancelledBy is { Length: > 0 } by ? $" โดย {by}" : "")
+            — เหตุผล: @receipt.CancelReason · เลขที่นี้ยังถูกใช้อยู่ ออกซ้ำไม่ได้ แก้และพิมพ์ไม่ได้
+        </MudAlert>
+    }
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="3"><MudTextField Value="receipt.No" Label="เลขที่" ReadOnly="true" /></MudItem>
+            <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="date" Label="วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Disabled="receipt.IsCancelled" /></MudItem>
+            <MudItem xs="12" sm="6">
+                <MudAutocomplete T="string" Value="buyerName" ValueChanged="OnBuyer" Label="ชื่อผู้ซื้อ" SearchFunc="@((t, _) => Task.FromResult(FindBuyers(t)))" CoerceValue="true" CoerceText="false"
+                                 Clearable="true" ResetValueOnEmptyText="true" MaxLength="ScrapReceiptRegistry.BuyerNameLength" Disabled="receipt.IsCancelled" />
+            </MudItem>
+            <MudItem xs="12" sm="9"><MudTextField @bind-Value="address" Label="ที่อยู่" MaxLength="ScrapReceiptRegistry.AddressLength" Disabled="receipt.IsCancelled" /></MudItem>
+            <MudItem xs="12" sm="3"><MudTextField @bind-Value="tel" Label="โทรฯ" MaxLength="ScrapReceiptRegistry.TelLength" Disabled="receipt.IsCancelled" /></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mt-4" Outlined="true">
+        <MudSimpleTable Dense="true" Style="overflow-x:auto">
+            <thead>
+                <tr><th style="width:5rem">ลำดับที่</th><th>รายการ</th><th style="width:7rem">จำนวน</th><th style="width:6rem">หน่วย</th><th style="width:7rem">ราคา</th><th style="width:8rem">จำนวนเงิน</th><th style="width:3rem"></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var line in lines)
+                {
+                    <tr>
+                        <td><MudNumericField T="int?" @bind-Value="line.Seq" Min="1" HideSpinButtons="true" Margin="Margin.Dense" Disabled="receipt.IsCancelled" /></td>
+                        <td>
+                            <MudAutocomplete T="string" Value="line.ItemName" ValueChanged="@((string? v) => OnItem(line, v))" SearchFunc="@((t, _) => Task.FromResult(FindItems(t)))" CoerceValue="true"
+                                             CoerceText="false" Clearable="true" ResetValueOnEmptyText="true" Margin="Margin.Dense" MaxLength="ScrapReceiptRegistry.ItemNameLength" Disabled="receipt.IsCancelled" />
+                        </td>
+                        <td><MudNumericField T="decimal?" Value="line.Qty" ValueChanged="@((decimal? v) => { line.Qty = v; Recalculate(line); })" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" Disabled="receipt.IsCancelled" /></td>
+                        <td><MudTextField @bind-Value="line.Unit" Margin="Margin.Dense" MaxLength="ScrapReceiptRegistry.UnitLength" Disabled="receipt.IsCancelled" /></td>
+                        <td><MudNumericField T="decimal?" Value="line.UnitPrice" ValueChanged="@((decimal? v) => { line.UnitPrice = v; Recalculate(line); })" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" Disabled="receipt.IsCancelled" /></td>
+                        <td><MudNumericField T="decimal?" @bind-Value="line.Amount" Min="0m" HideSpinButtons="true" Margin="Margin.Dense" Format="N2" Disabled="receipt.IsCancelled" /></td>
+                        <td><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => Remove(line))" Disabled="receipt.IsCancelled" aria-label="ลบบรรทัด" /></td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2" Wrap="Wrap.Wrap">
+            <MudButton OnClick="AddLine" StartIcon="@Icons.Material.Filled.Add" Disabled="receipt.IsCancelled">เพิ่มบรรทัด</MudButton>
+            <MudSpacer />
+            <MudText><b>รวมทั้งหมด @Total.ToString("N2")</b> @ScrapReceiptMath.InWords(Total)</MudText>
+        </MudStack>
+    </MudPaper>
+
+    @if (!receipt.IsCancelled)
+    {
+        <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="PrintAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        </MudStack>
+
+        <MudPaper Class="pa-4 mt-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">ยกเลิกใบเสร็จ</MudText>
+            <MudTextField @bind-Value="cancelReason" Label="เหตุผลที่ยกเลิก" MaxLength="ScrapReceiptRegistry.CancelReasonLength" />
+            <MudButton Color="Color.Error" Class="mt-2" OnClick="CancelAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Cancel">ยกเลิกใบนี้</MudButton>
+        </MudPaper>
+    }
+}
+
+<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Href="@CashMenu.HrefOf(CashMenu.Receipts)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    private IReadOnlyList<ScrapReceiptHeadDto> numbers = [];
+    private IReadOnlyList<ScrapBuyerDto> buyers = [];
+    private IReadOnlyList<ScrapItemDto> items = [];
+    private ScrapReceiptDto? receipt;
+    private int? selectedId;
+    private DateTime? date;
+    private string? buyerName;
+    private string? address;
+    private string? tel;
+    private int? buyerId;
+    private string? cancelReason;
+    private List<LineModel> lines = [];
+    private bool busy;
+
+    private decimal Total => ScrapReceiptMath.Total(lines.Where(l => !string.IsNullOrWhiteSpace(l.ItemName)).Select(l => l.Amount ?? 0m));
+
+    protected override async Task OnInitializedAsync()
+    {
+        buyers = await Services.RunAsync<ScrapBuyerDirectory, IReadOnlyList<ScrapBuyerDto>>(d => d.ListAsync());
+        items = await Services.RunAsync<ScrapItemDirectory, IReadOnlyList<ScrapItemDto>>(d => d.ListAsync());
+        await ReloadNumbersAsync();
+    }
+
+    private async Task ReloadNumbersAsync()
+        => numbers = await Services.RunAsync<ScrapReceiptDirectory, IReadOnlyList<ScrapReceiptHeadDto>>(d => d.ListNumbersAsync());
+
+    private async Task LoadAsync(int? id)
+    {
+        selectedId = id;
+        cancelReason = null;
+        receipt = id is { } value ? await Services.RunAsync<ScrapReceiptDirectory, ScrapReceiptDto?>(d => d.GetAsync(value)) : null;
+        if (receipt is null) return;
+        date = receipt.Date.ToDateTime(TimeOnly.MinValue);
+        (buyerName, address, tel, buyerId) = (receipt.BuyerName, receipt.BuyerAddress, receipt.BuyerTel, receipt.ScrapBuyerId);
+        lines = receipt.Lines.Select(l => new LineModel { Id = l.Id, Seq = l.Seq, ItemName = l.ItemName, ScrapItemId = l.ScrapItemId, Unit = l.Unit, Qty = l.Qty, UnitPrice = l.UnitPrice, Amount = l.Amount }).ToList();
+    }
+
+    private IEnumerable<string> FindBuyers(string? text) => buyers.Select(b => b.Name).Where(n => string.IsNullOrWhiteSpace(text) || n.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)).Take(30);
+
+    private IEnumerable<string> FindItems(string? text) => items.Select(i => i.Name).Where(n => string.IsNullOrWhiteSpace(text) || n.Contains(text.Trim(), StringComparison.OrdinalIgnoreCase)).Take(30);
+
+    private void OnBuyer(string? name)
+    {
+        buyerName = name;
+        if (name is not null && buyers.FirstOrDefault(b => b.Name == name) is { } picked) (address, tel, buyerId) = (picked.Address, picked.Tel, picked.Id);
+        else buyerId = null;
+    }
+
+    private void OnItem(LineModel line, string? name)
+    {
+        line.ItemName = name;
+        if (name is not null && items.FirstOrDefault(i => i.Name == name) is { } picked) (line.Unit, line.ScrapItemId) = (picked.Unit, picked.Id);
+        else line.ScrapItemId = null;
+    }
+
+    private static void Recalculate(LineModel line)
+    {
+        if (line.Qty is { } q && line.UnitPrice is { } p && ExpenseLineMath.AmountOf(q, p) is { } amount) line.Amount = amount;
+    }
+
+    private void AddLine() => lines.Add(new LineModel { Seq = (lines.Max(l => l.Seq) ?? 0) + 1 });
+
+    /// <summary>Removing a line clears its item: a saved line without an item is taken out when the receipt is saved.</summary>
+    private void Remove(LineModel line)
+    {
+        if (line.Id is null) lines.Remove(line);
+        else line.ItemName = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new ScrapReceiptInput(receipt!.Id, receipt.No, date is { } d ? DateOnly.FromDateTime(d) : null, buyerName, address, tel, buyerId,
+                lines.Select(l => new ScrapReceiptLineInput(l.Seq, l.ItemName, l.ScrapItemId, l.Unit, l.Qty, l.UnitPrice, l.Amount, l.Id)).ToList(), receipt.RowVersion);
+            var result = await Services.RunAsync<ScrapReceiptRegistry, ScrapReceiptSaveResult>(r => r.SaveAsync(input));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกแล้ว", Severity.Success);
+            await ReloadNumbersAsync();
+            await LoadAsync(receipt.Id);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await LoadAsync(receipt!.Id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task PrintAsync() => await Js.InvokeVoidAsync("open", $"reports/cash/receipt?id={receipt!.Id}", "_blank");
+
+    private async Task CancelAsync()
+    {
+        if (string.IsNullOrWhiteSpace(cancelReason))
+        {
+            Snackbar.Add("กรุณาระบุเหตุผลที่ยกเลิกใบเสร็จ", Severity.Warning);
+            return;
+        }
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ยกเลิกใบเสร็จ", $"ยกเลิกใบเสร็จเลขที่ {receipt!.No}? ใบจะแก้และพิมพ์ไม่ได้อีก และเลขที่นี้ยังถูกใช้อยู่", yesText: "ยกเลิกใบ", cancelText: "ไม่ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var (id, rowVersion, reason) = (receipt.Id, receipt.RowVersion, cancelReason);
+            var result = await Services.RunAsync<ScrapReceiptRegistry, ServiceResult>(r => r.CancelAsync(id, reason, rowVersion));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add($"ยกเลิกใบเสร็จเลขที่ {receipt.No} แล้ว", Severity.Success);
+            await ReloadNumbersAsync();
+            await LoadAsync(id);
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await LoadAsync(receipt.Id);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class LineModel
+    {
+        public int? Id { get; set; }
+        public int? Seq { get; set; }
+        public string? ItemName { get; set; }
+        public int? ScrapItemId { get; set; }
+        public string? Unit { get; set; }
+        public decimal? Qty { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? Amount { get; set; }
+    }
+}

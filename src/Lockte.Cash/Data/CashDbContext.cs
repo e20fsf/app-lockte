@@ -65,7 +65,7 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
             r.Property(x => x.BuyerTel).HasMaxLength(ScrapReceiptRegistry.TelLength).HasAuditName("เบอร์โทรศัพท์");
             r.Property(x => x.ScrapBuyerId).HasAuditName("ผู้ซื้อในทะเบียน (รหัสภายใน)");
             r.Property(x => x.IsCancelled).HasAuditName("ยกเลิก");
-            r.Property(x => x.CancelReason).HasMaxLength(500).HasAuditName("เหตุผลที่ยกเลิก");
+            r.Property(x => x.CancelReason).HasMaxLength(ScrapReceiptRegistry.CancelReasonLength).HasAuditName("เหตุผลที่ยกเลิก");
             r.Property(x => x.CancelledBy).HasMaxLength(256).HasAuditName("ผู้ยกเลิก");
             r.Property(x => x.CancelledAt).HasAuditName("ยกเลิกเมื่อ");
             r.HasIndex(x => x.No).IsUnique();

@@ -20,8 +20,11 @@ public sealed record ScrapReceiptDto(int Id, string No, DateOnly Date, string Bu
 /// <summary>A receipt in the list of numbers (SCR-10): no lines.</summary>
 public sealed record ScrapReceiptHeadDto(int Id, string No, DateOnly Date, string BuyerName, bool IsCancelled);
 
-/// <summary>A line on the screen; <see cref="Seq"/> left out is the next number, an item name left out skips the line (BR-012 #2). <see cref="Amount"/> left out is quantity × price.</summary>
-public sealed record ScrapReceiptLineInput(int? Seq, string? ItemName, int? ScrapItemId, string? Unit, decimal? Qty, decimal? UnitPrice, decimal? Amount);
+/// <summary>
+/// A line on the screen; <see cref="Seq"/> left out is the next number, an item name left out skips the line (BR-012 #2). <see cref="Amount"/> left out is quantity × price. <see cref="Id"/> is
+/// the line being edited; when a receipt is edited a saved line left out, or left without an item, is removed.
+/// </summary>
+public sealed record ScrapReceiptLineInput(int? Seq, string? ItemName, int? ScrapItemId, string? Unit, decimal? Qty, decimal? UnitPrice, decimal? Amount, int? Id = null);
 
 /// <summary>
 /// A receipt on the screen. <see cref="Id"/> null = a new one; <see cref="No"/> left blank is the next number, one that is typed must be digits, at least 5, and unused. <see cref="Today"/> is
@@ -31,7 +34,7 @@ public sealed record ScrapReceiptInput(int? Id, string? No, DateOnly? Date, stri
     IReadOnlyList<ScrapReceiptLineInput> Lines, byte[]? RowVersion, DateOnly? Today = null);
 
 /// <summary>A line that passed the checks, ready to be saved.</summary>
-public sealed record ScrapReceiptReadyLine(int Seq, string ItemName, int? ScrapItemId, string? Unit, decimal Qty, decimal UnitPrice, decimal Amount);
+public sealed record ScrapReceiptReadyLine(int Seq, string ItemName, int? ScrapItemId, string? Unit, decimal Qty, decimal UnitPrice, decimal Amount, int? Id = null);
 
 /// <summary>What saving a receipt did. A number that was taken meanwhile is not an exception: <see cref="NextNo"/> is the number to try instead.</summary>
 public sealed record ScrapReceiptSaveResult(bool Succeeded, IReadOnlyList<string> Errors, int? Id = null, string? No = null, string? NextNo = null);
@@ -113,18 +116,18 @@ public sealed class ScrapReceiptDirectory(CashDbContext db)
 /// do not both get it — the second is told and offered the next. Leaving the screen without printing saves nothing, so no number is used up and no half receipt is left (BR-014).
 /// Lines without an item are skipped; a repeated ลำดับที่ is refused with a message instead of one line being dropped silently (BR-013).
 /// </summary>
-public sealed class ScrapReceiptRegistry(CashDbContext db)
+public sealed class ScrapReceiptRegistry(CashDbContext db, ICurrentUser user, TimeProvider clock)
 {
     public const int BuyerNameLength = ScrapBuyerRegistry.NameLength;
     public const int AddressLength = ScrapBuyerRegistry.AddressLength;
     public const int TelLength = ScrapBuyerRegistry.TelLength;
     public const int ItemNameLength = ScrapItemRegistry.NameLength;
     public const int UnitLength = ScrapItemRegistry.UnitLength;
+    public const int CancelReasonLength = 500;
     private const int Attempts = 5;
 
     public async Task<ScrapReceiptSaveResult> SaveAsync(ScrapReceiptInput input)
     {
-        if (input.Id is not null) throw new NotSupportedException("Editing a receipt is not built yet.");
         var errors = new List<string>();
         var name = CashText.Clean(input.BuyerName);
         var address = CashText.Clean(input.BuyerAddress);
@@ -138,6 +141,7 @@ public sealed class ScrapReceiptRegistry(CashDbContext db)
 
         var lines = BuildLines(input.Lines, errors);
         if (errors.Count > 0) return new ScrapReceiptSaveResult(false, errors);
+        if (input.Id is { } editing) return await UpdateAsync(editing, input, name, address, tel, typed, lines);
         var today = input.Today ?? DateOnly.FromDateTime(DateTime.Now);
 
         for (var attempt = 1; ; attempt++)
@@ -159,6 +163,67 @@ public sealed class ScrapReceiptRegistry(CashDbContext db)
                 if (typed is not null || attempt >= Attempts) return await TakenAsync(no, typed is not null, today, attempt);
             }
         }
+    }
+
+    /// <summary>
+    /// แก้ใบเสร็จ (SCR-10): the head and the lines by the rules of a new receipt; the number cannot change and a cancelled receipt cannot be edited. Saved on the button, with the old and
+    /// the new value of every column in the history (the legacy saved when the row was left, with no trace). The row version of the head moves with every save, lines included, so two
+    /// people editing the same receipt are told.
+    /// </summary>
+    private async Task<ScrapReceiptSaveResult> UpdateAsync(int id, ScrapReceiptInput input, string? name, string? address, string? tel, string? typedNo, List<ScrapReceiptReadyLine> lines)
+    {
+        var receipt = await db.ScrapReceipts.Include(r => r.Lines).FirstOrDefaultAsync(r => r.Id == id);
+        if (receipt is null) return new ScrapReceiptSaveResult(false, ["ไม่พบใบเสร็จนี้แล้ว"]);
+        receipt.ExpectRowVersion(input.RowVersion ?? throw new ArgumentException("Editing needs the rowversion the screen loaded.", nameof(input)));
+        if (receipt.IsCancelled) return new ScrapReceiptSaveResult(false, [$"ใบเสร็จเลขที่ {receipt.No} ถูกยกเลิกแล้ว แก้ไขไม่ได้"]);
+        if (typedNo is not null && typedNo != receipt.No) return new ScrapReceiptSaveResult(false, ["แก้เลขที่ใบเสร็จไม่ได้"]);
+
+        receipt.Date = input.Date!.Value;
+        receipt.BuyerName = name ?? "";
+        receipt.BuyerAddress = address;
+        receipt.BuyerTel = tel;
+        receipt.ScrapBuyerId = input.ScrapBuyerId;
+        var saved = receipt.Lines.ToDictionary(l => l.Id);
+        var kept = new HashSet<int>();
+        foreach (var line in lines)
+        {
+            if (line.Id is { } lineId && saved.TryGetValue(lineId, out var row)) kept.Add(lineId);
+            else receipt.Lines.Add(row = new ScrapReceiptLine());
+            (row.Seq, row.ItemName, row.ScrapItemId, row.Unit, row.Qty, row.UnitPrice, row.Amount) = (line.Seq, line.ItemName, line.ScrapItemId, line.Unit, line.Qty, line.UnitPrice, line.Amount);
+        }
+        foreach (var gone in receipt.Lines.Where(l => l.Id != 0 && !kept.Contains(l.Id)).ToList()) db.ScrapReceiptLines.Remove(gone);
+        db.Entry(receipt).State = EntityState.Modified; // the version of the head moves whatever was edited
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            return new ScrapReceiptSaveResult(false, ["บันทึกไม่สำเร็จ ลำดับที่ของบรรทัดชนกัน — ลองแก้ลำดับทีละบรรทัด"]);
+        }
+        return new ScrapReceiptSaveResult(true, [], receipt.Id, receipt.No);
+    }
+
+    /// <summary>
+    /// ยกเลิกใบเสร็จ (SCR-11, BR-017, assumption ง): the receipt stays with its number and lines, marked cancelled with the reason, who and when. Needs a reason; a receipt already
+    /// cancelled is refused. A cancelled receipt cannot be edited or printed and is not counted in the unremitted amount or the sales reports.
+    /// </summary>
+    public async Task<ServiceResult> CancelAsync(int id, string? reason, byte[] loadedRowVersion)
+    {
+        var text = CashText.Clean(reason);
+        if (text is null) return ServiceResult.Fail("กรุณาระบุเหตุผลที่ยกเลิกใบเสร็จ");
+        if (text.Length > CancelReasonLength) return ServiceResult.Fail($"เหตุผลยาวได้ไม่เกิน {CancelReasonLength} ตัว");
+        var receipt = await db.ScrapReceipts.FirstOrDefaultAsync(r => r.Id == id);
+        if (receipt is null) return ServiceResult.Fail("ไม่พบใบเสร็จนี้แล้ว");
+        receipt.ExpectRowVersion(loadedRowVersion);
+        if (receipt.IsCancelled) return ServiceResult.Fail($"ใบเสร็จเลขที่ {receipt.No} ถูกยกเลิกไปแล้ว");
+        receipt.IsCancelled = true;
+        receipt.CancelReason = text;
+        receipt.CancelledBy = user.UserName;
+        receipt.CancelledAt = clock.GetUtcNow();
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(receipt.Id);
     }
 
     private async Task<ScrapReceiptSaveResult> TakenAsync(string no, bool typed, DateOnly today, int attempt)
@@ -196,7 +261,7 @@ public sealed class ScrapReceiptRegistry(CashDbContext db)
             if (line.UnitPrice < 0 || line.Amount < 0) errors.Add($"{label}: ราคาและจำนวนเงินต้องไม่ติดลบ");
             next = Math.Max(next, seq) + 1;
             var price = line.UnitPrice ?? 0m;
-            result.Add(new ScrapReceiptReadyLine(seq, item, line.ScrapItemId, unit, line.Qty ?? 0, price, line.Amount ?? ExpenseLineMath.AmountOf(line.Qty ?? 0, price) ?? 0m));
+            result.Add(new ScrapReceiptReadyLine(seq, item, line.ScrapItemId, unit, line.Qty ?? 0, price, line.Amount ?? ExpenseLineMath.AmountOf(line.Qty ?? 0, price) ?? 0m, line.Id));
         }
         if (result.Count == 0 && errors.Count == 0) errors.Add("กรุณากรอกรายการอย่างน้อยหนึ่งบรรทัด");
         return result;
