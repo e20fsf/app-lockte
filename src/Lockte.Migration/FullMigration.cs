@@ -62,6 +62,7 @@ public static class FullMigrationTool
         var order = options.OrderFile ?? throw new ArgumentException("ไม่ได้ระบุ --order (ผลผลิตและORDER.accdb)");
         CheckFile(employee, "พนักงาน.accdb");
         CheckFile(order, "ผลผลิตและORDER.accdb");
+        if (options.CashFile is { } cashFile) CheckFile(cashFile, "เงินสดย่อย.accdb");
         if (options.QaDefinitionsFolder is { } folder && !Directory.Exists(folder)) throw new DirectoryNotFoundException($"ไม่พบโฟลเดอร์นิยามรายงาน {folder}");
 
         var steps = new List<MigrationStep>();
@@ -92,11 +93,15 @@ public static class FullMigrationTool
                 return await scope.ServiceProvider.GetRequiredService<QaSpecMigration>().RunAsync(definitions, Path.Combine(output, "03-qa-spec"));
             });
 
+        if (options.CashFile is { } cash)
+            await Step("เงินสดย่อย.accdb", () => CashMigrationTool.RunAsync(services, cash, options.CodeMapFile, Path.Combine(output, "04-cash")));
+
         WriteReport(output, steps);
         return steps;
     }
 
-    private static void CheckFile(string path, string label)
+    /// <summary>Stops, with the reason, before anything is deleted: the file is missing, not Access, too small to be the program, or open elsewhere.</summary>
+    internal static void CheckFile(string path, string label)
     {
         if (!File.Exists(path)) throw new FileNotFoundException($"ไม่พบไฟล์ {label}: {path}", path);
         var extension = Path.GetExtension(path);

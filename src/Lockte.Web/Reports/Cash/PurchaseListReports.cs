@@ -21,7 +21,7 @@ public static class PurchaseListReports
 
     /// <summary>The lines of the range in the order of the print; text order is ordinal (the legacy compared the characters).</summary>
     public static PurchaseListReport Build(DateOnly from, DateOnly to, IEnumerable<ExpenseLineDto> lines)
-        => new(from, to, lines.Where(l => l.Date >= from && l.Date <= to).OrderBy(l => l.Date).ThenBy(l => l.VoucherNo, StringComparer.Ordinal).ThenBy(l => l.Id).ToList());
+        => new(from, to, CashReportRows.Purchases(from, to, lines));
 
     public static RouteGroupBuilder MapCashPurchaseListReports(this RouteGroupBuilder reports)
     {

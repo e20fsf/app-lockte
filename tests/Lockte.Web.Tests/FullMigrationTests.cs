@@ -41,6 +41,56 @@ public sealed class FullMigrationTests(MigrationDbFixture db) : IDisposable
     private async Task<MigrationOptions> OptionsAsync(string employee, string order, string? definitions, string output)
         => new("", await ConnectionAsync(), null, output, MigrationOptions.AllProgram, false, employee, order, definitions);
 
+    private string CashFile()
+    {
+        var file = FakeCashFile.Empty()
+            .Row("ค่าใช้จ่ายต่างๆ", ("CASH_NAME", "ค่าขนส่ง"))
+            .Row("ผู้ซื้อของเก่า", ("NAMED", "คุณตัวอย่าง ก"), ("ADDRESS", "ที่อยู่ตัวอย่าง"), ("TEL", "000-000-0000"))
+            .Row("รายชื่อของเก่า", ("NAMES", "เศษเหล็ก"), ("UNIT", "กก."));
+        file.WithExpense(new DateTime(2026, 9, 11), "09/34", "ของตัวอย่าง", 2, 40, 80, "ค่าขนส่ง").WithExpense(new DateTime(2026, 9, 12), "09/35", "ของตัวอย่างสอง", 1, 0, 633, "ค่าขนส่ง");
+        file.WithReceiptLine("ขายของเก่า", "69027", new DateTime(2026, 9, 8), "คุณตัวอย่าง ก", 1, "เศษเหล็ก", 100, 10, 1000)
+            .WithReceiptLine("ขายของเก่า", "69028", new DateTime(2026, 9, 9), "คุณตัวอย่าง ก", 1, "เศษเหล็ก", 5, 2, 10)
+            .WithReceiptLine("ขายของเก่า1", "69028", new DateTime(2026, 9, 9), "คุณตัวอย่าง ก", 1, "เศษเหล็ก", 5, 2, 10, mark: "Y")
+            .WithReceiptLine("ขายของเก่า2", "69027", new DateTime(2026, 9, 8), "คุณตัวอย่าง ก", 1, "เศษเหล็ก", 100, 10, 1000);
+        return file.Save(Path.Combine(work.FullName, "เงินสดย่อย.accdb"));
+    }
+
+    [Fact] // เงินสดย่อย is the third program of the one command: after the order program, with its own folder of reports, run again with the same counts
+    public async Task Runs_the_petty_cash_program_as_the_third_step_and_again_with_the_same_counts()
+    {
+        var (employee, order, _) = Files();
+        var cash = CashFile();
+        var connection = await ConnectionAsync();
+        MigrationOptions Options(string name) => new("", connection, null, Output(name), MigrationOptions.AllProgram, false, employee, order, null, null, null, null, false, null, cash);
+
+        var first = await FullMigrationTool.RunAsync(db.Services, Options("first"));
+        var second = await FullMigrationTool.RunAsync(db.Services, Options("second"));
+
+        Assert.Equal(["พนักงาน.accdb", "ผลผลิตและORDER.accdb", "เงินสดย่อย.accdb"], first.Select(s => s.Name));
+        Assert.All(first.Concat(second), s => Assert.True(s.Report.Balanced, s.Name));
+        var counts = first[2].Report.Tables.ToDictionary(t => t.LegacyTable, t => t.InDatabase);
+        Assert.Equal((2, 2, 1, 1), (counts["ซื้อของเงินสด"], counts["ขายของเก่า (ใบ)"], counts["ค่าใช้จ่ายต่างๆ"], counts["รายชื่อของเก่า"])); // 2 lines, 2 receipts, 1 type, 1 kind
+        Assert.Equal(first[2].Report.Tables.Select(t => (t.LegacyTable, t.InDatabase)), second[2].Report.Tables.Select(t => (t.LegacyTable, t.InDatabase))); // run again: not a row more
+        Assert.True(File.Exists(Path.Combine(Output("first"), "04-cash", MigrationReport.DqFile)));
+        var summary = await File.ReadAllTextAsync(Path.Combine(Output("first"), "summary.md"));
+        Assert.Contains("เงินสดย่อย.accdb", summary);
+        var info = await File.ReadAllTextAsync(Path.Combine(Output("first"), "run-info.csv"));
+        Assert.Contains("เงินสดย่อย.accdb", info);
+    }
+
+    [Fact]
+    public async Task A_petty_cash_file_that_is_not_access_stops_the_run_before_anything_is_deleted()
+    {
+        var (employee, order, _) = Files();
+        var notAccess = Path.Combine(work.FullName, "เงินสดย่อย.accdb");
+        await File.WriteAllBytesAsync(notAccess, new byte[100_000]);
+        var options = new MigrationOptions("", await ConnectionAsync(), null, Output("bad"), MigrationOptions.AllProgram, false, employee, order, null, null, null, null, false, null, notAccess);
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => FullMigrationTool.RunAsync(db.Services, options));
+        Assert.Contains("เงินสดย่อย.accdb", error.Message);
+        Assert.False(Directory.Exists(Output("bad")) && Directory.EnumerateFileSystemEntries(Output("bad")).Any()); // nothing was run
+    }
+
     [Fact] // one command: the employee program, then the order program; one report; run again, the same counts
     public async Task Runs_both_programs_with_one_report_and_runs_again_with_the_same_result()
     {
