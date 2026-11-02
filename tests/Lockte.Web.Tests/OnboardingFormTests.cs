@@ -170,7 +170,7 @@ public sealed class OnboardingFormTests
         }));
 
         Assert.True(html.IndexOf("A100", StringComparison.Ordinal) < html.IndexOf("S060", StringComparison.Ordinal));
-        Assert.Contains("<td>11/11/2569</td>", html); // 13/8/2569 + 90
+        Assert.Contains("<td class=\"nw\">11/11/2569</td>", html); // 13/8/2569 + 90
         Assert.Contains("<td>2</td>", html);
         Assert.Contains("รวมทั้งหมด 2 คน", html);
         Assert.Contains("ไม่มีข้อมูล", await ReportBody.RenderAsync<OnProbationReportView>(new() { [nameof(OnProbationReportView.Employees)] = new List<EmployeeDto>() }));
@@ -184,7 +184,7 @@ public sealed class OnboardingFormTests
             1, 1);
         var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<DepartmentRosterView>(new() { [nameof(DepartmentRosterView.Roster)] = roster }));
 
-        Assert.Contains("รายชื่อพนักงานแผนกประกอบ  กะD", html);
+        Assert.DoesNotContain("รายชื่อพนักงานแผนกประกอบ", html); // the title is the page header (#344), not repeated above the table
         Assert.Contains("18,665.00", html);
         Assert.Contains("622.17", html);
         Assert.Contains("ชาย 1 คน", html);

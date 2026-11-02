@@ -1,5 +1,6 @@
 using Lockte.Hr;
 using Lockte.Web.Accounts;
+using Lockte.Web.Reports.Order;
 
 namespace Lockte.Web.Reports.Hr;
 
@@ -37,29 +38,34 @@ public static class OnboardingReports
         var employees = reports.MapGroup("/hr/employees");
 
         // RPT-20 พนักงานยังไม่ผ่านทดลองงาน (รายงาน พนักงานยังไม่บรรจุ): A4 ตั้ง.
-        employees.MapGet("/on-probation", async (HttpContext http, EmployeeDirectory directory, ReportPrinter printer, CancellationToken ct) =>
+        employees.MapGet("/on-probation", async (string? format, HttpContext http, EmployeeDirectory directory, ReportPrinter printer, CancellationToken ct) =>
         {
+            var list = await directory.ListOnProbationAsync();
+            if (IsExcel(format)) return Excel(EmployeeListTables.OnProbation(list));
             var pdf = await printer.PrintAsync<OnProbationReportView>(OnProbationReportView.Title, Paper.A4Portrait,
-                new() { [nameof(OnProbationReportView.Employees)] = await directory.ListOnProbationAsync() },
+                new() { [nameof(OnProbationReportView.Employees)] = list },
                 AccountClaims.DisplayNameOf(http.User), cancellationToken: ct);
             return Pdf(http, pdf, "พนักงานยังไม่ผ่านทดลองงาน");
         });
 
         // RPT-21 รายชื่อพนักงานแผนก… (SCR-04 "พิมพ์"): A4 ตั้ง; no แผนก / กะ = all.
-        employees.MapGet("/roster", async (int? department, int? shift, HttpContext http, OnboardingDirectory directory, ReportPrinter printer,
+        employees.MapGet("/roster", async (int? department, int? shift, string? format, HttpContext http, OnboardingDirectory directory, ReportPrinter printer,
             CancellationToken ct) =>
         {
             var roster = await directory.GetDepartmentRosterAsync(department, shift);
+            if (IsExcel(format)) return Excel(EmployeeListTables.Roster(roster));
             var pdf = await printer.PrintAsync<DepartmentRosterView>(roster.Title, Paper.A4Portrait,
                 new() { [nameof(DepartmentRosterView.Roster)] = roster }, AccountClaims.DisplayNameOf(http.User), cancellationToken: ct);
             return Pdf(http, pdf, roster.Title.Replace("  ", " "));
         });
 
         // RPT-21 รายชื่อพนักงานทั้งหมด (รายงาน EMPLO): A4 ตั้ง.
-        employees.MapGet("/working", async (HttpContext http, OnboardingDirectory directory, ReportPrinter printer, CancellationToken ct) =>
+        employees.MapGet("/working", async (string? format, HttpContext http, OnboardingDirectory directory, ReportPrinter printer, CancellationToken ct) =>
         {
+            var list = await directory.GetWorkingEmployeesAsync();
+            if (IsExcel(format)) return Excel(EmployeeListTables.Working(list));
             var pdf = await printer.PrintAsync<WorkingEmployeesView>(WorkingEmployeesView.Title, Paper.A4Portrait,
-                new() { [nameof(WorkingEmployeesView.List)] = await directory.GetWorkingEmployeesAsync() },
+                new() { [nameof(WorkingEmployeesView.List)] = list },
                 AccountClaims.DisplayNameOf(http.User), cancellationToken: ct);
             return Pdf(http, pdf, WorkingEmployeesView.Title);
         });
@@ -114,6 +120,10 @@ public static class OnboardingReports
             return Pdf(http, await printer.PrintFormAsync(OnboardingForms.ProbationTitle, pages, ct), $"{OnboardingForms.ProbationTitle} {employee.Code}");
         });
     }
+
+    private static bool IsExcel(string? format) => string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase);
+
+    private static IResult Excel(SummaryTable table) => Results.File(XlsxWriter.Write(table), XlsxWriter.ContentType, table.Title.Replace("  ", " ") + ".xlsx");
 
     /// <summary>Shown in the browser's PDF viewer (inline) under a readable file name.</summary>
     private static IResult Pdf(HttpContext http, byte[] pdf, string name)

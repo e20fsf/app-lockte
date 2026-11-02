@@ -2,7 +2,6 @@
 @* RPT-21 รายชื่อพนักงานแผนก… (report รายชื่อเฉพาะแผนก, BR-073): ระดับ B — columns and footer as the legacy, the look is
    แบบกลาง. ลำดับ gets its own column (the legacy printed it stuck to the รหัส, "1B001"). เงินเดือน / รายวัน in Standard
    format (thousands, 2 decimals); อายุงาน, (เดือน), อายุ and อายุเฉลี่ย whole numbers. *@
-<p class="sub">@Roster.Title</p>
 @if (Roster.Lines.Count == 0)
 {
     <NoData />
@@ -11,8 +10,8 @@ else
 {
     <table>
         <colgroup>
-            <col style="width:6%" /><col style="width:8%" /><col style="width:24%" /><col style="width:11%" /><col style="width:13%" />
-            <col style="width:9%" /><col style="width:7%" /><col style="width:6%" /><col style="width:9%" /><col style="width:7%" />
+            <col style="width:5%" /><col style="width:7%" /><col style="width:27%" /><col style="width:11%" /><col style="width:12%" />
+            <col style="width:8%" /><col style="width:6%" /><col style="width:5%" /><col style="width:10%" /><col style="width:9%" />
         </colgroup>
         <thead>
             <tr>
@@ -27,8 +26,8 @@ else
                 <tr>
                     <td class="num">@(i + 1)</td>
                     <td>@l.Code</td>
-                    <td>@l.Name</td>
-                    <td>@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
+                    <td class="nw">@l.Name</td>
+                    <td class="nw">@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
                     <td>@l.Position</td>
                     <td class="num">@l.ServiceYears</td>
                     <td class="num">@l.ServiceMonths</td>
