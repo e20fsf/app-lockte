@@ -279,4 +279,15 @@ public sealed class ProgramMenuTests
         Assert.Same(CashMenu.Menu, ProgramMenus.Of("cash/SCR-12"));
         Assert.Contains(CashMenu.Menu, ProgramMenus.All);
     }
+
+    [Fact]
+    public void Built_cash_screens_are_opened_by_their_menu_items()
+    {
+        Assert.Equal("cash/expense-types", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-02")!.Value.Item)); // built (#229)
+        Assert.Equal("cash/scrap-buyers/new", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-07-add")!.Value.Item)); // built (#230)
+        Assert.Equal("cash/scrap-buyers", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-07-edit")!.Value.Item));
+        Assert.Equal("cash/scrap-items/new", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-08-add")!.Value.Item));
+        Assert.Equal("cash/scrap-items", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-08-edit")!.Value.Item));
+        Assert.Equal("cash/SCR-03", CashMenu.Menu.HrefOf(CashMenu.Menu.FindItem("SCR-03")!.Value.Item)); // not built yet: the placeholder
+    }
 }

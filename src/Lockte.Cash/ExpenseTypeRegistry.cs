@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Lockte.Cash.Data;
 using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
@@ -40,10 +39,8 @@ public sealed class ExpenseTypeRegistry(CashDbContext db)
 {
     public const int NameLength = 255;
 
-    private static readonly Regex Blanks = new(@"\s+", RegexOptions.Compiled);
-
     /// <summary>The name as it is kept: leading/trailing blanks gone, any run of blanks or line breaks one space.</summary>
-    public static string? CleanName(string? name) => string.IsNullOrWhiteSpace(name) ? null : Blanks.Replace(name.Trim(), " ");
+    public static string? CleanName(string? name) => CashText.Clean(name);
 
     public async Task<ServiceResult> SaveAsync(ExpenseTypeInput input)
     {

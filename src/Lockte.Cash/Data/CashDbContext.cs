@@ -13,6 +13,8 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
 
     internal DbSet<CashSettings> Settings => Set<CashSettings>();
     internal DbSet<ExpenseType> ExpenseTypes => Set<ExpenseType>();
+    internal DbSet<ScrapBuyer> ScrapBuyers => Set<ScrapBuyer>();
+    internal DbSet<ScrapItem> ScrapItems => Set<ScrapItem>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -30,6 +32,25 @@ public sealed class CashDbContext(DbContextOptions<CashDbContext> options) : Mod
             t.Property(x => x.Name).HasMaxLength(ExpenseTypeRegistry.NameLength).HasAuditName("ชื่อค่าใช้จ่าย");
             t.Property(x => x.IsActive).HasAuditName("ใช้งาน");
             t.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ScrapBuyer>(b =>
+        {
+            b.HasAuditName("ผู้ซื้อของเก่า");
+            b.ToTable("ScrapBuyers");
+            b.Property(x => x.Name).HasMaxLength(ScrapBuyerRegistry.NameLength).HasAuditName("ชื่อผู้ซื้อ");
+            b.Property(x => x.Address).HasMaxLength(ScrapBuyerRegistry.AddressLength).HasAuditName("ที่อยู่");
+            b.Property(x => x.Tel).HasMaxLength(ScrapBuyerRegistry.TelLength).HasAuditName("เบอร์โทรศัพท์");
+            b.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ScrapItem>(i =>
+        {
+            i.HasAuditName("ชนิดของเก่า");
+            i.ToTable("ScrapItems");
+            i.Property(x => x.Name).HasMaxLength(ScrapItemRegistry.NameLength).HasAuditName("ชื่อของเก่า");
+            i.Property(x => x.Unit).HasMaxLength(ScrapItemRegistry.UnitLength).HasAuditName("หน่วย");
+            i.HasIndex(x => x.Name).IsUnique();
         });
     }
 }

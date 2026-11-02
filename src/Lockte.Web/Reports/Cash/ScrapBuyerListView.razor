@@ -1,0 +1,25 @@
+@using Lockte.Cash
+@* RPT-10 รายชื่อผู้ซื้อของเก่า, ระดับ B on A4 ตั้ง: ลำดับ, ชื่อ, ที่อยู่, เบอร์โทรศัพท์. *@
+@if (Report.Rows.Count == 0)
+{
+    <NoData />
+}
+else
+{
+    <table>
+        <colgroup><col style="width:9%" /><col style="width:30%" /><col style="width:38%" /><col style="width:23%" /></colgroup>
+        <thead><tr><th class="num">ลำดับ</th><th>ชื่อ</th><th>ที่อยู่</th><th>เบอร์โทรศัพท์</th></tr></thead>
+        <tbody>
+            @for (var i = 0; i < Report.Rows.Count; i++)
+            {
+                var b = Report.Rows[i];
+                <tr><td class="num">@(i + 1)</td><td>@b.Name</td><td>@b.Address</td><td>@b.Tel</td></tr>
+            }
+            <tr><td colspan="4" class="end"></td></tr>
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public ScrapBuyerListReport Report { get; set; } = null!;
+}
