@@ -35,13 +35,13 @@ public sealed class ExpenseLineDirectory(CashDbContext db)
 
     /// <summary>The lines from <paramref name="from"/> to <paramref name="to"/> inclusive: by date, then voucher number, then the order keyed.</summary>
     public async Task<IReadOnlyList<ExpenseLineDto>> ListAsync(DateOnly from, DateOnly to)
-        => await Query().Where(l => l.Date >= from && l.Date <= to).OrderBy(l => l.Date).ThenBy(l => l.VoucherNo).ThenBy(l => l.Id).ToListAsync();
+        => await ReadAsync(db.ExpenseLines.AsNoTracking().Where(l => l.Date >= from && l.Date <= to).OrderBy(l => l.Date).ThenBy(l => l.VoucherNo).ThenBy(l => l.Id));
 
-    public async Task<ExpenseLineDto?> GetAsync(int id) => await Query().Where(l => l.Id == id).FirstOrDefaultAsync();
+    public async Task<ExpenseLineDto?> GetAsync(int id) => (await ReadAsync(db.ExpenseLines.AsNoTracking().Where(l => l.Id == id))).FirstOrDefault();
 
     /// <summary>The chosen lines, in the order of a voucher: date, then voucher number, then the order keyed.</summary>
     public async Task<IReadOnlyList<ExpenseLineDto>> GetManyAsync(IReadOnlyCollection<int> ids)
-        => await Query().Where(l => ids.Contains(l.Id)).OrderBy(l => l.Date).ThenBy(l => l.VoucherNo).ThenBy(l => l.Id).ToListAsync();
+        => await ReadAsync(db.ExpenseLines.AsNoTracking().Where(l => ids.Contains(l.Id)).OrderBy(l => l.Date).ThenBy(l => l.VoucherNo).ThenBy(l => l.Id));
 
     /// <summary>
     /// The items offered in the pick list of a line: the name and unit of every line saved so far, each pair once, by name (the legacy read a copy of 2016–17, so a new item never
@@ -54,8 +54,14 @@ public sealed class ExpenseLineDirectory(CashDbContext db)
         return pairs.OrderBy(p => p.Name, thai).ThenBy(p => p.Unit, thai).Select(p => new ExpenseItemSuggestion(p.Name, p.Unit)).ToList();
     }
 
-    private IQueryable<ExpenseLineDto> Query()
-        => db.ExpenseLines.AsNoTracking().Select(l => new ExpenseLineDto(l.Id, l.Date, l.VoucherNo, l.Name, l.Qty, l.Unit, l.UnitPrice, l.Amount, l.ExpenseTypeId, l.ExpenseType.Name, l.RowVersion));
+    /// <summary>The lines, with the name of the type now: read in two plain queries (the lines, then the types they name) and put together here.</summary>
+    private async Task<IReadOnlyList<ExpenseLineDto>> ReadAsync(IQueryable<ExpenseLine> lines)
+    {
+        var rows = await lines.ToListAsync();
+        var typeIds = rows.Select(l => l.ExpenseTypeId).Distinct().ToList();
+        var names = await db.ExpenseTypes.AsNoTracking().Where(t => typeIds.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Name);
+        return rows.Select(l => new ExpenseLineDto(l.Id, l.Date, l.VoucherNo, l.Name, l.Qty, l.Unit, l.UnitPrice, l.Amount, l.ExpenseTypeId, names[l.ExpenseTypeId], l.RowVersion)).ToList();
+    }
 }
 
 /// <summary>
