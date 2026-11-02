@@ -16,6 +16,14 @@ public sealed class CashExpenseLineMathTests
         => Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture),
             ExpenseLineMath.AmountOf(decimal.Parse(qty, System.Globalization.CultureInfo.InvariantCulture), decimal.Parse(price, System.Globalization.CultureInfo.InvariantCulture)));
 
+    [Fact] // รวม of SCR-04: the amounts as kept, not rounded again
+    public void The_total_is_the_sum_of_the_amounts_shown()
+    {
+        static ExpenseLineDto Line(decimal amount) => new(1, new DateOnly(2026, 9, 11), "09/35", "ก", 1, null, 0, amount, 1, "ประเภท", []);
+        Assert.Equal(1000.30m, ExpenseLineMath.Total([Line(30.10m), Line(970.20m)]));
+        Assert.Equal(0m, ExpenseLineMath.Total([]));
+    }
+
     [Fact] // BR-002 #2: fuel is typed as an amount against price 0
     public void A_price_of_zero_leaves_the_amount_to_be_typed() => Assert.Null(ExpenseLineMath.AmountOf(25.01m, 0m));
 }
@@ -175,6 +183,28 @@ public sealed class CashExpenseLineTests(LocalDbFixture db)
             Assert.True((await scope.Get<ExpenseTypeRegistry>().SaveAsync(new(type, renamed, loaded.RowVersion))).Succeeded);
 
         Assert.Equal(renamed, (await GetAsync(id)).ExpenseTypeName);
+    }
+
+    [Fact]
+    public async Task BR004_1_an_amount_is_edited_in_place_and_the_total_of_the_day_follows_deleting_with_the_button()
+    {
+        var (day, type) = (Day(), await NewTypeAsync());
+        var first = await AddAsync(day, type, voucher: "09/35", name: "ก", qty: 1, price: 0, amount: 30);
+        var second = await AddAsync(day, type, voucher: "09/35", name: "ข", qty: 1, price: 0, amount: 50);
+        var edited = await GetAsync(first);
+        await using (var scope = db.Scope())
+            Assert.True((await scope.Get<ExpenseLineRegistry>().SaveAsync(new(first, day, edited.VoucherNo, edited.Name, edited.Qty, edited.Unit, edited.UnitPrice, 95m, type, edited.RowVersion))).Succeeded);
+
+        await using (var scope = db.Scope())
+            Assert.Equal(145m, ExpenseLineMath.Total(await scope.Get<ExpenseLineDirectory>().ListByDateAsync(day)));
+
+        var gone = await GetAsync(second);
+        await using (var scope = db.Scope())
+            Assert.True((await scope.Get<ExpenseLineRegistry>().DeleteAsync(second, gone.RowVersion)).Succeeded);
+        await using var read = db.Scope();
+        var left = await read.Get<ExpenseLineDirectory>().ListByDateAsync(day);
+        Assert.Equal([first], left.Select(l => l.Id));
+        Assert.Equal(95m, ExpenseLineMath.Total(left));
     }
 
     [Fact]

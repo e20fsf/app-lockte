@@ -22,6 +22,9 @@ public static class ExpenseLineMath
     /// <summary>Quantity × price to 2 decimals, half up; null when the price is 0 (then the amount is typed, as for fuel).</summary>
     public static decimal? AmountOf(decimal qty, decimal unitPrice)
         => unitPrice > 0 ? Math.Round(qty * unitPrice, 2, MidpointRounding.AwayFromZero) : null;
+
+    /// <summary>รวม (<c>=Sum([amount])</c> of SCR-04): the sum of the amounts shown, as they are kept.</summary>
+    public static decimal Total(IEnumerable<ExpenseLineDto> lines) => lines.Sum(l => l.Amount);
 }
 
 /// <summary>The public, read-only face of ค่าใช้จ่ายเงินสดย่อย (ADR 0002): SCR-03/04, the voucher (RPT-01) and the summaries (RPT-02, RPT-04) read it.</summary>
