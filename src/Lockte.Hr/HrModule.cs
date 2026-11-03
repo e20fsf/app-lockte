@@ -78,6 +78,8 @@ public sealed class HrDataReset(HrDbContext db)
     public async Task DeleteAllAsync()
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.BonusResults.ExecuteDeleteAsync();
+        await db.BonusRuns.ExecuteDeleteAsync();
         await db.WeeklyHolidays.ExecuteDeleteAsync();
         await db.PublicHolidays.ExecuteDeleteAsync();
         await db.Warnings.ExecuteDeleteAsync();
