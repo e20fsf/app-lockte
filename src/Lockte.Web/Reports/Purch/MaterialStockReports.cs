@@ -50,7 +50,7 @@ public static class MaterialStockReports
     }
 
     public static StockCutReport Cut(DateOnly cutDate, IReadOnlyList<StockPeriodBalanceDto> balances)
-        => new(cutDate, balances.Where(b => b.Quantity != 0).OrderBy(b => b.MaterialCode, StringComparer.Ordinal).Select(b => new StockCutRow(b.MaterialCode, b.MaterialName, b.Unit, b.Quantity, b.Cost)).ToList());
+        => new(cutDate, PurchReportRows.StockCut(balances).Select(b => new StockCutRow(b.MaterialCode, b.MaterialName, b.Unit, b.Quantity, b.Cost)).ToList());
 
     public static RouteGroupBuilder MapMaterialStockReports(this RouteGroupBuilder reports)
     {
