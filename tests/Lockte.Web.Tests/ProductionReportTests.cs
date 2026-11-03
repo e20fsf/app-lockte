@@ -10,10 +10,9 @@ namespace Lockte.Web.Tests;
 [Collection(LocalDbCollection.Name)]
 public sealed class ProductionReportTests(LocalDbFixture db)
 {
-    private static int counter = Random.Shared.Next(10000, 60000);
 
     // Numbers that the other tests make are letter + 5 digits below 70000; the numbering tests use 9xxxx so they are always the largest.
-    private static string FreeNumber(string department) => department + Interlocked.Increment(ref counter).ToString("00000");
+    private static string FreeNumber(string department) => TestCodes.ProductionNumber(department);
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 

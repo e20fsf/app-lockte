@@ -18,7 +18,7 @@ public sealed class PayHistoryMigrationTests(MigrationDbFixture db) : IDisposabl
 
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-pay-history-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private static (string, object?)[] Period(DateTime from, DateTime to, DateTime payDate)
         => [("FROM_DATE", from), ("TO_DATE", to), ("PAY_D", payDate)];

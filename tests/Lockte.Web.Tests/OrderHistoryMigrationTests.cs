@@ -15,7 +15,7 @@ public sealed class OrderHistoryMigrationTests(MigrationDbFixture db) : IDisposa
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-order-history-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private async Task<T> AsAsync<T>(Func<TestScope, Task<T>> action)
     {

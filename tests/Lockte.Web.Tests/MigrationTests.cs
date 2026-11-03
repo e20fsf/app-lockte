@@ -18,7 +18,7 @@ public sealed class MigrationTests(MigrationDbFixture db) : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-migration-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private string Save(FakeLegacyFile file, string name = "พนักงาน.accdb") => file.Save(Path.Combine(work.FullName, name));
 

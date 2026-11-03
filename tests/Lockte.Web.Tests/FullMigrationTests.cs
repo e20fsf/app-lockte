@@ -17,7 +17,7 @@ public sealed class FullMigrationTests(MigrationDbFixture db) : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-full-migration-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private string Output(string name = "out") => Path.Combine(work.FullName, name);
 

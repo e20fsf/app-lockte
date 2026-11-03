@@ -144,7 +144,7 @@ public sealed class CashMigrationTests(MigrationDbFixture db) : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-cash-migration-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private Task<MigrationReport> RunAsync(string source, string? codeMap = null, string output = "out")
         => CashMigrationTool.RunAsync(db.Services, source, codeMap, Path.Combine(work.FullName, output));

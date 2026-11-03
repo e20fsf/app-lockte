@@ -16,7 +16,7 @@ public sealed class ComparisonTests(MigrationDbFixture db) : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-comparison-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private static CompareItem Item(string key, decimal value, params string[] refs) => new(key, [value], refs.Length == 0 ? [""] : refs);
 

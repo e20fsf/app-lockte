@@ -9,7 +9,7 @@ public sealed class LegacyFileTests : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-legacy-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     [Fact]
     public void History_tables_are_read_from_their_first_date_and_counted_in_full()

@@ -14,13 +14,12 @@ namespace Lockte.Web.Tests;
 public sealed class StockTests(LocalDbFixture db)
 {
     private static int year = 2300;
-    private static int counter = Random.Shared.Next(10000, 60000);
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
     private static DateOnly NewMonth() => new(Interlocked.Increment(ref year), 8, 1);
 
-    private static string FreeNumber(string department) => department + Interlocked.Increment(ref counter).ToString("00000");
+    private static string FreeNumber(string department) => TestCodes.ProductionNumber(department);
 
     private async Task<T> AsAsync<T>(Func<TestScope, Task<T>> action, string user = "store1")
     {

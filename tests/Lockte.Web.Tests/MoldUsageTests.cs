@@ -14,7 +14,6 @@ namespace Lockte.Web.Tests;
 public sealed class MoldUsageTests(LocalDbFixture db)
 {
     private static int year = 2400;
-    private static int counter = Random.Shared.Next(10000, 60000);
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
@@ -42,7 +41,7 @@ public sealed class MoldUsageTests(LocalDbFixture db)
 
     private async Task<int> ReportAsync(string department, DateOnly date, int product, int mold, decimal good, decimal? reject = null)
     {
-        var saved = await AsAsync(s => s.Get<ProductionReportRegistry>().SaveAsync(new ProductionReportInput(null, null, department, date, department + Interlocked.Increment(ref counter).ToString("00000"), null,
+        var saved = await AsAsync(s => s.Get<ProductionReportRegistry>().SaveAsync(new ProductionReportInput(null, null, department, date, TestCodes.ProductionNumber(department), null,
             [new ProductionReportLineInput(null, null, product, null, null, null, 8m, null, null, good, reject, null, mold, null)]), ProductionSaveMode.Save));
         Assert.True(saved.Succeeded, string.Join(" ", saved.Errors));
         return saved.Id!.Value;

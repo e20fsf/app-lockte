@@ -100,7 +100,7 @@ public sealed class CalibMigrationTests(MigrationDbFixture db) : IDisposable
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-calib-migration-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private async Task<T> AsAsync<T>(Func<TestScope, Task<T>> action)
     {

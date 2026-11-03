@@ -12,7 +12,7 @@ public sealed class PurchDocumentMigrationTests(MigrationDbFixture db) : IDispos
 {
     private readonly DirectoryInfo work = Directory.CreateTempSubdirectory("lockte-purch-documents-test-");
 
-    public void Dispose() => work.Delete(recursive: true);
+    public void Dispose() => TestFiles.DeleteScratch(work);
 
     private async Task<T> AsAsync<T>(Func<TestScope, Task<T>> action)
     {

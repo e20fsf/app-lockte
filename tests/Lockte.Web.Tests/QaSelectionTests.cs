@@ -7,7 +7,6 @@ namespace Lockte.Web.Tests;
 public sealed class QaSelectionTests(LocalDbFixture db)
 {
     private static int year = Random.Shared.Next(3100, 3600);
-    private static int counter = Random.Shared.Next(10000, 60000);
 
     private static string Unique(string prefix) => prefix + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
@@ -24,7 +23,7 @@ public sealed class QaSelectionTests(LocalDbFixture db)
 
     private async Task SaveReportAsync(string department, DateOnly date, int product, params (decimal Good, decimal? Reject)[] lines)
     {
-        var no = department + Interlocked.Increment(ref counter).ToString("00000");
+        var no = TestCodes.ProductionNumber(department);
         var saved = await AsAsync(s => s.Get<ProductionReportRegistry>().SaveAsync(new ProductionReportInput(null, null, department, date, no, null,
             lines.Select(l => new ProductionReportLineInput(null, null, product, null, null, null, 8m, "LM1", null, l.Good, l.Reject, null, null, "LOT-1")).ToList()), ProductionSaveMode.Save));
         Assert.True(saved.Succeeded, string.Join(" ", saved.Errors));
