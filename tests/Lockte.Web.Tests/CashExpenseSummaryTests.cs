@@ -66,7 +66,7 @@ public sealed class CashExpenseSummaryTests(LocalDbFixture db)
     private static string Unique(string name) => $"{name} {Guid.NewGuid():N}"[..(name.Length + 9)];
 
     /// <summary>Three days nobody else uses.</summary>
-    private static DateOnly Window() => new DateOnly(2300, 1, 1).AddDays(Random.Shared.Next(0, 20000));
+    private static DateOnly Window() => TestCodes.CashDay();
 
     private async Task<int> NewTypeAsync(string name)
     {

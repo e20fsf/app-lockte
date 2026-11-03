@@ -76,7 +76,7 @@ public sealed class CashPurchaseListTests(LocalDbFixture db)
     [Fact] // AC-20 through the service, and the total of the range is the "this period" of RPT-02 for the same dates
     public async Task AC20_the_range_through_the_service_matches_the_sum_of_rpt02()
     {
-        var start = new DateOnly(2400, 1, 1).AddDays(Random.Shared.Next(0, 20000));
+        var start = TestCodes.CashDay();
         var type = await NewTypeAsync();
         await AddAsync(start, type, "09/35", "ซีล TC 25-40-8", 1, 90m);
         await AddAsync(start, type, "09/34", "แก๊ส NGV", 31.53m, 633m);
