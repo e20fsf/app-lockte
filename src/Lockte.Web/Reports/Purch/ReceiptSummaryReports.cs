@@ -35,7 +35,7 @@ public static class ReceiptSummaryReports
     public const string DepartmentPurchasesTitle = "การซื้อวัตถุดิบแยกแผนก";
 
     private static IEnumerable<ReceivedLine> Counted(IEnumerable<ReceivedLine> lines, bool mainOnly)
-        => mainOnly ? lines.Where(l => l.MaterialIsMain) : lines.Where(l => !l.Failed);
+        => mainOnly ? lines.Where(l => l.MaterialIsMain) : PurchReportRows.Purchases(lines, DateOnly.MinValue, DateOnly.MaxValue);
 
     public static MonthlyReceiptSummary Monthly(IReadOnlyList<ReceivedLine> lines, bool mainOnly, DateOnly from, DateOnly to)
     {
@@ -59,8 +59,8 @@ public static class ReceiptSummaryReports
 
     /// <summary>RPT-22: the amount of every แผนก, the biggest first.</summary>
     public static DepartmentSummaryReport DepartmentPurchases(IReadOnlyList<ReceivedLine> lines, IReadOnlyDictionary<int, string> departments, DateOnly from, DateOnly to)
-        => new(from, to, lines.Where(l => !l.Failed && l.ReceiveDate >= from && l.ReceiveDate <= to).GroupBy(l => l.DepartmentId)
-            .Select(g => (Department: departments.GetValueOrDefault(g.Key) ?? "", Amount: g.Sum(l => l.Amount)))
+        => new(from, to, PurchReportRows.ByDepartment(lines, from, to)
+            .Select(r => (Department: departments.GetValueOrDefault(r.DepartmentId) ?? "", r.Amount))
             .OrderByDescending(r => r.Amount).ThenBy(r => r.Department, StringComparer.Ordinal).ToList());
 
     public static RouteGroupBuilder MapReceiptSummaryReports(this RouteGroupBuilder reports)

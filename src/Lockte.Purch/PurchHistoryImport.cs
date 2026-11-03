@@ -19,7 +19,7 @@ public sealed record ImportedReceipt(
 
 public sealed record ImportedOrderLine(
     string RequestNo, string RequestLineKey, int LineNo, int MaterialId, string MaterialName, string? Unit, decimal RequestedQuantity, decimal Quantity, decimal UnitPrice, decimal NetAmount,
-    decimal TaxIncludedAmount, DateOnly? DesiredDate, int DepartmentId, IReadOnlyList<ImportedReceipt> Receipts);
+    decimal TaxIncludedAmount, DateOnly? DesiredDate, int DepartmentId, IReadOnlyList<ImportedReceipt> Receipts, bool ReceivingCancelled = false);
 
 public sealed record ImportedOrder(
     string OrderNo, DateOnly OrderDate, int SupplierId, string SupplierName, string? SupplierAddress1, string? SupplierAddress2, string? SupplierTel, string? SupplierFax, int? CreditDays,
@@ -101,7 +101,7 @@ public sealed class PurchHistoryImport(PurchDbContext db)
                 {
                     LineNo = l.LineNo, PurchaseRequestLine = lines[(l.RequestNo, l.RequestLineKey)], MaterialId = l.MaterialId, MaterialName = l.MaterialName, Unit = l.Unit,
                     RequestedQuantity = l.RequestedQuantity, Quantity = l.Quantity, UnitPrice = l.UnitPrice, NetAmount = l.NetAmount, TaxIncludedAmount = l.TaxIncludedAmount, DesiredDate = l.DesiredDate,
-                    DepartmentId = l.DepartmentId,
+                    DepartmentId = l.DepartmentId, ReceivingCancelled = l.ReceivingCancelled,
                 };
                 order.Lines.Add(line);
                 foreach (var g in l.Receipts)

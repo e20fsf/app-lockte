@@ -10,7 +10,9 @@ namespace Lockte.Migration;
 /// waiting for goods, PO_RECEI5 every delivery. They are taken apart into ใบขอซื้อ (head + lines), ใบสั่งซื้อ (head + lines) and การรับของ. Run after the master data (#217) on a database whose
 /// documents are empty; matched to the suppliers, the materials and the แผนก by code (a code that is not found goes to the DQ report, and the line with it, because a line cannot stand without
 /// them). The names the documents carry (DQ-04) are kept as they are. The ordered quantity of a line is what was received (not failed) plus what is still waiting; with nothing waiting it is the
-/// quantity the first delivery found outstanding. Loaded through <see cref="PurchHistoryImport"/>, outside the change history (#39).
+/// quantity the first delivery found outstanding, and a line that is no longer in PO_RECEI4 is not waited for any more (the legacy took it off ค้างรับ: received, or deleted — BR-033) even
+/// when less came than was ordered. A line is the order number + ที่ **of a request line** (PR_NO + PR_SUF): the legacy let the same ที่ of one order be typed for lines of other requests, even of
+/// other แผนก, and each keeps its own (DQ-13: the new system makes its own ids). Loaded through <see cref="PurchHistoryImport"/>, outside the change history (#39).
 /// </summary>
 public sealed class PurchDocumentMigration(AuditScope audit, PurchHistoryImport import, SupplierDirectory suppliers, MaterialDirectory materials, OrgDirectory org, PurchSettingsDirectory settings)
 {
@@ -23,7 +25,7 @@ public sealed class PurchDocumentMigration(AuditScope audit, PurchHistoryImport 
     private const string Department = "DQ-5";
     private const string Missing = "DQ-20";
 
-    private record struct LineKey(string OrderNo, int Suffix);
+    private record struct LineKey(string OrderNo, int Suffix, string RequestNo, int RequestSuffix);
 
     private sealed class Line
     {
@@ -111,6 +113,7 @@ public sealed class PurchDocumentMigration(AuditScope audit, PurchHistoryImport 
             var good = line.Receipts.Where(r => !IsFailed(r)).ToList();
             var waiting = (decimal)(line.Waiting?.Number("PO_QTY") ?? 0);
             var ordered = line.Waiting is not null ? good.Sum(r => Qty(r, "RE_QTY")) + waiting : Qty(line.Receipts[0], "PO_QTY");
+            var closed = line.Waiting is null && ordered - good.Sum(r => Qty(r, "RE_QTY")) > 0;
             var requested = new[] { line.Waiting }.Concat(line.Receipts).OfType<LegacyRow>().Select(r => r.Number("PR_QTY")).FirstOrDefault(q => q is > 0) is { } pr ? (decimal)pr : ordered;
             var price = Round4(head.Number("U_PRICE") ?? 0);
             var requestNo = head.Text("PR_NO")!;
@@ -135,7 +138,7 @@ public sealed class PurchDocumentMigration(AuditScope audit, PurchHistoryImport 
             }
             var net = (decimal)((double)price * (double)ordered);
             orderLines.Add((requestNo, new OrderLineBuilt(line.Key, requestNo, requestKey, material, head.Text("MTR_NAME") ?? material.Name, head.Text("MTR_UNIT") ?? material.Unit, requested, ordered, price, net,
-                Round2(head.Number("TAX") ?? (double)net), Date(head, "DELI_D"), departmentId, receipts, head), line));
+                Round2(head.Number("TAX") ?? (double)net), Date(head, "DELI_D"), departmentId, receipts, head, closed), line));
             if (line.Waiting is not null && DateOnly.FromDateTime(head.Date("PO_DATE")!.Value).AddYears(1) < today)
                 report.Add(waitingTable, line.Key.OrderNo, StaleOrder, $"ใบสั่งซื้อค้างรับเกิน 1 ปี (ลำดับ {line.Key.Suffix}) — ย้ายตามเดิม รอคำตัดสินปิดหรือคงไว้ (ข้อเสนอ Q-12)", "โหลดตามเดิม");
             historyTally.Loaded += receipts.Count;
@@ -168,7 +171,7 @@ public sealed class PurchDocumentMigration(AuditScope audit, PurchHistoryImport 
                     head.Text("SUP_ADD1"), head.Text("SUP_ADD2"), head.Text("SUP_TEL"), head.Text("SUP_FAX"), Credit(head.Text("CREDIT_D")), chargesVat, head.Text("PUR"), head.Text("REMARK"), head.Text("MEM"),
                     calc.Subtotal, calc.Tax, total,
                     built.Select(b => new ImportedOrderLine(b.RequestNo, b.RequestKey, b.Key.Suffix, b.Material.Id, b.Name, b.Unit, b.Requested, b.Quantity, b.Price, b.Net, b.TaxIncluded, b.Desired,
-                        b.DepartmentId, b.Receipts)).ToList()));
+                        b.DepartmentId, b.Receipts, b.Closed)).ToList()));
             }
         }
         await import.DeleteDocumentsAsync();
@@ -199,7 +202,7 @@ public sealed class PurchDocumentMigration(AuditScope audit, PurchHistoryImport 
 
     private sealed record OrderLineBuilt(
         LineKey Key, string RequestNo, string RequestKey, MaterialDto Material, string Name, string? Unit, decimal Requested, decimal Quantity, decimal Price, decimal Net, decimal TaxIncluded,
-        DateOnly? Desired, int DepartmentId, IReadOnlyList<ImportedReceipt> Receipts, LegacyRow Head);
+        DateOnly? Desired, int DepartmentId, IReadOnlyList<ImportedReceipt> Receipts, LegacyRow Head, bool Closed);
 
     private sealed class Tally
     {
@@ -214,7 +217,7 @@ public sealed class PurchDocumentMigration(AuditScope audit, PurchHistoryImport 
 
     private static bool TryKey(LegacyRow row, out LineKey key)
     {
-        key = new LineKey(row.Text("PO_NO") ?? "", Int(row, "PO_SUF"));
+        key = new LineKey(row.Text("PO_NO") ?? "", Int(row, "PO_SUF"), row.Text("PR_NO") ?? "", Int(row, "PR_SUF"));
         return key.OrderNo.Length > 0;
     }
 

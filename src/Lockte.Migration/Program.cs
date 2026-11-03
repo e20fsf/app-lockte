@@ -87,6 +87,18 @@ if (options.Program == MigrationOptions.CashCompareProgram)
     Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
     return cashComparison.Passed ? 0 : 1;
 }
+if (options.Program == MigrationOptions.PurchCompareProgram)
+{
+    if (options.CutDate is not null) await GoLiveGuard.EnsureNotLiveAsync(options.ConnectionString); // the rehearsal cut writes: never on a database people work in
+    Console.WriteLine($"เทียบวัตถุดิบกับ baseline ใน {options.BaselineFolder}{(options.CutDate is { } rehearse ? $" (ซ้อมตัดสต็อก {rehearse.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)})" : "")} …");
+    var purchMap = options.CodeMapFile is null ? CodeMap.Empty : CodeMap.Read(options.CodeMapFile);
+    var purchComparison = await PurchComparison.RunAsync(services, options.BaselineFolder!, purchMap, options.CutDate);
+    PurchComparison.WriteTo(options.OutputFolder, purchComparison);
+    foreach (var gate in purchComparison.Gate)
+        Console.WriteLine($"{gate.Id,-14} {(gate.Passed is null ? "ตรวจด้วยตา" : gate.Passed.Value ? "ผ่าน" : "ไม่ผ่าน"),-11} {gate.Check} — ควรได้ {gate.Expected} ได้ {gate.Actual}");
+    Console.WriteLine($"รายงานอยู่ใน {Path.GetFullPath(options.OutputFolder)}");
+    return purchComparison.Passed ? 0 : 1;
+}
 if (options.Program == MigrationOptions.ComparePeriodProgram)
 {
     if (options.Calculate) await GoLiveGuard.EnsureNotLiveAsync(options.ConnectionString);
