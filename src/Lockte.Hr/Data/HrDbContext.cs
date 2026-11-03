@@ -55,7 +55,8 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             e.Property(x => x.Position).HasMaxLength(18).HasAuditName("ตำแหน่ง");
             e.Property(x => x.Duty).HasMaxLength(255).HasAuditName("หน้าที่");
             e.Property(x => x.EmployeeType).HasAuditName("ประเภท");
-            e.Property(x => x.Salary).HasAuditName("เงินเดือน");
+            // #392 (UAT-21): เงินเดือน is a whole number of baht too, rounded the same way as ค่าแรง/วัน.
+            e.Property(x => x.Salary).HasConversion(v => Rounding.RndA(v), v => Rounding.RndA(v)).HasAuditName("เงินเดือน");
             // #354 (UAT-18): ค่าแรง/วัน is a whole number of baht (half up) wherever it is read or written — rounded here, once, so the
             // screens, the documents and the pay calculation all use the same value.
             e.Property(x => x.DailyWage).HasConversion(v => Rounding.RndA(v), v => Rounding.RndA(v)).HasAuditName("ค่าแรง/วัน");

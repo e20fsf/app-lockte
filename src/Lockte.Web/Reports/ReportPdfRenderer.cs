@@ -59,7 +59,25 @@ public sealed class ReportPdfRenderer(IOptions<ReportOptions> options, ILogger<R
     }
 
     /// <summary>One PDF of <paramref name="html"/> (from <see cref="ReportHtml.Compose"/>) on <paramref name="paper"/>.</summary>
-    public async Task<byte[]> RenderAsync(string html, Paper paper, CancellationToken cancellationToken = default)
+    public Task<byte[]> RenderAsync(string html, Paper paper, CancellationToken cancellationToken = default)
+        => UsePageAsync(html, paper, page => page.PdfAsync(new() { PreferCSSPageSize = true, PrintBackground = true }), cancellationToken);
+
+    /// <summary>
+    /// The cells of <paramref name="html"/> that print on more than one line (#392): laid out exactly as for the PDF, then each
+    /// cell's text is measured line by line. A line break written into the cell (<c>&lt;br&gt;</c>) is not a wrap. Empty = every cell is one line.
+    /// </summary>
+    public Task<string[]> WrappedCellsAsync(string html, Paper paper, CancellationToken cancellationToken = default)
+        => UsePageAsync(html, paper, page => page.EvaluateAsync<string[]>(
+            @"() => [...document.querySelectorAll('td,th')].filter(c => {
+                const lines = new Set();
+                const r = document.createRange();
+                const walk = n => { if (n.nodeType === 3) { r.selectNodeContents(n); for (const q of r.getClientRects()) lines.add(Math.round(q.top)); } else n.childNodes.forEach(walk); };
+                const parts = []; let part = null;
+                for (const n of c.childNodes) { if (n.nodeName === 'BR') { part = null; continue; } if (!part) { part = []; parts.push(part); } part.push(n); }
+                return parts.some(p => { lines.clear(); p.forEach(walk); return lines.size > 1; });
+            }).map(c => c.textContent.trim())"), cancellationToken);
+
+    private async Task<T> UsePageAsync<T>(string html, Paper paper, Func<IPage, Task<T>> use, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         await slots.WaitAsync(cancellationToken);
@@ -77,9 +95,9 @@ public sealed class ReportPdfRenderer(IOptions<ReportOptions> options, ILogger<R
             await page.EvaluateAsync("() => { delete window.lockteFitToPage; }");
             await page.SetContentAsync(html, new() { WaitUntil = WaitUntilState.Load, Timeout = timeout });
             await page.EvaluateAsync("async () => { await document.fonts.ready; window.lockteFitToPage?.(); }");
-            var pdf = await page.PdfAsync(new() { PreferCSSPageSize = true, PrintBackground = true });
+            var result = await use(page);
             ok = true;
-            return pdf;
+            return result;
         }
         finally
         {
