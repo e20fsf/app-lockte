@@ -50,12 +50,13 @@ public sealed class ReportLayoutTests
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "</style>"));
     }
 
-    [Fact] // ตารางกว้างเกิน → ย่อพอดีหน้า; ข้อความยาว → ตัดบรรทัด
-    public void Wide_tables_shrink_to_the_page_and_long_text_wraps()
+    [Fact] // ตารางกว้างเกิน → ย่อพอดีหน้า; ข้อความยาว → ไม่ตัดบรรทัด (#392)
+    public void Wide_tables_shrink_to_the_page_and_long_text_stays_on_one_line()
     {
         var html = ReportHtml.Compose(new ReportDocument("x", Paper.A4Portrait), Stamp, "");
 
-        Assert.Contains("overflow-wrap:anywhere", html);
+        Assert.Contains("td{padding:0 4pt;vertical-align:top;white-space:nowrap}", html);
+        Assert.DoesNotContain("overflow-wrap:anywhere", html);
         Assert.Contains(ReportHtml.FitToPageScript, html);
     }
 

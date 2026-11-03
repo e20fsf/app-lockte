@@ -25,7 +25,7 @@ public sealed record PrintStamp(DateTimeOffset PrintedAt, string PrintedBy);
 /// margin boxes, so they repeat on every page, use the document's own font (Chromium's header/footer templates cannot
 /// load it, #21) and count pages: หัว "บริษัท ล็อคเต้ จำกัด" + ชื่อเอกสาร กลาง, เลขเอกสารควบคุม ขวาบน, ไม่มีโลโก้;
 /// ท้าย วันเวลาที่พิมพ์ + ผู้พิมพ์ ซ้าย, "หน้า x จาก y" ขวา. A body wider than the page is shrunk to fit
-/// (<see cref="FitToPageScript"/>); long text wraps instead of being cut (D-1, D-4).
+/// (<see cref="FitToPageScript"/>); cells never wrap or get cut: a too-long column shrinks its font (#392, D-1, D-4).
 /// </summary>
 public static class ReportHtml
 {
@@ -44,7 +44,23 @@ public static class ReportHtml
     /// is the page's printable width, so a wider body is zoomed down to it (no columns pushed to another page, D-4).
     /// </summary>
     public const string FitToPageScript =
-        "window.lockteFitToPage=()=>{const b=document.body;const w=b.scrollWidth,a=document.documentElement.clientWidth;if(w>a+1)b.style.zoom=a/w;};";
+        "window.lockteFitToPage=()=>{const b=document.body,a=document.documentElement.clientWidth;" + FitCellsScript
+        + "const w=b.scrollWidth;if(w>a+1)b.style.zoom=a/w;};";
+
+    /// <summary>
+    /// Cells never wrap (#392): when a table runs past the page, the font of its widest column shrinks (to 70 % at most, the whole
+    /// column alike) until it fits; only what is still too wide after that is zoomed down with the page.
+    /// </summary>
+    private const string FitCellsScript =
+        "const wide=t=>t.getBoundingClientRect().right>a+1;"
+        + "const textWidth=c=>{const r=document.createRange();r.selectNodeContents(c);return r.getBoundingClientRect().width;};"
+        + "for(const t of document.querySelectorAll('table')){const cols=new Map();"
+        + "for(const c of t.querySelectorAll('td,th'))if(c.colSpan===1&&c.closest('table')===t){const i=c.cellIndex;if(!cols.has(i))cols.set(i,{cells:[],scale:1});cols.get(i).cells.push(c);}"
+        + "for(let n=0;n<40&&wide(t);n++){let best=null,bw=0;"
+        + "for(const col of cols.values()){if(col.scale<=0.7)continue;const m=Math.max(...col.cells.map(textWidth));if(m>bw){bw=m;best=col;}}"
+        + "if(!best)break;const over=t.getBoundingClientRect().right-a;"
+        + "const next=Math.max(0.7,best.scale*Math.min(0.95,Math.max(0.7,1-over/bw)));"
+        + "for(const c of best.cells)c.style.fontSize=(next*100)+'%';best.scale=next;}}";
 
     /// <summary>Margins in mm: top leaves room for the two header lines, bottom for the footer.</summary>
     public const double MarginTop = 24, MarginSide = 12, MarginBottom = 15;
@@ -98,8 +114,8 @@ public static class ReportHtml
         + ".sub{text-align:center;margin:0 0 6pt;white-space:pre-wrap}"
         + "table{border-collapse:collapse;width:100%}"
         + "thead{display:table-header-group}"
-        + "th{font-weight:bold;text-align:left;border-bottom:1.5pt solid #000;padding:1pt 4pt;vertical-align:bottom}"
-        + "td{padding:0 4pt;vertical-align:top;overflow-wrap:anywhere}"
+        + "th{white-space:nowrap;font-weight:bold;text-align:left;border-bottom:1.5pt solid #000;padding:1pt 4pt;vertical-align:bottom}"
+        + "td{padding:0 4pt;vertical-align:top;white-space:nowrap}"
         + "tr{break-inside:avoid}"
         + ".num{text-align:right;white-space:nowrap}"
         + ".nw{white-space:nowrap}"

@@ -25,10 +25,10 @@ public static class EmployeeListTables
     public static SummaryTable Roster(DepartmentRoster roster)
         => new(roster.Title, null,
             [new("ลำดับ", SummaryFormat.Integer), new("รหัส"), new("ชื่อ-นามสกุล"), new("เริ่มทำงาน"), new("ตำแหน่ง"), new("อายุงาน(ปี)", SummaryFormat.Integer),
-             new("(เดือน)", SummaryFormat.Integer), new("อายุ", SummaryFormat.Integer), new("เงินเดือน", SummaryFormat.Money), new("รายวัน", SummaryFormat.Money)],
+             new("(เดือน)", SummaryFormat.Integer), new("อายุ", SummaryFormat.Integer), new("เงินเดือน", SummaryFormat.Integer), new("รายวัน", SummaryFormat.Money)],
             roster.Lines.Select((l, i) => new object?[]
             {
-                i + 1, l.Code, l.Name, Date(l.StartDate), l.Position, l.ServiceYears, l.ServiceMonths, l.Age, Money(l.Salary), Wage(l.DailyWage),
+                i + 1, l.Code, l.Name, Date(l.StartDate), l.Position, l.ServiceYears, l.ServiceMonths, l.Age, Whole(l.Salary), Money(l.DailyWage),
             }).ToList(),
             [null, $"รวม {roster.Lines.Count} คน   ชาย {roster.Male} คน   หญิง {roster.Female} คน", null, null, null, null, null, Whole(roster.AverageAge), null, null]);
 
@@ -55,11 +55,8 @@ public static class EmployeeListTables
 
     private static string? Date(DateOnly? date) => date is { } d ? ReportText.Date(d) : null;
 
-    /// <summary>ค่าแรง/วัน as a whole number (#354).</summary>
-    private static decimal Wage(double value) => Math.Round((decimal)value, 0, MidpointRounding.AwayFromZero);
-
+    /// <summary>A whole number as the report prints it (<see cref="EmployeeListText.Whole"/>): half away from zero.</summary>
     private static decimal Money(double value) => Math.Round((decimal)value, 2, MidpointRounding.AwayFromZero);
 
-    /// <summary>A whole number as the report prints it (<see cref="EmployeeListText.Whole"/>): half away from zero.</summary>
     private static decimal? Whole(double? value) => value is { } v ? Math.Round((decimal)v, 0, MidpointRounding.AwayFromZero) : null;
 }
