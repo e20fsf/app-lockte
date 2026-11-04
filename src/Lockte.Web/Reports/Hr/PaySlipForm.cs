@@ -30,6 +30,9 @@ public static class PaySlipForm
     /// #353: the rule under the totals heads sat at 65.21, where the second line of "กองทุนสงเคราะห์ / ลูกจ้าง (0.25%)" stood on it; it
     /// moved down to give two lines of 10 pt room (the values row below keeps its place).
     /// </summary>
+    /// <summary>#397: where the payee's name stands under the ผู้รับเงิน line — from the label's left (39.79) to just before แผนกบุคคล (78.37).</summary>
+    private const double PayeeCentre = 58.4, PayeeBaseline = 85.2, PayeeWidth = 37.5;
+
     private const double TotalsHeadBottom = 66.6;
 
     /// <summary>The rules between the thirteen columns of the time and wage heads (วันปกติ … OTวันหยุด), left to right.</summary>
@@ -133,6 +136,8 @@ public static class PaySlipForm
         // ลงนาม: ผู้รับเงิน on its own line; แผนกบุคคล and ผู้จัดการโรงงาน by name or signature picture
         const double sign = 79.46;
         T(39.79, sign, "ผู้รับเงิน"); page.Line(50.37, top + 79.2, 77.06, top + 79.2, 0.1);
+        // #397: the employee's own name under the line, the one printed at ชื่อ-นามสกุล; centred, squeezed to the space before แผนกบุคคล
+        T(PayeeCentre, PayeeBaseline, s.Name, TextAnchor.Middle, fit: PayeeWidth);
         T(78.37, sign, "แผนกบุคคล"); page.Line(93.06, top + 79.4, 119.79, top + 79.4, 0.1);
         T(124.82, sign, "ผู้จัดการโรงงาน"); page.Line(143.48, top + 79.4, 170.17, top + 79.4, 0.1);
         Signer(page, top, batch.Signer(SlipSignerRole.HrDepartment), 93.06, 119.79, 94.06);
