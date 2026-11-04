@@ -69,19 +69,25 @@ public static class ReportFonts
 /// </summary>
 public sealed class ReportFontResolver(IOptions<ReportOptions> options, ILogger<ReportFontResolver> logger)
 {
-    private readonly Dictionary<ReportProgram, bool> lastInstalled = [];
+    private readonly Dictionary<string, bool> lastInstalled = [];
 
     /// <summary>Whether the machine has a font by this family name; replaced in tests.</summary>
     public Func<string, bool> IsInstalled { get; init; } = InstalledFonts.Has;
 
-    public ReportFont For(ReportProgram program)
+    /// <summary>The key of the setting for programs without their own.</summary>
+    public const string DefaultKey = "Default";
+
+    public ReportFont For(ReportProgram? program)
     {
-        if (!options.Value.ProgramFonts.TryGetValue(program.ToString(), out var key) || string.IsNullOrWhiteSpace(key))
+        var map = options.Value.ProgramFonts;
+        if (!(program is { } p && map.TryGetValue(p.ToString(), out var key) && !string.IsNullOrWhiteSpace(key))
+            && !map.TryGetValue(DefaultKey, out key))
             return ReportFonts.ThSarabunNew;
+        var which = program?.ToString() ?? DefaultKey;
         var font = ReportFonts.ByKey(key);
         if (font is null)
         {
-            logger.LogWarning("Reports:ProgramFonts:{Program} = '{Key}' is not a known font (THSarabunNew, AngsanaNew); printing in THSarabunNew", program, key);
+            logger.LogWarning("Reports:ProgramFonts:{Program} = '{Key}' is not a known font (THSarabunNew, AngsanaNew); printing in THSarabunNew", which, key);
             return ReportFonts.ThSarabunNew;
         }
         if (font.Key != ReportFonts.AngsanaNewKey) return font;
@@ -89,11 +95,11 @@ public sealed class ReportFontResolver(IOptions<ReportOptions> options, ILogger<
         var installed = IsInstalled("Angsana New");
         lock (lastInstalled)
         {
-            if (!lastInstalled.TryGetValue(program, out var before) || before != installed)
+            if (!lastInstalled.TryGetValue(which, out var before) || before != installed)
             {
-                lastInstalled[program] = installed;
-                if (installed) logger.LogInformation("Font Angsana New found; {Program} documents print in it", program);
-                else logger.LogWarning("Font Angsana New is NOT installed on this server; {Program} documents print in THSarabunNew instead. Install Angsana New (Windows Fonts) to print in it", program);
+                lastInstalled[which] = installed;
+                if (installed) logger.LogInformation("Font Angsana New found; {Program} documents print in it", which);
+                else logger.LogWarning("Font Angsana New is NOT installed on this server; {Program} documents print in THSarabunNew instead. Install Angsana New (Windows Fonts) to print in it", which);
             }
         }
         return installed ? font : ReportFonts.ThSarabunNew;

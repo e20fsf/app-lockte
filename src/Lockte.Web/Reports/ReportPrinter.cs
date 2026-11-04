@@ -21,7 +21,7 @@ public sealed class ReportPrinter(ReportPdfRenderer pdf, DocumentNumberService d
         var number = documentKey is null ? null : await documentNumbers.PrintedTextAsync(documentKey);
         var body = await ReportBody.RenderAsync<TReport>(parameters);
         var html = ReportHtml.Compose(new ReportDocument(title, paper, number), new PrintStamp(clock.GetLocalNow(), printedBy), body,
-            (program ?? ProgramOf(typeof(TReport))) is { } p ? fonts.For(p) : null);
+            fonts.For(program ?? ProgramOf(typeof(TReport))));
         return await pdf.RenderAsync(html, paper, cancellationToken);
     }
 

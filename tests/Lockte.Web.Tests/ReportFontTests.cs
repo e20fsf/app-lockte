@@ -16,6 +16,11 @@ internal static class TestFonts
 
     public static ReportFont Hr => Resolver().For(ReportProgram.Hr);
 
+    /// <summary>The font of programs without their own setting — every program by default.</summary>
+    public static ReportFont Default => Resolver().For(null);
+
+    public static string DefaultPdfName => Default.Key == ReportFonts.AngsanaNewKey ? "Angsana" : "THSarabunNew";
+
     /// <summary>What the PDF names the HR font: Chromium embeds the PostScript name of a local font.</summary>
     public static string HrPdfName => Hr.Key == ReportFonts.AngsanaNewKey ? "Angsana" : "THSarabunNew";
 }
@@ -34,22 +39,23 @@ public sealed class ReportFontTests(ChromiumFixture chromium)
     }
 
     [Fact]
-    public void Hr_prints_in_Angsana_New_by_default_and_everything_else_in_TH_Sarabun_New()
+    public void Every_program_prints_in_Angsana_New_by_default()
     {
         var resolver = TestFonts.Resolver(installed: _ => true);
 
-        Assert.Equal(ReportFonts.AngsanaNewKey, resolver.For(ReportProgram.Hr).Key);
-        foreach (var other in new[] { ReportProgram.Order, ReportProgram.Prod, ReportProgram.Purch, ReportProgram.Calib, ReportProgram.Cash })
-            Assert.Equal(ReportFonts.ThSarabunNewKey, resolver.For(other).Key);
+        foreach (var program in Enum.GetValues<ReportProgram>())
+            Assert.Equal(ReportFonts.AngsanaNewKey, resolver.For(program).Key);
+        Assert.Equal(ReportFonts.AngsanaNewKey, resolver.For(null).Key);
     }
 
     [Fact] // the one setting that switches back
     public void One_setting_switches_a_program_back_or_over()
     {
-        var options = new ReportOptions { ProgramFonts = new(StringComparer.OrdinalIgnoreCase) { ["Hr"] = "THSarabunNew", ["Cash"] = "AngsanaNew" } };
+        var options = new ReportOptions { ProgramFonts = new(StringComparer.OrdinalIgnoreCase) { ["Default"] = "THSarabunNew", ["Cash"] = "AngsanaNew" } };
         var resolver = TestFonts.Resolver(options, _ => true);
 
         Assert.Equal(ReportFonts.ThSarabunNewKey, resolver.For(ReportProgram.Hr).Key);
+        Assert.Equal(ReportFonts.ThSarabunNewKey, resolver.For(null).Key);
         Assert.Equal(ReportFonts.AngsanaNewKey, resolver.For(ReportProgram.Cash).Key);
     }
 

@@ -15,4 +15,4 @@
 - เพิ่มน้ำหนักฟอนต์: ใส่ไฟล์ใน `wwwroot/fonts/` แล้วเพิ่ม `@font-face` ใน `app.css`
 - กล่อง การ์ด เงา: ปรับ `--lk-radius`, `--lk-shadow`
 - หน้าใหม่ใช้ `MudPaper Outlined`, `MudTable`, `MudButton` ตามปกติ ได้หน้าตาเดียวกันเอง
-- ห้ามเอา theme นี้ไปใช้กับเอกสารพิมพ์/PDF (`Reports/`) — ใช้ฟอนต์ตามโปรแกรม (`Reports:ProgramFonts` — พนักงานและค่าแรง = Angsana New จากฟอนต์ของ server, อื่น ๆ = TH Sarabun New) และวางตำแหน่งตามแบบเดิม
+- ห้ามเอา theme นี้ไปใช้กับเอกสารพิมพ์/PDF (`Reports/`) — ใช้ฟอนต์ตามโปรแกรม (`Reports:ProgramFonts` — ทุกโปรแกรม = Angsana New จากฟอนต์ของ server, สลับกลับ TH Sarabun New ได้ด้วย `Reports:ProgramFonts:Default`) และวางตำแหน่งตามแบบเดิม

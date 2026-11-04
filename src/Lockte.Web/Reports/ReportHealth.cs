@@ -13,9 +13,9 @@ public static class ReportHealth
     public const string Path = "/health/reports";
 
     /// <summary>The test page: the stacked vowels and tone marks that break first when shaping goes wrong.</summary>
-    public static string Html() => FormHtml.Compose("ตรวจระบบพิมพ์รายงาน", Paper.A4Portrait,
+    public static string Html(ReportFont? font = null) => FormHtml.Compose("ตรวจระบบพิมพ์รายงาน", Paper.A4Portrait,
         "<div class=\"page\"><div class=\"t\" style=\"left:20mm;top:20mm;font-size:16pt\">"
-        + "ตรวจระบบพิมพ์รายงาน — ปิ่น ปี๊บ ฟ้า ฝั่ง น้ำ ผู้ใหญ่ ญี่ปุ่น ฐิติ ฎีกา ฤๅษี ศักดิ์ฤทธิ์ ๑๒๓๔๕</div></div>");
+        + "ตรวจระบบพิมพ์รายงาน — ปิ่น ปี๊บ ฟ้า ฝั่ง น้ำ ผู้ใหญ่ ญี่ปุ่น ฐิติ ฎีกา ฤๅษี ศักดิ์ฤทธิ์ ๑๒๓๔๕</div></div>", font);
 
     /// <summary>A request from the server itself: no remote address (in-process) or a loopback one (IIS on the same machine).</summary>
     public static bool IsLocal(HttpContext http) => http.Connection.RemoteIpAddress is not { } remote || IPAddress.IsLoopback(remote);
@@ -28,9 +28,9 @@ public static class ReportHealth
             var watch = Stopwatch.StartNew();
             try
             {
-                var bytes = await renderer.RenderAsync(Html(), Paper.A4Portrait, cancellationToken);
+                var bytes = await renderer.RenderAsync(Html(fonts.For(null)), Paper.A4Portrait, cancellationToken);
                 if (pdf is "1" or "true") return Results.File(bytes, "application/pdf", "health-reports.pdf");
-                var programFonts = Enum.GetValues<ReportProgram>().ToDictionary(p => p.ToString(), p => fonts.For(p).Key); // what each program really prints in (#395)
+                var programFonts = Enum.GetValues<ReportProgram>().ToDictionary(p => p.ToString(), p => fonts.For(p).Key); programFonts["Default"] = fonts.For(null).Key; // what each program really prints in (#395)
                 return Results.Ok(new { ok = true, ms = watch.ElapsedMilliseconds, bytes = bytes.Length, fonts = programFonts });
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

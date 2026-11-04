@@ -44,7 +44,14 @@ public static class ReportHtml
     /// is the page's printable width, so a wider body is zoomed down to it (no columns pushed to another page, D-4).
     /// </summary>
     public const string FitToPageScript =
-        "window.lockteFitToPage=()=>{const b=document.body;const w=b.scrollWidth,a=document.documentElement.clientWidth;if(w>a+1)b.style.zoom=a/w;};";
+        "window.lockteFitToPage=()=>{const b=document.body;const A=()=>document.documentElement.clientWidth;"
+        // one item is one line (#395): a table wider than the page first shrinks the font of its widest column (down to 70%),
+        // so one long remark does not shrink the whole report; whatever is still too wide is zoomed down to the page
+        + "for(let i=0;i<40&&b.scrollWidth>A()+1;i++){let best=null,bw=0;"
+        + "for(const t of document.querySelectorAll('table')){const cols=[];for(const c of t.querySelectorAll('td,th')){if(c.colSpan>1)continue;(cols[c.cellIndex]??=[]).push(c);}"
+        + "cols.forEach(cs=>{const w=Math.max(...cs.map(c=>c.scrollWidth));const f=parseFloat(getComputedStyle(cs[0]).fontSize);const base=+(cs[0].dataset.fs0??f);if(w>bw&&f>base*0.7+0.1){bw=w;best=cs;}});}"
+        + "if(!best)break;for(const c of best){c.dataset.fs0??=parseFloat(getComputedStyle(c).fontSize);c.style.fontSize=(parseFloat(getComputedStyle(c).fontSize)*0.94)+'px';}}"
+        + "const w=b.scrollWidth,a=A();if(w>a+1)b.style.zoom=a/w;};";
 
     /// <summary>Margins in mm: top leaves room for the two header lines, bottom for the footer.</summary>
     public const double MarginTop = 24, MarginSide = 12, MarginBottom = 15;
@@ -97,8 +104,8 @@ public static class ReportHtml
         + ".sub{text-align:center;margin:0 0 6pt;white-space:pre-wrap}"
         + "table{border-collapse:collapse;width:100%}"
         + "thead{display:table-header-group}"
-        + "th{font-weight:bold;text-align:left;border-bottom:1.5pt solid #000;padding:1pt 4pt;vertical-align:bottom}"
-        + "td{padding:0 4pt;vertical-align:top;overflow-wrap:anywhere}"
+        + "th{white-space:nowrap;font-weight:bold;text-align:left;border-bottom:1.5pt solid #000;padding:1pt 4pt;vertical-align:bottom}"
+        + "td{padding:0 4pt;vertical-align:top;white-space:nowrap}"
         + "tr{break-inside:avoid}"
         + ".num{text-align:right;white-space:nowrap}"
         + ".nw{white-space:nowrap}"

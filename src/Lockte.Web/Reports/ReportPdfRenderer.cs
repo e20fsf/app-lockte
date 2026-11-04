@@ -31,11 +31,11 @@ public sealed class ReportOptions
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(90);
 
     /// <summary>
-    /// The font each program's documents are printed in (#395), by <see cref="ReportProgram"/> name: <c>THSarabunNew</c> or
-    /// <c>AngsanaNew</c> (installed on the server, not shipped). A program not listed prints in THSarabunNew. To go back for
-    /// the HR programme set <c>Reports:ProgramFonts:Hr</c> to <c>THSarabunNew</c>.
+    /// The font each program's documents are printed in (#395), by <see cref="ReportProgram"/> name, <c>Default</c> for every
+    /// program not listed: <c>THSarabunNew</c> or <c>AngsanaNew</c> (installed on the server, not shipped). All programs print in
+    /// Angsana New; to go back for all, set <c>Reports:ProgramFonts:Default</c> to <c>THSarabunNew</c>, or one program with its own key.
     /// </summary>
-    public Dictionary<string, string> ProgramFonts { get; set; } = new(StringComparer.OrdinalIgnoreCase) { [nameof(ReportProgram.Hr)] = ReportFonts.AngsanaNewKey };
+    public Dictionary<string, string> ProgramFonts { get; set; } = new(StringComparer.OrdinalIgnoreCase) { [ReportFontResolver.DefaultKey] = ReportFonts.AngsanaNewKey };
 }
 
 /// <summary>
@@ -195,7 +195,7 @@ internal sealed class ReportWarmUp(ReportPdfRenderer renderer, ReportFontResolve
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        foreach (var program in Enum.GetValues<ReportProgram>()) fonts.For(program); // logs a missing font at startup (#395)
+        fonts.For(null); // logs a missing font at startup (#395)
         if (!options.Value.WarmUpOnStart) return;
         try
         {
