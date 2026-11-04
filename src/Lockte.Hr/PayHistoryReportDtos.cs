@@ -68,3 +68,13 @@ public sealed record PayTotalsReport(DateOnly From, DateOnly To, IReadOnlyList<D
 {
     public DepartmentPaySum Sum => new(null, Lines.Sum(l => l.PayNormal), Lines.Sum(l => l.PayOvertime));
 }
+
+/// <summary>
+/// One employee of ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (UAT-23): <see cref="FullName"/> is คำนำหน้า + ชื่อ + สกุล as kept in one field;
+/// <see cref="Wage"/> = ค่าจ้าง of the month-end report (รายเดือน SALARY, อื่น ΣPAY_W).
+/// </summary>
+public sealed record WelfareFundLine(string Code, string FullName, int? Age, string Nationality, string? NationalId, int? EmployeeType,
+    decimal Wage, DateOnly? StartDate, DateOnly? EndDate);
+
+/// <summary>ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง: the employees paid in งวด ending within From–To (month-end filter), by รหัส.</summary>
+public sealed record WelfareFundReport(DateOnly From, DateOnly To, string? DepartmentName, IReadOnlyList<WelfareFundLine> Lines);
