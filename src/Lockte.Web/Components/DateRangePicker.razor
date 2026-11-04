@@ -1,0 +1,52 @@
+@using Lockte.SharedKernel
+@* The one ตั้งแต่วันที่ – ถึงวันที่ pair of every screen (UAT-27, #405). When the start is after the end both boxes turn red and the
+   Thai warning of DateRangeRule shows under ตั้งแต่วันที่; the page keeps its Save/Run button off with DateRangeRule.IsInvalid and the
+   service checks again. By default the two pickers are written one after the other, for the page's own stack (or form row); AsCells
+   writes them as two <td> for a row of a table. *@
+@if (AsCells)
+{
+    <td>@FromPicker</td>
+    <td>@ToPicker</td>
+}
+else
+{
+    @FromPicker
+    @ToPicker
+}
+
+@code {
+    [Parameter] public DateTime? From { get; set; }
+    [Parameter] public EventCallback<DateTime?> FromChanged { get; set; }
+    [Parameter] public DateTime? To { get; set; }
+    [Parameter] public EventCallback<DateTime?> ToChanged { get; set; }
+    /// <summary>After either date has changed (and its own FromChanged / ToChanged ran).</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public string FromLabel { get; set; } = "ตั้งแต่วันที่";
+    [Parameter] public string ToLabel { get; set; } = "ถึงวันที่";
+    [Parameter] public string? Style { get; set; } = "max-width:12rem";
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool AsCells { get; set; }
+
+    private bool Invalid => DateRangeRule.IsInvalid(From, To);
+
+    private async Task ChangeFromAsync(DateTime? value)
+    {
+        From = value;
+        await FromChanged.InvokeAsync(value);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ChangeToAsync(DateTime? value)
+    {
+        To = value;
+        await ToChanged.InvokeAsync(value);
+        await OnChanged.InvokeAsync();
+    }
+
+    private RenderFragment FromPicker => @<MudDatePicker Editable="true" Date="From" DateChanged="ChangeFromAsync" Label="@FromLabel" Culture="ThaiDate.Culture"
+                                                          DateFormat="@ThaiDate.Pattern" Style="@Style" ReadOnly="ReadOnly" Error="Invalid"
+                                                          ErrorText="@DateRangeRule.Message" />;
+
+    private RenderFragment ToPicker => @<MudDatePicker Editable="true" Date="To" DateChanged="ChangeToAsync" Label="@ToLabel" Culture="ThaiDate.Culture"
+                                                        DateFormat="@ThaiDate.Pattern" Style="@Style" ReadOnly="ReadOnly" Error="Invalid" />;
+}

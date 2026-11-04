@@ -66,10 +66,7 @@
                     <MudTabPanel Text="เวลาทำงาน">
                         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
                             <MudText Typo="Typo.h6">เวลาทำงาน</MudText>
-                            <MudDatePicker Editable="true" Date="from" DateChanged="@(async v => { from = v; await ReloadAsync(); })" Label="ตั้งแต่"
-                                           Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
-                            <MudDatePicker Editable="true" Date="to" DateChanged="@(async v => { to = v; await ReloadAsync(); })" Label="ถึง"
-                                           Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" />
+                            <DateRangePicker @bind-From="from" @bind-To="to" FromLabel="ตั้งแต่" ToLabel="ถึง" OnChanged="ReloadAsync" Style="max-width:11rem" />
                         </MudStack>
 
                         <MudSimpleTable Dense="true" Hover="true" Class="mt-2">
@@ -142,13 +139,10 @@
             <MudPaper Outlined="true" Class="pa-4 mt-4">
                 <MudText Typo="Typo.h6" Class="mb-2">ลบข้อมูลทั้งวัน (พนักงานทุกคน)</MudText>
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-                    <MudDatePicker Editable="true" @bind-Date="rangeFrom" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                                   Style="max-width:11rem" />
-                    <MudDatePicker Editable="true" @bind-Date="rangeTo" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                                   Style="max-width:11rem" />
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || rangeFrom is null || rangeTo is null"
+                    <DateRangePicker @bind-From="rangeFrom" @bind-To="rangeTo" Style="max-width:11rem" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || rangeFrom is null || rangeTo is null || DateRangeRule.IsInvalid(rangeFrom, rangeTo)"
                                OnClick="() => DeleteRangeAsync(WorkTypes.Normal)">ลบเวลาปกติทันที</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || rangeFrom is null || rangeTo is null"
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || rangeFrom is null || rangeTo is null || DateRangeRule.IsInvalid(rangeFrom, rangeTo)"
                                OnClick="() => DeleteRangeAsync(WorkTypes.Overtime)">ลบ OT ทันที</MudButton>
                 </MudStack>
                 <MudText Typo="Typo.caption">ลบได้เฉพาะประเภท W และ O1 เหมือนระบบเดิม ประเภทอื่น (S, O2, H, O3) ลบทีละแถวในตาราง</MudText>

@@ -55,8 +55,7 @@
 <MudPaper Class="pa-4 mt-4" Outlined="true" Style="max-width:44rem">
     <MudText Typo="Typo.h6" Class="mb-2">พิมพ์รายงานใบเบิก</MudText>
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <MudDatePicker Editable="true" @bind-Date="reportFrom" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
-        <MudDatePicker Editable="true" @bind-Date="reportTo" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
+        <DateRangePicker @bind-From="reportFrom" @bind-To="reportTo" Style="max-width:14rem" />
         <MudButton Variant="Variant.Outlined" Href="@ReportUrl" Target="_blank" Disabled="@(ReportUrl.Length == 0)" StartIcon="@Icons.Material.Filled.Print">พิมพ์รายงาน</MudButton>
     </MudStack>
 </MudPaper>

@@ -50,9 +50,8 @@
 <MudPaper Class="pa-4 mt-4" Outlined="true">
     <MudText Typo="Typo.h6" Class="mb-2">ลบเป็นช่วงวันที่</MudText>
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <MudDatePicker Editable="true" @bind-Date="rangeFrom" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
-        <MudDatePicker Editable="true" @bind-Date="rangeTo" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
-        <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="DeleteRangeAsync" Disabled="busy || rangeFrom is null || rangeTo is null">ลบ</MudButton>
+        <DateRangePicker @bind-From="rangeFrom" @bind-To="rangeTo" Style="max-width:12rem" />
+        <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="DeleteRangeAsync" Disabled="busy || rangeFrom is null || rangeTo is null || DateRangeRule.IsInvalid(rangeFrom, rangeTo)">ลบ</MudButton>
     </MudStack>
 </MudPaper>
 
