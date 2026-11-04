@@ -156,14 +156,14 @@ public sealed class HrFormTests(ChromiumFixture chromium)
             }),
         };
 
-        var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(FormHtml.Compose(form, paper, body), paper));
+        var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(FormHtml.Compose(form, paper, body, TestFonts.Hr), paper));
 
         Assert.Equal(pages, Regex.Matches(pdf, @"/Type /Page\b").Count);
         var box = Regex.Match(pdf, @"/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]");
         var (width, height) = ReportHtml.PageMillimetres(paper);
         Assert.Equal(width, double.Parse(box.Groups[1].Value, CultureInfo.InvariantCulture) * 25.4 / 72, 0);
         Assert.Equal(height, double.Parse(box.Groups[2].Value, CultureInfo.InvariantCulture) * 25.4 / 72, 0);
-        Assert.Contains("THSarabunNew", pdf);
+        Assert.Contains(TestFonts.HrPdfName, pdf);
     }
 
     [Fact] // ระดับ A has no แบบกลาง header/footer and no margins: the form places everything itself

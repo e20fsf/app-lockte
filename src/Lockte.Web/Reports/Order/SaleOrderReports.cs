@@ -17,14 +17,14 @@ public static class SaleOrderReports
         {
             if (await orders.GetPrintAsync(id) is not { } order) return Results.NotFound("ไม่พบ ORDER ค้างส่งของเลขที่นี้ (ใบที่ส่งครบแล้วพิมพ์ซ้ำไม่ได้)");
             var pages = SaleOrderForm.Layout(order, await numbers.PrintedTextAsync(DocumentKeys.SaleOrder));
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(SaleOrderForm.Title, pages, cancellationToken), "SALE ORDER " + order.OrderNo.Replace('/', '-'));
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Order, SaleOrderForm.Title, pages, cancellationToken), "SALE ORDER " + order.OrderNo.Replace('/', '-'));
         });
 
         // พิมพ์ฟอร์มเปล่า (รายงาน ใบ sale order1)
         group.MapGet("/blank", async (HttpContext http, DocumentNumberService numbers, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             var page = SaleOrderForm.Blank(await numbers.PrintedTextAsync(DocumentKeys.SaleOrder));
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(SaleOrderForm.Title, [page], cancellationToken), "SALE ORDER ฟอร์มเปล่า");
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Order, SaleOrderForm.Title, [page], cancellationToken), "SALE ORDER ฟอร์มเปล่า");
         });
 
         return reports;

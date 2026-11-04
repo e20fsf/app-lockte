@@ -22,7 +22,7 @@ public static class ReportHealth
 
     public static IEndpointRouteBuilder MapReportHealth(this IEndpointRouteBuilder app)
     {
-        app.MapGet(Path, async (HttpContext http, ReportPdfRenderer renderer, string? pdf, CancellationToken cancellationToken) =>
+        app.MapGet(Path, async (HttpContext http, ReportPdfRenderer renderer, ReportFontResolver fonts, string? pdf, CancellationToken cancellationToken) =>
         {
             if (!IsLocal(http)) return Results.NotFound();
             var watch = Stopwatch.StartNew();
@@ -30,7 +30,8 @@ public static class ReportHealth
             {
                 var bytes = await renderer.RenderAsync(Html(), Paper.A4Portrait, cancellationToken);
                 if (pdf is "1" or "true") return Results.File(bytes, "application/pdf", "health-reports.pdf");
-                return Results.Ok(new { ok = true, ms = watch.ElapsedMilliseconds, bytes = bytes.Length });
+                var programFonts = Enum.GetValues<ReportProgram>().ToDictionary(p => p.ToString(), p => fonts.For(p).Key); // what each program really prints in (#395)
+                return Results.Ok(new { ok = true, ms = watch.ElapsedMilliseconds, bytes = bytes.Length, fonts = programFonts });
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

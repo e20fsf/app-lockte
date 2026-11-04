@@ -116,16 +116,15 @@ public static class FormPageHtml
         "window.lockteFitToPage=()=>{for(const t of document.querySelectorAll('text[data-fit]')){const w=+t.dataset.fit;"
         + "if(t.getComputedTextLength()>w){t.setAttribute('textLength',w);t.setAttribute('lengthAdjust','spacingAndGlyphs');}}};";
 
-    public static string Compose(string title, IReadOnlyList<FormPage> pages)
+    public static string Compose(string title, IReadOnlyList<FormPage> pages, ReportFont? font = null)
     {
         if (pages.Count == 0) throw new ArgumentException("A form prints at least one page.", nameof(pages));
         var paper = pages[0].Paper;
-        var css = new StringBuilder();
-        foreach (var (file, weight) in ReportHtml.Fonts)
-            css.Append($"@font-face{{font-family:'THSarabunNew';font-weight:{weight};src:url('{ReportHtml.FontHost}{Uri.EscapeDataString(file)}') format('truetype')}}");
+        font ??= ReportFonts.ThSarabunNew;
+        var css = new StringBuilder(font.FaceCss);
         css.Append($"@page{{size:{ReportHtml.PageSize(paper)};margin:0}}");
         css.Append("html,body{margin:0}");
-        css.Append("svg.page{display:block;break-after:page;font-family:'THSarabunNew';fill:#000;stroke:#000;stroke-width:0}");
+        css.Append($"svg.page{{display:block;break-after:page;font-family:'{font.Family}';" + "fill:#000;stroke:#000;stroke-width:0}");
         css.Append("svg.page:last-child{break-after:auto}");
         css.Append("svg.page text{stroke:none;white-space:pre}");
         css.Append("svg.page rect{fill:none}");

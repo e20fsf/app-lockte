@@ -418,10 +418,10 @@ public sealed class PaySlipPdfTests(ChromiumFixture chromium)
         var slip = new PaySlip("A005", "นางสาวทดสอบ ระบบ", 15, 2, 1, 525, 3, 1.8, 0, 0, 0, 0, 0, 3019, OvertimeParts.None, 0, null);
         var batch = new PaySlipBatch(period, Enumerable.Repeat(slip, 7).ToList(), []);
 
-        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch)), Paper.A4Portrait);
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch), TestFonts.Hr), Paper.A4Portrait);
 
         Assert.Equal(3, Pages(pdf));
-        Assert.Contains("THSarabunNew", System.Text.Encoding.Latin1.GetString(pdf));
+        Assert.Contains(TestFonts.HrPdfName, System.Text.Encoding.Latin1.GetString(pdf));
     }
 
     /// <summary>
@@ -435,7 +435,7 @@ public sealed class PaySlipPdfTests(ChromiumFixture chromium)
         if (string.IsNullOrEmpty(dir) || !File.Exists(Path.Combine(dir, "slips.json"))) return;
         var batch = JsonSerializer.Deserialize<PaySlipBatch>(await File.ReadAllTextAsync(Path.Combine(dir, "slips.json")),
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch)), Paper.A4Portrait);
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch), TestFonts.Hr), Paper.A4Portrait);
         await File.WriteAllBytesAsync(Path.Combine(dir, "slips.pdf"), pdf);
     }
 }

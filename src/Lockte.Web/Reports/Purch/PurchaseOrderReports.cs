@@ -39,7 +39,7 @@ public static class PurchaseOrderReports
             if (await BuildAsync(orders, org, settings, id, ids) is not { } report) return Results.NotFound("ไม่พบใบสั่งซื้อนี้");
             if (report.Lines.Count == 0) return Results.BadRequest("ไม่มีรายการ");
             var pages = PurchaseOrderForm.Layout(report, await numbers.PrintedTextAsync(DocumentKeys.PurchaseOrder), letterhead.Value);
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(PurchaseOrderForm.Title, pages, cancellationToken), "ใบสั่งซื้อ " + report.OrderNo);
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Purch, PurchaseOrderForm.Title, pages, cancellationToken), "ใบสั่งซื้อ " + report.OrderNo);
         });
 
         // พิมพ์ฟอร์มเปล่า
@@ -47,7 +47,7 @@ public static class PurchaseOrderReports
             CancellationToken cancellationToken) =>
         {
             var page = PurchaseOrderForm.Blank(await numbers.PrintedTextAsync(DocumentKeys.PurchaseOrder), letterhead.Value);
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(PurchaseOrderForm.Title, [page], cancellationToken), "ใบสั่งซื้อ ฟอร์มเปล่า");
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Purch, PurchaseOrderForm.Title, [page], cancellationToken), "ใบสั่งซื้อ ฟอร์มเปล่า");
         });
         return reports;
     }

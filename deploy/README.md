@@ -13,6 +13,7 @@
 | ฐานข้อมูล | SQL Server 2025 Standard (เครื่องเดียวกันหรือคนละเครื่องก็ได้) |
 | IIS | สคริปต์ติดตั้งให้เอง ได้แก่ Web-Server, WebSocket และ Application Initialization |
 | .NET | **ASP.NET Core Hosting Bundle .NET 10** ถ้า server ไม่มีอินเทอร์เน็ต ให้ดาวน์โหลดจาก <https://dotnet.microsoft.com/download/dotnet/10.0> (หัวข้อ Hosting Bundle) แล้วใส่ไว้ในโฟลเดอร์ `prereqs\` ของแพ็กเกจ สคริปต์จะติดตั้งให้ |
+| ฟอนต์ | **Angsana New** ต้องติดตั้งบน server (มากับ Windows ที่มีภาษาไทย: `C:\Windows\Fontsngsana.ttc` — ฟอนต์ลิขสิทธิ์ของ Microsoft จึง **ไม่อยู่ในแพ็กเกจ/repo**) เอกสาร PDF ของโปรแกรมพนักงานและค่าแรงพิมพ์ด้วยฟอนต์นี้ ถ้าไม่พบ แอปถอยกลับไปใช้ TH Sarabun New (ในแพ็กเกจ) และเขียน log ระดับ Warning ว่า `Font Angsana New is NOT installed` ตรวจได้ที่ `/health/reports` (ช่อง `fonts`) ถ้าจะสลับกลับเป็น TH Sarabun New เอง ตั้ง `Reports:ProgramFonts:Hr` เป็น `THSarabunNew` ใน `appsettings.json` (หรือ env `Reports__ProgramFonts__Hr`) |
 | ฐานข้อมูล login | **SQL login** ที่สร้างฐานข้อมูลได้ (ครั้งแรกแอปสร้างตารางเอง) หรือถ้า SQL Server อยู่เครื่องเดียวกัน ใช้ Windows authentication ของ app pool (`IIS AppPool\Lockte`) ได้ |
 
 ## 1. สร้างแพ็กเกจ (เครื่องนักพัฒนา)
@@ -100,6 +101,7 @@
 | เปิดเว็บไม่ขึ้น / HTTP 500.30 | `C:\Lockte\logs\stdout_*.log` (log ของแอป) สคริปต์ติดตั้งแสดงท้าย log ให้อัตโนมัติเมื่อเจอ 500.30 |
 | `Login failed for user 'IIS APPPOOL\Lockte'` | ไฟล์ตั้งค่าใช้ Windows authentication แต่ app pool ยังไม่มีสิทธิ์ใน SQL Server ให้รันสคริปต์รุ่นนี้อีกครั้ง (ขั้น 4b ให้สิทธิ์ให้) หรือเปลี่ยนไปใช้ SQL login ด้วย `-SqlUser <login> -ResetSettings` |
 | พิมพ์รายงานไม่ออก | เปิด `http://localhost:8080/health/reports` **บน server** ถ้าได้ `"ok":false` จะมีข้อความ error บอก หรือหาคำว่า `Chromium` ใน stdout log |
+| PDF ของพนักงาน/ค่าแรงเป็นฟอนต์ TH Sarabun New ไม่ใช่ Angsana New | log มีคำเตือน `Font Angsana New is NOT installed` → ติดตั้งฟอนต์ Angsana New บน server (Settings → Fonts หรือคัดลอก `angsana.ttc` ไป `C:\Windows\Fonts`) แล้ว recycle app pool หรือสั่งพิมพ์ใหม่ (แอปตรวจทุกครั้งที่พิมพ์) |
 | หน้าจอขึ้น reconnect บ่อย | ตรวจว่า IIS เปิด WebSocket แล้ว (สคริปต์ติดตั้งให้) และเครือข่าย/VPN ไม่หลุด |
 | ลืมรหัส admin | `.\Install-Lockte.ps1 -ResetAdmin` แล้วตั้งรหัสชั่วคราวใหม่ |
 

@@ -90,7 +90,7 @@ public static class OnboardingReports
             if (await directory.GetEmployeeAsync(id) is not { } employee) return Results.NotFound("ไม่พบพนักงาน");
             var page = OnboardingForms.HiringForm(employee, new HiringFormInput(ParseDate(applied), ParseDate(interviewed)),
                 await numbers.PrintedTextAsync(DocumentKeys.ProbationForm));
-            return Pdf(http, await printer.PrintFormAsync(OnboardingForms.HiringTitle, [page], ct), $"{OnboardingForms.HiringTitle} {employee.Code}");
+            return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, OnboardingForms.HiringTitle, [page], ct), $"{OnboardingForms.HiringTitle} {employee.Code}");
         });
 
         // RPT-56 สัญญาจ้างแรงงานรายเดือน (ประเภท รายเดือน) / รายวัน (everyone else): ระดับ A, A4 ตั้ง.
@@ -102,7 +102,7 @@ public static class OnboardingReports
             var key = monthly ? DocumentKeys.MonthlyContract : DocumentKeys.DailyContract;
             var page = OnboardingForms.Contract(employee, monthly, DateOnly.FromDateTime(clock.GetLocalNow().DateTime),
                 await numbers.PrintedTextAsync(key));
-            return Pdf(http, await printer.PrintFormAsync(OnboardingForms.ContractTitle, [page], ct),
+            return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, OnboardingForms.ContractTitle, [page], ct),
                 $"สัญญาจ้างแรงงาน{(monthly ? "รายเดือน" : "รายวัน")} {employee.Code}");
         });
 
@@ -122,7 +122,7 @@ public static class OnboardingReports
                 OnboardingForms.Evaluation(employee, input, stats, today, await numbers.PrintedTextAsync(DocumentKeys.ProbationEvaluation)),
                 OnboardingForms.Request(employee, await numbers.PrintedTextAsync(DocumentKeys.ProbationRequest)),
             ];
-            return Pdf(http, await printer.PrintFormAsync(OnboardingForms.ProbationTitle, pages, ct), $"{OnboardingForms.ProbationTitle} {employee.Code}");
+            return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, OnboardingForms.ProbationTitle, pages, ct), $"{OnboardingForms.ProbationTitle} {employee.Code}");
         });
     }
 

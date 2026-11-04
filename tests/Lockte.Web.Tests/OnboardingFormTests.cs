@@ -212,14 +212,14 @@ public sealed class OnboardingFormPdfTests(ChromiumFixture chromium)
             OnboardingForms.Request(e, null),
         ];
 
-        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(OnboardingForms.ProbationTitle, probation), Paper.A5Portrait);
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(OnboardingForms.ProbationTitle, probation, TestFonts.Hr), Paper.A5Portrait);
         var contract = await chromium.Renderer.RenderAsync(
-            FormPageHtml.Compose(OnboardingForms.ContractTitle, [OnboardingForms.Contract(e, false, today, null)]), Paper.A4Portrait);
+            FormPageHtml.Compose(OnboardingForms.ContractTitle, [OnboardingForms.Contract(e, false, today, null)], TestFonts.Hr), Paper.A4Portrait);
 
         Assert.Equal(3, Pages(pdf));
         var box = Regex.Match(System.Text.Encoding.Latin1.GetString(pdf), @"/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]");
         Assert.Equal(148 * 72 / 25.4, double.Parse(box.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), 0);
-        Assert.Contains("THSarabunNew", System.Text.Encoding.Latin1.GetString(pdf));
+        Assert.Contains(TestFonts.HrPdfName, System.Text.Encoding.Latin1.GetString(pdf));
         Assert.Equal(1, Pages(contract));
     }
 }
