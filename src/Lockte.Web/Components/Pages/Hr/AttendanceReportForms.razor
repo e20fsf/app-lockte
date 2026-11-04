@@ -75,9 +75,12 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl()" Target="_blank" Disabled="@(Problem is not null)"
                        StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
         }
-        @if (Kind == "leave-department")
+        @if (Kind is "leave-department" or "resignation-summary")
         {
-            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/leave/list")" Target="_blank" Disabled="@(Problem is not null)">พิมพ์ลางานตามวันที่</MudButton>
+            @if (Kind == "leave-department")
+            {
+                <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/leave/list")" Target="_blank" Disabled="@(Problem is not null)">พิมพ์ลางานตามวันที่</MudButton>
+            }
             <MudButton Variant="Variant.Outlined" Href="@(Problem is null ? PdfUrl() + "&format=xlsx" : "")" Disabled="@(Problem is not null)"
                        StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel</MudButton>
         }
@@ -103,6 +106,7 @@
         ["warnings"] = new("พิมพ์รายงานใบเตือน", "reports/hr/warnings", 4),
         ["leave-department"] = new("พิมพ์ลางานทั้งแผนก", "reports/hr/leave/department", 17,
             Department: DepartmentChoice.Optional, Headcount: true, WorkDays: true),
+        ["resignation-summary"] = new("สรุปใบลาออกรายเดือน", "reports/hr/resignation-summary", 18, Department: DepartmentChoice.Optional),
         ["leave-employee"] = new("พิมพ์ลางานรายบุคคล", "reports/hr/leave/employee", 17, Employee: EmployeeChoice.Required),
         ["leave-summary"] = new("พิมพ์สรุปการลางาน", "reports/hr/leave/summary", 17, WorkDays: true),
         ["leave-absent"] = new("พิมพ์พนักงานขาดงาน", "reports/hr/leave/absent", 17, Employee: EmployeeChoice.Optional),
@@ -140,7 +144,7 @@
     {
         var today = DateTime.Today;
         // The leave and warning reports read the legacy table of the current year; the others a month.
-        (from, to) = Kind is "warnings" or "leave-employee"
+        (from, to) = Kind is "warnings" or "leave-employee" or "resignation-summary"
             ? (new DateTime(today.Year, 1, 1), new DateTime(today.Year, 12, 31))
             : (new DateTime(today.Year, today.Month, 1), new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1));
         if (Info.OneDay) from = today;

@@ -27,9 +27,9 @@
     <FormText X="114.6" Base="73.5" Text="รหัส" />
     <FormText X="123.1" Base="73.5" Text="@Letter.Code" />
     <FormDots X1="122.8" X2="133.8" Y="73.7" />
-    <FormText X="138.5" Base="73.6" Text="แผนก" />
-    <FormText X="147.0" Base="73.6" Text="@Letter.DepartmentName" />
-    <FormDots X1="144.2" X2="183.0" Y="73.7" />
+    <FormText X="141.0" Base="73.6" Text="แผนก" />
+    <FormText X="149.5" Base="73.6" Text="@Letter.DepartmentName" />
+    <FormDots X1="146.7" X2="183.0" Y="73.7" />
     <FormText X="183.3" Base="73.5" Text="กะ" />
     <FormText X="188.4" Base="73.5" Text="@Letter.ShiftCode" />
     <FormDots X1="188.0" X2="193.8" Y="73.7" />
@@ -59,11 +59,11 @@
         <FormText X="84.8" Base="103.5" Text="@FormFormat.Month(resign)" />
         <FormText X="117.7" Base="103.5" Text="@FormFormat.Year(resign)" />
     }
-    <FormDots X1="60.7" X2="72.5" Y="103.6" />
+    <FormDots X1="60.7" X2="72.5" Y="103.6" Dashed="@(Letter.ResignDate is null)" />
     <FormText X="72.9" Base="103.4" Text="เดือน" />
-    <FormDots X1="80.7" X2="108.5" Y="103.6" />
+    <FormDots X1="80.7" X2="108.5" Y="103.6" Dashed="@(Letter.ResignDate is null)" />
     <FormText X="108.7" Base="103.4" Text="พ.ศ." />
-    <FormDots X1="115.4" X2="133.4" Y="103.6" />
+    <FormDots X1="115.4" X2="133.4" Y="103.6" Dashed="@(Letter.ResignDate is null)" />
     <FormText X="134.5" Base="103.4" Text="เป็นต้นไป" />
 
     <FormText X="45.0" Base="113.4" Text="พร้อมกันนี้ข้าพเจ้ายินยอมชดใช้ค่าเสียหายให้กับบริษัทฯ เป็นมูลค่าตามราคาของนั้นๆโดยให้เรียกเก็บ" />
@@ -75,18 +75,24 @@
     <FormText X="157.3" Base="190.3" Anchor="FormAnchor.Center" Text="@($"({Letter.Name})")" />
     <FormText X="146.4" Base="199.3" Text="ผู้ยื่นใบลาออก" />
 
-    <FormDots X1="26.0" X2="60.7" Y="224.4" />
-    <FormText X="60.9" Base="224.2" Text="เจ้าหน้าที่แผนกบุคคลและธุรการ" />
-    <FormDots X1="133.3" X2="162.2" Y="224.4" />
+    @* Four signature columns on two lines: the same two dotted lines (left 25.0–60.8, right 133.3–162.2) in both rows, the
+       label after the line and the name in brackets centred under it, so the signatures and the names line up (UAT-25). *@
+    <FormDots X1="@SignLeft1" X2="@SignLeft2" Y="224.4" />
+    <FormText X="61.0" Base="224.2" Text="เจ้าหน้าที่แผนกบุคคลและธุรการ" />
+    @if (!string.IsNullOrWhiteSpace(PersonnelOfficerName))
+    {
+        <FormText X="@LeftCenter" Base="231.2" Anchor="FormAnchor.Center" Text="@($"({PersonnelOfficerName.Trim()})")" />
+    }
+    <FormDots X1="@SignRight1" X2="@SignRight2" Y="224.4" />
     <FormText X="163.3" Base="224.2" Text="หัวหน้าแผนก" />
-    <FormText X="150.3" Base="231.2" Anchor="FormAnchor.Center" Text="@($"({Letter.SupervisorName})")" />
+    <FormText X="@RightCenter" Base="231.2" Anchor="FormAnchor.Center" Text="@($"({Letter.SupervisorName})")" />
 
-    <FormDots X1="24.9" X2="60.8" Y="247.4" />
+    <FormDots X1="@SignLeft1" X2="@SignLeft2" Y="247.4" />
     <FormText X="61.0" Base="247.2" Text="ผู้จัดการฝ่าย" />
-    <FormText X="25.1" Base="254.3" Text="@($"({Letter.ManagerName})")" />
-    <FormDots X1="133.3" X2="162.2" Y="247.4" />
+    <FormText X="@LeftCenter" Base="254.3" Anchor="FormAnchor.Center" Text="@($"({Letter.ManagerName})")" />
+    <FormDots X1="@SignRight1" X2="@SignRight2" Y="247.4" />
     <FormText X="163.4" Base="247.2" Text="ผู้จัดการโรงงาน" />
-    <FormText X="129.5" Base="254.3" Text="@($"({Letter.FactoryManagerName})")" />
+    <FormText X="@RightCenter" Base="254.3" Anchor="FormAnchor.Center" Text="@($"({Letter.FactoryManagerName})")" />
 </FormPage>
 
 @code {
@@ -97,4 +103,9 @@
     [Parameter] public string? DocumentNumber { get; set; }
     /// <summary>Date() at the top: the day it is printed.</summary>
     [Parameter, EditorRequired] public DateOnly Today { get; set; }
+    /// <summary>ชื่อเจ้าหน้าที่บุคคล from the settings (Employer:PersonnelOfficerName); blank prints no name.</summary>
+    [Parameter] public string? PersonnelOfficerName { get; set; }
+
+    private const double SignLeft1 = 25.0, SignLeft2 = 60.8, SignRight1 = 133.3, SignRight2 = 162.2;
+    private const double LeftCenter = (SignLeft1 + SignLeft2) / 2, RightCenter = (SignRight1 + SignRight2) / 2;
 }

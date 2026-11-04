@@ -71,6 +71,7 @@ public static class PayReportRoutes
         "/reports/hr/leave-form/{employeeId:int}",
         "/reports/hr/resignation-letter/{employeeId:int}",
         "/reports/hr/resigned",
+        "/reports/hr/resignation-summary",
         "/reports/hr/vacation-notice",
     };
 

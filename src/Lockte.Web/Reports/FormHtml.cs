@@ -35,6 +35,7 @@ public static class FormHtml
         css.Append(".t{position:absolute;white-space:pre;line-height:1}");
         // The legacy dotted underline: 0.5 mm dashes every 1.05 mm, 0.3 mm thick.
         css.Append(".dots{position:absolute;height:0.3mm;background:repeating-linear-gradient(90deg,#000 0 0.5mm,transparent 0.5mm 1.05mm)}");
+        css.Append(".dots.dashed{background:repeating-linear-gradient(90deg,#000 0 1.6mm,transparent 1.6mm 2.4mm)}");
         css.Append(".line{position:absolute;background:#000}");
         css.Append(".box{position:absolute;box-sizing:border-box;border:0.3mm solid #000}");
         return $"<!doctype html><html lang=\"th\"><head><meta charset=\"utf-8\"><title>{System.Net.WebUtility.HtmlEncode(title)}</title>"
