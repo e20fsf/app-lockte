@@ -29,6 +29,13 @@ public sealed class ReportOptions
 
     /// <summary>The longest one print may take.</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    /// The font each program's documents are printed in (#395), by <see cref="ReportProgram"/> name, <c>Default</c> for every
+    /// program not listed: <c>THSarabunNew</c> or <c>AngsanaNew</c> (installed on the server, not shipped). All programs print in
+    /// Angsana New; to go back for all, set <c>Reports:ProgramFonts:Default</c> to <c>THSarabunNew</c>, or one program with its own key.
+    /// </summary>
+    public Dictionary<string, string> ProgramFonts { get; set; } = new(StringComparer.OrdinalIgnoreCase) { [ReportFontResolver.DefaultKey] = ReportFonts.AngsanaNewKey };
 }
 
 /// <summary>
@@ -184,10 +191,11 @@ public sealed class ReportPdfRenderer(IOptions<ReportOptions> options, ILogger<R
 }
 
 /// <summary>Opens Chromium and the page pool in the background at startup (28–35 s on the VM, #21) so the first print is quick.</summary>
-internal sealed class ReportWarmUp(ReportPdfRenderer renderer, IOptions<ReportOptions> options, ILogger<ReportWarmUp> logger) : BackgroundService
+internal sealed class ReportWarmUp(ReportPdfRenderer renderer, ReportFontResolver fonts, IOptions<ReportOptions> options, ILogger<ReportWarmUp> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        fonts.For(null); // logs a missing font at startup (#395)
         if (!options.Value.WarmUpOnStart) return;
         try
         {

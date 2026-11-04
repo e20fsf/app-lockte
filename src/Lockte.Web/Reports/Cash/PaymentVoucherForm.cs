@@ -122,7 +122,7 @@ public static class PaymentVoucherForm
             if (wanted.Count == 0) return Results.BadRequest("กรุณาเลือกบรรทัดที่จะพิมพ์ใบสำคัญจ่ายก่อน");
             var chosen = await lines.GetManyAsync(wanted);
             if (chosen.Count == 0) return Results.NotFound("ไม่พบบรรทัดที่เลือก (อาจถูกลบไปแล้ว)");
-            var pdf = await printer.PrintFormAsync(Title, Layout(chosen), cancellationToken);
+            var pdf = await printer.PrintFormAsync(ReportProgram.Cash, Title, Layout(chosen), cancellationToken);
             return ReportsRegistration.Pdf(http, pdf, "ใบสำคัญจ่าย " + chosen[0].VoucherNo.Replace('/', '-'));
         });
         return reports;

@@ -21,6 +21,9 @@ public sealed class EmployerOptions
     /// <summary>ผู้จัดการโรงงาน who signs ประกาศการคำนวณพักร้อน (RPT-52), as printed in the brackets.</summary>
     public string FactoryManagerName { get; set; } = "";
 
+    /// <summary>ชื่อเจ้าหน้าที่บุคคล printed in the brackets of ใบลาออก (UAT-25); blank prints no name.</summary>
+    public string PersonnelOfficerName { get; set; } = "";
+
     /// <summary>ประกอบกิจการ.</summary>
     public string Business { get; set; } = "";
 

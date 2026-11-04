@@ -37,7 +37,7 @@ public static class RecordReports
                 heads = rows.Select(RecordForm.HeadOf).ToList();
             }
             var pages = RecordForm.Layout(heads, await numbers.PrintedTextAsync(DocumentKeys.CalibRecord));
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(RecordForm.Title, pages, cancellationToken), "บันทึกผลการสอบเทียบ " + info.Key);
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Calib, RecordForm.Title, pages, cancellationToken), "บันทึกผลการสอบเทียบ " + info.Key);
         });
         return reports;
     }

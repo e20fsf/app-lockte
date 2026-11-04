@@ -28,7 +28,7 @@ else
                     <td>@l.Code</td>
                     <td class="nw">@l.Name</td>
                     <td>@l.DepartmentName</td>
-                    <td>@l.Position</td>
+                    <td class="nw">@l.Position</td>
                     <td class="nw">@(l.BirthDate is { } b ? ReportText.Date(b) : null)</td>
                     <td class="nw">@(l.StartDate is { } s ? ReportText.Date(s) : null)</td>
                     <td>@l.EmployeeType</td>

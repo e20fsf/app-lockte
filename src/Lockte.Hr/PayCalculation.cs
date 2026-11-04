@@ -121,9 +121,26 @@ public sealed record EmployeePay(int EmployeeId, string Code, string Name, doubl
 /// </summary>
 public static class Welfare
 {
+    /// <summary>อัตราเดิม 0.25% (ก่อน 1 ม.ค. 2575 พ.ศ. = 2032 ค.ศ.).</summary>
     public const decimal Rate = 0.0025m;
 
-    /// <summary>The contribution of one side on a รวมค่าแรง, whole baht, half away from zero.</summary>
+    /// <summary>อัตราตั้งแต่ 1 ม.ค. 2575 พ.ศ. (ค.ศ. 2032) เป็นต้นไป: 0.50% (UAT-23, แก้ครั้งที่ 2).</summary>
+    public const decimal RateFrom2032 = 0.0050m;
+
+    /// <summary>วันแรกที่ใช้ <see cref="RateFrom2032"/>: 1 ม.ค. 2575 พ.ศ. = 1 ม.ค. ค.ศ. 2032.</summary>
+    public static readonly DateOnly RateChangeDate = new(2032, 1, 1);
+
+    /// <summary>
+    /// อัตราตาม <b>วันสิ้นสุดงวดจ่าย</b>: 0.25% ถึง 31 ธ.ค. 2574 พ.ศ. (รวมช่วง 1 ม.ค. 2570–31 ธ.ค. 2574 ที่ระบุไว้ และก่อนหน้านั้นคงเดิม),
+    /// 0.50% ตั้งแต่ 1 ม.ค. 2575 พ.ศ. A period already calculated keeps the amounts stored on its results.
+    /// </summary>
+    public static decimal RateOn(DateOnly periodEnd) => periodEnd >= RateChangeDate ? RateFrom2032 : Rate;
+
+    /// <summary>The contribution of one side on a รวมค่าแรง of a งวด ending on <paramref name="periodEnd"/>, whole baht, half away from zero.</summary>
+    public static decimal Contribution(decimal total, DateOnly periodEnd)
+        => Math.Round(total * RateOn(periodEnd), 0, MidpointRounding.AwayFromZero);
+
+    /// <summary>The contribution at the original 0.25% (งวดก่อนเปลี่ยนอัตรา).</summary>
     public static decimal Contribution(decimal total) => Math.Round(total * Rate, 0, MidpointRounding.AwayFromZero);
 }
 

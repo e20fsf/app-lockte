@@ -35,9 +35,9 @@ public sealed class EmployeeListTableTests
             [nameof(WorkingEmployeesView.List)] = new WorkingEmployeeList([new("T214", LongName, "ตกแต่ง", "หัวหน้า", new(1979, 1, 2), new(2002, 12, 10), 1, 47.5, "รพ.")], 0, 1),
         });
 
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(probation, "<td class=\"nw\">").Count); // ชื่อ, เริ่ม, ถึงกำหนด
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(roster, "<td class=\"nw\">").Count); // ชื่อ, เริ่มทำงาน
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(working, "<td class=\"nw\">").Count); // ชื่อ, เกิด, เริ่มทำงาน
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(probation, "<td class=\"nw\">").Count); // ชื่อ, ตำแหน่ง, เริ่ม, ถึงกำหนด
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(roster, "<td class=\"nw\">").Count); // ชื่อ, เริ่มทำงาน, ตำแหน่ง
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(working, "<td class=\"nw\">").Count); // ชื่อ, เกิด, เริ่มทำงาน, ตำแหน่ง
     }
 
     [Fact] // the heading is printed once: the page header; no second copy of the title above the table
@@ -194,5 +194,24 @@ public sealed class DepartmentLeaveAllTests
 
         Assert.DoesNotContain(table.Rows, r => Equals(r[1], "คิดเป็นเปอร์เซ็นต์"));
         Assert.Equal("รวมทั้งหมดทุกแผนก 3 คน", table.TotalRow![1]);
+    }
+
+    [Fact] // #399: "คะแนนที่ได้(1)-(2)" is squeezed into its cell (98.8–124.5), not printed over the score cell
+    public void The_yearly_sheet_keeps_the_score_label_inside_its_cell()
+    {
+        var sheet = new YearlyEvaluationSheet("Y999", "นาย ทดสอบ", "ฝ่ายทดสอบ", 3, 1, 1, 2, 0, 1, 0);
+        var staff = new YearlyEvaluationReport(YearlyEvaluationKind.Staff, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), null, [sheet]);
+
+        Assert.Contains("data-fit=\"23.7\">คะแนนที่ได้(1)-(2)</text>", EvaluationForms.Sheet(staff, sheet, new DateOnly(2026, 10, 15), null).ToSvg());
+    }
+
+    [Fact] // #399: the four EMPLO print buttons are menu items under ข้อมูลพนักงาน, each with its own page
+    public void The_menu_has_the_four_employee_document_prints()
+    {
+        var items = Lockte.Web.Menus.EmployeeMenu.Menu.Find(2)!.Items.Select(i => i.Text).ToList();
+        Assert.Contains("พิมพ์แบบ คร.2", items);
+        Assert.Contains("พิมพ์สัญญาจ้างรายวัน", items);
+        Assert.Contains("พิมพ์สัญญาจ้างรายเดือน", items);
+        Assert.Contains("พิมพ์ฟอร์มการรับพนักงาน", items);
     }
 }

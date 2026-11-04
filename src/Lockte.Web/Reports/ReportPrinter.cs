@@ -10,17 +10,18 @@ namespace Lockte.Web.Reports;
 /// module's query returned, #41) → HTML by <see cref="HtmlRenderer"/> → แบบกลาง B by <see cref="ReportHtml"/> → PDF
 /// by <see cref="ReportPdfRenderer"/>.
 /// </summary>
-public sealed class ReportPrinter(ReportPdfRenderer pdf, DocumentNumberService documentNumbers, TimeProvider clock)
+public sealed class ReportPrinter(ReportPdfRenderer pdf, DocumentNumberService documentNumbers, TimeProvider clock, ReportFontResolver fonts)
 {
     /// <param name="title">The title as the legacy report printed it.</param>
     /// <param name="documentKey">A <see cref="DocumentKeys"/> value when the document has a เลขเอกสารควบคุม.</param>
     /// <param name="printedBy">The signed-in user's display name, printed in the footer.</param>
     public async Task<byte[]> PrintAsync<TReport>(string title, Paper paper, Dictionary<string, object?> parameters, string printedBy,
-        string? documentKey = null, CancellationToken cancellationToken = default) where TReport : IComponent
+        string? documentKey = null, CancellationToken cancellationToken = default, ReportProgram? program = null) where TReport : IComponent
     {
         var number = documentKey is null ? null : await documentNumbers.PrintedTextAsync(documentKey);
         var body = await ReportBody.RenderAsync<TReport>(parameters);
-        var html = ReportHtml.Compose(new ReportDocument(title, paper, number), new PrintStamp(clock.GetLocalNow(), printedBy), body);
+        var html = ReportHtml.Compose(new ReportDocument(title, paper, number), new PrintStamp(clock.GetLocalNow(), printedBy), body,
+            fonts.For(program ?? ProgramOf(typeof(TReport))));
         return await pdf.RenderAsync(html, paper, cancellationToken);
     }
 
@@ -28,8 +29,15 @@ public sealed class ReportPrinter(ReportPdfRenderer pdf, DocumentNumberService d
     /// Prints a ระดับ A form (#40 ตรงแบบเดิม): its own pages as the legacy printed them, without the แบบกลาง header,
     /// footer or print stamp.
     /// </summary>
-    public Task<byte[]> PrintFormAsync(string title, IReadOnlyList<FormPage> pages, CancellationToken cancellationToken = default)
-        => pdf.RenderAsync(FormPageHtml.Compose(title, pages), pages[0].Paper, cancellationToken);
+    public Task<byte[]> PrintFormAsync(ReportProgram program, string title, IReadOnlyList<FormPage> pages, CancellationToken cancellationToken = default)
+        => pdf.RenderAsync(FormPageHtml.Compose(title, pages, fonts.For(program)), pages[0].Paper, cancellationToken);
+
+    /// <summary>
+    /// The program a report component belongs to, from its namespace (<c>Lockte.Web.Reports.Hr</c> → Hr, …). A component
+    /// shared by several programs (e.g. <c>SummaryTableView</c>) has its program passed to <see cref="PrintAsync{TReport}"/>.
+    /// </summary>
+    public static ReportProgram? ProgramOf(Type view)
+        => view.Namespace?.Split('.').LastOrDefault() is { } last && Enum.TryParse<ReportProgram>(last, out var program) ? program : null;
 }
 
 /// <summary>A report component to HTML, outside any circuit or request. Report components take parameters only, no services.</summary>

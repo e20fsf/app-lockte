@@ -52,7 +52,7 @@ public static class HrEvaluationReports
             var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
             var number = await numbers.PrintedTextAsync(EvaluationForms.DocumentKeyOf(which));
             var pages = report.Sheets.Select(s => EvaluationForms.Sheet(report, s, today, number)).ToList();
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(EvaluationForms.Title, pages, cancellationToken),
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, EvaluationForms.Title, pages, cancellationToken),
                 $"{EvaluationForms.Title} {(which == YearlyEvaluationKind.Staff ? "พนักงาน" : "หัวหน้า")} {report.DepartmentName ?? "ทั้งหมด"}");
         });
 

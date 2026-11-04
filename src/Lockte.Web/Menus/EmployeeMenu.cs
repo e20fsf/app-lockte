@@ -36,6 +36,11 @@ public static class EmployeeMenu
             new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05", Page: "org/departments"),
             new("พิมพ์หนังสือรับรอง, เกษียณและปลดออก", SubMenu: 19),
             new("พิมพ์ใบอนุมัติผ่านทดลองงาน", Code: "SCR-06", Page: "hr/employees/probation-approval"),
+            // #399: the print buttons of the legacy EMPLO form as menu items: pick an employee, then print (ViewPay, ADR 0004).
+            new("พิมพ์แบบ คร.2", Code: "RPT-57", Page: "hr/employees/print/kor2"),
+            new("พิมพ์สัญญาจ้างรายวัน", Code: "RPT-56-daily", Page: "hr/employees/print/daily"),
+            new("พิมพ์สัญญาจ้างรายเดือน", Code: "RPT-56-monthly", Page: "hr/employees/print/monthly"),
+            new("พิมพ์ฟอร์มการรับพนักงาน", Code: "RPT-56-hiring", Page: "hr/employees/print/hiring"),
         ]),
         new(7, "วันอาทิตย์และวันหยุด", 1,
         [
@@ -133,6 +138,7 @@ public static class EmployeeMenu
         [
             new("พิมพ์ใบลา", Code: "RPT-50", Page: "hr/leave-form"),
             new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33", Page: "hr/resignation"),
+            new("สรุปใบลาออกรายเดือน", Code: "RPT-55-sum", Page: "hr/reports/resignation-summary"),
             new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51", Page: "reports/hr/insured-persons", NewTab: true),
             new("พิมพ์ทะเบียนผู้ประกันตนเฉพาะพนักงานที่มีอยู่ปัจจุบัน", Code: "RPT-51-current", Page: "reports/hr/insured-persons?current=true", NewTab: true),
             new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52", Page: "reports/hr/vacation-notice", NewTab: true),

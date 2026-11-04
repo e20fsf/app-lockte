@@ -91,6 +91,21 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
             .ToList();
     }
 
+    /// <summary>สรุปใบลาออก: the number of resignations per month of วันลาออก in the range, optionally of one แผนก (the employee's current one).</summary>
+    public async Task<ResignationSummaryReport> GetResignationSummaryAsync(DateOnly from, DateOnly to, int? departmentId)
+    {
+        var dates = await db.Employees.AsNoTracking()
+            .Where(e => e.ResignDate != null && !e.IsMigrationStub && e.ResignDate >= from && e.ResignDate <= to
+                        && (departmentId == null || e.DepartmentId == departmentId))
+            .Select(e => e.ResignDate!.Value).ToListAsync();
+        var counts = dates.GroupBy(d => (d.Year, d.Month)).ToDictionary(g => g.Key, g => g.Count());
+        var months = new List<ResignationMonthLine>();
+        for (var m = new DateOnly(from.Year, from.Month, 1); m <= to; m = m.AddMonths(1))
+            months.Add(new ResignationMonthLine(m.Year, m.Month, counts.GetValueOrDefault((m.Year, m.Month))));
+        var name = departmentId is { } d ? (await org.GetDepartmentAsync(d))?.Name : null;
+        return new ResignationSummaryReport(from, to, name, months);
+    }
+
     private async Task<CertificateData> CertificateAsync(Employee e, DateTime now)
     {
         var place = await PlaceAsync(e);

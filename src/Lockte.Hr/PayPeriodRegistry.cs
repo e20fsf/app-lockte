@@ -168,7 +168,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
                     PublicHolidays = r.Pay.PublicHolidays, WeeklyHolidays = r.Pay.WeeklyHolidays,
                     OvertimePay = r.Pay.Parts.Overtime, SundayPay = r.Pay.Parts.Sunday, SundayOvertimePay = r.Pay.Parts.SundayOvertime,
                     HolidayPay = r.Pay.Parts.Holiday, HolidayOvertimePay = r.Pay.Parts.HolidayOvertime,
-                    WelfareEmployee = Welfare.Contribution(r.Pay.Total), WelfareCompany = Welfare.Contribution(r.Pay.Total),
+                    WelfareEmployee = Welfare.Contribution(r.Pay.Total, to), WelfareCompany = Welfare.Contribution(r.Pay.Total, to),
                 })
                 .ToList();
 

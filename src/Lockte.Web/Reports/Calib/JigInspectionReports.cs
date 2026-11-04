@@ -12,7 +12,7 @@ public static class JigInspectionReports
         {
             if (await sheets.GetAsync(id) is not { } sheet) return Results.NotFound("ไม่พบแบบตรวจ JIG");
             var page = JigInspectionForm.Page(sheet, await images.GetAsync(sheet.Id), await numbers.PrintedTextAsync(sheet.DocumentKey));
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(JigInspectionForm.TitleOf(sheet), [page], cancellationToken), JigInspectionForm.FileName(sheet));
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Calib, JigInspectionForm.TitleOf(sheet), [page], cancellationToken), JigInspectionForm.FileName(sheet));
         });
         return reports;
     }

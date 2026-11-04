@@ -59,7 +59,7 @@ public static class HrDocumentEndpoints
 
         // RPT-55 ใบลาออก: A4 ตั้ง (Letter เดิม), date = yyyy-MM-dd as typed on SCR-33.
         hr.MapGet("/resignation-letter/{employeeId:int}", async (int employeeId, string? date, string? reason, HrDocumentDirectory documents,
-            FormPrinter printer, TimeProvider clock, CancellationToken cancellationToken) =>
+            IOptionsSnapshot<EmployerOptions> employer, FormPrinter printer, TimeProvider clock, CancellationToken cancellationToken) =>
         {
             DateOnly? resign = DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
             if (await documents.GetResignationLetterAsync(employeeId, resign, reason) is not { } letter) return Results.NotFound("ไม่พบพนักงานคนนี้");
@@ -67,6 +67,7 @@ public static class HrDocumentEndpoints
                 new()
                 {
                     [nameof(ResignationLetterView.Letter)] = letter,
+                    [nameof(ResignationLetterView.PersonnelOfficerName)] = employer.Value.PersonnelOfficerName,
                     [nameof(ResignationLetterView.Today)] = DateOnly.FromDateTime(clock.GetLocalNow().DateTime),
                 }, cancellationToken);
             return Pdf(pdf, $"ใบลาออก {letter.Code}");
@@ -111,13 +112,13 @@ public static class HrDocumentEndpoints
 /// Prints one ระดับ A form: its Razor component → HTML → <see cref="FormHtml"/> → PDF, with the document's
 /// เลขเอกสารควบคุม (passed to the component as <c>DocumentNumber</c>) when it has one.
 /// </summary>
-public sealed class FormPrinter(ReportPdfRenderer pdf, DocumentNumberService documentNumbers)
+public sealed class FormPrinter(ReportPdfRenderer pdf, DocumentNumberService documentNumbers, ReportFontResolver fonts)
 {
     public async Task<byte[]> PrintAsync<TForm>(string title, Paper paper, string? documentKey, Dictionary<string, object?> parameters,
         CancellationToken cancellationToken = default) where TForm : IComponent
     {
         if (documentKey is not null) parameters["DocumentNumber"] = await documentNumbers.PrintedTextAsync(documentKey);
         var body = await ReportBody.RenderAsync<TForm>(parameters);
-        return await pdf.RenderAsync(FormHtml.Compose(title, paper, body), paper, cancellationToken);
+        return await pdf.RenderAsync(FormHtml.Compose(title, paper, body, fonts.For(ReportProgram.Hr)), paper, cancellationToken);
     }
 }

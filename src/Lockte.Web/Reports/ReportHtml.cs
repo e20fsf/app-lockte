@@ -44,7 +44,14 @@ public static class ReportHtml
     /// is the page's printable width, so a wider body is zoomed down to it (no columns pushed to another page, D-4).
     /// </summary>
     public const string FitToPageScript =
-        "window.lockteFitToPage=()=>{const b=document.body;const w=b.scrollWidth,a=document.documentElement.clientWidth;if(w>a+1)b.style.zoom=a/w;};";
+        "window.lockteFitToPage=()=>{const b=document.body;const A=()=>document.documentElement.clientWidth;"
+        // one item is one line (#395): a table wider than the page first shrinks the font of its widest column (down to 70%),
+        // so one long remark does not shrink the whole report; whatever is still too wide is zoomed down to the page
+        + "for(let i=0;i<40&&b.scrollWidth>A()+1;i++){let best=null,bw=0;"
+        + "for(const t of document.querySelectorAll('table')){const cols=[];for(const c of t.querySelectorAll('td,th')){if(c.colSpan>1)continue;(cols[c.cellIndex]??=[]).push(c);}"
+        + "cols.forEach(cs=>{const w=Math.max(...cs.map(c=>c.scrollWidth));const f=parseFloat(getComputedStyle(cs[0]).fontSize);const base=+(cs[0].dataset.fs0??f);if(w>bw&&f>base*0.7+0.1){bw=w;best=cs;}});}"
+        + "if(!best)break;for(const c of best){c.dataset.fs0??=parseFloat(getComputedStyle(c).fontSize);c.style.fontSize=(parseFloat(getComputedStyle(c).fontSize)*0.94)+'px';}}"
+        + "const w=b.scrollWidth,a=A();if(w>a+1)b.style.zoom=a/w;};";
 
     /// <summary>Margins in mm: top leaves room for the two header lines, bottom for the footer.</summary>
     public const double MarginTop = 24, MarginSide = 12, MarginBottom = 15;
@@ -70,36 +77,35 @@ public static class ReportHtml
         _ => throw new ArgumentOutOfRangeException(nameof(paper)),
     };
 
-    public static string Compose(ReportDocument document, PrintStamp stamp, string bodyHtml)
+    public static string Compose(ReportDocument document, PrintStamp stamp, string bodyHtml, ReportFont? font = null)
     {
-        const string margin = "font-family:'THSarabunNew';font-size:12pt;";
-        var css = new StringBuilder();
-        foreach (var (file, weight) in Fonts)
-            css.Append($"@font-face{{font-family:'THSarabunNew';font-weight:{weight};src:url('{FontHost}{Uri.EscapeDataString(file)}') format('truetype')}}");
+        font ??= ReportFonts.ThSarabunNew;
+        var margin = $"font-family:'{font.Family}';font-size:12pt;";
+        var css = new StringBuilder(font.FaceCss);
         css.Append($"@page{{size:{PageSize(document.Paper)};margin:{MarginTop}mm {MarginSide}mm {MarginBottom}mm {MarginSide}mm;");
         css.Append($"@top-center{{content:{CssString($"{Company}\n{document.Title}")};white-space:pre;text-align:center;vertical-align:bottom;"
-                   + "font-family:'THSarabunNew';font-size:16pt;font-weight:bold;line-height:1.1;padding-bottom:3mm}");
+                   + $"font-family:'{font.Family}';font-size:16pt;font-weight:bold;line-height:1.1;padding-bottom:3mm}}");
         if (!string.IsNullOrWhiteSpace(document.DocumentNumber))
             css.Append($"@top-right{{content:{CssString(document.DocumentNumber)};white-space:pre;text-align:right;vertical-align:top;{margin}padding-top:6mm}}");
         css.Append($"@bottom-left{{content:{CssString($"พิมพ์เมื่อ {stamp.PrintedAt.ToString("d/M/yyyy HH:mm", SharedKernel.ThaiDate.Culture)} โดย {stamp.PrintedBy}")};{margin}vertical-align:top;padding-top:2mm}}");
         css.Append($"@bottom-right{{content:\"หน้า \" counter(page) \" จาก \" counter(pages);text-align:right;{margin}vertical-align:top;padding-top:2mm}}");
         css.Append('}');
-        css.Append(BaseCss);
+        css.Append(BaseCss(font));
 
         return $"<!doctype html><html lang=\"th\"><head><meta charset=\"utf-8\"><title>{System.Net.WebUtility.HtmlEncode(document.Title)}</title>"
                + $"<style>{css}</style><script>{FitToPageScript}</script></head><body>{bodyHtml}</body></html>";
     }
 
     /// <summary>The look shared by every level-B report body: plain tables, bold headers underlined, no vertical lines (print-forms.md).</summary>
-    private const string BaseCss =
+    private static string BaseCss(ReportFont font) =>
         "html,body{margin:0}"
-        + "body{font-family:'THSarabunNew';font-size:14pt;line-height:1.15;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
+        + $"body{{font-family:'{font.Family}';" + "font-size:14pt;line-height:1.15;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
         + "h2{font-size:14pt;font-weight:normal;text-align:center;margin:0 0 2pt}"
         + ".sub{text-align:center;margin:0 0 6pt;white-space:pre-wrap}"
         + "table{border-collapse:collapse;width:100%}"
         + "thead{display:table-header-group}"
-        + "th{font-weight:bold;text-align:left;border-bottom:1.5pt solid #000;padding:1pt 4pt;vertical-align:bottom}"
-        + "td{padding:0 4pt;vertical-align:top;overflow-wrap:anywhere}"
+        + "th{white-space:nowrap;font-weight:bold;text-align:left;border-bottom:1.5pt solid #000;padding:1pt 4pt;vertical-align:bottom}"
+        + "td{padding:0 4pt;vertical-align:top;white-space:nowrap}"
         + "tr{break-inside:avoid}"
         + ".num{text-align:right;white-space:nowrap}"
         + ".nw{white-space:nowrap}"

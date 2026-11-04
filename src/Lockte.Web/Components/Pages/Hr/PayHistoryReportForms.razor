@@ -7,7 +7,7 @@
 @inject ScopedServices Services
 
 @* The forms of the reports over many งวดค่าแรง (#56): SCR-43 ตั้งวันที่พิมพ์ค่าแรงสิ้นเดือน (ตั้งแต่ ถึง แผนก; พิมพ์ / พิมพ์สรุป /
-   พิมพ์สรุป (ต้นทุน)), ตั้งวันที่พิมพ์ค่าแรงแต่ละเดือน (RPT-09) and ตั้งวันที่พิมพ์รวมค่าแรง (RPT-10). Each button opens its
+   ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (Excel)), ตั้งวันที่พิมพ์ค่าแรงแต่ละเดือน (RPT-09) and ตั้งวันที่พิมพ์รวมค่าแรง (RPT-10). Each button opens its
    PDF in a new tab. The legacy MO is not asked: RPT-08 prints ถึงวันที่'s month and RPT-09 ตั้งแต่วันที่'s year, as the
    legacy copied them (T_D → MO, F_D → MO). The legacy "พิมพ์สรุป" printed the table the last "พิมพ์" left; here it sums the
    dates on the form again. *@
@@ -49,8 +49,8 @@
         {
             <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/summary")" Target="_blank"
                        Disabled="@(Problem is not null)">พิมพ์สรุป</MudButton>
-            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/summary", cost: true)" Target="_blank"
-                       Disabled="@(Problem is not null)">พิมพ์สรุป (ต้นทุน)</MudButton>
+            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/welfare-fund")" Disabled="@(Problem is not null)"
+                       StartIcon="@Icons.Material.Filled.TableView">ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง</MudButton>
         }
     </MudStack>
 </MudPaper>
@@ -106,13 +106,12 @@
             : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
             : null;
 
-    private string PdfUrl(string path, bool cost = false)
+    private string PdfUrl(string path)
     {
         if (Problem is not null) return "";
         static string Iso(DateTime? d) => d!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var query = new List<string> { $"from={Iso(from)}", $"to={Iso(to)}" };
         if (Kind == "month-end" && departmentId is { } d) query.Add($"department={d}");
-        if (cost) query.Add("cost=true");
         return $"{path}?{string.Join("&", query)}";
     }
 }

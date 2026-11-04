@@ -22,20 +22,20 @@ public static class FormHtml
 
     public const double MillimetresPerPoint = 25.4 / 72;
 
-    public static string Compose(string title, Paper paper, string bodyHtml)
+    public static string Compose(string title, Paper paper, string bodyHtml, ReportFont? font = null)
     {
+        font ??= ReportFonts.ThSarabunNew;
         var (width, height) = ReportHtml.PageMillimetres(paper);
-        var css = new StringBuilder();
-        foreach (var (file, weight) in ReportHtml.Fonts)
-            css.Append($"@font-face{{font-family:'THSarabunNew';font-weight:{weight};src:url('{ReportHtml.FontHost}{Uri.EscapeDataString(file)}') format('truetype')}}");
+        var css = new StringBuilder(font.FaceCss);
         css.Append($"@page{{size:{ReportHtml.PageSize(paper)};margin:0}}");
         css.Append("html,body{margin:0}");
-        css.Append("body{font-family:'THSarabunNew';color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}");
+        css.Append($"body{{font-family:'{font.Family}';" + "color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}");
         css.Append($".page{{position:relative;width:{Mm(width)}mm;height:{Mm(height)}mm;overflow:hidden;break-after:page}}");
         css.Append(".page:last-child{break-after:auto}");
         css.Append(".t{position:absolute;white-space:pre;line-height:1}");
         // The legacy dotted underline: 0.5 mm dashes every 1.05 mm, 0.3 mm thick.
         css.Append(".dots{position:absolute;height:0.3mm;background:repeating-linear-gradient(90deg,#000 0 0.5mm,transparent 0.5mm 1.05mm)}");
+        css.Append(".dots.dashed{background:repeating-linear-gradient(90deg,#000 0 1.6mm,transparent 1.6mm 2.4mm)}");
         css.Append(".line{position:absolute;background:#000}");
         css.Append(".box{position:absolute;box-sizing:border-box;border:0.3mm solid #000}");
         return $"<!doctype html><html lang=\"th\"><head><meta charset=\"utf-8\"><title>{System.Net.WebUtility.HtmlEncode(title)}</title>"
