@@ -120,11 +120,8 @@
 <MudPaper Outlined="true" Class="pa-4 mt-4">
     <MudText Typo="Typo.h6" Class="mb-2">ลบข้อมูลการลา (@Employee.Code)</MudText>
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <MudDatePicker Editable="true" @bind-Date="deleteFrom" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                       Style="max-width:11rem" />
-        <MudDatePicker Editable="true" @bind-Date="deleteTo" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                       Style="max-width:11rem" />
-        <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || deleteFrom is null || deleteTo is null"
+        <DateRangePicker @bind-From="deleteFrom" @bind-To="deleteTo" Style="max-width:11rem" />
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || deleteFrom is null || deleteTo is null || DateRangeRule.IsInvalid(deleteFrom, deleteTo)"
                    OnClick="DeleteRangeAsync">ลบข้อมูล</MudButton>
     </MudStack>
     <MudText Typo="Typo.caption">ลบการลาที่วันเริ่มลาอยู่ในช่วงนี้ (ทุกปี ไม่ใช่เฉพาะปีที่แสดง)</MudText>
@@ -186,7 +183,7 @@
     }
 
     /// <summary>A new row of today with the legacy defaults (08:00–17:00, the employee's ค่าแรง/วัน).</summary>
-    private void AddRow()
+    private async Task AddRow()
     {
         var day = year == DateTime.Today.Year ? DateTime.Today : new DateTime(year, 1, 1);
         editing = new RowForm
@@ -194,15 +191,14 @@
             RecordedOn = DateTime.Today, FromDate = day, ToDate = day, FromTime = TimeText.Format(LeaveRegistry.DefaultFromTime),
             ToTime = TimeText.Format(LeaveRegistry.DefaultToTime), DailyWage = Employee.DailyWage,
         };
+        await RecalculateDaysAsync(editing);
     }
 
     private RenderFragment EditRow(RowForm f) => @<tr>
         <td><MudDatePicker Editable="true" @bind-Date="f.RecordedOn" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="min-width:8rem" /></td>
-        <td><MudDatePicker Editable="true" Date="f.FromDate" DateChanged="@(d => { f.FromDate = d; if (f.ToDate is null || f.ToDate < d) f.ToDate = d; })"
-                           Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="min-width:8rem" /></td>
-        <td><MudDatePicker Editable="true" @bind-Date="f.ToDate" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="min-width:8rem" /></td>
-        <td><TimeBox @bind-Text="f.FromTime" Choices="FromTimes" Style="min-width:5.5rem" /></td>
-        <td><TimeBox @bind-Text="f.ToTime" Choices="ToTimes" Style="min-width:5.5rem" /></td>
+        <DateRangePicker AsCells="true" @bind-From="f.FromDate" @bind-To="f.ToDate" OnChanged="() => DatesChangedAsync(f)" Style="min-width:8rem" />
+        <td><TimeBox @bind-Text="f.FromTime" @bind-Text:after="() => RecalculateDaysAsync(f)" Choices="FromTimes" Style="min-width:5.5rem" /></td>
+        <td><TimeBox @bind-Text="f.ToTime" @bind-Text:after="() => RecalculateDaysAsync(f)" Choices="ToTimes" Style="min-width:5.5rem" /></td>
         <td><MudNumericField T="double?" @bind-Value="f.Days" Step="0.125" Min="0" HideSpinButtons="true" Style="min-width:4.5rem" /></td>
         <td>
             <MudSelect T="string" @bind-Value="f.Type" Style="min-width:10rem">
@@ -213,7 +209,7 @@
             </MudSelect>
         </td>
         <td>
-            <MudSelect T="bool?" Value="f.Paid" ValueChanged="ChoosePaidAsync" Disabled="busy" Style="min-width:4.5rem">
+            <MudSelect T="bool?" Value="f.Paid" ValueChanged="ChoosePaidAsync" Disabled="busy || DateRangeRule.IsInvalid(f.FromDate, f.ToDate)" Style="min-width:4.5rem">
                 <MudSelectItem T="bool?" Value="true">Y ได้</MudSelectItem>
                 <MudSelectItem T="bool?" Value="false">N ไม่ได้</MudSelectItem>
             </MudSelect>
@@ -227,7 +223,7 @@
         </td>
         <td></td>
         <td style="white-space:nowrap">
-            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Primary" Size="Size.Small" Disabled="busy" OnClick="() => SaveAsync()" title="บันทึก" />
+            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Primary" Size="Size.Small" Disabled="busy || DateRangeRule.IsInvalid(f.FromDate, f.ToDate)" OnClick="() => SaveAsync()" title="บันทึก" />
             <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Disabled="busy" OnClick="@(() => editing = null)" title="ยกเลิก" />
             @if (f.Id is not null)
             {
@@ -243,9 +239,33 @@
         return SaveAsync();
     }
 
+    /// <summary>A date changed (UAT-27, #405): a blank end follows the start, and the จำนวนวัน is worked out again (the user may type over it).</summary>
+    private async Task DatesChangedAsync(RowForm f)
+    {
+        if (f.ToDate is null && f.FromDate is { } start) f.ToDate = start;
+        await RecalculateDaysAsync(f);
+    }
+
+    /// <summary>
+    /// จำนวนวัน from the dates and times: the days both counted without วันหยุดประจำสัปดาห์ and นักขัตฤกษ์, the half days from the times
+    /// (<see cref="LeaveDayCounter"/>). Left as it is while a date or time is missing or the dates are in the wrong order.
+    /// </summary>
+    private async Task RecalculateDaysAsync(RowForm f)
+    {
+        if (f.FromDate is null || f.ToDate is null || DateRangeRule.IsInvalid(f.FromDate, f.ToDate)) return;
+        if (!TimeText.TryParse(f.FromTime, out var fromTime) || !TimeText.TryParse(f.ToTime, out var toTime)) return;
+        var (from, to) = (ToDateOnly(f.FromDate), ToDateOnly(f.ToDate));
+        f.Days = await Services.RunAsync<LeaveDirectory, double?>(d => d.CalculateDaysAsync(from, to, fromTime, toTime));
+    }
+
     private async Task SaveAsync()
     {
         var f = editing!;
+        if (DateRangeRule.IsInvalid(f.FromDate, f.ToDate))
+        {
+            Snackbar.Add(DateRangeRule.Message, Severity.Error);
+            return;
+        }
         if (!TimeText.TryParse(f.FromTime, out var fromTime) || !TimeText.TryParse(f.ToTime, out var toTime))
         {
             Snackbar.Add("เวลาต้องเป็น ชั่วโมง:นาที เช่น 08:00", Severity.Error);

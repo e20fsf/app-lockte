@@ -23,8 +23,7 @@
         else
         {
             <MudStack Row="true" Spacing="2">
-                <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
-                <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+                <DateRangePicker @bind-From="from" @bind-To="to" Style="max-width:12rem" />
             </MudStack>
         }
         @if (Info.Employee != EmployeeChoice.None)

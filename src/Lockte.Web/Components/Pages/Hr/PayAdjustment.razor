@@ -17,10 +17,7 @@
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:52rem">
     <MudStack Spacing="2">
         <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                           Style="max-width:12rem" />
-            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                           Style="max-width:12rem" />
+            <DateRangePicker @bind-From="from" @bind-To="to" Style="max-width:12rem" />
             <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทุกแผนก)" Clearable="true" Style="max-width:22rem">
                 @foreach (var d in departments)
                 {

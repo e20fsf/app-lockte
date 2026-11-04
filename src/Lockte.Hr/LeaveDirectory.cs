@@ -8,6 +8,18 @@ namespace Lockte.Hr;
 public sealed class LeaveDirectory(HrDbContext db, TimeProvider clock, IPayAccess pay)
 {
     /// <summary>
+    /// The จำนวนวัน offered on the leave screen (<see cref="LeaveDayCounter"/>) from the dates, the times and the calendar's
+    /// วันหยุดประจำสัปดาห์ and นักขัตฤกษ์ between them; null while the dates are missing or in the wrong order.
+    /// </summary>
+    public async Task<double?> CalculateDaysAsync(DateOnly? from, DateOnly? to, TimeOnly? fromTime, TimeOnly? toTime)
+    {
+        if (from is not { } start || to is not { } end || start > end) return null;
+        var weekly = await db.WeeklyHolidays.AsNoTracking().Where(h => h.Date >= start && h.Date <= end).Select(h => h.Date).ToListAsync();
+        var holidays = await db.PublicHolidays.AsNoTracking().Where(h => h.Date >= start && h.Date <= end).Select(h => h.Date).ToListAsync();
+        return LeaveDayCounter.Count(start, end, fromTime, toTime, weekly.Concat(holidays).ToHashSet());
+    }
+
+    /// <summary>
     /// One employee's rows whose FROM_D is in <paramref name="year"/>, by FROM_D then entry — subform LEAVE1 of SCR-30
     /// (OrderBy FROM_D, id), which showed the legacy LEAVE table of the current year (one table for every year, #41).
     /// </summary>

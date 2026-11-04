@@ -34,10 +34,9 @@
         <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@PayPeriodRegistry.MigratedMessage</MudAlert>
     }
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
-        <MudDatePicker Editable="true" @bind-Date="form.From" Label="จากวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" ReadOnly="Locked" />
-        <MudDatePicker Editable="true" @bind-Date="form.To" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" ReadOnly="Locked" />
+        <DateRangePicker @bind-From="form.From" @bind-To="form.To" FromLabel="จากวันที่" Style="max-width:11rem" ReadOnly="Locked" />
         <MudDatePicker Editable="true" @bind-Date="form.PayDate" Label="วันที่จ่าย" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:11rem" ReadOnly="Locked" />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || Locked">@(form.Id is null ? "บันทึกงวดใหม่" : "บันทึกวันที่")</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy || Locked || DateRangeRule.IsInvalid(form.From, form.To)">@(form.Id is null ? "บันทึกงวดใหม่" : "บันทึกวันที่")</MudButton>
         @if (form.Id is null && periods.Count > 0)
         {
             <MudButton OnClick="@(() => SelectAsync(periods[0].Id))">ยกเลิก</MudButton>
