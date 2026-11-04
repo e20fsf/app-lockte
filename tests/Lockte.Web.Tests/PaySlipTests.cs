@@ -189,6 +189,23 @@ public sealed class PaySlipTests
         Assert.Contains("href=\"data:image/png;base64," + Convert.ToBase64String(png) + "\"", page.ToSvg());
     }
 
+    [Fact] // #397: every slip prints its employee's own name under the ผู้รับเงิน line, squeezed (not wrapped) when long
+    public void Every_slip_prints_the_employee_name_under_the_payee_line()
+    {
+        var batch = Batch(4);
+        batch = batch with { Slips = batch.Slips.Select((s, i) => s with { Name = i == 3 ? "นางสาวสมมุติ นามสกุลยาวมากเป็นพิเศษ ทดสอบชื่อยาว" : $"สมมุติ ทดสอบ{i}" }).ToList() };
+        var pages = PaySlipForm.Layout(batch);
+
+        foreach (var (page, offset, slip) in new[] { (pages[0], 0.0, batch.Slips[0]), (pages[0], 95.0, batch.Slips[1]), (pages[0], 190.0, batch.Slips[2]), (pages[1], 0.0, batch.Slips[3]) })
+        {
+            var payee = Assert.Single(Texts(page), t => Math.Abs(t.Y - (offset + 85.2)) < 0.01);
+            Assert.Equal(slip.Name, payee.Text);
+            Assert.Equal(slip.Name, TextAt(page, 58.4, offset + 85.2)); // same name as ชื่อ-นามสกุล
+            Assert.Equal(slip.Name, TextAt(page, 81.44, offset + 35.52));
+        }
+        Assert.Contains("data-fit=\"37.5\"", pages[1].ToSvg());
+    }
+
     [Fact] // no signer saved yet: the lines stay empty
     public void A_slip_without_signers_leaves_their_lines_empty()
     {
@@ -437,5 +454,24 @@ public sealed class PaySlipPdfTests(ChromiumFixture chromium)
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch)), Paper.A4Portrait);
         await File.WriteAllBytesAsync(Path.Combine(dir, "slips.pdf"), pdf);
+    }
+}
+
+/// <summary>#397: the slip through Chromium — a long employee name under ผู้รับเงิน stays on one line and the page stays one page.</summary>
+[Collection(ChromiumCollection.Name)]
+public sealed class PaySlipPayeePdfTests(ChromiumFixture chromium)
+{
+    [Fact] // with LOCKTE_FORM_OVERLAY_DIR set, also writes payee-slip.pdf there for a look
+    public async Task A_long_payee_name_prints_on_a_one_page_slip()
+    {
+        var dates = new PayPeriodDates(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 15), new DateOnly(2026, 9, 20));
+        var period = new PayPeriodDto(1, dates.From, dates.To, dates.PayDate, PayPeriodStep.PayCalculated, null, null, [], DateTimeOffset.Now, "hr1");
+        var slip = new PaySlip("A001", "นางสาวสมมุติ นามสกุลยาวมากเป็นพิเศษ ทดสอบชื่อยาว", 15, 2, 0, 400, 100, 0, 0, 0, 0, 0, 0, 5000, new OvertimeParts(0, 0, 0, 0, 0), 0, null);
+        var pages = PaySlipForm.Layout(new PaySlipBatch(period, [slip], []));
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, pages), pages[0].Paper);
+
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(System.Text.Encoding.Latin1.GetString(pdf), @"/Type /Page\b").Count);
+        if (Environment.GetEnvironmentVariable("LOCKTE_FORM_OVERLAY_DIR") is { Length: > 0 } dir)
+            await File.WriteAllBytesAsync(Path.Combine(dir, "payee-slip.pdf"), pdf);
     }
 }
