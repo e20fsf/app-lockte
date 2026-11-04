@@ -14,6 +14,19 @@ public static class HrAttendanceReports
 {
     public static RouteGroupBuilder MapHrAttendanceReports(this RouteGroupBuilder reports)
     {
+        // สรุปใบลาออก (UAT-25, เมนู 18; ?format=xlsx = Excel): จำนวนใบลาออกต่อเดือน, ?department= one แผนก (none = ทุกแผนก)
+        reports.MapGet("/hr/resignation-summary", async (DateOnly? from, DateOnly? to, int? department, string? format, HttpContext http,
+            HrDocumentDirectory documents, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (Range(from, to) is { } bad) return bad;
+            var report = await documents.GetResignationSummaryAsync(from!.Value, to!.Value, department);
+            if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
+                return Results.File(Order.XlsxWriter.Write(ResignationSummaryTable.Build(report)), Order.XlsxWriter.ContentType,
+                    ResignationSummaryReportView.Title + ".xlsx");
+            return await PrintAsync<ResignationSummaryReportView>(http, printer, ResignationSummaryReportView.Title, Paper.A4Portrait, report,
+                "สรุปใบลาออก " + Iso(report.From), cancellationToken);
+        });
+
         // RPT-30 รายงานพนักงานที่ได้รับใบเตือน (เมนู 4)
         reports.MapGet("/hr/warnings", async (DateOnly? from, DateOnly? to, HttpContext http, WarningDirectory warnings, ReportPrinter printer,
             CancellationToken cancellationToken) =>
