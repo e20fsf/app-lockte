@@ -22,15 +22,14 @@ public static class FormHtml
 
     public const double MillimetresPerPoint = 25.4 / 72;
 
-    public static string Compose(string title, Paper paper, string bodyHtml)
+    public static string Compose(string title, Paper paper, string bodyHtml, ReportFont? font = null)
     {
+        font ??= ReportFonts.ThSarabunNew;
         var (width, height) = ReportHtml.PageMillimetres(paper);
-        var css = new StringBuilder();
-        foreach (var (file, weight) in ReportHtml.Fonts)
-            css.Append($"@font-face{{font-family:'THSarabunNew';font-weight:{weight};src:url('{ReportHtml.FontHost}{Uri.EscapeDataString(file)}') format('truetype')}}");
+        var css = new StringBuilder(font.FaceCss);
         css.Append($"@page{{size:{ReportHtml.PageSize(paper)};margin:0}}");
         css.Append("html,body{margin:0}");
-        css.Append("body{font-family:'THSarabunNew';color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}");
+        css.Append($"body{{font-family:'{font.Family}';" + "color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}");
         css.Append($".page{{position:relative;width:{Mm(width)}mm;height:{Mm(height)}mm;overflow:hidden;break-after:page}}");
         css.Append(".page:last-child{break-after:auto}");
         css.Append(".t{position:absolute;white-space:pre;line-height:1}");

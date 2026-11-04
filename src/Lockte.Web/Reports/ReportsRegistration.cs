@@ -29,6 +29,7 @@ public static class ReportsRegistration
         services.Configure<EmployerOptions>(configuration.GetSection(EmployerOptions.Section));
         services.Configure<PurchLetterheadOptions>(configuration.GetSection(PurchLetterheadOptions.Section));
         services.AddSingleton<ReportPdfRenderer>();
+        services.AddSingleton<ReportFontResolver>();
         services.AddHostedService<ReportWarmUp>();
         services.AddScoped<ReportPrinter>();
         services.AddMemoryCache();
@@ -188,7 +189,7 @@ public static class ReportsRegistration
             if (await periods.GetSlipsAsync(id) is not { } batch)
                 return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้ในระบบใหม่ (งวดที่ย้ายมาจากระบบเดิมพิมพ์สลิปไม่ได้)");
             if (batch.Slips.Count == 0) return Results.NotFound("งวดนี้ไม่มีพนักงานที่คำนวณค่าแรง");
-            var pdf = await printer.PrintFormAsync(PaySlipForm.Title, PaySlipForm.Layout(batch), cancellationToken);
+            var pdf = await printer.PrintFormAsync(ReportProgram.Hr, PaySlipForm.Title, PaySlipForm.Layout(batch), cancellationToken);
             await registry.CompleteStepAsync(id, PayPeriodStep.SlipPrinted);
             return Pdf(http, pdf, "สลิป " + Iso(batch.Period.From));
         });
@@ -210,7 +211,7 @@ public static class ReportsRegistration
             ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             var pages = InsuredPersonsForm.Layout(await forms.ListInsuredPersonsAsync(current == true), employer.Value);
-            return Pdf(http, await printer.PrintFormAsync(InsuredPersonsForm.Title, pages, cancellationToken), InsuredPersonsForm.Title);
+            return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, InsuredPersonsForm.Title, pages, cancellationToken), InsuredPersonsForm.Title);
         });
 
         // RPT-57 แบบ คร.2 (ปุ่มในข้อมูลพนักงาน): ระดับ A, A4 ตั้ง. A POST from the form on SCR-02/03, so the names of
@@ -221,7 +222,7 @@ public static class ReportsRegistration
         {
             if (await forms.GetKor2Async(id) is not { } employee) return Results.NotFound("ไม่พบพนักงาน");
             var page = Kor2Form.Layout(employee, new Kor2Input(name, job, father, mother), employer.Value);
-            return Pdf(http, await printer.PrintFormAsync(Kor2Form.Title, [page], cancellationToken), $"แบบ คร.2 {employee.Code}");
+            return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, Kor2Form.Title, [page], cancellationToken), $"แบบ คร.2 {employee.Code}");
         });
 
         return app;
