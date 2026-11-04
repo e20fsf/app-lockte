@@ -1,8 +1,10 @@
 @page "/hr/employees/lists"
 @attribute [Authorize]
+@using Lockte.Hr
 @using Lockte.Org
 @using Lockte.Web.Reports.Hr
 @inject ScopedServices Services
+@inject IJSRuntime Js
 
 @* SCR-04 เลือกแผนกที่พิมพ์ (BR-073): แผนก and กะ (blank = all, the legacy "*") → รายชื่อพนักงานแผนก… (RPT-21);
    ทะเบียนประวัติพนักงาน (everyone, whatever is chosen, as the legacy button). รายชื่อพนักงานทั้งหมด (report EMPLO) had no
@@ -28,9 +30,10 @@
             @* รายชื่อแผนก (เงินเดือน/ค่าแรง) and ทะเบียนประวัติ (ค่าแรง) carry ข้อมูลค่าจ้าง (#277) *@
             <PayView>
                 <ChildContent>
-                <MudButton Href="@OnboardingReports.RosterHref(departmentId, shiftId)" Target="_blank" Variant="Variant.Filled" Color="Color.Primary"
+                @* #399: a แผนก / กะ nobody works in prints no empty "ไม่มีข้อมูล" PDF: the message is shown here instead *@
+                <MudButton OnClick="() => OpenRosterAsync(false)" Variant="Variant.Filled" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
-                <MudButton Href="@(OnboardingReports.RosterHref(departmentId, shiftId) + "&format=xlsx")" Variant="Variant.Outlined"
+                <MudButton OnClick="() => OpenRosterAsync(true)" Variant="Variant.Outlined"
                            StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (รายชื่อแผนก)</MudButton>
                 <MudButton Href="@($"{OnboardingReports.Base}/register")" Target="_blank" Variant="Variant.Outlined"
                            StartIcon="@Icons.Material.Filled.Print">พิมพ์ทะเบียนประวัติพนักงาน</MudButton>
@@ -47,11 +50,11 @@
                        StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อพนักงานทั้งหมด</MudButton>
             <MudButton Href="@($"{OnboardingReports.Base}/working?format=xlsx")" Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (รายชื่อทั้งหมด)</MudButton>
-            <MudButton Href="@($"{OnboardingReports.Base}/on-probation")" Target="_blank" Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.Print">พิมพ์รายชื่อพนักงานที่ยังไม่บรรจุ</MudButton>
-            <MudButton Href="@($"{OnboardingReports.Base}/on-probation?format=xlsx")" Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel (ยังไม่บรรจุ)</MudButton>
         </MudStack>
+        @if (emptyMessage is not null)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">@emptyMessage</MudAlert>
+        }
         <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Style="align-self:flex-start">กลับเมนูเดิม</MudButton>
     </MudStack>
 </MudPaper>
@@ -61,6 +64,19 @@
     private IReadOnlyList<ShiftDto> shifts = [];
     private int? departmentId;
     private int? shiftId;
+    private string? emptyMessage;
+
+    private async Task OpenRosterAsync(bool excel)
+    {
+        var roster = await Services.RunAsync<OnboardingDirectory, DepartmentRoster>(d => d.GetDepartmentRosterAsync(departmentId, shiftId));
+        if (roster.Lines.Count == 0)
+        {
+            emptyMessage = "ไม่มีพนักงานในแผนก/กะที่เลือก — ไม่มีข้อมูลให้พิมพ์";
+            return;
+        }
+        emptyMessage = null;
+        await Js.InvokeVoidAsync("open", OnboardingReports.RosterHref(departmentId, shiftId) + (excel ? "&format=xlsx" : ""), excel ? "_self" : "_blank");
+    }
 
     /// <summary>The กะ the chosen แผนก works (the legacy dropdown listed แผนก + กะ pairs); every กะ when no แผนก is chosen.</summary>
     private IEnumerable<ShiftDto> ShiftChoices => departments.FirstOrDefault(d => d.Id == departmentId) is { } d

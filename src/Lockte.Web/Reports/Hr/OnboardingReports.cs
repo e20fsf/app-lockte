@@ -54,6 +54,7 @@ public static class OnboardingReports
             CancellationToken ct) =>
         {
             var roster = await directory.GetDepartmentRosterAsync(department, shift);
+            if (roster.Lines.Count == 0) return Results.NotFound("ไม่มีพนักงานในแผนก/กะที่เลือก — ไม่มีข้อมูลให้พิมพ์"); // #399: no empty PDF
             if (IsExcel(format)) return Excel(EmployeeListTables.Roster(roster));
             var pdf = await printer.PrintAsync<DepartmentRosterView>(roster.Title, Paper.A4Portrait,
                 new() { [nameof(DepartmentRosterView.Roster)] = roster }, AccountClaims.DisplayNameOf(http.User), cancellationToken: ct);
