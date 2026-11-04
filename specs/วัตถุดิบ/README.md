@@ -44,16 +44,16 @@
 ## Workflow หลัก
 ```mermaid
 flowchart LR
-  subgraph ขอซื้อ
+  subgraph SG1["ขอซื้อ"]
     A[เลือกแผนก/ออกเลข PR<br/>BR-010] --> B[กรอก+พิมพ์ใบขอซื้อ<br/>BR-011 RPT-01]
   end
-  subgraph สั่งซื้อ
+  subgraph SG2["สั่งซื้อ"]
     B --> C[ออกใบสั่งซื้อ เต็ม/บางส่วน<br/>BR-021 BR-022 RPT-02]
     C -->|ส่วนที่ยังไม่สั่ง| B2[(รายการขอซื้อค้าง<br/>RPT-03)]
     B2 --> C
     C --> D[(PO ค้างรับ<br/>RPT-04)]
   end
-  subgraph รับของ
+  subgraph SG3["รับของ"]
     D --> E[รับของ BR-030/031]
     E -->|ไม่ครบ| D
     D --> X[ตรวจไม่ผ่าน BR-032]
@@ -62,7 +62,7 @@ flowchart LR
     H --> Q[QA บันทึก LOT/ผล BR-035]
     Q --> V[ประเมินผู้ขายรายไตรมาส<br/>BR-050 RPT-07/09]
   end
-  subgraph สต็อก
+  subgraph SG4["สต็อก"]
     E -->|วัตถุดิบหลัก| S[(สต็อก)]
     W[เบิก BR-040] --> S
     S --> K[STOCK CARD RPT-14]

@@ -495,18 +495,18 @@ Index: (MOULD_ID) ไม่ unique
 
 ```mermaid
 erDiagram
-  เซล ||--o{ P_CUS : ดูแล
-  เซล ||--o{ ORDER : รับ
-  P_CUS ||--o{ ORDER : สั่ง
-  ORDER ||--o{ ODDส่งออก : ส่ง
+  "เซล" ||--o{ P_CUS : "ดูแล"
+  "เซล" ||--o{ ORDER : "รับ"
+  P_CUS ||--o{ ORDER : "สั่ง"
+  ORDER ||--o{ "ODDส่งออก" : "ส่ง"
   P_NAME ||--o{ ORDER : ""
   P_NAME ||--o{ P_REP : ""
   P_NAME ||--o{ P_ST : ""
   MC_N ||--o{ P_REP : ""
   EMPO ||--o{ P_REP : ""
-  รหัสพิมพ์ ||--o{ P_REP : ""
-  รหัสพิมพ์ ||--o{ การใช้งานของพิมพ์0 : ""
-  แผนก ||--o{ MC_N : ""
+  "รหัสพิมพ์" ||--o{ P_REP : ""
+  "รหัสพิมพ์" ||--o{ "การใช้งานของพิมพ์0" : ""
+  "แผนก" ||--o{ MC_N : ""
 ```
 
 ## ข้อมูลอ้างอิง (lookup / master)
