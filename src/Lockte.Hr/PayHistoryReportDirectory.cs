@@ -42,6 +42,27 @@ public sealed class PayHistoryReportDirectory(HrDbContext db, OrgDirectory org)
     }
 
     /// <summary>
+    /// ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (UAT-23): the same employees and ค่าจ้าง as <see cref="GetMonthEndReportAsync"/> for the same
+    /// dates/แผนก, with age (at ถึงวันที่), nationality, start and end dates from the register.
+    /// </summary>
+    public async Task<WelfareFundReport> GetWelfareFundReportAsync(DateOnly from, DateOnly to, int? departmentId)
+    {
+        var lines = await MonthEndLinesAsync(from, to, departmentId);
+        var codes = lines.Select(l => l.Code).ToList();
+        var employees = await db.Employees.AsNoTracking().Where(e => codes.Contains(e.Code))
+            .Select(e => new { e.Code, e.Name, e.BirthDate, e.Nationality, e.NationalId, e.EmployeeType, e.StartDate, e.ResignDate })
+            .ToDictionaryAsync(e => e.Code);
+        var name = departmentId is { } d ? (await org.GetDepartmentAsync(d))?.Name : null;
+        var rows = lines.Select(l =>
+        {
+            var e = employees[l.Code];
+            int? age = e.BirthDate is { } b ? to.Year - b.Year - (to < b.AddYears(to.Year - b.Year) ? 1 : 0) : null;
+            return new WelfareFundLine(l.Code, e.Name, age, e.Nationality, e.NationalId, e.EmployeeType, l.Wage, e.StartDate, e.ResignDate);
+        }).ToList();
+        return new WelfareFundReport(from, to, name, rows);
+    }
+
+    /// <summary>
     /// RPT-09 (คิวรี สรุปค่าแรงแต่ละเดิอน1 → 2..25 → 26): every งวด with from ≤ วันที่จ่าย ≤ to, Σ(PAY_W + PAY_OT) by
     /// <see cref="PayMonth"/> and <see cref="CodeDepartments.Of"/>, by แผนก (Thai order as the legacy GROUP BY).
     /// </summary>

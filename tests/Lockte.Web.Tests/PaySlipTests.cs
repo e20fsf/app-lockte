@@ -80,6 +80,24 @@ public sealed class PaySlipTests
     public void Welfare_is_a_quarter_percent_rounded_to_the_baht(decimal total, decimal expected)
         => Assert.Equal(expected, Welfare.Contribution(total));
 
+    [Theory] // UAT-23: อัตราตามวันสิ้นสุดงวด (ค.ศ. = พ.ศ. − 543): ก่อน 2570 และ 2570–2574 = 0.25%, ตั้งแต่ 1 ม.ค. 2575 (ค.ศ. 2032) = 0.50%
+    [InlineData(2026, 10, 26, "0.0025")]  // 2569
+    [InlineData(2026, 12, 31, "0.0025")]  // 31 ธ.ค. 2569
+    [InlineData(2027, 1, 1, "0.0025")]    // 1 ม.ค. 2570
+    [InlineData(2031, 12, 31, "0.0025")]  // 31 ธ.ค. 2574
+    [InlineData(2032, 1, 1, "0.0050")]    // 1 ม.ค. 2575
+    [InlineData(2040, 6, 30, "0.0050")]
+    public void Welfare_rate_follows_the_end_of_the_period(int year, int month, int day, string expected)
+        => Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), Welfare.RateOn(new DateOnly(year, month, day)));
+
+    [Fact] // UAT-23: 10,000 → 25 บาท until 31 ธ.ค. 2574, 50 บาท from 1 ม.ค. 2575; the one-argument form stays 0.25%
+    public void Welfare_contribution_switches_to_half_a_percent_on_1_january_2575()
+    {
+        Assert.Equal(25m, Welfare.Contribution(10000m, new DateOnly(2031, 12, 31)));
+        Assert.Equal(50m, Welfare.Contribution(10000m, new DateOnly(2032, 1, 1)));
+        Assert.Equal(25m, Welfare.Contribution(10000m));
+    }
+
     [Fact] // #180: the employee's share leaves the net, the company's does not; a slip without welfare (a migrated period) keeps net = total
     public void Employee_welfare_is_deducted_from_the_net()
     {

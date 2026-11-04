@@ -80,7 +80,8 @@ public static class XlsxWriter
         if (table.Title.Length > 0)
         {
             Text(table.Title, row++);
-            if (table.Filter is { } filter) Text(filter, row++);
+            if (table.Filter is { } filter)
+                foreach (var line in filter.Split('\n')) Text(line, row++); // one row per line (the fund's header block)
             row++;
         }
         xml.Append($"<row r=\"{row}\">");

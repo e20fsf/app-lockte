@@ -26,6 +26,7 @@ public static class PayReportRoutes
         "/reports/hr/pay/contract-labor",
         "/reports/hr/pay/month-end",
         "/reports/hr/pay/month-end/summary",
+        "/reports/hr/pay/month-end/welfare-fund",
         "/reports/hr/pay/monthly",
         "/reports/hr/pay/totals",
         "/reports/hr/bonus",

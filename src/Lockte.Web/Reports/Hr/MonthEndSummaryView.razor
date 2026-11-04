@@ -1,7 +1,6 @@
 @using Lockte.Hr
 @* The two RPT-08 summaries on A4 ตั้ง (print-samples.md "แบบสรุป"), ระดับ B: (ลำดับ) แผนก จำนวนคน จำนวนเงิน, "รวมทั้งหมด" +
-   เส้นคู่. สรุปบัญชีคำนวณค่าจ้าง (ปุ่ม "พิมพ์สรุป") prints Σ ค่าจ้าง (AMOUNT); สรุปค่าแรงประจำเดือน (ปุ่ม "พิมพ์สรุป (ต้นทุน)")
-   prints Σ (PAY_W + PAY_OT) (AMOUNT1). The legacy put the print date top right and no company name; แบบกลาง B has both
+   เส้นคู่. สรุปบัญชีคำนวณค่าจ้าง (ปุ่ม "พิมพ์สรุป") prints Σ ค่าจ้าง (AMOUNT). (The legacy ต้นทุน variant, Σ (PAY_W + PAY_OT), was taken out in UAT-23.) The legacy put the print date top right and no company name; แบบกลาง B has both
    in its header and footer. Rows from PayHistoryReportDirectory.GetMonthEndSummaryAsync (BR-063). *@
 <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
 @if (Report.Lines.Count == 0)
@@ -43,12 +42,8 @@ else
 @code {
     [Parameter, EditorRequired] public MonthEndPaySummary Report { get; set; } = default!;
 
-    /// <summary>true: สรุปค่าแรงประจำเดือน (ต้นทุน), Σ (PAY_W + PAY_OT); false: สรุปบัญชีคำนวณค่าจ้าง, Σ ค่าจ้าง.</summary>
-    [Parameter] public bool Cost { get; set; }
+    /// <summary>The legacy heading: "สรุปบัญชีคำนวณค่าจ้างเดือน กันยายน 2569" (MOUNT = ถึงวันที่).</summary>
+    public static string TitleOf(MonthEndPaySummary report) => "สรุปบัญชีคำนวณค่าจ้างเดือน " + MonthEndPayReportView.MonthOf(report.To);
 
-    /// <summary>The legacy heading: "สรุปบัญชีคำนวณค่าจ้างเดือน กันยายน 2569" / "สรุปค่าแรงประจำเดือน กันยายน 2569" (MOUNT = ถึงวันที่).</summary>
-    public static string TitleOf(MonthEndPaySummary report, bool cost)
-        => (cost ? "สรุปค่าแรงประจำเดือน " : "สรุปบัญชีคำนวณค่าจ้างเดือน ") + MonthEndPayReportView.MonthOf(report.To);
-
-    private decimal Amount(MonthEndDepartmentTotal line) => Cost ? line.Total : line.Wages;
+    private static decimal Amount(MonthEndDepartmentTotal line) => line.Wages;
 }
