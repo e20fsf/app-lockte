@@ -178,12 +178,19 @@ public sealed class CustomerDirectory(SalesDbContext db)
         return await Query().FirstOrDefaultAsync(c => c.Code == normalized) is { } c ? ToDto(c) : null;
     }
 
-    /// <summary>ลูกค้า whose code or name contains <paramref name="text"/>, by รหัส.</summary>
-    public async Task<IReadOnlyList<CustomerDto>> SearchAsync(string? text, int max = 200)
+    /// <summary>
+    /// ลูกค้าที่ค้นได้จากช่อง "รหัส หรือ ชื่อ" (UAT-33): พิมพ์ตัวเลข/ขีดล้วน (เช่น 05) = รหัสที่ <b>ขึ้นต้น</b>ด้วยข้อความนั้น,
+    /// พิมพ์อย่างอื่น = ชื่อที่มีข้อความนั้น (หรือรหัสที่ขึ้นต้น). เรียงตามรหัส; <paramref name="max"/> เป็นเพดานกันพลาดเท่านั้น (ค่าตั้งต้นไม่ตัดรายการ).
+    /// </summary>
+    public async Task<IReadOnlyList<CustomerDto>> SearchAsync(string? text, int max = int.MaxValue)
     {
         var term = text?.Trim();
-        return (await Query().Where(c => string.IsNullOrEmpty(term) || c.Code.Contains(term) || c.Name.Contains(term))
-            .OrderBy(c => c.Code).Take(max).ToListAsync()).Select(ToDto).ToList();
+        var query = Query();
+        if (!string.IsNullOrEmpty(term))
+            query = CustomerSearch.IsCodeTerm(term)
+                ? query.Where(c => c.Code.StartsWith(term))
+                : query.Where(c => c.Name.Contains(term) || c.Code.StartsWith(term));
+        return (await query.OrderBy(c => c.Code).Take(max).ToListAsync()).Select(ToDto).ToList();
     }
 
     private IQueryable<Customer> Query() => db.Customers.AsNoTracking().Include(c => c.SalesTerritory);
@@ -191,4 +198,21 @@ public sealed class CustomerDirectory(SalesDbContext db)
     private static CustomerDto ToDto(Customer c) => new(
         c.Id, c.Code, c.Name, c.RowVersion, c.CreditDays, c.Address, c.District, c.Province, c.PostalCode, c.TransportName,
         c.TransportAddress, c.TransportPhone, c.Phone1, c.Phone2, c.SalesTerritoryId, c.SalesTerritory?.Code, c.Remark);
+}
+
+/// <summary>The one rule of the customer pick-box (UAT-33): digits and dashes only = a code prefix, anything else = a name.</summary>
+public static class CustomerSearch
+{
+    public static bool IsCodeTerm(string term) => term.Length > 0 && term.All(ch => ch is >= '0' and <= '9' or '-');
+
+    /// <summary>The same rule for a list already in memory (the pick-box with its own candidates), by รหัส.</summary>
+    public static IEnumerable<CustomerDto> Filter(IEnumerable<CustomerDto> customers, string? text)
+    {
+        var term = text?.Trim();
+        var ordered = customers.OrderBy(c => c.Code, StringComparer.Ordinal);
+        if (string.IsNullOrEmpty(term)) return ordered;
+        return IsCodeTerm(term)
+            ? ordered.Where(c => c.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase))
+            : ordered.Where(c => c.Name.Contains(term, StringComparison.OrdinalIgnoreCase) || c.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase));
+    }
 }

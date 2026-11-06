@@ -20,9 +20,8 @@
         </MudStack>
         @if (Info.Customer != Choice.None)
         {
-            <MudAutocomplete T="CustomerDto" @bind-Value="customer" @bind-Value:after="RememberAsync" SearchFunc="SearchCustomerAsync"
-                             Label="@(Info.Customer == Choice.Required ? "ลูกค้า" : "ลูกค้า (ว่าง = ทุกราย)")" ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")"
-                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="max-width:30rem" />
+            <CustomerPicker @bind-Value="customer" @bind-Value:after="RememberAsync" Label="@(Info.Customer == Choice.Required ? "ลูกค้า" : "ลูกค้า (ว่าง = ทุกราย)")"
+                            Clearable="true" Style="max-width:30rem" />
         }
         @if (Info.Territory != Choice.None)
         {
@@ -164,9 +163,6 @@
             // remembering is a convenience only
         }
     }
-
-    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
-        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
 
     private string Url(string? format)
     {
