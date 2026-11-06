@@ -53,8 +53,7 @@
         </MudItem>
 
         <MudItem xs="12" sm="6">
-            <MudAutocomplete T="CustomerDto" @bind-Value="form.Customer" Label="ลูกค้าเจ้าของ (รหัส 40…)" SearchFunc="SearchCustomerAsync"
-                             ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+            <CustomerPicker @bind-Value="form.Customer" Label="ลูกค้าเจ้าของ (รหัส 40…)" Clearable="true" Candidates="OwnerCandidates" />
         </MudItem>
         <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.ProducedOn" Label="วันที่ผลิต" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
         <MudItem xs="6" sm="3">
@@ -184,13 +183,8 @@
     }
 
     // The combo of P_NAME / P_NAME2: customers whose code starts with 40 (the product's current customer stays choosable).
-    private Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
-    {
-        var term = text?.Trim();
-        var list = customers.Where(c => c.Code.StartsWith("40", StringComparison.Ordinal) || c.Id == form.Customer?.Id);
-        return Task.FromResult(string.IsNullOrEmpty(term) ? list
-            : list.Where(c => c.Code.Contains(term, StringComparison.OrdinalIgnoreCase) || c.Name.Contains(term, StringComparison.OrdinalIgnoreCase)));
-    }
+    private IReadOnlyList<CustomerDto> OwnerCandidates
+        => customers.Where(c => c.Code.StartsWith("40", StringComparison.Ordinal) || c.Id == form.Customer?.Id).ToList();
 
     // BARCODE starts with the legacy default prefix.
     private void New() => form = new ProductForm { Barcode = "88593144" };
