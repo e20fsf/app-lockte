@@ -15,7 +15,8 @@ public enum Paper
 
 /// <summary>What a printed document is: its title (as the legacy report printed it), paper, and เลขเอกสารควบคุม.</summary>
 /// <param name="DocumentNumber">The printed text of the document's number (<see cref="DocumentNumberService"/>), or none.</param>
-public sealed record ReportDocument(string Title, Paper Paper, string? DocumentNumber = null);
+/// <param name="Footer">False for a one-page sheet that prints no footer at all (no print date, no page number — #408 ใบขออนุมัติทำงานล่วงเวลา).</param>
+public sealed record ReportDocument(string Title, Paper Paper, string? DocumentNumber = null, bool Footer = true);
 
 /// <summary>ท้ายหน้า: when it was printed and by whom (#40 แบบกลาง, #39 login).</summary>
 public sealed record PrintStamp(DateTimeOffset PrintedAt, string PrintedBy);
@@ -54,7 +55,7 @@ public static class ReportHtml
         + "const w=b.scrollWidth,a=A();if(w>a+1)b.style.zoom=a/w;};";
 
     /// <summary>Margins in mm: top leaves room for the two header lines, bottom for the footer.</summary>
-    public const double MarginTop = 24, MarginSide = 12, MarginBottom = 15;
+    public const double MarginTop = 26, MarginSide = 12, MarginBottom = 15;
 
     public static string PageSize(Paper paper) => paper switch
     {
@@ -77,18 +78,32 @@ public static class ReportHtml
         _ => throw new ArgumentOutOfRangeException(nameof(paper)),
     };
 
+    /// <summary>
+    /// The header's size in pt (company and title, one CSS margin box, so one size): 16 → 17 to follow the Access samples, where the heading is
+    /// larger than the body (#408).
+    /// </summary>
+    public const int TitleSizePt = 17;
+
+    /// <summary>The footer's print date: "5 พฤศจิกายน 2569" (full month, พ.ศ.).</summary>
+    public static string PrintDate(DateTimeOffset printedAt) => printedAt.ToString("d MMMM yyyy", SharedKernel.ThaiDate.Culture);
+
     public static string Compose(ReportDocument document, PrintStamp stamp, string bodyHtml, ReportFont? font = null)
     {
         font ??= ReportFonts.ThSarabunNew;
         var margin = $"font-family:'{font.Family}';font-size:12pt;";
         var css = new StringBuilder(font.FaceCss);
         css.Append($"@page{{size:{PageSize(document.Paper)};margin:{MarginTop}mm {MarginSide}mm {MarginBottom}mm {MarginSide}mm;");
+        // #408: company bigger than the title, as the Access reports print them; the block sits a little lower (less padding under it)
         css.Append($"@top-center{{content:{CssString($"{Company}\n{document.Title}")};white-space:pre;text-align:center;vertical-align:bottom;"
-                   + $"font-family:'{font.Family}';font-size:16pt;font-weight:bold;line-height:1.1;padding-bottom:3mm}}");
+                   + $"font-family:'{font.Family}';font-size:{TitleSizePt}pt;font-weight:bold;line-height:1.1;padding-bottom:2mm}}");
         if (!string.IsNullOrWhiteSpace(document.DocumentNumber))
             css.Append($"@top-right{{content:{CssString(document.DocumentNumber)};white-space:pre;text-align:right;vertical-align:top;{margin}padding-top:6mm}}");
-        css.Append($"@bottom-left{{content:{CssString($"พิมพ์เมื่อ {stamp.PrintedAt.ToString("d/M/yyyy HH:mm", SharedKernel.ThaiDate.Culture)} โดย {stamp.PrintedBy}")};{margin}vertical-align:top;padding-top:2mm}}");
-        css.Append($"@bottom-right{{content:\"หน้า \" counter(page) \" จาก \" counter(pages);text-align:right;{margin}vertical-align:top;padding-top:2mm}}");
+        if (document.Footer)
+        {
+            // #408: the footer is the print date in full Thai (5 พฤศจิกายน 2569) on every page, no time and no user
+            css.Append($"@bottom-left{{content:{CssString(PrintDate(stamp.PrintedAt))};{margin}vertical-align:top;padding-top:2mm}}");
+            css.Append($"@bottom-right{{content:\"หน้า \" counter(page) \" จาก \" counter(pages);text-align:right;{margin}vertical-align:top;padding-top:2mm}}");
+        }
         css.Append('}');
         css.Append(BaseCss(font));
 
@@ -110,6 +125,11 @@ public static class ReportHtml
         + ".num{text-align:right;white-space:nowrap}"
         + ".nw{white-space:nowrap}"
         + ".total td{border-top:1pt solid #000;padding-top:2pt}"
+        // #408: the word "รวม" (the label cells of a total row) is bold
+        + ".total td:not(.num),.lbl{font-weight:bold}"
+        // #408: Angsana New's tone marks over an upper vowel (ซื้, น้ำ) rise above the line box; a collapsed table border is painted OVER the
+        // text, so the first row under the header rule lost its marks. Room above the first row keeps them clear of the rule.
+        + "tbody tr:first-child td{padding-top:4pt}"
         + ".end{border-bottom:3pt double #000;height:2pt}"
         + ".no-data{text-align:center;margin-top:12mm;font-size:16pt}";
 

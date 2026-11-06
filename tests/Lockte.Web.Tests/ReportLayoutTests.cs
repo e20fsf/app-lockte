@@ -22,7 +22,9 @@ public sealed class ReportLayoutTests
         Assert.Contains("@page{size:A5 landscape", html);
         Assert.Contains("\"บริษัท ล็อคเต้ จำกัด\\A ใบลางาน\"", html);
         Assert.Contains("\"WI-PE-004-1/2547 ฉบับที่ 5\"", html);
-        Assert.Contains("\"พิมพ์เมื่อ 19/10/2569 14:05 โดย สมหญิง ใจดี\"", html);
+        Assert.Contains("\"19 ตุลาคม 2569\"", html); // #408: the date in full, no time, no user
+        Assert.DoesNotContain("พิมพ์เมื่อ", html);
+        Assert.DoesNotContain("สมหญิง", html);
         Assert.Contains("\"หน้า \" counter(page) \" จาก \" counter(pages)", html);
         Assert.Contains("<p>เนื้อหา</p>", html);
         Assert.DoesNotContain("logo", html); // ระดับ B ไม่มีโลโก้
@@ -40,14 +42,38 @@ public sealed class ReportLayoutTests
     public void Without_a_document_number_the_top_right_is_empty()
         => Assert.DoesNotContain("@top-right", ReportHtml.Compose(new ReportDocument("คำนวณเวลาทำงาน", Paper.A4Portrait), Stamp, ""));
 
-    [Fact] // a display name is typed by the admin: it must not break out of the CSS string
+    [Fact] // a title is typed in code but may carry quotes: it must not break out of the CSS string
     public void Text_in_the_margins_is_escaped()
     {
-        var html = ReportHtml.Compose(new ReportDocument("a\"b", Paper.A4Portrait), Stamp with { PrintedBy = "x\\\"}</style><script>" }, "");
+        var html = ReportHtml.Compose(new ReportDocument("a\"b</style><script>", Paper.A4Portrait), Stamp, "");
 
-        Assert.Contains("a\\\"b", html);
-        Assert.Contains("x\\\\\\\"}\\3C /style\\3E \\3C script\\3E ", html);
+        Assert.Contains("a\\\"b\\3C /style\\3E \\3C script\\3E ", html);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "</style>"));
+    }
+
+    [Fact] // #408: a one-page sheet (ใบขออนุมัติทำงานล่วงเวลา) has neither the print date nor the page number
+    public void A_sheet_without_a_footer_prints_neither_date_nor_page_number()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("x", Paper.A5Portrait, Footer: false), Stamp, "");
+
+        Assert.DoesNotContain("@bottom-left", html);
+        Assert.DoesNotContain("@bottom-right", html);
+        Assert.DoesNotContain("19 ตุลาคม 2569", html);
+    }
+
+    [Theory] // #408: "5 พฤศจิกายน 2569" — day without a leading zero, full month name, พ.ศ.
+    [InlineData(2026, 11, 5, "5 พฤศจิกายน 2569")]
+    [InlineData(2027, 1, 31, "31 มกราคม 2570")]
+    public void The_footer_date_is_the_full_thai_date(int y, int m, int d, string expected)
+        => Assert.Equal(expected, ReportHtml.PrintDate(new DateTimeOffset(y, m, d, 9, 30, 0, TimeSpan.FromHours(7))));
+
+    [Fact] // #408: the word รวม of a total row is bold; the first row has room above it so a tone mark over an upper vowel clears the header rule
+    public void Total_labels_are_bold_and_the_first_row_clears_the_header_rule()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("x", Paper.A4Portrait), Stamp, "");
+
+        Assert.Contains(".total td:not(.num),.lbl{font-weight:bold}", html);
+        Assert.Contains("tbody tr:first-child td{padding-top:4pt}", html);
     }
 
     [Fact] // ตารางกว้างเกิน → ย่อพอดีหน้า; ข้อความหนึ่งรายการอยู่บรรทัดเดียว

@@ -69,7 +69,7 @@ public sealed class OvertimeSheetReportTests(ChromiumFixture chromium)
     public async Task The_sheet_prints_on_A5_portrait()
     {
         var body = await ReportBody.RenderAsync<OvertimeSheetView>(new() { [nameof(OvertimeSheetView.Sheet)] = Sheet(new DateOnly(2026, 10, 18), Lines) });
-        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false), new PrintStamp(DateTimeOffset.Now, "tester"), body);
 
         var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(html, OvertimeSheetView.Paper));
 
@@ -108,7 +108,7 @@ public sealed class OvertimeSheetLargeTests(ChromiumFixture chromium)
         var lines = Enumerable.Range(1, people).Select(i => new OvertimeSheetLine($"A{i:D3}", "นางสาวสมหญิง ตัวอย่างนามสกุล " + i, i % 3 == 0 ? "งานเร่งด่วนส่งของลูกค้า" : null)).ToList();
         var sheet = new OvertimeSheet(new DateOnly(2026, 11, 3), "ประกอบ", new(17, 20), new(20, 20), "O1", lines);
         var body = await ReportBody.RenderAsync<OvertimeSheetView>(new() { [nameof(OvertimeSheetView.Sheet)] = sheet });
-        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false), new PrintStamp(DateTimeOffset.Now, "tester"), body);
         var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(html, OvertimeSheetView.Paper));
         return Regex.Matches(pdf, @"/Type /Page\b").Count;
     }
