@@ -47,7 +47,7 @@ public static class HrAttendanceReports
                 return Results.File(Order.XlsxWriter.Write(DepartmentLeaveTable.Build(report)), Order.XlsxWriter.ContentType,
                     DepartmentLeaveReportView.TitleOf(report) + ".xlsx");
             return await PrintAsync<DepartmentLeaveReportView>(http, printer, DepartmentLeaveReportView.TitleOf(report), Paper.A4Landscape, report,
-                "ลางานแผนก " + (report.DepartmentName ?? "ทั้งหมด") + " " + Iso(report.From), cancellationToken);
+                "ลางานแผนก " + (report.DepartmentName ?? "ทั้งหมด") + " " + Iso(report.From), cancellationToken, dateAtTop: true);
         });
 
         // RPT-31 ปุ่ม "พิมพ์ลางานตามวันที่" (รายงาน พิมพ์ลางานทั้งแผนก100)
@@ -151,10 +151,10 @@ public static class HrAttendanceReports
             : from > to ? Results.BadRequest("ตั้งแต่วันที่ต้องไม่หลังถึงวันที่") : null;
 
     internal static async Task<IResult> PrintAsync<TView>(HttpContext http, ReportPrinter printer, string title, Paper paper, object report,
-        string fileName, CancellationToken cancellationToken) where TView : Microsoft.AspNetCore.Components.IComponent
+        string fileName, CancellationToken cancellationToken, bool dateAtTop = false) where TView : Microsoft.AspNetCore.Components.IComponent
     {
         var pdf = await printer.PrintAsync<TView>(title, paper, new() { ["Report"] = report }, AccountClaims.DisplayNameOf(http.User),
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken, dateAtTop: dateAtTop);
         return ReportsRegistration.Pdf(http, pdf, fileName);
     }
 

@@ -61,6 +61,17 @@ public sealed class ReportLayoutTests
         Assert.DoesNotContain("19 ตุลาคม 2569", html);
     }
 
+    [Fact] // #411: the Access layout of the leave reports — the date at the top left, "หน้า x จาก y" at the top right, nothing in the footer
+    public void The_date_at_top_layout_has_date_top_left_and_page_top_right()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("x", Paper.A4Landscape, DateAtTop: true), Stamp, "");
+
+        Assert.Contains("@top-left{content:\"19 ตุลาคม 2569\"", html);
+        Assert.Contains("@top-right{content:\"หน้า \" counter(page) \" จาก \" counter(pages)", html);
+        Assert.DoesNotContain("@bottom-left", html);
+        Assert.DoesNotContain("@bottom-right", html);
+    }
+
     [Theory] // #408: "5 พฤศจิกายน 2569" — day without a leading zero, full month name, พ.ศ.
     [InlineData(2026, 11, 5, "5 พฤศจิกายน 2569")]
     [InlineData(2027, 1, 31, "31 มกราคม 2570")]

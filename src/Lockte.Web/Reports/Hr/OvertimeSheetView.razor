@@ -18,6 +18,8 @@
     .ot-grid.compact th, .ot-grid.compact td { padding: 0 3pt; }
     .ot-grid.compact td { height: 11.5pt; }
     .ot-grid.compact td.n { white-space: nowrap; }
+    /* #411: the หมายเหตุ column is wide and its text stays on one line */
+    .ot-grid td.m { white-space: nowrap; }
     .ot-foot.compact { margin-top: 8pt; }
 </style>
 <div class="ot-head">
@@ -32,8 +34,8 @@ else
 {
     <table class="@GridClass">
         <colgroup>
-            <col style="width:6%" /><col style="width:10%" /><col style="width:32%" />
-            <col style="width:11%" /><col style="width:11%" /><col style="width:13%" /><col style="width:17%" />
+            <col style="width:4%" /><col style="width:8%" /><col style="width:22%" />
+            <col style="width:8%" /><col style="width:8%" /><col style="width:9%" /><col style="width:41%" />
         </colgroup>
         <thead>
             <tr><th>ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เริ่มงาน</th><th>เลิกงาน</th><th>ลายเซ็นต์</th><th>หมายเหตุ</th></tr>
@@ -46,10 +48,10 @@ else
                     <td class="c">@(i + 1)</td>
                     <td>@line.EmployeeCode</td>
                     <td class="n">@line.EmployeeName</td>
-                    <td class="c">@Time(Sheet.WorkIn)</td>
-                    <td class="c">@Time(Sheet.WorkOut)</td>
+                    <td class="c">@Time(line.WorkIn)</td>
+                    <td class="c">@Time(line.WorkOut)</td>
                     <td></td>
-                    <td>@line.Memo</td>
+                    <td class="m">@line.Memo</td>
                 </tr>
             }
         </tbody>

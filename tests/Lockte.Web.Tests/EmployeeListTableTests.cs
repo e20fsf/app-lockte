@@ -151,16 +151,19 @@ public sealed class DepartmentLeaveAllTests
         Assert.Equal(1.0 / 2 / 20 * 100, All().PercentOf(1, 2));
     }
 
-    [Fact]
-    public async Task The_report_prints_each_department_total_and_the_total_of_all()
+    [Fact] // #411: one list by แผนก, numbered through, and the summary rows once at the end (as the Access report), not per แผนก
+    public async Task The_report_of_all_departments_has_the_total_once_at_the_end()
     {
         var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<DepartmentLeaveReportView>(new() { ["Report"] = All() }));
 
-        Assert.Contains("รวมแผนกประกอบ", html);
-        Assert.Contains("รวมแผนกตกแต่ง", html);
-        Assert.Contains("รวมทั้งหมดทุกแผนก", html);
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(html, "คิดเป็นเปอร์เซ็นต์").Count); // two แผนก and the company
+        Assert.DoesNotContain("รวมแผนก", html);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "รวมทั้งหมด"));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "คิดเป็นเปอร์เซ็นต์"));
         Assert.Contains(">3.0<", html); // company: SR1 = 2 + 1
+        // by แผนก (ตกแต่ง first), numbered 1..3, the summary after the last person
+        Assert.True(html.IndexOf("A002", StringComparison.Ordinal) < html.IndexOf("A001", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("A003", StringComparison.Ordinal) < html.IndexOf("รวมทั้งหมด", StringComparison.Ordinal));
+        Assert.Contains(">3<", html);
     }
 
     [Fact] // a single แผนก keeps the legacy form: one รวมทั้งหมด
@@ -168,7 +171,6 @@ public sealed class DepartmentLeaveAllTests
     {
         var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<DepartmentLeaveReportView>(new() { ["Report"] = All() with { DepartmentName = "ประกอบ" } }));
 
-        Assert.DoesNotContain("รวมทั้งหมดทุกแผนก", html);
         Assert.DoesNotContain("รวมแผนก", html);
         Assert.Contains("รวมทั้งหมด", html);
     }

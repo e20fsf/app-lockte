@@ -28,6 +28,12 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
     public static IReadOnlyList<TimeOnly> WithExtras(IEnumerable<TimeOnly> shiftTimes, IEnumerable<TimeOnly> extras)
         => [.. shiftTimes.Concat(extras).Distinct().Order()];
 
+    /// <summary>
+    /// #411: the แผนก the master data calls "ทั่วไป" (everyone, no one แผนก) is offered and printed as "แผนกรวม" on this sheet; the name of the
+    /// แผนก itself is not changed.
+    /// </summary>
+    public static string DepartmentLabel(string name) => name == "ทั่วไป" ? "แผนกรวม" : name;
+
     public async Task<OvertimeSheetChoices> GetChoicesAsync(DateOnly date)
     {
         var dayBefore = date.AddDays(-1);
@@ -66,17 +72,24 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
         if (!WorkTypes.Codes.Contains(type)) return Refused($"ประเภทต้องเป็น {string.Join(", ", WorkTypes.Codes)}");
         if (input.WorkIn is not { } workIn || input.WorkOut is not { } workOut) return Refused("กรุณากรอกเวลาเริ่มและเวลาเลิก");
         if (input.RestMinutes < 0) return Refused("นาทีพักต้องไม่ติดลบ");
+        if (input.Lines.Any(l => l.RestMinutes < 0)) return Refused("นาทีพักต้องไม่ติดลบ");
 
         string? departmentName = null;
         if (input.DepartmentId is { } departmentId)
         {
             if (await org.GetDepartmentAsync(departmentId) is not { } department) return Refused("ไม่พบแผนกที่เลือก");
-            departmentName = department.Name;
+            departmentName = DepartmentLabel(department.Name);
         }
 
-        var lines = input.Lines.Where(l => l.EmployeeId is not null)
-            .Select(l => (EmployeeId: l.EmployeeId!.Value, Memo: string.IsNullOrWhiteSpace(l.Memo) ? null : l.Memo.Trim()))
-            .ToList();
+        // #411: a line has its own times, rest and type, or the sheet's
+        var lines = new List<(int EmployeeId, string? Memo, TimeOnly WorkIn, TimeOnly WorkOut, int RestMinutes, string Type)>();
+        foreach (var l in input.Lines.Where(l => l.EmployeeId is not null))
+        {
+            var lineType = string.IsNullOrWhiteSpace(l.Type) ? type : l.Type.Trim().ToUpperInvariant();
+            if (!WorkTypes.Codes.Contains(lineType)) return Refused($"ประเภทต้องเป็น {string.Join(", ", WorkTypes.Codes)}");
+            lines.Add((l.EmployeeId!.Value, string.IsNullOrWhiteSpace(l.Memo) ? null : l.Memo.Trim(), l.WorkIn ?? workIn, l.WorkOut ?? workOut,
+                l.RestMinutes ?? input.RestMinutes, lineType));
+        }
         if (lines.Any(l => l.Memo?.Length > MemoLength)) return Refused($"หมายเหตุยาวได้ไม่เกิน {MemoLength} ตัวอักษร");
         var ids = lines.Select(l => l.EmployeeId).Distinct().ToList();
         var employees = await db.Employees.Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id);
@@ -86,17 +99,17 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
         {
             db.WorkTimes.Add(new WorkTime
             {
-                Date = date, Employee = employees[line.EmployeeId], Type = type,
-                WorkIn = workIn, WorkOut = workOut, RestMinutes = input.RestMinutes,
+                Date = date, Employee = employees[line.EmployeeId], Type = line.Type,
+                WorkIn = line.WorkIn, WorkOut = line.WorkOut, RestMinutes = line.RestMinutes,
             });
         }
         await db.SaveChangesAsync();
 
         var printed = lines
-            .Select(l => new OvertimeSheetLine(employees[l.EmployeeId].Code, employees[l.EmployeeId].Name, l.Memo))
+            .Select(l => new OvertimeSheetLine(employees[l.EmployeeId].Code, employees[l.EmployeeId].Name, l.WorkIn, l.WorkOut, l.Memo))
             .OrderBy(l => l.EmployeeCode, StringComparer.Ordinal) // stable: the same code keeps the keyed order
             .ToList();
-        return new OvertimeSheetOutcome(ServiceResult.Ok(lines.Count), new OvertimeSheet(date, departmentName, workIn, workOut, type, printed));
+        return new OvertimeSheetOutcome(ServiceResult.Ok(lines.Count), new OvertimeSheet(date, departmentName, type, printed));
     }
 
     private static OvertimeSheetOutcome Refused(string error) => new(ServiceResult.Fail(error), null);
