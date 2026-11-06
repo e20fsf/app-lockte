@@ -80,7 +80,8 @@ public static class PaySlipForm
         T(74.48, 23.18, "รายละเอียดการจ่ายค่าแรงงวดวันที่", points: 14);
         T(120.96, 23.18, ThaiDate.Format(period.PayDate), points: 14);
 
-        const double days = 29.5;
+        // UAT-30: รหัสพนักงาน/ชื่อ-นามสกุล is the upper row, ตั้งแต่วันที่ … ถึงวันที่ … the lower one
+        const double days = 35.52;
         T(33.45, days, "ตั้งแต่วันที่"); T(46.86, days, ThaiDate.Format(period.From), fit: 61.0 - 46.86); // TH Sarabun's digits are wider
         T(61.86, days, "ถึงวันที่"); T(71.53, days, ThaiDate.Format(period.To), fit: 87.0 - 71.53);
         T(87.91, days, "จำนวน"); T(101.53, days, Whole(s.Days), TextAnchor.End); T(104.22, days, "วัน");
@@ -88,7 +89,7 @@ public static class PaySlipForm
         T(131.8, days, "วันหยุด"); T(143.07, days, Whole(s.PublicHolidays), TextAnchor.End); T(144.59, days, "วัน");
         T(151.08, days, "วันทำงาน"); T(165.86, days, Whole(s.WorkingDays), TextAnchor.End); T(167.4, days, "วัน");
 
-        const double who = 35.52;
+        const double who = 29.5;
         T(32.98, who, "รหัสพนักงาน"); T(49.82, who, s.Code);
         T(65.59, who, "ชื่อ-นามสกุล"); T(81.44, who, s.Name, fit: 116.2 - 81.44);
         T(116.98, who, "ค่าแรงเดือนละหรือวันละ"); T(159.95, who, Forms.FormFormat.Standard(s.Rate, s.Rate % 1 == 0 ? 0 : 2), TextAnchor.End); T(161.43, who, "บาท");
@@ -140,17 +141,17 @@ public static class PaySlipForm
         T(PayeeCentre, PayeeBaseline, s.Name, TextAnchor.Middle, fit: PayeeWidth);
         T(78.37, sign, "แผนกบุคคล"); page.Line(93.06, top + 79.4, 119.79, top + 79.4, 0.1);
         T(124.82, sign, "ผู้จัดการโรงงาน"); page.Line(143.48, top + 79.4, 170.17, top + 79.4, 0.1);
-        Signer(page, top, batch.Signer(SlipSignerRole.HrDepartment), 93.06, 119.79, 94.06);
-        Signer(page, top, batch.Signer(SlipSignerRole.FactoryManager), 143.48, 170.17, 146.68);
+        Signer(page, top, batch.Signer(SlipSignerRole.HrDepartment), 93.06, 119.79);
+        Signer(page, top, batch.Signer(SlipSignerRole.FactoryManager), 143.48, 170.17);
     }
 
-    /// <summary>The picture over the line (it may cross it, as a pen does), else the name where the legacy label had it.</summary>
-    private static void Signer(FormPage page, double top, SlipSignerDto? signer, double x0, double x1, double nameX)
+    /// <summary>The picture over the line (it may cross it, as a pen does); the name — only the name, from ตั้งค่าผู้ลงนามบนสลิป — under the line (UAT-30).</summary>
+    private static void Signer(FormPage page, double top, SlipSignerDto? signer, double x0, double x1)
     {
         if (signer?.Signature is { Length: > 0 } picture && signer.SignatureContentType is { } type)
             page.Image(x0, top + 73.8, x1 - x0, 7.6, type, picture);
-        else
-            page.Text(nameX, top + 78.59, signer?.Name, Body, fit: x1 - nameX);
+        else if (!string.IsNullOrWhiteSpace(signer?.Name))
+            page.Text((x0 + x1) / 2, top + PayeeBaseline, signer.Name, Body, TextAnchor.Middle, fit: x1 - x0 + 4);
     }
 
     private static string Whole(int value) => value.ToString(CultureInfo.InvariantCulture);

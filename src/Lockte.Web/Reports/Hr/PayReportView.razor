@@ -11,9 +11,9 @@ else
 {
     <table>
         <colgroup>
-            <col style="width:5%" /><col style="width:6%" /><col style="width:21%" /><col style="width:8.5%" /><col style="width:7%" />
-            <col style="width:6%" /><col style="width:6%" /><col style="width:6%" /><col style="width:8%" /><col style="width:8%" />
-            <col style="width:8.5%" /><col style="width:10%" />
+            <col style="width:4.5%" /><col style="width:5.5%" /><col style="width:24%" /><col style="width:8%" /><col style="width:6.5%" />
+            <col style="width:5.5%" /><col style="width:6%" /><col style="width:5.5%" /><col style="width:7.5%" /><col style="width:7.5%" />
+            <col style="width:8.5%" /><col style="width:11%" />
         </colgroup>
         <thead>
             <tr>
@@ -58,8 +58,8 @@ else
 }
 
 @code {
-    /// <summary>The legacy printed no title line besides "ค่าแรงงวดวันที่ …"; แบบกลาง needs one.</summary>
-    public const string Title = "ค่าแรง";
+    /// <summary>UAT-30: the legacy printed no title line besides "ค่าแรงงวดวันที่ …", so the page header has only the company (the title "ค่าแรง" is out).</summary>
+    public const string Title = "";
 
     /// <summary>What the header says for SCR-41's <c>*</c>.</summary>
     public const string AllDepartments = "ทุกแผนก";
