@@ -11,9 +11,9 @@ public sealed record SummaryColumn(string Header, SummaryFormat Format = Summary
 
 /// <summary>
 /// A summary as a table: what a report of the ผลผลิตและORDER summaries prints (แบบกลาง B) and what the "Excel" button downloads — the same rows, so the file is
-/// the screen cell for cell (INT-01). Cells are typed (<c>string</c>, <c>int</c>, <c>decimal</c>, or null for blank); a blank is blank, not 0.
+/// the screen cell for cell (INT-01). <c>Airy</c> prints the rows with more space between lines (UAT-30: เงินเดือนส่งแบงค์ทหารไทย). Cells are typed (<c>string</c>, <c>int</c>, <c>decimal</c>, or null for blank); a blank is blank, not 0.
 /// </summary>
-public sealed record SummaryTable(string Title, string? Filter, IReadOnlyList<SummaryColumn> Columns, IReadOnlyList<object?[]> Rows, object?[]? TotalRow = null)
+public sealed record SummaryTable(string Title, string? Filter, IReadOnlyList<SummaryColumn> Columns, IReadOnlyList<object?[]> Rows, object?[]? TotalRow = null, bool Airy = false)
 {
     /// <summary>A cell as the report prints it.</summary>
     public static string Show(SummaryColumn column, object? value) => value switch

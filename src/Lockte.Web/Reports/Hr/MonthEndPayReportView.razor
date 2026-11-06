@@ -10,8 +10,8 @@
     table.grid th, table.grid td { border: 0.5pt solid #000; padding: 1pt 2pt; }
     table.grid th { text-align: center; font-weight: normal; font-size: 12pt; line-height: 1.05; vertical-align: middle; }
     table.grid td { font-size: 12pt; height: 7mm; vertical-align: middle; }
+    table.grid th.dept { border: 0; font-size: 14pt; line-height: 1.2; padding: 4pt 0 5pt; }
 </style>
-<p class="sub">แผนก @(Report.DepartmentName ?? "ทั้งหมด")&emsp;&emsp;ประจำเดือน @MonthOf(Report.To)&emsp;(ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To))</p>
 @if (Report.Lines.Count == 0)
 {
     <NoData />
@@ -20,15 +20,17 @@ else
 {
     <table class="grid">
         <colgroup>
-            <col style="width:2.5%" /><col style="width:3.5%" /><col style="width:13%" /><col style="width:8.5%" />
+            <col style="width:2.5%" /><col style="width:3.5%" /><col style="width:12%" /><col style="width:8.5%" />
             <col style="width:5.5%" /><col style="width:4.5%" /><col style="width:5.5%" />
             @for (var i = 0; i < 3; i++)
             {
                 <col style="width:4%" /><col style="width:4.5%" /><col style="width:5%" />
             }
-            <col style="width:6.5%" /><col style="width:6.5%" />
+            <col style="width:6.5%" /><col style="width:12%" />
         </colgroup>
         <thead>
+            @* UAT-30: the แผนก line is the first row of the head, so it repeats on every page *@
+            <tr><th class="dept" colspan="17">แผนก @(Report.DepartmentName ?? "ทั้งหมด")&emsp;&emsp;ประจำเดือน @MonthOf(Report.To)&emsp;(ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To))</th></tr>
             <tr>
                 <th rowspan="2">ที่</th><th rowspan="2">รหัส</th><th rowspan="2" style="text-align:left">ชื่อ-นามสกุล</th>
                 <th rowspan="2">เลขประกันสังคม</th>

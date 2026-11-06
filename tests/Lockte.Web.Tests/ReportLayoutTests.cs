@@ -136,6 +136,15 @@ public sealed class ReportLayoutTests
         Assert.Contains(">13,100<", html); // ΣPAY_W
         Assert.Contains(">14,363<", html); // Σยอดรวม
         Assert.Contains("ผู้รับเงิน", html);
+        Assert.Equal("", PayReportView.Title); // UAT-30: no "ค่าแรง" title under the company name
+    }
+
+    [Fact] // UAT-30: the page header of a report without a title is the company alone, no empty second line
+    public void A_report_without_a_title_has_only_the_company_in_its_header()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("", Paper.A4Portrait), new PrintStamp(DateTimeOffset.Now, "x"), "<p>x</p>");
+
+        Assert.Contains("content:\"" + ReportHtml.Company + "\";", html);
     }
 
     [Fact] // SCR-41 "*"
@@ -157,7 +166,9 @@ public sealed class ReportLayoutTests
         Assert.Contains(">3.20<", html);
         Assert.Contains(">0.00<", html);
         Assert.Contains(">93,171<", html); // รวมทั้งหมด
-        foreach (var sign in new[] { "บุคคล", "ผู้จัดการโรงงาน", "สมุห์บัญชี", "กรรมการผู้จัดการ" }) Assert.Contains(sign, html);
+        foreach (var sign in new[] { "บุคคล", "ผู้จัดการโรงงาน", "สมุห์บัญชี", "กรรมการผู้จัดการ" }) Assert.Contains(sign + " ....", html); // UAT-30: the line follows its label
+        foreach (var head in new[] { "แผนก", "จำนวนพนักงาน", "ค่าแรง", "ค่าล่วงเวลา", "รวม", "%ค่าล่วงเวลา" }) Assert.Contains(">" + head + "<", html);
+        Assert.DoesNotContain(">ลำดับ<", html);
     }
 
     [Fact] // RPT-58: ชื่อ "ค่าแรงพนักงานทำงานลูกค้า" & ชื่อลูกค้า · หัววันหยุด · รวม = ค่าแรง + OT + HOT · ไม่มี %OT · ลงนาม 5 ช่อง

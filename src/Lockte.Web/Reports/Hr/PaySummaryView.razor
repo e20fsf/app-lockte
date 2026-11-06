@@ -1,9 +1,24 @@
 @using Lockte.Hr
-@* RPT-03 สรุปค่าแรงรายแผนก (รายงาน สรุปค่าแรง, BR-060, print-samples.md): ระดับ B — the header line of วันหยุด/วันทำงาน,
-   one line per แผนก (Thai order), the totals and the four signatures as the legacy printed them. The legacy query also
-   carried จำนวนรายการโอน/ค่าธรรมเนียม but the report never showed them, so neither does this. *@
+@* RPT-03 สรุปค่าแรงรายแผนก (รายงาน สรุปค่าแรง, BR-060, print-samples.md): ระดับ B laid out as the Access report (UAT-30, ภาพ 6): the title under the
+   company (the page header), ตั้งแต่วันที่ … ถึงวันที่ … วันที่จ่าย …, the line of days, one line per แผนก (Thai order) with the number in front of the
+   name, the totals between rules, and the signatures as lines after their labels. Smaller type (12 pt) and tighter lines than แบบกลาง, the head a little lower.
+   The legacy query also carried จำนวนรายการโอน/ค่าธรรมเนียม but the report never showed them, so neither does this. *@
+<style>
+    .ps { margin-top: 7mm; font-size: 12pt; line-height: 1.05; }
+    .ps .sub { font-size: 12pt; margin-bottom: 4pt; }
+    .ps table.lines { width: 92%; margin: 8pt auto 0; }
+    .ps table.lines th { font-size: 12pt; border-bottom: 1.5pt solid #000; text-align: center; padding: 2pt 4pt; }
+    .ps table.lines td { font-size: 12pt; padding: 1.2pt 4pt; }
+    .ps table.lines tr.total td { border-top: 1.5pt solid #000; padding-top: 3pt; }
+    .ps table.lines .no { text-align: right; width: 4%; }
+    .ps .sign { margin-top: 40pt; font-size: 12pt; }
+    .ps .sign table { width: 100%; }
+    .ps .sign td { white-space: nowrap; padding: 0 2pt; text-align: center; }
+    .ps .sign tr.second td { padding-top: 24pt; }
+</style>
+<div class="ps">
 <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.Period.From)&emsp;ถึงวันที่ @ReportText.Date(Report.Period.To)&emsp;วันที่จ่าย @ReportText.Date(Report.Period.PayDate)</p>
-<p class="sub"><span>วันอาทิตย์ @Report.WeeklyHolidays วัน</span>&emsp;&emsp;<span>วันหยุด @Report.PublicHolidays วัน</span>&emsp;&emsp;<span>วันทำงาน @Report.WorkDays วัน</span>&emsp;&emsp;<span>รวม @Report.TotalDays วัน</span>&emsp;&emsp;<span>คิดค่าแรง @Report.PaidDays วัน</span></p>
+<p class="sub"><span>วันอาทิตย์ @Report.WeeklyHolidays วัน</span>&emsp;<span>วันหยุด @Report.PublicHolidays วัน</span>&emsp;<span>วันทำงาน @Report.WorkDays วัน</span>&emsp;<span>รวม @Report.TotalDays วัน</span>&emsp;<span>คิดค่าแรง @Report.PaidDays วัน</span></p>
 @if (Report.Lines.Count == 0)
 {
     <NoData />
@@ -11,14 +26,14 @@
 else
 {
     var sum = Report.Sum;
-    <table>
+    <table class="lines">
         <colgroup>
-            <col style="width:7%" /><col style="width:28%" /><col style="width:13%" /><col style="width:14%" /><col style="width:13%" />
-            <col style="width:13%" /><col style="width:12%" />
+            <col style="width:5%" /><col style="width:27%" /><col style="width:15%" /><col style="width:13%" /><col style="width:14%" />
+            <col style="width:13%" /><col style="width:13%" />
         </colgroup>
         <thead>
             <tr>
-                <th class="num">ลำดับ</th><th>แผนก</th><th class="num">จำนวนพนักงาน</th><th class="num">ค่าแรง</th>
+                <th></th><th style="text-align:left">แผนก</th><th class="num">จำนวนพนักงาน</th><th class="num">ค่าแรง</th>
                 <th class="num">ค่าล่วงเวลา</th><th class="num">รวม</th><th class="num">%ค่าล่วงเวลา</th>
             </tr>
         </thead>
@@ -48,19 +63,22 @@ else
             <tr><td colspan="7" class="end"></td></tr>
         </tbody>
     </table>
-    <table style="margin-top:36pt">
-        <tr>
-            <td style="text-align:center">.................................<br />บุคคล</td>
-            <td style="text-align:center">.................................<br />ผู้จัดการโรงงาน</td>
-            <td style="text-align:center">.................................<br />สมุห์บัญชี</td>
-        </tr>
-        <tr>
-            <td></td>
-            <td style="text-align:center;padding-top:30pt">.................................<br />กรรมการผู้จัดการ</td>
-            <td></td>
-        </tr>
-    </table>
+    <div class="sign">
+        <table>
+            <tr>
+                <td>บุคคล .........................</td>
+                <td>ผู้จัดการโรงงาน .........................</td>
+                <td>สมุห์บัญชี .........................</td>
+            </tr>
+            <tr class="second">
+                <td></td>
+                <td>กรรมการผู้จัดการ .........................</td>
+                <td></td>
+            </tr>
+        </table>
+    </div>
 }
+</div>
 
 @code {
     /// <summary>The title the legacy report printed under the company name.</summary>

@@ -10,7 +10,11 @@
 }
 else
 {
-    <table>
+    <table class="@(Table.Airy ? "airy" : null)">
+        @if (Table.Airy)
+        {
+            <style>table.airy td { padding-top: 2.2pt; padding-bottom: 2.2pt; } table.airy th { padding-bottom: 3pt; }</style>
+        }
         <thead>
             <tr>
                 @foreach (var column in Table.Columns)

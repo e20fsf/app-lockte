@@ -2,6 +2,12 @@
 @* The two RPT-08 summaries on A4 ตั้ง (print-samples.md "แบบสรุป"), ระดับ B: (ลำดับ) แผนก จำนวนคน จำนวนเงิน, "รวมทั้งหมด" +
    เส้นคู่. สรุปบัญชีคำนวณค่าจ้าง (ปุ่ม "พิมพ์สรุป") prints Σ ค่าจ้าง (AMOUNT). (The legacy ต้นทุน variant, Σ (PAY_W + PAY_OT), was taken out in UAT-23.) The legacy put the print date top right and no company name; แบบกลาง B has both
    in its header and footer. Rows from PayHistoryReportDirectory.GetMonthEndSummaryAsync (BR-063). *@
+<style>
+    .big { font-size: 17pt; line-height: 1.25; }
+    .big .sub { font-size: 17pt; margin-bottom: 8pt; }
+    .big table th, .big table td { font-size: 17pt; padding-top: 1.5pt; padding-bottom: 1.5pt; }
+</style>
+<div class="big">
 <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
 @if (Report.Lines.Count == 0)
 {
@@ -10,7 +16,7 @@
 else
 {
     var sum = Report.Sum;
-    <table style="width:80%;margin:0 auto">
+    <table style="width:92%;margin:0 auto">
         <colgroup>
             <col style="width:10%" /><col style="width:45%" /><col style="width:20%" /><col style="width:25%" />
         </colgroup>
@@ -38,6 +44,7 @@ else
         </tbody>
     </table>
 }
+</div>
 
 @code {
     [Parameter, EditorRequired] public MonthEndPaySummary Report { get; set; } = default!;

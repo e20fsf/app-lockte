@@ -161,8 +161,8 @@ public sealed class PaySlipTests
         Assert.Equal(2, pages.Count);
         Assert.All(pages, p => Assert.Equal(Paper.A4Portrait, p.Paper));
         Assert.Equal(["A001", "A002", "A003"], Texts(pages[0]).Where(t => Math.Abs(t.X - 49.82) < 0.01).Select(t => t.Text));
-        Assert.Equal([35.52, 130.52, 225.52], Texts(pages[0]).Where(t => Math.Abs(t.X - 49.82) < 0.01).Select(t => t.Y));
-        Assert.Equal("A004", TextAt(pages[1], 49.82, 35.52));
+        Assert.Equal([29.5, 124.5, 219.5], Texts(pages[0]).Where(t => Math.Abs(t.X - 49.82) < 0.01).Select(t => t.Y));
+        Assert.Equal("A004", TextAt(pages[1], 49.82, 29.5));
         Assert.Equal(3, Regex.Matches(pages[0].ToSvg(), "<image ").Count); // the logo of each slip
     }
 
@@ -172,9 +172,9 @@ public sealed class PaySlipTests
         var page = PaySlipForm.Layout(Batch(1))[0];
 
         Assert.Equal("16/9/2569", TextAt(page, 120.96, 23.18));
-        Assert.Equal(("27/8/2569", "11/9/2569"), (TextAt(page, 46.86, 29.5), TextAt(page, 71.53, 29.5)));
-        Assert.Equal(("16", "2", "0", "14"), (TextAt(page, 101.53, 29.5), TextAt(page, 123.46, 29.5), TextAt(page, 143.07, 29.5), TextAt(page, 165.86, 29.5)));
-        Assert.Equal("400", TextAt(page, 159.95, 35.52)); // #354: a whole wage prints without satang
+        Assert.Equal(("27/8/2569", "11/9/2569"), (TextAt(page, 46.86, 35.52), TextAt(page, 71.53, 35.52)));
+        Assert.Equal(("16", "2", "0", "14"), (TextAt(page, 101.53, 35.52), TextAt(page, 123.46, 35.52), TextAt(page, 143.07, 35.52), TextAt(page, 165.86, 35.52)));
+        Assert.Equal("400", TextAt(page, 159.95, 29.5)); // #354: a whole wage prints without satang
         Assert.Equal(("14.0", "1.0", "3.5"), (TextAt(page, 34.47, 56.49), TextAt(page, 41.84, 56.49), TextAt(page, 72.54, 56.49)));
         Assert.Equal(("5,600", "263"), (TextAt(page, 113.76, 56.49), TextAt(page, 153.94, 56.49)));
         // #180: เงินสงเคราะห์ลูกจ้าง, บริษัท, รวมเงินสะสม, then โบนัส, ค่าพักร้อน, รวมค่าแรง, เงินได้สุทธิ (= 5,863 − 15)
@@ -202,7 +202,7 @@ public sealed class PaySlipTests
             new SlipSignerDto(SlipSignerRole.HrDepartment, "สมหญิง", png, "image/png", null),
             new SlipSignerDto(SlipSignerRole.FactoryManager, "สมชาย", null, null, null)))[0];
 
-        Assert.Equal("สมชาย", TextAt(page, 146.68, 78.59));
+        Assert.Equal("สมชาย", TextAt(page, 156.825, 85.2));
         Assert.DoesNotContain(Texts(page), t => t.Text == "สมหญิง");
         Assert.Contains("href=\"data:image/png;base64," + Convert.ToBase64String(png) + "\"", page.ToSvg());
     }
@@ -219,9 +219,24 @@ public sealed class PaySlipTests
             var payee = Assert.Single(Texts(page), t => Math.Abs(t.Y - (offset + 85.2)) < 0.01);
             Assert.Equal(slip.Name, payee.Text);
             Assert.Equal(slip.Name, TextAt(page, 58.4, offset + 85.2)); // same name as ชื่อ-นามสกุล
-            Assert.Equal(slip.Name, TextAt(page, 81.44, offset + 35.52));
+            Assert.Equal(slip.Name, TextAt(page, 81.44, offset + 29.5));
         }
         Assert.Contains("data-fit=\"37.5\"", pages[1].ToSvg());
+    }
+
+    [Fact] // UAT-30: รหัสพนักงาน … ชื่อ-นามสกุล is above ตั้งแต่วันที่ … ถึงวันที่ …; the signers' names stand under their lines, the name only
+    public void The_employee_row_is_above_the_dates_and_the_signers_names_are_under_their_lines()
+    {
+        var page = PaySlipForm.Layout(Batch(1,
+            new SlipSignerDto(SlipSignerRole.HrDepartment, "สมหญิง", null, null, null),
+            new SlipSignerDto(SlipSignerRole.FactoryManager, "สมชาย", null, null, null)))[0];
+        var texts = Texts(page);
+
+        Assert.True(texts.Single(t => t.Text == "รหัสพนักงาน").Y < texts.Single(t => t.Text == "ตั้งแต่วันที่").Y);
+        Assert.Equal("สมหญิง", TextAt(page, 106.425, 85.2));
+        Assert.Equal("สมชาย", TextAt(page, 156.825, 85.2));
+        Assert.DoesNotContain(texts, t => t.Text.Contains("ผู้รับเงิน") && t.Text != "ผู้รับเงิน");
+        Assert.DoesNotContain(texts, t => Math.Abs(t.Y - 78.59) < 0.01);
     }
 
     [Fact] // no signer saved yet: the lines stay empty
