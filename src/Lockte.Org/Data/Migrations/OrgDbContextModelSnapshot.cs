@@ -56,6 +56,10 @@ namespace Lockte.Org.Data.Migrations
                         .HasColumnType("int")
                         .HasAnnotation("Lockte:AuditName", "หัวหน้าแผนก");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ใช้งาน");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)

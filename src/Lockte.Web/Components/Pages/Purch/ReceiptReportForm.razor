@@ -33,7 +33,7 @@
         @if (Kind == "department")
         {
             <MudSelect T="int?" @bind-Value="departmentId" @bind-Value:after="RememberAsync" Label="แผนก" Style="max-width:28rem">
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int?" Value="@((int?)d.Id)">@d.Name</MudSelectItem>
                 }

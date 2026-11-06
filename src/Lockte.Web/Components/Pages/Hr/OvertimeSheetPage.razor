@@ -23,7 +23,7 @@
                        DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
         <MudText>@Day.ToString("dddd", ThaiDate.Culture)</MudText>
         <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก" Clearable="true" Style="min-width:14rem">
-            @foreach (var d in departments)
+            @foreach (var d in departments.Where(x => x.IsActive))
             {
                 <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
             }

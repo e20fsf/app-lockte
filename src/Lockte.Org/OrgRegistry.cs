@@ -10,7 +10,7 @@ namespace Lockte.Org;
 /// tool; กะ A–G seeded by the database migration, times edited from SCR-11). Each save carries the rowversion the screen loaded; if the row
 /// changed since, it throws <see cref="ConcurrencyConflictException"/>.
 /// </summary>
-public sealed class OrgRegistry(OrgDbContext db)
+public sealed class OrgRegistry(OrgDbContext db, IDepartmentOccupancy? occupancy = null)
 {
     public const int DepartmentCodeLength = 10;
     /// <summary>T-MC_N.CODE is Text(6); T-P_REP.MC_NO (which refers to it) is Text(10).</summary>
@@ -71,6 +71,22 @@ public sealed class OrgRegistry(OrgDbContext db)
             row.ManagerName = Clean(wanted.ManagerName);
             row.FactoryManagerName = Clean(wanted.FactoryManagerName);
         }
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(department.Id);
+    }
+
+    /// <summary>
+    /// เลิกใช้แผนก / ใช้งานอีกครั้ง (UAT-32). A department somebody still works in cannot be retired. The change is
+    /// kept in the edit history like any other field (ใช้งาน).
+    /// </summary>
+    public async Task<ServiceResult> SetDepartmentActiveAsync(int departmentId, bool active, byte[] loadedRowVersion)
+    {
+        var department = await LoadAsync(db.Departments, departmentId, loadedRowVersion);
+        if (department is null) return ServiceResult.Fail("ไม่พบแผนกนี้");
+        if (department.IsActive == active) return ServiceResult.Ok(department.Id);
+        if (!active && occupancy is not null && await occupancy.CountWorkingAsync(departmentId) is var working and > 0)
+            return ServiceResult.Fail($"เลิกใช้แผนก '{department.Name}' ไม่ได้ เพราะยังมีพนักงานทำงานอยู่ {working} คน — ย้ายหรือให้พนักงานออกก่อน");
+        department.IsActive = active;
         await db.SaveChangesAsync();
         return ServiceResult.Ok(department.Id);
     }

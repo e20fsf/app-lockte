@@ -25,7 +25,7 @@
         @if (Kind == "month-end")
         {
             <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทั้งหมด)" Clearable="true" Style="max-width:26rem">
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
                 }

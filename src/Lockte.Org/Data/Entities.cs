@@ -41,6 +41,11 @@ internal sealed class Department : IAudited
     public int? HeadEmployeeId { get; set; }
     /// <summary>อัตรากำลัง (T-แผนก2.QTY): planned headcount, shown against the actual count (BR-054).</summary>
     public int? StaffingTarget { get; set; }
+    /// <summary>
+    /// ใช้งาน: false = เลิกใช้แผนก (UAT-32). A department that is no longer used stays in the register for history
+    /// (employees who were in it, old reports) but is left out of every list a user picks a department from.
+    /// </summary>
+    public bool IsActive { get; set; } = true;
 
     public List<DepartmentShift> Shifts { get; set; } = [];
 
