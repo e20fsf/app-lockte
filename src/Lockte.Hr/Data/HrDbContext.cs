@@ -23,6 +23,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<PayResult> PayResults => Set<PayResult>();
     internal DbSet<Warning> Warnings => Set<Warning>();
     internal DbSet<SlipSigner> SlipSigners => Set<SlipSigner>();
+    internal DbSet<FormSigners> FormSigners => Set<FormSigners>();
     internal DbSet<BonusRun> BonusRuns => Set<BonusRun>();
     internal DbSet<BonusResult> BonusResults => Set<BonusResult>();
 
@@ -213,6 +214,16 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             s.Property(x => x.Signature).HasAuditName("รูปลายเซ็น");
             s.Property(x => x.SignatureContentType).HasMaxLength(50).HasAuditName("ชนิดรูปลายเซ็น");
             s.HasIndex(x => x.Role).IsUnique();
+        });
+
+        modelBuilder.Entity<FormSigners>(s =>
+        {
+            s.HasAuditName("ผู้ลงนามบนแบบฟอร์ม");
+            s.Property(x => x.ManagerTitle).HasMaxLength(FormSignerSettings.TitleLength).HasAuditName("คำนำหน้าผู้จัดการสถานประกอบกิจการ");
+            s.Property(x => x.ManagerFirstName).HasMaxLength(FormSignerSettings.NameLength).HasAuditName("ชื่อผู้จัดการสถานประกอบกิจการ");
+            s.Property(x => x.ManagerLastName).HasMaxLength(FormSignerSettings.NameLength).HasAuditName("นามสกุลผู้จัดการสถานประกอบกิจการ");
+            s.Property(x => x.FactoryManagerName).HasMaxLength(FormSignerSettings.NameLength).HasAuditName("ชื่อผู้จัดการโรงงาน");
+            s.Property(x => x.PersonnelOfficerName).HasMaxLength(FormSignerSettings.NameLength).HasAuditName("ชื่อเจ้าหน้าที่บุคคล");
         });
 
         // Written only by the calculation (one history event); one row per employee per period.

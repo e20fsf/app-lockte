@@ -12,7 +12,8 @@
    shift as in T-แผนก. รหัสแผนก is new (business key). There is no delete: the name is required (decided instead of
    BR-051's "blank row is deleted"). ฝ่าย come from the data migration; กะ A–G are set up with the database. *@
 <PageTitle>เพิ่มและแก้ไขรายชื่อแผนก — LOCKTE</PageTitle>
-<h1 class="mb-4">เพิ่มและแก้ไขรายชื่อแผนก</h1>
+<h1 class="mb-2">เพิ่มและแก้ไขรายชื่อแผนก</h1>
+<MudButton Href="hr/form-signers" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Draw" Class="mb-3">ผู้ลงนามบนแบบฟอร์ม (ผู้จัดการสถานประกอบกิจการ, เจ้าหน้าที่บุคคล)</MudButton>
 
 <MudTable Items="rows" Dense="true" Hover="true" Loading="departments is null" T="ListRow"
           OnRowClick="@((TableRowClickEventArgs<ListRow> e) => Edit(e.Item!.Department))">
@@ -78,7 +79,7 @@
                     @if (row is not null)
                     {
                         <MudTextField @bind-Value="row.SupervisorName" Label="หัวหน้า" Margin="Margin.Dense" Style="max-width:14rem" />
-                        <MudTextField @bind-Value="row.ManagerName" Label="ผู้จัดการ" Margin="Margin.Dense" Style="max-width:14rem" />
+                        <MudTextField @bind-Value="row.ManagerName" Label="ผู้จัดการฝ่าย" Margin="Margin.Dense" Style="max-width:14rem" />
                         <MudTextField @bind-Value="row.FactoryManagerName" Label="ผู้จัดการโรงงาน" Margin="Margin.Dense" Style="max-width:14rem" />
                         <MudTextField T="string" Value="@("")" Label="หัวหน้ากะ (พนักงาน)" Disabled="true" Margin="Margin.Dense" Style="max-width:12rem" />
                     }

@@ -38,6 +38,7 @@ public static class HrModule
         services.AddScoped<PayHistoryReportDirectory>();
         services.AddScoped<ContractLaborDirectory>();
         services.AddScoped<SlipSignerRegistry>();
+        services.AddScoped<FormSignerSettings>();
         services.AddScoped<HrDocumentDirectory>();
         services.AddScoped<ResignationRegistry>();
         services.AddScoped<OnboardingDirectory>();

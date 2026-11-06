@@ -77,8 +77,17 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
         var place = await PlaceAsync(e);
         return new ResignationLetterData(e.Code, e.Name, place.Department?.Name, place.ShiftCode, e.StartDate, resignDate,
             string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(),
-            place.Names?.SupervisorName, place.Names?.ManagerName, place.Names?.FactoryManagerName);
+            place.Names?.SupervisorName, DepartmentName(place, n => n.ManagerName), DepartmentName(place, n => n.FactoryManagerName));
     }
+
+    /// <summary>
+    /// The ผู้จัดการฝ่าย / ผู้จัดการโรงงาน of the employee's แผนก: the name set for the employee's own กะ, else the one set for
+    /// another กะ of the same แผนก (UAT-29 — the name is the แผนก's, so a กะ left blank must not print someone else's or nothing).
+    /// </summary>
+    private static string? DepartmentName((DepartmentDto? Department, string? ShiftCode, DepartmentShiftDto? Names) place, Func<DepartmentShiftDto, string?> pick)
+        => place.Names is { } own && !string.IsNullOrWhiteSpace(pick(own))
+            ? pick(own)
+            : place.Department?.Shifts.Select(pick).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
 
     /// <summary>RPT-55 รายงานพนักงานที่ลาออก: everyone with a วันลาออก, by วันลาออก then รหัส (no date filter, as before).</summary>
     public async Task<IReadOnlyList<ResignedEmployee>> ListResignedAsync()

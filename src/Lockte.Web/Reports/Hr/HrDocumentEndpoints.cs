@@ -41,7 +41,7 @@ public static class HrDocumentEndpoints
 
         // RPT-54 ฟอร์มเกษียณ (kind=retire) / ฟอร์มปลดออก (kind=dismiss): A4 ตั้ง, the scale as typed on the screen
         // (day = 6 values, line = 7 lines; missing → the legacy table).
-        hr.MapGet("/severance/{employeeId:int}", async (int employeeId, string? kind, string? reason, int[]? day, string[]? line,
+        hr.MapGet("/severance/{employeeId:int}", async (int employeeId, string? kind, string? reason, string? retire, int[]? day, string[]? line,
             HrDocumentDirectory documents, FormPrinter printer, TimeProvider clock, CancellationToken cancellationToken) =>
         {
             var dismissal = kind == "dismiss";
@@ -53,21 +53,24 @@ public static class HrDocumentEndpoints
                 {
                     [nameof(SeveranceView.Data)] = data, [nameof(SeveranceView.Dismissal)] = dismissal,
                     [nameof(SeveranceView.Today)] = DateOnly.FromDateTime(clock.GetLocalNow().DateTime),
+                    // UAT-29 วันที่เกษียณอายุงาน (yyyy-MM-dd as typed on the screen); none prints no line.
+                    [nameof(SeveranceView.RetireDate)] = DateOnly.TryParseExact(retire, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var retireOn) ? retireOn : (DateOnly?)null,
                 }, cancellationToken);
             return Pdf(pdf, $"{(dismissal ? "ฟอร์มปลดออก" : "ฟอร์มเกษียณ")} {data.Person.Name}");
         });
 
         // RPT-55 ใบลาออก: A4 ตั้ง (Letter เดิม), date = yyyy-MM-dd as typed on SCR-33.
         hr.MapGet("/resignation-letter/{employeeId:int}", async (int employeeId, string? date, string? reason, HrDocumentDirectory documents,
-            IOptionsSnapshot<EmployerOptions> employer, FormPrinter printer, TimeProvider clock, CancellationToken cancellationToken) =>
+            EmployerSettings employer, FormPrinter printer, TimeProvider clock, CancellationToken cancellationToken) =>
         {
             DateOnly? resign = DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
             if (await documents.GetResignationLetterAsync(employeeId, resign, reason) is not { } letter) return Results.NotFound("ไม่พบพนักงานคนนี้");
+            var employerNames = await employer.GetAsync();
             var pdf = await printer.PrintAsync<ResignationLetterView>(ResignationLetterView.Title, Paper.A4Portrait, DocumentKeys.ResignationLetter,
                 new()
                 {
                     [nameof(ResignationLetterView.Letter)] = letter,
-                    [nameof(ResignationLetterView.PersonnelOfficerName)] = employer.Value.PersonnelOfficerName,
+                    [nameof(ResignationLetterView.PersonnelOfficerName)] = employerNames.PersonnelOfficerName,
                     [nameof(ResignationLetterView.Today)] = DateOnly.FromDateTime(clock.GetLocalNow().DateTime),
                 }, cancellationToken);
             return Pdf(pdf, $"ใบลาออก {letter.Code}");
@@ -84,10 +87,10 @@ public static class HrDocumentEndpoints
         });
 
         // RPT-52 ประกาศการคำนวณพักร้อนพนักงานใหม่ (เมนู 18): A4 ตั้ง, fixed text; the signer from the settings.
-        hr.MapGet("/vacation-notice", async (IOptionsSnapshot<EmployerOptions> employer, FormPrinter printer, CancellationToken cancellationToken) =>
+        hr.MapGet("/vacation-notice", async (EmployerSettings employer, FormPrinter printer, CancellationToken cancellationToken) =>
         {
             var pdf = await printer.PrintAsync<VacationNoticeView>(VacationNoticeView.Title, Paper.A4Portrait, null,
-                new() { [nameof(VacationNoticeView.FactoryManagerName)] = employer.Value.FactoryManagerName }, cancellationToken);
+                new() { [nameof(VacationNoticeView.FactoryManagerName)] = (await employer.GetAsync()).FactoryManagerName }, cancellationToken);
             return Pdf(pdf, VacationNoticeView.Title);
         });
 

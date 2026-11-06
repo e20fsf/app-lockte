@@ -435,6 +435,68 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "พนักงาน");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.FormSigners", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FactoryManagerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อผู้จัดการโรงงาน");
+
+                    b.Property<string>("ManagerFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อผู้จัดการสถานประกอบกิจการ");
+
+                    b.Property<string>("ManagerLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "นามสกุลผู้จัดการสถานประกอบกิจการ");
+
+                    b.Property<string>("ManagerTitle")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "คำนำหน้าผู้จัดการสถานประกอบกิจการ");
+
+                    b.Property<string>("PersonnelOfficerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อเจ้าหน้าที่บุคคล");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FormSigners", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "ผู้ลงนามบนแบบฟอร์ม");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.Leave", b =>
                 {
                     b.Property<int>("Id")

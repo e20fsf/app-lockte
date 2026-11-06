@@ -33,6 +33,11 @@ public static class OnboardingForms
     /// <summary>วันที่ Short Date: "13/8/2569".</summary>
     public static string? ShortDate(DateOnly? date) => date is { } d ? ThaiDate.Format(d) : null;
 
+    /// <summary>วัน/เดือน/ปี พ.ศ. with two digits for the day and the month: "13/08/2569" (สัญญาจ้าง, UAT-29).</summary>
+    public static string? PaddedDate(DateOnly? date) => date?.ToString("dd/MM/yyyy", ThaiDate.Culture);
+
+    private const double StartDotsFrom = 110.0, StartDotsTo = 135.6, EndDotsFrom = 147.3;
+
     /// <summary>A number in Access's General Number format: no thousands separator, decimals only when there are (12340, 1.5, −3).</summary>
     public static string Number(double value) => (value == 0 ? 0 : value).ToString("G15", CultureInfo.InvariantCulture);
 
@@ -133,12 +138,13 @@ public static class OnboardingForms
             T(10.2, y + 13.6, "ในวันทำงานปกติตามจำนวนชั่วโมงที่ทำงานในวันหยุด  ค่าล่วงเวลาในวันหยุดจ่ายไม่น้อยกว่าสามเท่าของอัตราค่าจ้างต่อชั่วโมงในวัน", fit: 170.3);
             T(10.2, y + 19.9, "ทำงานปกติตามจำนวนชั่วโมงที่ทำ  ระยะเวลาทดลองงาน  90  วัน  เริ่มวันที่");
             T(136.7, y + 19.9, "ถึงวันที่");
+            // UAT-29: the dates are dd/MM/yyyy and centred in their dotted lines, which start after a gap from "เริ่มวันที่" / "ถึงวันที่".
             if (filled)
             {
-                T(107.1, y + 20.0, ShortDate(e.StartDate));
-                T(147.6, y + 20.0, ShortDate(e.NinetyDayDate));
+                T((StartDotsFrom + StartDotsTo) / 2, y + 20.0, PaddedDate(e.StartDate), TextAnchor.Middle);
+                T((EndDotsFrom + endDotsTo) / 2, y + 20.0, PaddedDate(e.NinetyDayDate), TextAnchor.Middle);
             }
-            page.Dots(107.2, 136.0, y + 20.2).Dots(147.3, endDotsTo, y + 20.2);
+            page.Dots(StartDotsFrom, StartDotsTo, y + 20.2).Dots(EndDotsFrom, endDotsTo, y + 20.2);
         }
         Rate(87.9, "ในอัตราเงินเดือน", "เดือนละ", 35.9, 54.0, 60.5, monthly ? 69.5 : 70.5, (47.6, 60.4), 173.6, monthly, e.Salary);
         Rate(114.8, "ในอัตราค่าจ้างรายวัน", "วันละ", 41.8, 58.85, 67.4, 75.4, (51.8, 65.9), 176.8, !monthly, e.DailyWage);

@@ -1,5 +1,6 @@
 using Lockte.Hr;
 using Lockte.SharedKernel;
+using Lockte.Web.Reports.Forms;
 
 namespace Lockte.Web.Reports.Hr;
 
@@ -53,12 +54,12 @@ public static class Kor2Form
         T(141.3, 54, "หมู่ที่"); T(149.0, 54, office.Moo, fit: 4.2);
         T(153.3, 54, "ตรอก/ซอย"); T(168.0, 54, office.Soi, fit: LineEnd - 168.0);
         Dots(54.2, (49.7, 120.3), (134.5, 143.3), (147.4, 154.6), (169.1, LineEnd));
-        T(30.1, 61, "ถนน"); T(40.3, 61, office.Road, fit: 63.4 - 40.3);
+        T(30.1, 61, "ถนน"); T(40.3, 61, FormFormat.Road(office.Road), fit: 63.4 - 40.3);
         T(63.4, 61, "แขวง/ตำบล"); T(82.1, 61, office.Subdistrict, fit: 105.2 - 82.1);
         T(105.2, 61, "เขต/อำเภอ"); T(125.5, 61, office.District, fit: 145.0 - 125.5);
         T(145.0, 61, "จังหวัด"); T(155.8, 61, office.Province, fit: 178.8 - 155.8);
         Dots(61.2, (37.1, 63.8), (82.1, 107.7), (122.9, 148.5), (158.5, 178.8));
-        T(30.1, 68, "โทรศัพท์"); T(47.5, 68, office.Phone, fit: 73.1 - 47.5);
+        T(30.1, 68, "โทรศัพท์"); T(47.5, 68, FormFormat.Phone(office.Phone), fit: 73.1 - 47.5);
         T(73.1, 68, "จำนวนลูกจ้างทั้งหมด"); T(107.35, 68, employee.WorkingEmployees.ToString("#,##0", ThaiDate.Culture), TextAnchor.Middle);
         T(113.8, 68, "คน"); T(122.6, 68, "สถานที่ใกล้เคียง");
         Dots(68.2, (41.7, 72.1), (102.0, 114.6), (145.3, 178.8));
@@ -94,10 +95,13 @@ public static class Kor2Form
         Dots(131.2, (89.4, LineEnd));
         T(30.1, 139, "โดยมีลักษณะงานดังนี้"); T(59.7, 139, input.Job, fit: LineEnd - 59.7);
         Dots(139.2, (59.3, LineEnd));
+        // UAT-29: the label ends at 85.8, so the amount's line starts after a gap, the amount is centred on it and each "บาท" and
+        // the words after it follow with a gap — every piece of the row on its own, none touching the next.
         T(30.1, 146, "อัตราค่าจ้างเป็นรายเดือน/รายวัน/ชั่วโมงละ");
-        T(98.6, 146, employee.DailyWage.ToString("#,##0.##", ThaiDate.Culture), TextAnchor.End, fit: 98.6 - 88.4);
-        T(99.3, 145.9, "บาท หรือตามผลงานหน่วยละ"); T(146.2, 145.9, "บาท เวลาทำงานตั้งแต่");
-        Dots(146.2, (85.2, 99.1), (139.6, 147.4));
+        T(93.0, 146, employee.DailyWage.ToString("#,##0.##", ThaiDate.Culture), TextAnchor.Middle, fit: 98.6 - 87.4);
+        T(100.3, 145.9, "บาท"); T(107.0, 145.9, "หรือตามผลงานหน่วยละ");
+        T(148.0, 145.9, "บาท"); T(154.7, 145.9, "เวลาทำงานตั้งแต่");
+        Dots(146.2, (87.0, 99.1), (140.2, 147.2));
         Line(153, (30.1, "เวลา"), (38.3, "8.00"), (47.1, "น."), (51.8, "ถึงเวลา"), (64.2, "17.00"), (74.7, "น."), (79.4, "เวลาพัก"),
             (91.7, "1.20"), (99.8, "ชั่วโมง/วัน"), (115.0, "แบ่งเวลาพักดังนี้"), (138.0, "ช่วงที่1"), (148.6, "เวลา"), (157.6, "10.00"), (168.1, "น. ถึง"));
         Dots(153.2, (37.1, 46.0), (61.4, 74.3), (90.5, 100.1), (156.4, 167.9));
@@ -117,12 +121,12 @@ public static class Kor2Form
         T(30.1, 189, "สถานที่ทำงานเลขที่"); T(61.9, 189, workplace.HouseNo, fit: 75.6 - 61.9);
         T(75.6, 189, "หมู่ที่"); T(84.6, 189, workplace.Moo, fit: 90.2 - 84.6);
         T(90.2, 189, "ตรอก/ซอย"); T(108.0, 189, workplace.Soi, fit: 133.0 - 108.0);
-        T(133.0, 189, "ถนน"); T(144.9, 189, workplace.Road, fit: LineEnd - 144.9);
+        T(133.0, 189, "ถนน"); T(144.9, 189, FormFormat.Road(workplace.Road), fit: LineEnd - 144.9);
         Dots(189.2, (57.4, 77.2), (84.2, 92.0), (105.1, 132.5), (142.8, LineEnd));
         T(30.1, 196, "แขวง/ตำบล"); T(50.8, 196, workplace.Subdistrict, fit: 70.2 - 50.8);
         T(70.2, 196, "เขต/อำเภอ"); T(88.8, 196, workplace.District, fit: 111.6 - 88.8);
         T(111.6, 196, "จังหวัด"); T(124.7, 196, workplace.Province, fit: 142.2 - 124.7);
-        T(142.2, 196, "โทรศัพท์"); T(159.1, 196, workplace.Phone, fit: LineEnd - 159.1);
+        T(142.2, 196, "โทรศัพท์"); T(159.1, 196, FormFormat.Phone(workplace.Phone), fit: LineEnd - 159.1);
         Dots(196.2, (45.6, 73.2), (85.2, 114.8), (122.9, 145.3), (156.4, LineEnd));
         T(30.1, 203, "สถานที่พักของลูกจ้าง");
         Dots(202.9, (58.0, LineEnd));
@@ -130,16 +134,20 @@ public static class Kor2Form
         Dots(210.2, (49.7, 101.4), (120.8, LineEnd));
 
         // เอกสารแนบ
-        T(43.9, 217, "ข้าพเจ้าได้แนบ");
-        page.Box(64.7, 214.4, 2.9, 2.9); T(68.0, 217, "สำเนาบัตรประจำตัวประชาชน");
-        page.Box(107.7, 214.4, 2.8, 2.9); T(111.2, 217, "สำเนาทะเบียนบ้าน หรือ");
-        page.Box(143.8, 214.4, 2.8, 2.9); T(147.2, 217, "สำเนาใบสุทธิ"); T(166.6, 217, "และ");
-        page.Box(64.7, 221.4, 2.9, 2.8); T(68.5, 224, "สำเนาเอกสารหลักฐานการว่าจ้างเด็กเข้าทำงาน (ถ้ามี) มาพร้อมนี้");
+        // UAT-29: the three boxes sit with an even gap after the text before them (the first used to touch the second box), and the
+        // box of the second line stands under the first one.
+        T(33.0, 217, "ข้าพเจ้าได้แนบ");
+        page.Box(54.5, 214.4, 2.9, 2.9); T(57.8, 217, "สำเนาบัตรประจำตัวประชาชน");
+        page.Box(101.0, 214.4, 2.8, 2.9); T(104.5, 217, "สำเนาทะเบียนบ้าน หรือ");
+        page.Box(140.5, 214.4, 2.8, 2.9); T(143.9, 217, "สำเนาใบสุทธิ"); T(163.3, 217, "และ");
+        page.Box(54.5, 221.4, 2.9, 2.8); T(58.3, 224, "สำเนาเอกสารหลักฐานการว่าจ้างเด็กเข้าทำงาน (ถ้ามี) มาพร้อมนี้");
 
         // ลงชื่อ
         T(84.6, 251, "ลงชื่อ"); page.Leader(92.0, 139.5, 251, Body); T(139.7, 251, "ผู้จัดการสถานประกอบกิจการ");
+        // UAT-29: the signer's name under the line — set on the screen ผู้ลงนามบนแบบฟอร์ม; none set leaves the brackets blank for a pen.
         var manager = $"{employer.ManagerTitle}{employer.ManagerFirstName} {employer.ManagerLastName}".Trim();
-        T(113.5, 258, $"(  {manager}  )", TextAnchor.Middle);
+        var named = !string.IsNullOrWhiteSpace(employer.ManagerFirstName) || !string.IsNullOrWhiteSpace(employer.ManagerLastName);
+        T(113.5, 258, named ? $"(  {manager}  )" : null, TextAnchor.Middle);
         Dots(258.2, (97.0, 129.7));
         T(85.5, 265, "วันที่"); page.Leader(91.7, 103.6, 265, Body);
         T(103.7, 265, "เดือน"); page.Leader(110.6, 132.8, 265, Body);

@@ -1,3 +1,6 @@
+using Lockte.Hr;
+using Microsoft.Extensions.Options;
+
 namespace Lockte.Web.Reports.Hr;
 
 /// <summary>
@@ -41,6 +44,28 @@ public sealed class EmployerOptions
 
     /// <summary>ลำดับที่สาขา สปส. 6 หลัก.</summary>
     public string SocialSecurityBranchNo { get; set; } = "";
+
+    /// <summary>
+    /// A copy with the signers HR saved on the settings page (UAT-29) laid over these settings: a blank saved name keeps the server's,
+    /// so a form never loses a name it printed before.
+    /// </summary>
+    public EmployerOptions WithSigners(FormSignersDto saved)
+    {
+        var copy = (EmployerOptions)MemberwiseClone();
+        static string Pick(string? saved, string fallback) => string.IsNullOrWhiteSpace(saved) ? fallback : saved;
+        copy.ManagerTitle = Pick(saved.ManagerTitle, ManagerTitle);
+        copy.ManagerFirstName = Pick(saved.ManagerFirstName, ManagerFirstName);
+        copy.ManagerLastName = Pick(saved.ManagerLastName, ManagerLastName);
+        copy.FactoryManagerName = Pick(saved.FactoryManagerName, FactoryManagerName);
+        copy.PersonnelOfficerName = Pick(saved.PersonnelOfficerName, PersonnelOfficerName);
+        return copy;
+    }
+}
+
+/// <summary>The employer's settings as the forms print them: the server's <see cref="EmployerOptions"/> with the signers HR saved in the app.</summary>
+public sealed class EmployerSettings(IOptionsSnapshot<EmployerOptions> options, FormSignerSettings signers)
+{
+    public async Task<EmployerOptions> GetAsync() => options.Value.WithSigners(await signers.GetAsync());
 }
 
 public sealed class EmployerAddress

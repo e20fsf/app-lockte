@@ -64,7 +64,7 @@ public sealed class GovernmentFormTests
 
         Assert.Equal(("ข้าพเจ้า นาย", "สมมติ", "ทดสอบ"), (At(svg, 49.8, 40), At(svg, 75.4, 40), At(svg, 132.4, 40)));
         Assert.Equal(("บริษัท ล็อคเต้ จำกัด", "ผลิตผ้าเบรก", "99"), (At(svg, 84.8, 47), At(svg, 51.9, 54), At(svg, 136.5, 54)));
-        Assert.Equal(("ถนนตัวอย่าง", "กรุงเทพฯ", "02-000-0000"), (At(svg, 40.3, 61), At(svg, 155.8, 61), At(svg, 47.5, 68)));
+        Assert.Equal(("ตัวอย่าง", "กรุงเทพฯ", "02-0000000"), (At(svg, 40.3, 61), At(svg, 155.8, 61), At(svg, 47.5, 68))); // UAT-29: ถนน without the word twice, the phone with its dash
         Assert.Equal("187", At(svg, 107.35, 68));
         Assert.Equal(("88/8", "สมุทรสาคร"), (At(svg, 61.9, 189), At(svg, 124.7, 196)));
         Assert.Equal("(  นายสมมติ ทดสอบ  )", At(svg, 113.5, 258));
@@ -76,10 +76,54 @@ public sealed class GovernmentFormTests
     {
         var svg = Svg(Kor2Form.Layout(Child(wage: 412.5), new(null, null, null, null), new EmployerOptions()));
 
-        Assert.Equal("412.5", At(svg, 98.6, 146));
+        Assert.Equal("412.5", At(svg, 93.0, 146));
         Assert.DoesNotContain("#", svg, StringComparison.Ordinal);
         Assert.Null(At(svg, 45.9, 96)); // บิดา
         Assert.Null(At(svg, 136.5, 54)); // เลขที่ของนายจ้าง
+    }
+
+    [Fact] // UAT-29: the rate row — the amount centred on its own line, each บาท and the words after it start after a gap
+    public void Kor2_rate_row_leaves_a_gap_between_its_pieces()
+    {
+        var svg = Svg(Kor2Form.Layout(Child(wage: 363), new(null, null, null, null), Employer));
+
+        Assert.Equal(("363", "บาท", "หรือตามผลงานหน่วยละ"), (At(svg, 93.0, 146), At(svg, 100.3, 145.9), At(svg, 107.0, 145.9)));
+        Assert.Equal(("บาท", "เวลาทำงานตั้งแต่"), (At(svg, 148.0, 145.9), At(svg, 154.7, 145.9)));
+        Assert.Contains("text-anchor=\"middle\"", Regex.Match(svg, "<text x=\"93\" y=\"146\"[^>]*>").Value);
+    }
+
+    [Fact] // UAT-29: the workplace's ถนน (from the settings) and the factory phone print; a phone with an extension keeps it
+    public void Kor2_prints_the_workplace_road_and_formats_both_phones()
+    {
+        var employer = new EmployerOptions
+        {
+            Office = new() { Phone = "0223360023" },
+            Workplace = new() { Road = "ถนนตัวอย่างสาย 5", Phone = "024204554" },
+        };
+        var svg = Svg(Kor2Form.Layout(Child(), new(null, null, null, null), employer));
+
+        Assert.Equal(("ตัวอย่างสาย 5", "02-4204554"), (At(svg, 144.9, 189), At(svg, 159.1, 196)));
+        Assert.Equal("02-2336002-3", At(svg, 47.5, 68));
+    }
+
+    [Fact] // UAT-29: the signer's name under the line when the settings have one; none set leaves the brackets blank
+    public void Kor2_prints_the_signer_under_the_line_only_when_a_name_is_set()
+    {
+        Assert.Equal("(  นายสมมติ ทดสอบ  )", At(Svg(Kor2Form.Layout(Child(), new(null, null, null, null), Employer)), 113.5, 258));
+        Assert.Null(At(Svg(Kor2Form.Layout(Child(), new(null, null, null, null), new EmployerOptions())), 113.5, 258));
+    }
+
+    [Fact] // UAT-29: the attachments row — the first box no longer touches the second one; the second line's box stands under the first
+    public void Kor2_attachment_boxes_are_spaced_and_aligned()
+    {
+        var svg = Svg(Kor2Form.Layout(Child(), new(null, null, null, null), Employer));
+
+        Assert.Equal(("สำเนาบัตรประจำตัวประชาชน", "สำเนาทะเบียนบ้าน หรือ", "สำเนาใบสุทธิ"), (At(svg, 57.8, 217), At(svg, 104.5, 217), At(svg, 143.9, 217)));
+        var boxes = Regex.Matches(svg, @"<rect x=""([\d.]+)"" y=""([\d.]+)""")
+            .Select(m => (X: double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), Y: double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))).ToList();
+        var first = boxes.Single(b => Math.Abs(b.Y - 214.5) < 0.2 && Math.Abs(b.X - 54.6) < 0.2);
+        var second = boxes.Single(b => Math.Abs(b.Y - 221.5) < 0.2);
+        Assert.Equal(first.X, second.X);
     }
 
     [Fact] // D-1: ข้อความยาวบีบให้ลงช่อง ไม่ตัดทิ้ง · ข้อความถูก escape
