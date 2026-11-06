@@ -19,7 +19,7 @@
         <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
             <DateRangePicker @bind-From="from" @bind-To="to" Style="max-width:12rem" />
             <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทุกแผนก)" Clearable="true" Style="max-width:22rem">
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
                 }

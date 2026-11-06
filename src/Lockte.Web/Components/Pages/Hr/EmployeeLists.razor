@@ -15,7 +15,7 @@
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
     <MudStack Spacing="3">
         <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก" Clearable="true" Placeholder="ทุกแผนก">
-            @foreach (var d in departments)
+            @foreach (var d in departments.Where(x => x.IsActive))
             {
                 <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
             }

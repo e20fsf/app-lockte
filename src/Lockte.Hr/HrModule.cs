@@ -19,6 +19,7 @@ public static class HrModule
         services.TryAddScoped<IPayAccess, OpenPayAccess>(); // the web host replaces it with the signed-in user's flag (#277)
         services.AddScoped<EmployeeDirectory>();
         services.AddScoped<EmployeeRegistry>();
+        services.AddScoped<Lockte.Org.IDepartmentOccupancy, EmployeeDepartmentOccupancy>();
         services.AddScoped<Lockte.Sales.IEmployeeLookup, SalesEmployeeLookup>();
         services.AddScoped<Lockte.Prod.IProductionEmployeeLookup, ProductionEmployeeLookup>();
         services.AddScoped<Lockte.Purch.IPurchEmployeeLookup, PurchEmployeeLookup>();

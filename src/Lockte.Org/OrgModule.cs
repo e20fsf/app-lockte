@@ -6,6 +6,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Lockte.Org;
 
+/// <summary>
+/// How many people still work in a แผนก — answered by the employee module (which depends on องค์กร, so องค์กร cannot
+/// ask it directly). Used to refuse เลิกใช้แผนก while someone still works there.
+/// </summary>
+public interface IDepartmentOccupancy
+{
+    Task<int> CountWorkingAsync(int departmentId);
+}
+
 public static class OrgModule
 {
     public static IServiceCollection AddOrgModule(this IServiceCollection services, string connectionString)

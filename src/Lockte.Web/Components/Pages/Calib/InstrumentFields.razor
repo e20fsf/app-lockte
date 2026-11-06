@@ -35,7 +35,7 @@
     }
     <MudItem xs="12" sm="4">
         <MudSelect T="int?" Value="Form.DepartmentId" ValueChanged="DepartmentChanged" Label="แผนกที่ใช้งาน" Clearable="true">
-            @foreach (var d in departments)
+            @foreach (var d in departments.Where(x => x.IsActive))
             {
                 <MudSelectItem T="int?" Value="d.Id">@d.Code  @d.Name</MudSelectItem>
             }

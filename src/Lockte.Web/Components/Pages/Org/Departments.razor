@@ -27,6 +27,7 @@
         <MudTh>กะ</MudTh>
         <MudTh>ผู้จัดการโรงงาน</MudTh>
         <MudTh>รหัสแผนก</MudTh>
+        <MudTh>สถานะ</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.Department.SortOrder</MudTd>
@@ -38,6 +39,7 @@
         <MudTd>@context.Shift?.ShiftCode</MudTd>
         <MudTd>@context.Shift?.FactoryManagerName</MudTd>
         <MudTd>@context.Department.Code</MudTd>
+        <MudTd>@(context.Department.IsActive ? "ใช้งาน" : "เลิกใช้")</MudTd>
     </RowTemplate>
     <NoRecordsContent><MudText>ยังไม่มีแผนก</MudText></NoRecordsContent>
 </MudTable>
@@ -87,7 +89,21 @@
             }
         </MudItem>
     </MudGrid>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy" Class="mt-2">บันทึก</MudButton>
+    @if (form.Id is not null)
+    {
+        <MudAlert Severity="@(form.IsActive ? Severity.Normal : Severity.Warning)" Class="mt-2">
+            @(form.IsActive ? "แผนกนี้ใช้งานอยู่" : "แผนกนี้เลิกใช้แล้ว — ไม่แสดงในรายการเลือกแผนกของทุกหน้า (ข้อมูลเดิมยังอยู่)")
+        </MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudButton Variant="Variant.Outlined" Color="@(form.IsActive ? Color.Warning : Color.Success)" OnClick="ToggleActiveAsync" Disabled="busy">
+                @(form.IsActive ? "เลิกใช้แผนกนี้" : "ใช้งานแผนกนี้อีกครั้ง")
+            </MudButton>
+        }
+    </MudStack>
 </MudPaper>
 
 @code {
@@ -119,7 +135,7 @@
     private void Edit(DepartmentDto d) => form = new DepartmentForm
     {
         Id = d.Id, SortOrder = d.SortOrder, Code = d.Code, Name = d.Name, Prefix = d.EmployeeIdPrefix, SectionId = d.SectionId,
-        HeadEmployeeId = d.HeadEmployeeId, StaffingTarget = d.StaffingTarget, RowVersion = d.RowVersion,
+        HeadEmployeeId = d.HeadEmployeeId, StaffingTarget = d.StaffingTarget, RowVersion = d.RowVersion, IsActive = d.IsActive,
         Shifts = d.Shifts.Select(s => new ShiftForm
         {
             ShiftId = s.ShiftId, SupervisorName = s.SupervisorName, ManagerName = s.ManagerName, FactoryManagerName = s.FactoryManagerName,
@@ -161,8 +177,37 @@
         }
     }
 
+    private async Task ToggleActiveAsync()
+    {
+        busy = true;
+        try
+        {
+            var id = form.Id!.Value;
+            var active = !form.IsActive;
+            var rowVersion = form.RowVersion!;
+            var result = await Services.RunAsync<OrgRegistry, ServiceResult>(r => r.SetDepartmentActiveAsync(id, active, rowVersion));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+
+            Snackbar.Add(active ? "ใช้งานแผนกอีกครั้งแล้ว" : "เลิกใช้แผนกแล้ว", Severity.Success);
+            await ReloadAsync();
+            if (departments!.FirstOrDefault(d => d.Id == id) is { } saved) Edit(saved); else New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            New();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
     private sealed class DepartmentForm
     {
+        public bool IsActive { get; set; } = true;
         public int? Id { get; set; }
         public int SortOrder { get; set; }
         public string Code { get; set; } = "";

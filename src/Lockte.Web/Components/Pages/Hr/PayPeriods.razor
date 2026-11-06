@@ -98,7 +98,7 @@
                        Disabled="busy || !period.CanDo(PayPeriodStep.PayCalculated)">คำนวณค่าแรง</MudButton>
             <MudSelect T="int" @bind-Value="departmentId" Label="แผนก" Style="max-width:16rem" Dense="true">
                 <MudSelectItem T="int" Value="0">ทุกแผนก</MudSelectItem>
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int" Value="d.Id">@d.Name</MudSelectItem>
                 }

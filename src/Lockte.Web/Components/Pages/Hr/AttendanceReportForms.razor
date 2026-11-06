@@ -37,7 +37,7 @@
         {
             <MudSelect T="int?" Value="departmentId" ValueChanged="DepartmentChanged" Style="max-width:26rem"
                        Label="@(Info.Department == DepartmentChoice.Required ? "แผนก" : "แผนก (ว่าง = ทุกแผนก)")" Clearable="@(Info.Department == DepartmentChoice.Optional)">
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
                 }
