@@ -84,6 +84,18 @@ public sealed class DepartmentActiveTests(LocalDbFixture db)
         Assert.Equal(("ใช้งาน", "ใช่", "ไม่ใช่"), (change.Column, change.OldValue, change.NewValue));
     }
 
+    [Fact]
+    public async Task The_purchase_request_department_list_leaves_retired_ones_out()
+    {
+        var department = await NewDepartmentAsync();
+        await using (var scope = db.Scope("hr1"))
+            Assert.Contains(await scope.Get<Lockte.Purch.RequestSetupDirectory>().GetDepartmentsAsync(), d => d.DepartmentId == department.Id);
+        await SetActiveAsync(department, false);
+
+        await using var after = db.Scope("hr1");
+        Assert.DoesNotContain(await after.Get<Lockte.Purch.RequestSetupDirectory>().GetDepartmentsAsync(), d => d.DepartmentId == department.Id);
+    }
+
     /// <summary>
     /// Every page that lists แผนก from module องค์กร must leave the retired ones out of the choice
     /// (the register page itself, where they are brought back, is the only exception).
@@ -102,7 +114,8 @@ public sealed class DepartmentActiveTests(LocalDbFixture db)
         {
             var text = File.ReadAllText(file);
             if (Path.GetFileName(file) == "Departments.razor" && file.Contains("Org")) continue;
-            if (!text.Contains("DepartmentDto") && !text.Contains("DepartmentPrefixDto")) continue;
+            // Pages on DepartmentPrefixDto get their list from RequestSetupDirectory, which already leaves retired ones out (tested below).
+            if (!text.Contains("DepartmentDto")) continue;
             foreach (Match m in choice.Matches(text))
             {
                 var list = m.Groups["list"].Value;
