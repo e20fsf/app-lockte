@@ -14,13 +14,14 @@ public sealed class ReportPrinter(ReportPdfRenderer pdf, DocumentNumberService d
 {
     /// <param name="title">The title as the legacy report printed it.</param>
     /// <param name="documentKey">A <see cref="DocumentKeys"/> value when the document has a เลขเอกสารควบคุม.</param>
+    /// <param name="footer">False for a one-page sheet without the print date and page number (#408).</param>
     /// <param name="printedBy">The signed-in user's display name, printed in the footer.</param>
     public async Task<byte[]> PrintAsync<TReport>(string title, Paper paper, Dictionary<string, object?> parameters, string printedBy,
-        string? documentKey = null, CancellationToken cancellationToken = default, ReportProgram? program = null) where TReport : IComponent
+        string? documentKey = null, CancellationToken cancellationToken = default, ReportProgram? program = null, bool footer = true) where TReport : IComponent
     {
         var number = documentKey is null ? null : await documentNumbers.PrintedTextAsync(documentKey);
         var body = await ReportBody.RenderAsync<TReport>(parameters);
-        var html = ReportHtml.Compose(new ReportDocument(title, paper, number), new PrintStamp(clock.GetLocalNow(), printedBy), body,
+        var html = ReportHtml.Compose(new ReportDocument(title, paper, number, footer), new PrintStamp(clock.GetLocalNow(), printedBy), body,
             fonts.For(program ?? ProgramOf(typeof(TReport))));
         return await pdf.RenderAsync(html, paper, cancellationToken);
     }
