@@ -58,6 +58,30 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
 
     private Task<IReadOnlyList<WorkTimeDto>> DayAsync(DateOnly date) => AsHrAsync(s => s.Get<WorkTimeDirectory>().ListAsync(date));
 
+    [Fact] // #411: คนละช่วงเวลา แผนกเดียวกัน วันเดียวกัน → ใบเดียว แต่ละแถวมีเวลา/ประเภทของตน และบันทึกเวลาทำงานตามนั้น
+    public async Task One_sheet_holds_lines_of_different_times_each_saved_with_its_own()
+    {
+        var day = NewDay();
+        var early = await NewEmployeeAsync();
+        var late = await NewEmployeeAsync();
+        var plain = await NewEmployeeAsync(); // no times of its own → the sheet's
+
+        var outcome = await PrintAsync(Sheet(day, null,
+            new OvertimeSheetLineInput(early.Id, "ช่วงบ่าย", new TimeOnly(15, 20), new TimeOnly(18, 20), 0, "O2"),
+            new OvertimeSheetLineInput(late.Id, "ช่วงเย็น", new TimeOnly(17, 20), new TimeOnly(20, 20), 20, null),
+            Line(plain)));
+
+        Assert.True(outcome.Result.Succeeded, string.Join(", ", outcome.Result.Errors));
+        var printed = outcome.Sheet!.Lines.ToDictionary(l => l.EmployeeCode);
+        Assert.Equal((new TimeOnly(15, 20), new TimeOnly(18, 20)), (printed[early.Code].WorkIn, printed[early.Code].WorkOut));
+        Assert.Equal((new TimeOnly(17, 20), new TimeOnly(20, 20)), (printed[late.Code].WorkIn, printed[late.Code].WorkOut));
+        Assert.Equal((OtIn, OtOut), (printed[plain.Code].WorkIn, printed[plain.Code].WorkOut));
+        var rows = (await DayAsync(day)).ToDictionary(r => r.EmployeeCode);
+        Assert.Equal(("O2", new TimeOnly(15, 20), new TimeOnly(18, 20), 0), (rows[early.Code].Type, rows[early.Code].WorkIn, rows[early.Code].WorkOut, rows[early.Code].RestMinutes));
+        Assert.Equal(("O1", new TimeOnly(17, 20), new TimeOnly(20, 20), 20), (rows[late.Code].Type, rows[late.Code].WorkIn, rows[late.Code].WorkOut, rows[late.Code].RestMinutes));
+        Assert.Equal(("O1", OtIn, OtOut), (rows[plain.Code].Type, rows[plain.Code].WorkIn, rows[plain.Code].WorkOut));
+    }
+
     [Fact] // BR-012 #4: กดพิมพ์ → คัดลอกทุกแถวเข้า E_WORK (DATE, ID, W_IN, W_OUT, TYPE, REST_T) → RPT-16 เรียงตามรหัส
     public async Task Printing_a_sheet_saves_one_time_row_per_employee_and_returns_the_lines_by_code()
     {
@@ -73,7 +97,8 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
         Assert.True(outcome.Result.Succeeded, string.Join(", ", outcome.Result.Errors));
         Assert.Equal(2, outcome.Result.Id);
         var sheet = outcome.Sheet!;
-        Assert.Equal((day, department.Name, new TimeOnly(17, 20), new TimeOnly(21, 20)), (sheet.Date, sheet.DepartmentName, sheet.WorkIn, sheet.WorkOut));
+        Assert.Equal((day, department.Name), (sheet.Date, sheet.DepartmentName));
+        Assert.All(sheet.Lines, l => Assert.Equal((new TimeOnly(17, 20), new TimeOnly(21, 20)), (l.WorkIn, l.WorkOut)));
         Assert.Equal([(first.Code, first.Name, "D11 ฉีดก้ามเบรก"), (second.Code, second.Name, "ช่วยแผนกประกอบ")],
             sheet.Lines.Select(l => (l.EmployeeCode, l.EmployeeName, l.Memo)));
 

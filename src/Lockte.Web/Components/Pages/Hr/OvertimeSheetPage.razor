@@ -25,7 +25,7 @@
         <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก" Clearable="true" Style="min-width:14rem">
             @foreach (var d in departments)
             {
-                <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+                <MudSelectItem T="int?" Value="d.Id">@OvertimeSheetRegistry.DepartmentLabel(d.Name)</MudSelectItem>
             }
         </MudSelect>
         <TimeBox @bind-Text="workIn" Label="เวลาเข้า" Choices="choices.StartTimes" Style="max-width:8rem" />
@@ -36,10 +36,10 @@
                 <MudSelectItem T="int" Value="m">@m</MudSelectItem>
             }
         </MudSelect>
-        <MudSelect T="string" @bind-Value="type" Label="ประเภท" Style="max-width:7rem">
+        <MudSelect T="string" @bind-Value="type" Label="ประเภท" Style="max-width:13rem">
             @foreach (var t in WorkTypes.Codes)
             {
-                <MudSelectItem T="string" Value="t">@t</MudSelectItem>
+                <MudSelectItem T="string" Value="t">@WorkTypes.Label(t)</MudSelectItem>
             }
         </MudSelect>
     </MudStack>
@@ -49,12 +49,12 @@
                          SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}{(e.IsAbsent ? "  (ไม่มาทำงาน)" : "")}")"
                          Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="min-width:22rem" />
         <MudTextField @bind-Value="memo" Label="หมายเหตุ / งานที่ทำ" MaxLength="OvertimeSheetRegistry.MemoLength" Style="min-width:18rem" />
-        <MudButton Variant="Variant.Outlined" OnClick="AddLine" Disabled="picked is null">เพิ่มในใบ</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => { AddLine(); })" Disabled="picked is null">เพิ่มในใบ</MudButton>
     </MudStack>
 
     <MudTable Items="lines" Dense="true" Class="mt-4" T="LineForm" Height="22rem" FixedHeader="true">
         <HeaderContent>
-            <MudTh>ที่</MudTh><MudTh>รหัส</MudTh><MudTh>ชื่อ-นามสกุล</MudTh><MudTh>หมายเหตุ</MudTh><MudTh></MudTh>
+            <MudTh>ที่</MudTh><MudTh>รหัส</MudTh><MudTh>ชื่อ-นามสกุล</MudTh><MudTh>เริ่มงาน</MudTh><MudTh>เลิกงาน</MudTh><MudTh>ประเภท</MudTh><MudTh>หมายเหตุ</MudTh><MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@(lines.IndexOf(context) + 1)</MudTd>
@@ -66,6 +66,9 @@
                     <MudChip T="string" Color="Color.Warning" Size="Size.Small">ไม่มาทำงาน</MudChip>
                 }
             </MudTd>
+            <MudTd>@TimeText.Format(context.WorkIn)</MudTd>
+            <MudTd>@TimeText.Format(context.WorkOut)</MudTd>
+            <MudTd>@context.Type</MudTd>
             <MudTd><MudTextField @bind-Value="context.Memo" Margin="Margin.Dense" MaxLength="OvertimeSheetRegistry.MemoLength" /></MudTd>
             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => lines.Remove(context))" /></MudTd>
         </RowTemplate>
@@ -80,6 +83,7 @@
             <MudButton Href="@OvertimeSheetPrints.Href(key)" Target="_blank" StartIcon="@Icons.Material.Filled.PictureAsPdf">เปิดใบที่พิมพ์ล่าสุด</MudButton>
         }
     </MudStack>
+    <MudText Typo="Typo.caption" Class="d-block">เวลาเข้า/ออก เวลาพัก และประเภทที่ตั้งไว้ด้านบนจะติดไปกับพนักงานที่เพิ่มในใบ — เปลี่ยนเวลาแล้วเพิ่มพนักงานอีกกลุ่ม จะได้คนละช่วงเวลาอยู่ในใบเดียวกัน</MudText>
     <MudText Typo="Typo.caption">กดพิมพ์แล้วเวลา OT ของทุกคนในใบจะถูกบันทึกเข้าเวลาทำงานทันที (เหมือนโปรแกรมเดิม)</MudText>
 </MudPaper>
 
@@ -159,12 +163,19 @@
             Snackbar.Add($"{employee.Code} {employee.Name} บันทึกไม่มาทำงานวันนี้", Severity.Warning);
     }
 
-    private void AddLine()
+    /// <summary>#411: the line keeps the times, rest and type of the form as they are when it is added, so one sheet can hold several shifts.</summary>
+    private bool AddLine()
     {
-        if (picked is null) return;
-        lines.Add(new LineForm { Employee = picked, Memo = memo });
+        if (picked is null) return false;
+        if (!TimeText.TryParse(workIn, out var start) || !TimeText.TryParse(workOut, out var end) || start is null || end is null)
+        {
+            Snackbar.Add("เวลาต้องเป็น ชั่วโมง:นาที เช่น 17:20", Severity.Error);
+            return false;
+        }
+        lines.Add(new LineForm { Employee = picked, Memo = memo, WorkIn = start.Value, WorkOut = end.Value, RestMinutes = restMinutes, Type = type ?? WorkTypes.Overtime });
         picked = null;
         memo = null;
+        return true;
     }
 
     private async Task PrintAsync()
@@ -177,7 +188,7 @@
         // A picked employee not yet added is on the sheet too: the legacy subform saved the row being keyed.
         if (picked is not null) AddLine();
         var input = new OvertimeSheetInput(Day, departmentId, start, end, restMinutes, type,
-            lines.Select(l => new OvertimeSheetLineInput(l.Employee.Id, l.Memo)).ToList());
+            lines.Select(l => new OvertimeSheetLineInput(l.Employee.Id, l.Memo, l.WorkIn, l.WorkOut, l.RestMinutes, l.Type)).ToList());
         busy = true;
         try
         {
@@ -200,5 +211,9 @@
     {
         public OvertimeSheetEmployee Employee { get; set; } = default!;
         public string? Memo { get; set; }
+        public TimeOnly WorkIn { get; init; }
+        public TimeOnly WorkOut { get; init; }
+        public int RestMinutes { get; init; }
+        public string Type { get; init; } = WorkTypes.Overtime;
     }
 }

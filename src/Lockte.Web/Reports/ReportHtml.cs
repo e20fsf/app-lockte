@@ -15,8 +15,9 @@ public enum Paper
 
 /// <summary>What a printed document is: its title (as the legacy report printed it), paper, and เลขเอกสารควบคุม.</summary>
 /// <param name="DocumentNumber">The printed text of the document's number (<see cref="DocumentNumberService"/>), or none.</param>
+/// <param name="DateAtTop">The Access layout of รายงานการลางาน (#411): the print date at the top left and "หน้า x จาก y" at the top right, no footer.</param>
 /// <param name="Footer">False for a one-page sheet that prints no footer at all (no print date, no page number — #408 ใบขออนุมัติทำงานล่วงเวลา).</param>
-public sealed record ReportDocument(string Title, Paper Paper, string? DocumentNumber = null, bool Footer = true);
+public sealed record ReportDocument(string Title, Paper Paper, string? DocumentNumber = null, bool Footer = true, bool DateAtTop = false);
 
 /// <summary>ท้ายหน้า: when it was printed and by whom (#40 แบบกลาง, #39 login).</summary>
 public sealed record PrintStamp(DateTimeOffset PrintedAt, string PrintedBy);
@@ -98,7 +99,15 @@ public static class ReportHtml
                    + $"font-family:'{font.Family}';font-size:{TitleSizePt}pt;font-weight:bold;line-height:1.1;padding-bottom:2mm}}");
         if (!string.IsNullOrWhiteSpace(document.DocumentNumber))
             css.Append($"@top-right{{content:{CssString(document.DocumentNumber)};white-space:pre;text-align:right;vertical-align:top;{margin}padding-top:6mm}}");
-        if (document.Footer)
+        if (document.DateAtTop)
+        {
+            css.Append($"@top-left{{content:{CssString(PrintDate(stamp.PrintedAt))};{margin}vertical-align:middle;padding-top:6mm}}");
+            if (string.IsNullOrWhiteSpace(document.DocumentNumber))
+                css.Append($"@top-right{{content:\"หน้า \" counter(page) \" จาก \" counter(pages);text-align:right;vertical-align:middle;{margin}padding-top:6mm}}");
+            else
+                css.Append($"@bottom-right{{content:\"หน้า \" counter(page) \" จาก \" counter(pages);text-align:right;{margin}vertical-align:top;padding-top:2mm}}");
+        }
+        else if (document.Footer)
         {
             // #408: the footer is the print date in full Thai (5 พฤศจิกายน 2569) on every page, no time and no user
             css.Append($"@bottom-left{{content:{CssString(PrintDate(stamp.PrintedAt))};{margin}vertical-align:top;padding-top:2mm}}");

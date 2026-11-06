@@ -9,18 +9,22 @@ namespace Lockte.Hr;
 public sealed record OvertimeSheetInput(DateOnly? Date, int? DepartmentId, TimeOnly? WorkIn, TimeOnly? WorkOut, int RestMinutes, string? Type,
     IReadOnlyList<OvertimeSheetLineInput> Lines);
 
-/// <summary>A line of the subform OT1: รหัส and หมายเหตุ (the screen fills it with the employee's หน้าที่, as the legacy).</summary>
-public sealed record OvertimeSheetLineInput(int? EmployeeId, string? Memo);
+/// <summary>
+/// A line of the subform OT1: รหัส and หมายเหตุ (the screen fills it with the employee's หน้าที่, as the legacy). #411: a line may have its own
+/// เวลาเริ่ม/เลิก, เวลาพัก and ประเภท (people of the same day and แผนก working different hours share one sheet); what it leaves null is the
+/// sheet's.
+/// </summary>
+public sealed record OvertimeSheetLineInput(int? EmployeeId, string? Memo, TimeOnly? WorkIn = null, TimeOnly? WorkOut = null, int? RestMinutes = null,
+    string? Type = null);
 
 /// <summary>
-/// What RPT-16 prints: the sheet's date, แผนก and times, and its lines by code (the report is sorted by ID).
-/// <see cref="Type"/> is not printed; it is kept for the screen.
+/// What RPT-16 prints: the sheet's date and แผนก, and its lines by code (the report is sorted by ID), each with its own times (#411).
+/// <see cref="Type"/> (the sheet's default) is not printed; it is kept for the screen.
 /// </summary>
-public sealed record OvertimeSheet(DateOnly Date, string? DepartmentName, TimeOnly WorkIn, TimeOnly WorkOut, string Type,
-    IReadOnlyList<OvertimeSheetLine> Lines);
+public sealed record OvertimeSheet(DateOnly Date, string? DepartmentName, string Type, IReadOnlyList<OvertimeSheetLine> Lines);
 
-/// <summary>A line of RPT-16: รหัส ชื่อ-นามสกุล หมายเหตุ (เริ่มงาน/เลิกงาน are the sheet's).</summary>
-public sealed record OvertimeSheetLine(string EmployeeCode, string EmployeeName, string? Memo);
+/// <summary>A line of RPT-16: รหัส ชื่อ-นามสกุล เริ่มงาน เลิกงาน หมายเหตุ.</summary>
+public sealed record OvertimeSheetLine(string EmployeeCode, string EmployeeName, TimeOnly WorkIn, TimeOnly WorkOut, string? Memo);
 
 /// <summary>
 /// The outcome of printing a sheet: <see cref="ServiceResult.Id"/> = เวลาทำงาน rows saved; <see cref="Sheet"/> is
