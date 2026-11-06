@@ -1,0 +1,86 @@
+@page "/hr/form-signers"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* ผู้ลงนามบนแบบฟอร์ม (UAT-29): the names printed under the signature lines of แบบ คร.2, ประกาศการคำนวณพักร้อน and ใบลาออก.
+   Kept in the database with a history instead of the server's settings. The ผู้จัดการฝ่าย of each แผนก is on เพิ่มและแก้ไขรายชื่อแผนก. *@
+<PageTitle>ผู้ลงนามบนแบบฟอร์ม — LOCKTE</PageTitle>
+<h1 class="mb-4">ผู้ลงนามบนแบบฟอร์ม</h1>
+
+<MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudText Typo="Typo.h6">ผู้จัดการสถานประกอบกิจการ (แบบ คร.2)</MudText>
+    <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap" Class="mt-2">
+        <MudTextField @bind-Value="form.ManagerTitle" Label="คำนำหน้า" MaxLength="FormSignerSettings.TitleLength" Style="max-width:8rem" />
+        <MudTextField @bind-Value="form.ManagerFirstName" Label="ชื่อ" MaxLength="FormSignerSettings.NameLength" Style="max-width:16rem" />
+        <MudTextField @bind-Value="form.ManagerLastName" Label="นามสกุล" MaxLength="FormSignerSettings.NameLength" Style="max-width:16rem" />
+    </MudStack>
+</MudPaper>
+<MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudText Typo="Typo.h6">ผู้จัดการโรงงาน (ประกาศการคำนวณพักร้อน)</MudText>
+    <MudTextField @bind-Value="form.FactoryManagerName" Label="ชื่อ-สกุล" MaxLength="FormSignerSettings.NameLength" Style="max-width:24rem" />
+</MudPaper>
+<MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudText Typo="Typo.h6">เจ้าหน้าที่แผนกบุคคลและธุรการ (ใบลาออก)</MudText>
+    <MudTextField @bind-Value="form.PersonnelOfficerName" Label="ชื่อ-สกุล" MaxLength="FormSignerSettings.NameLength" Style="max-width:24rem" />
+</MudPaper>
+<MudText Typo="Typo.caption" Class="d-block mb-2">เว้นว่างไว้ = ใช้ค่าที่ตั้งบนเซิร์ฟเวอร์ (ถ้ามี) ผู้จัดการฝ่ายและผู้จัดการโรงงานบนใบลาออก สัญญาจ้าง หนังสือรับรอง ใช้ชื่อของแต่ละแผนกที่หน้าเพิ่มและแก้ไขรายชื่อแผนก</MudText>
+
+<MudStack Row="true" Spacing="2">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+    <MudButton Href="org/departments" StartIcon="@Icons.Material.Filled.ArrowBack">ไปรายชื่อแผนก</MudButton>
+</MudStack>
+
+@code {
+    private FormSignersDto saved = new(null, null, null, null, null, null);
+    private Model form = new();
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        saved = await Services.RunAsync<FormSignerSettings, FormSignersDto>(s => s.GetAsync());
+        form = new Model
+        {
+            ManagerTitle = saved.ManagerTitle, ManagerFirstName = saved.ManagerFirstName, ManagerLastName = saved.ManagerLastName,
+            FactoryManagerName = saved.FactoryManagerName, PersonnelOfficerName = saved.PersonnelOfficerName,
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var input = new FormSignersInput(form.ManagerTitle, form.ManagerFirstName, form.ManagerLastName, form.FactoryManagerName,
+                form.PersonnelOfficerName, saved.RowVersion);
+            var result = await Services.RunAsync<FormSignerSettings, ServiceResult>(s => s.SaveAsync(input));
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add("บันทึกผู้ลงนามบนแบบฟอร์มแล้ว", Severity.Success);
+            await LoadAsync();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class Model
+    {
+        public string? ManagerTitle { get; set; }
+        public string? ManagerFirstName { get; set; }
+        public string? ManagerLastName { get; set; }
+        public string? FactoryManagerName { get; set; }
+        public string? PersonnelOfficerName { get; set; }
+    }
+}

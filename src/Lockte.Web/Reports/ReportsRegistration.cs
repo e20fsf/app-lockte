@@ -28,6 +28,7 @@ public static class ReportsRegistration
         services.Configure<ReportOptions>(configuration.GetSection(ReportOptions.Section));
         services.Configure<EmployerOptions>(configuration.GetSection(EmployerOptions.Section));
         services.Configure<PurchLetterheadOptions>(configuration.GetSection(PurchLetterheadOptions.Section));
+        services.AddScoped<EmployerSettings>();
         services.AddSingleton<ReportPdfRenderer>();
         services.AddSingleton<ReportFontResolver>();
         services.AddHostedService<ReportWarmUp>();
@@ -218,10 +219,10 @@ public static class ReportsRegistration
         // the parents HR types stay out of the URL (and the server's logs); the form carries the antiforgery token.
         reports.MapPost("/hr/employees/{id:int}/kor2", async (int id, [FromForm] string? name, [FromForm] string? job,
             [FromForm] string? father, [FromForm] string? mother, HttpContext http, GovernmentFormDirectory forms,
-            IOptionsSnapshot<EmployerOptions> employer, ReportPrinter printer, CancellationToken cancellationToken) =>
+            EmployerSettings employer, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (await forms.GetKor2Async(id) is not { } employee) return Results.NotFound("ไม่พบพนักงาน");
-            var page = Kor2Form.Layout(employee, new Kor2Input(name, job, father, mother), employer.Value);
+            var page = Kor2Form.Layout(employee, new Kor2Input(name, job, father, mother), await employer.GetAsync());
             return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, Kor2Form.Title, [page], cancellationToken), $"แบบ คร.2 {employee.Code}");
         });
 

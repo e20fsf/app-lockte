@@ -69,13 +69,13 @@ public sealed class OnboardingFormTests
 
         Assert.Equal("12340", TextAt(monthly, 54.0, 87.9));
         Assert.Equal("(หนึ่งหมื่นสองพันสามร้อยสี่สิบบาทถ้วน)", TextAt(monthly, 69.5, 87.9));
-        Assert.Equal(("16/1/2553", "15/4/2553"), (TextAt(monthly, 107.1, 107.9), TextAt(monthly, 147.6, 107.9)));
+        Assert.Equal(("16/01/2553", "15/04/2553"), (TextAt(monthly, 122.8, 107.9), TextAt(monthly, 160.45, 107.9))); // UAT-29: dd/MM/yyyy, centred in the dotted lines
         Assert.Equal("(......................................................)", TextAt(monthly, 75.4, 114.8));
         Assert.DoesNotContain(Texts(monthly), t => Math.Abs(t.X - 58.85) < 0.01); // no ค่าแรง/วัน on a monthly contract
 
         Assert.Equal("372", TextAt(daily, 58.85, 114.8));
         Assert.Equal("(สามร้อยเจ็ดสิบสองบาทถ้วน)", TextAt(daily, 75.4, 114.8));
-        Assert.Equal(("13/8/2569", "10/11/2569"), (TextAt(daily, 107.1, 134.8), TextAt(daily, 147.6, 134.8)));
+        Assert.Equal(("13/08/2569", "10/11/2569"), (TextAt(daily, 122.8, 134.8), TextAt(daily, 162.05, 134.8)));
         Assert.Equal("(......................................................)", TextAt(daily, 70.5, 87.9));
 
         Assert.Equal("15 ตุลาคม 2569", TextAt(daily, 157.0, 31.9)); // วันที่ = Date()
