@@ -125,6 +125,33 @@ public sealed class HrFormTests(ChromiumFixture chromium)
         Assert.Equal(3, Regex.Matches(blank, "dots dashed").Count);
     }
 
+    [Fact] // UAT-34: every lower signature block is dotted line → title → (name), all centred on the line's middle axis; a blank name keeps the stack
+    public async Task The_resignation_letter_signature_blocks_stack_line_title_and_name_on_one_axis()
+    {
+        var html = await Html<ResignationLetterView>(new() { ["Letter"] = Letter with { ManagerName = null }, ["Today"] = Today, ["PersonnelOfficerName"] = "นางสมมุติ ทดสอบ" });
+        var lineAxes = Regex.Matches(html, @"class=""dots"" style=""left:([\d.]+)mm;width:([\d.]+)mm;top:(2[2-4][\d.]+)mm""")
+            .Select(m => (Axis: double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) + double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) / 2,
+                          Top: double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture))).OrderBy(l => l.Top).ThenBy(l => l.Axis).ToList();
+        Assert.Equal(4, lineAxes.Count);
+
+        string StyleOf(string text) => Regex.Matches(html, @"<div class=""t"" style=""([^""]*)"">([^<]*)</div>")
+            .Where(m => System.Net.WebUtility.HtmlDecode(m.Groups[2].Value) == text).Select(m => m.Groups[1].Value).Single();
+        double Left(string style) => double.Parse(Regex.Match(style, @"left:([\d.]+)mm").Groups[1].Value, CultureInfo.InvariantCulture);
+        double Top(string style) => double.Parse(Regex.Match(style, @"top:([\d.]+)mm").Groups[1].Value, CultureInfo.InvariantCulture);
+
+        var blocks = new[] { ("เจ้าหน้าที่แผนกบุคคลและธุรการ", "(นางสมมุติ ทดสอบ)", 0), ("หัวหน้าแผนก", "(นางสาวอัมพร   เจริญสุข)", 1),
+            ("ผู้จัดการฝ่าย", "( )", 2), ("ผู้จัดการโรงงาน", "(นายสมบัติ  ตัวอย่างดี)", 3) };
+        foreach (var (title, name, i) in blocks)
+        {
+            var (t, n) = (StyleOf(title), StyleOf(name));
+            Assert.Contains("translateX(-50%)", t);
+            Assert.Contains("translateX(-50%)", n);
+            Assert.Equal(lineAxes[i].Axis, Left(t), 1);
+            Assert.Equal(lineAxes[i].Axis, Left(n), 1);
+            Assert.True(Top(t) > lineAxes[i].Top && Top(n) > Top(t), $"{title}: line, then title, then name");
+        }
+    }
+
     [Fact] // UAT-25: both signature columns use the same two lines in both rows, so signatures and names line up
     public async Task The_resignation_letter_signature_lines_are_the_same_in_both_rows()
     {

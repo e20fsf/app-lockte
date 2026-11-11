@@ -4,9 +4,10 @@
    measured from the top-left corner, now on A4 (D-7). The name and reason run on instead of being cut (D-1); a
    department without names for the employee's กะ prints empty brackets instead of an empty page. *@
 <FormPage>
-    <FormText X="111.4" Base="15.8" Size="22" Bold="true" Anchor="FormAnchor.Center" Text="@ReportHtml.Company" />
-    <FormText X="111.5" Base="27.4" Size="18" Bold="true" Anchor="FormAnchor.Center" Text="ใบลาออก" />
-    <FormText X="156.9" Base="13.6" Text="@DocumentNumber" />
+    @* UAT-34: the heading sits HeaderShift lower than the legacy position. *@
+    <FormText X="111.4" Base="@(15.8 + HeaderShift)" Size="22" Bold="true" Anchor="FormAnchor.Center" Text="@ReportHtml.Company" />
+    <FormText X="111.5" Base="@(27.4 + HeaderShift)" Size="18" Bold="true" Anchor="FormAnchor.Center" Text="ใบลาออก" />
+    <FormText X="156.9" Base="@(13.6 + HeaderShift)" Text="@DocumentNumber" />
 
     @* UAT-29: everything from the วันที่ line down to the body (and, by less, the signature) sits lower on the page: the shift
        is a container at 27 mm, so the positions inside stay the legacy ones. *@
@@ -81,24 +82,15 @@
     <FormText X="146.4" Base="199.3" Text="ผู้ยื่นใบลาออก" />
     </div>
 
-    @* Four signature columns on two lines: the same two dotted lines (left 25.0–60.8, right 133.3–162.2) in both rows, the
-       label after the line and the name in brackets centred under it, so the signatures and the names line up (UAT-25). *@
-    <FormDots X1="@SignLeft1" X2="@SignLeft2" Y="224.4" />
-    <FormText X="61.0" Base="224.2" Text="เจ้าหน้าที่แผนกบุคคลและธุรการ" />
-    @if (!string.IsNullOrWhiteSpace(PersonnelOfficerName))
+    @* UAT-34: each of the four signature blocks is a stack centred on one axis: the dotted line, the title under it, then the
+       person's name in brackets under the title. A blank name prints empty brackets (the line is there for a pen) and the layout
+       stays the same. *@
+    @foreach (var (centre, x1, x2, y, title, name) in Blocks)
     {
-        <FormText X="@LeftCenter" Base="231.2" Anchor="FormAnchor.Center" Text="@($"({PersonnelOfficerName.Trim()})")" />
+        <FormDots X1="@x1" X2="@x2" Y="@y" />
+        <FormText X="@centre" Base="@(y + TitleGap)" Anchor="FormAnchor.Center" Text="@title" />
+        <FormText X="@centre" Base="@(y + NameGap)" Anchor="FormAnchor.Center" Text="@Bracketed(name)" />
     }
-    <FormDots X1="@SignRight1" X2="@SignRight2" Y="224.4" />
-    <FormText X="163.3" Base="224.2" Text="หัวหน้าแผนก" />
-    <FormText X="@RightCenter" Base="231.2" Anchor="FormAnchor.Center" Text="@($"({Letter.SupervisorName})")" />
-
-    <FormDots X1="@SignLeft1" X2="@SignLeft2" Y="247.4" />
-    <FormText X="61.0" Base="247.2" Text="ผู้จัดการฝ่าย" />
-    <FormText X="@LeftCenter" Base="254.3" Anchor="FormAnchor.Center" Text="@($"({Letter.ManagerName})")" />
-    <FormDots X1="@SignRight1" X2="@SignRight2" Y="247.4" />
-    <FormText X="163.4" Base="247.2" Text="ผู้จัดการโรงงาน" />
-    <FormText X="@RightCenter" Base="254.3" Anchor="FormAnchor.Center" Text="@($"({Letter.FactoryManagerName})")" />
 </FormPage>
 
 @code {
@@ -116,4 +108,17 @@
     private const double TopShift = 27.0, SignShift = 12.0;
     private const double SignLeft1 = 25.0, SignLeft2 = 60.8, SignRight1 = 133.3, SignRight2 = 162.2;
     private const double LeftCenter = (SignLeft1 + SignLeft2) / 2, RightCenter = (SignRight1 + SignRight2) / 2;
+    /// <summary>UAT-34: the heading moves 6 mm down; the title is 7 mm and the bracketed name 14 mm under each dotted line.</summary>
+    private const double HeaderShift = 6.0, TitleGap = 7.0, NameGap = 14.0;
+    private const double Row1 = 222.0, Row2 = 249.0;
+
+    private (double Centre, double X1, double X2, double Y, string Title, string? Name)[] Blocks => new[]
+    {
+        (LeftCenter, SignLeft1, SignLeft2, Row1, "เจ้าหน้าที่แผนกบุคคลและธุรการ", PersonnelOfficerName),
+        (RightCenter, SignRight1, SignRight2, Row1, "หัวหน้าแผนก", Letter.SupervisorName),
+        (LeftCenter, SignLeft1, SignLeft2, Row2, "ผู้จัดการฝ่าย", Letter.ManagerName),
+        (RightCenter, SignRight1, SignRight2, Row2, "ผู้จัดการโรงงาน", Letter.FactoryManagerName),
+    };
+
+    private static string Bracketed(string? name) => string.IsNullOrWhiteSpace(name) ? "( )" : $"({name.Trim()})";
 }
