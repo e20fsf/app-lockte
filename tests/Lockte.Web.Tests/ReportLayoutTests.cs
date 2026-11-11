@@ -209,4 +209,54 @@ public sealed class ReportLayoutTests
         Assert.Contains("ไม่มีข้อมูล", html);
         Assert.DoesNotContain("รวม 0 คน", html);
     }
+
+    [Fact] // UAT-35: the pay report's and the pay summary's page header (company) and period line are bigger than the standard
+    public async Task The_pay_reports_have_a_bigger_header_and_period_line()
+    {
+        Assert.True(PayReportView.HeaderPt > ReportHtml.TitleSizePt);
+        Assert.True(PaySummaryView.HeaderPt > ReportHtml.TitleSizePt);
+        Assert.True(PayReportView.PeriodLinePt > 14);
+
+        var doc = ReportHtml.Compose(new ReportDocument("", Paper.A4Portrait, HeaderPt: PayReportView.HeaderPt), new PrintStamp(DateTimeOffset.Now, "x"), "<p>x</p>");
+        Assert.Contains($"font-size:{PayReportView.HeaderPt}pt;font-weight:bold", doc);
+        var standard = ReportHtml.Compose(new ReportDocument("", Paper.A4Portrait), new PrintStamp(DateTimeOffset.Now, "x"), "<p>x</p>");
+        Assert.Contains($"font-size:{ReportHtml.TitleSizePt}pt;font-weight:bold", standard);
+
+        var html = await ReportBody.RenderAsync<PayReportView>(new() { [nameof(PayReportView.Report)] = new PayReport(Paid, null, []) });
+        Assert.Contains($"style=\"font-size:{PayReportView.PeriodLinePt}pt\"", html);
+    }
+
+    [Fact] // UAT-35: the pay summary's text is 15 pt overall (it was 12)
+    public async Task The_pay_summary_text_is_bigger()
+    {
+        var html = await ReportBody.RenderAsync<PaySummaryView>(new()
+        {
+            [nameof(PaySummaryView.Report)] = new PaySummaryReport(Paid, 2, 1, [new DepartmentPayTotal("ไดคาสท์", 12, 77463, 2480, 0)]),
+        });
+
+        Assert.DoesNotContain("font-size: 12pt", html);
+        Assert.Contains("font-size: 15pt", html);
+    }
+
+    [Fact] // UAT-35: step 3 of ปิดงวดค่าแรง — พิมพ์ค่าแรง sits right next to the แผนก choice (the choice no longer grows to fill the row)
+    public void The_pay_print_button_sits_next_to_the_department_choice()
+    {
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (!File.Exists(Path.Combine(repo.FullName, "Lockte.slnx"))) repo = repo.Parent!;
+        var page = File.ReadAllText(Path.Combine(repo.FullName, "src", "Lockte.Web", "Components", "Pages", "Hr", "PayPeriods.razor"));
+
+        Assert.Contains("Label=\"แผนก\" Style=\"flex:0 0 16rem\"", page);
+        Assert.Contains("departments.Where(x => x.IsActive)", page); // retired แผนก (#412) are not in the choice
+    }
+
+    [Fact] // UAT-35: the month-end summary's double rule closes the table right under รวมทั้งหมด
+    public async Task The_month_end_summary_closes_under_its_total_row()
+    {
+        var html = await ReportBody.RenderAsync<MonthEndSummaryView>(new()
+        {
+            [nameof(MonthEndSummaryView.Report)] = new MonthEndPaySummary(D("2026-08-27"), D("2026-09-26"), [new MonthEndDepartmentTotal("ไดคาสท์", 3, 1000m, 1000m)]),
+        });
+
+        Assert.Contains("td.end { padding: 0; font-size: 0; line-height: 0;", html);
+    }
 }
