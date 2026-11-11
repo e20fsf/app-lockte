@@ -107,7 +107,8 @@ public static class ReportsRegistration
         {
             if (await periods.GetPayReportAsync(id, department) is not { } report) return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้");
             var pdf = await printer.PrintAsync<PayReportView>(PayReportView.Title, Paper.A4Portrait,
-                new() { [nameof(PayReportView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+                new() { [nameof(PayReportView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken,
+                headerPt: PayReportView.HeaderPt);
             return Pdf(http, pdf, "ค่าแรง " + Iso(report.Period.From) + (report.DepartmentName is { } name ? " " + name : ""));
         });
 
@@ -117,7 +118,8 @@ public static class ReportsRegistration
         {
             if (await periods.GetPaySummaryAsync(id) is not { } report) return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้");
             var pdf = await printer.PrintAsync<PaySummaryView>(PaySummaryView.Title, Paper.A4Portrait,
-                new() { [nameof(PaySummaryView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+                new() { [nameof(PaySummaryView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken,
+                headerPt: PaySummaryView.HeaderPt);
             await registry.CompleteStepAsync(id, PayPeriodStep.SummaryPrinted);
             return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
         });
