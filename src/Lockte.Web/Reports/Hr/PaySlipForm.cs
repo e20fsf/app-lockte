@@ -30,8 +30,11 @@ public static class PaySlipForm
     /// #353: the rule under the totals heads sat at 65.21, where the second line of "กองทุนสงเคราะห์ / ลูกจ้าง (0.25%)" stood on it; it
     /// moved down to give two lines of 10 pt room (the values row below keeps its place).
     /// </summary>
-    /// <summary>#397: where the payee's name stands under the ผู้รับเงิน line — from the label's left (39.79) to just before แผนกบุคคล (78.37).</summary>
-    private const double PayeeCentre = 58.4, PayeeBaseline = 85.2, PayeeWidth = 37.5;
+    /// <summary>
+    /// UAT-35: the first name only (#397 put the full name under the line) stands ON the ผู้รับเงิน line — over it, centred, squeezed into the line's
+    /// length so it never runs into the label (50.37–77.06).
+    /// </summary>
+    private const double PayeeLeft = 50.37, PayeeRight = 77.06, NameBaseline = 78.8;
 
     private const double TotalsHeadBottom = 66.6;
 
@@ -137,21 +140,43 @@ public static class PaySlipForm
         // ลงนาม: ผู้รับเงิน on its own line; แผนกบุคคล and ผู้จัดการโรงงาน by name or signature picture
         const double sign = 79.46;
         T(39.79, sign, "ผู้รับเงิน"); page.Line(50.37, top + 79.2, 77.06, top + 79.2, 0.1);
-        // #397: the employee's own name under the line, the one printed at ชื่อ-นามสกุล; centred, squeezed to the space before แผนกบุคคล
-        T(PayeeCentre, PayeeBaseline, s.Name, TextAnchor.Middle, fit: PayeeWidth);
+        // UAT-35: the employee's first name over the line (the full name is at ชื่อ-นามสกุล above)
+        T((PayeeLeft + PayeeRight) / 2, NameBaseline, FirstName(s.Name), TextAnchor.Middle, fit: PayeeRight - PayeeLeft);
         T(78.37, sign, "แผนกบุคคล"); page.Line(93.06, top + 79.4, 119.79, top + 79.4, 0.1);
         T(124.82, sign, "ผู้จัดการโรงงาน"); page.Line(143.48, top + 79.4, 170.17, top + 79.4, 0.1);
         Signer(page, top, batch.Signer(SlipSignerRole.HrDepartment), 93.06, 119.79);
         Signer(page, top, batch.Signer(SlipSignerRole.FactoryManager), 143.48, 170.17);
     }
 
-    /// <summary>The picture over the line (it may cross it, as a pen does); the name — only the name, from ตั้งค่าผู้ลงนามบนสลิป — under the line (UAT-30).</summary>
+    /// <summary>The picture over the line (it may cross it, as a pen does); the name — the first name only, from ตั้งค่าผู้ลงนามบนสลิป — over the line (UAT-35).</summary>
     private static void Signer(FormPage page, double top, SlipSignerDto? signer, double x0, double x1)
     {
         if (signer?.Signature is { Length: > 0 } picture && signer.SignatureContentType is { } type)
             page.Image(x0, top + 73.8, x1 - x0, 7.6, type, picture);
-        else if (!string.IsNullOrWhiteSpace(signer?.Name))
-            page.Text((x0 + x1) / 2, top + PayeeBaseline, signer.Name, Body, TextAnchor.Middle, fit: x1 - x0 + 4);
+        else if (FirstName(signer?.Name) is { Length: > 0 } name)
+            page.Text((x0 + x1) / 2, top + NameBaseline, name, Body, TextAnchor.Middle, fit: x1 - x0);
+    }
+
+    /// <summary>The titles a name may start with, longest first (so นางสาว is not cut as นาง).</summary>
+    private static readonly string[] Titles =
+        ["เด็กหญิง", "เด็กชาย", "นางสาว", "น.ส.", "นส.", "นาย", "นาง", "ด.ช.", "ด.ญ.", "คุณ", "Miss", "Mrs.", "Mr.", "Ms."];
+
+    /// <summary>
+    /// UAT-35: the first name of a full name — no title (นาย/นาง/นางสาว …, with or without a space after it) and no surname: "นางสาวทองใส โชติรัตน์"
+    /// → "ทองใส"; "ทองใส" stays; "นาย สมชาย ใจดี" → "สมชาย". A title that is all there is of the name (nothing after it) stays as it is.
+    /// </summary>
+    public static string FirstName(string? fullName)
+    {
+        var name = string.Join(' ', (fullName ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        foreach (var title in Titles)
+        {
+            if (!name.StartsWith(title, StringComparison.OrdinalIgnoreCase)) continue;
+            var rest = name[title.Length..].TrimStart();
+            if (rest.Length > 0) name = rest;
+            break; // the longest title decides; a title that is the whole name stays
+        }
+        var space = name.IndexOf(' ');
+        return space < 0 ? name : name[..space];
     }
 
     private static string Whole(int value) => value.ToString(CultureInfo.InvariantCulture);

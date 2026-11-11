@@ -202,27 +202,68 @@ public sealed class PaySlipTests
             new SlipSignerDto(SlipSignerRole.HrDepartment, "สมหญิง", png, "image/png", null),
             new SlipSignerDto(SlipSignerRole.FactoryManager, "สมชาย", null, null, null)))[0];
 
-        Assert.Equal("สมชาย", TextAt(page, 156.825, 85.2));
+        Assert.Equal("สมชาย", TextAt(page, 156.825, 78.8));
         Assert.DoesNotContain(Texts(page), t => t.Text == "สมหญิง");
         Assert.Contains("href=\"data:image/png;base64," + Convert.ToBase64String(png) + "\"", page.ToSvg());
     }
 
-    [Fact] // #397: every slip prints its employee's own name under the ผู้รับเงิน line, squeezed (not wrapped) when long
-    public void Every_slip_prints_the_employee_name_under_the_payee_line()
+    [Fact] // UAT-35 (was #397): every slip prints its employee's FIRST name over the ผู้รับเงิน line (full name stays at ชื่อ-นามสกุล), squeezed to the line
+    public void Every_slip_prints_the_employee_first_name_over_the_payee_line()
     {
         var batch = Batch(4);
-        batch = batch with { Slips = batch.Slips.Select((s, i) => s with { Name = i == 3 ? "นางสาวสมมุติ นามสกุลยาวมากเป็นพิเศษ ทดสอบชื่อยาว" : $"สมมุติ ทดสอบ{i}" }).ToList() };
+        batch = batch with { Slips = batch.Slips.Select((s, i) => s with { Name = i == 3 ? "นางสาวสมมุติอย่างยาวมากเป็นพิเศษทดสอบ นามสกุล" : $"นายสมมุติ{i} ทดสอบ" }).ToList() };
         var pages = PaySlipForm.Layout(batch);
 
         foreach (var (page, offset, slip) in new[] { (pages[0], 0.0, batch.Slips[0]), (pages[0], 95.0, batch.Slips[1]), (pages[0], 190.0, batch.Slips[2]), (pages[1], 0.0, batch.Slips[3]) })
         {
-            var payee = Assert.Single(Texts(page), t => Math.Abs(t.Y - (offset + 85.2)) < 0.01);
-            Assert.Equal(slip.Name, payee.Text);
-            Assert.Equal(slip.Name, TextAt(page, 58.4, offset + 85.2)); // same name as ชื่อ-นามสกุล
-            Assert.Equal(slip.Name, TextAt(page, 81.44, offset + 29.5));
+            var payee = Assert.Single(Texts(page), t => Math.Abs(t.Y - (offset + 78.8)) < 0.01 && t.X < 70);
+            Assert.Equal(PaySlipForm.FirstName(slip.Name), payee.Text);
+            Assert.False(payee.Text.Contains(' '));
+            Assert.Equal(slip.Name, TextAt(page, 81.44, offset + 29.5)); // the full name stays at ชื่อ-นามสกุล
+            Assert.DoesNotContain(Texts(page), t => Math.Abs(t.Y - (offset + 85.2)) < 0.01); // nothing under the line any more
         }
-        Assert.Contains("data-fit=\"37.5\"", pages[1].ToSvg());
+        Assert.Contains("data-fit=\"26.69\"", pages[1].ToSvg());
     }
+
+    [Fact] // UAT-35: the name stands over its line — its baseline above the line (79.2), clear of the label's baseline (79.46) it shares the row with
+    public void The_names_stand_over_their_lines()
+    {
+        var batch = Batch(1,
+            new SlipSignerDto(SlipSignerRole.HrDepartment, "นางสาวสมหญิง ใจดี", null, null, null),
+            new SlipSignerDto(SlipSignerRole.FactoryManager, "นายสมชาย", null, null, null));
+        var page = PaySlipForm.Layout(batch with { Slips = [batch.Slips[0] with { Name = "นายสมมุติ ทดสอบ" }] })[0];
+
+        foreach (var (x, name) in new[] { (63.715, "สมมุติ"), (106.425, "สมหญิง"), (156.825, "สมชาย") })
+        {
+            var text = Assert.Single(Texts(page), t => t.Text == name && Math.Abs(t.X - x) < 0.01);
+            Assert.True(text.Y < 79.2, $"{text.Text} baseline {text.Y} must be above the line");
+            Assert.True(text.Y > 76, $"{text.Text} must stand on the line");
+        }
+    }
+
+    [Theory] // UAT-35: first name only — titles with or without a space, surname, a single name, other titles, a title alone
+    [InlineData("นางสาวทองใส โชติรัตน์", "ทองใส")]
+    [InlineData("นางสาว ทองใส โชติรัตน์", "ทองใส")]
+    [InlineData("นายสมชาย ใจดี", "สมชาย")]
+    [InlineData("นาย สมชาย ใจดี", "สมชาย")]
+    [InlineData("นางสมหญิง แสงคำ", "สมหญิง")]
+    [InlineData("น.ส.สมศรี มีสุข", "สมศรี")]
+    [InlineData("นส. สมศรี มีสุข", "สมศรี")]
+    [InlineData("ด.ช.สมปอง ดี", "สมปอง")]
+    [InlineData("เด็กหญิงสมใจ ดี", "สมใจ")]
+    [InlineData("คุณสมพร ดี", "สมพร")]
+    [InlineData("Mr. John Smith", "John")]
+    [InlineData("ทองใส", "ทองใส")]
+    [InlineData("ทองใส โชติรัตน์", "ทองใส")]
+    [InlineData("สมชาย  ใจดี  มาก", "สมชาย")]
+    [InlineData("  ทองใส  ", "ทองใส")]
+    [InlineData("นางสาวทองใส", "ทองใส")]
+    [InlineData("นาย", "นาย")]
+    [InlineData("นางสาว", "นางสาว")]
+    [InlineData("", "")]
+    [InlineData(null, "")]
+    [InlineData("   ", "")]
+    public void The_first_name_is_the_name_without_title_and_surname(string? full, string first) => Assert.Equal(first, PaySlipForm.FirstName(full));
 
     [Fact] // UAT-30: รหัสพนักงาน … ชื่อ-นามสกุล is above ตั้งแต่วันที่ … ถึงวันที่ …; the signers' names stand under their lines, the name only
     public void The_employee_row_is_above_the_dates_and_the_signers_names_are_under_their_lines()
@@ -233,10 +274,10 @@ public sealed class PaySlipTests
         var texts = Texts(page);
 
         Assert.True(texts.Single(t => t.Text == "รหัสพนักงาน").Y < texts.Single(t => t.Text == "ตั้งแต่วันที่").Y);
-        Assert.Equal("สมหญิง", TextAt(page, 106.425, 85.2));
-        Assert.Equal("สมชาย", TextAt(page, 156.825, 85.2));
+        Assert.Equal("สมหญิง", TextAt(page, 106.425, 78.8));
+        Assert.Equal("สมชาย", TextAt(page, 156.825, 78.8));
         Assert.DoesNotContain(texts, t => t.Text.Contains("ผู้รับเงิน") && t.Text != "ผู้รับเงิน");
-        Assert.DoesNotContain(texts, t => Math.Abs(t.Y - 78.59) < 0.01);
+        Assert.DoesNotContain(texts, t => Math.Abs(t.Y - 85.2) < 0.01);
     }
 
     [Fact] // no signer saved yet: the lines stay empty

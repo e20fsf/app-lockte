@@ -17,7 +17,7 @@ public enum Paper
 /// <param name="DocumentNumber">The printed text of the document's number (<see cref="DocumentNumberService"/>), or none.</param>
 /// <param name="DateAtTop">The Access layout of รายงานการลางาน (#411): the print date at the top left and "หน้า x จาก y" at the top right, no footer.</param>
 /// <param name="Footer">False for a one-page sheet that prints no footer at all (no print date, no page number — #408 ใบขออนุมัติทำงานล่วงเวลา).</param>
-public sealed record ReportDocument(string Title, Paper Paper, string? DocumentNumber = null, bool Footer = true, bool DateAtTop = false);
+public sealed record ReportDocument(string Title, Paper Paper, string? DocumentNumber = null, bool Footer = true, bool DateAtTop = false, int? HeaderPt = null);
 
 /// <summary>ท้ายหน้า: when it was printed and by whom (#40 แบบกลาง, #39 login).</summary>
 public sealed record PrintStamp(DateTimeOffset PrintedAt, string PrintedBy);
@@ -96,7 +96,7 @@ public static class ReportHtml
         css.Append($"@page{{size:{PageSize(document.Paper)};margin:{MarginTop}mm {MarginSide}mm {MarginBottom}mm {MarginSide}mm;");
         // #408: company bigger than the title, as the Access reports print them; the block sits a little lower (less padding under it)
         css.Append($"@top-center{{content:{CssString($"{Company}\n{document.Title}")};white-space:pre;text-align:center;vertical-align:bottom;"
-                   + $"font-family:'{font.Family}';font-size:{TitleSizePt}pt;font-weight:bold;line-height:1.1;padding-bottom:2mm}}");
+                   + $"font-family:'{font.Family}';font-size:{document.HeaderPt ?? TitleSizePt}pt;font-weight:bold;line-height:1.1;padding-bottom:2mm}}");
         if (!string.IsNullOrWhiteSpace(document.DocumentNumber))
             css.Append($"@top-right{{content:{CssString(document.DocumentNumber)};white-space:pre;text-align:right;vertical-align:top;{margin}padding-top:6mm}}");
         if (document.DateAtTop)

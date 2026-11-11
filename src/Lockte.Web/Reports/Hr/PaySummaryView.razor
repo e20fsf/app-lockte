@@ -4,14 +4,14 @@
    name, the totals between rules, and the signatures as lines after their labels. Smaller type (12 pt) and tighter lines than แบบกลาง, the head a little lower.
    The legacy query also carried จำนวนรายการโอน/ค่าธรรมเนียม but the report never showed them, so neither does this. *@
 <style>
-    .ps { margin-top: 7mm; font-size: 12pt; line-height: 1.05; }
-    .ps .sub { font-size: 12pt; margin-bottom: 4pt; }
-    .ps table.lines { width: 92%; margin: 8pt auto 0; }
-    .ps table.lines th { font-size: 12pt; border-bottom: 1.5pt solid #000; text-align: center; padding: 2pt 4pt; }
-    .ps table.lines td { font-size: 12pt; padding: 1.2pt 4pt; }
+    .ps { margin-top: 7mm; font-size: 15pt; line-height: 1.1; }
+    .ps .sub { font-size: 15pt; margin-bottom: 4pt; }
+    .ps table.lines { width: 96%; margin: 8pt auto 0; }
+    .ps table.lines th { font-size: 15pt; border-bottom: 1.5pt solid #000; text-align: center; padding: 2pt 3pt; }
+    .ps table.lines td { font-size: 15pt; padding: 1.2pt 4pt; }
     .ps table.lines tr.total td { border-top: 1.5pt solid #000; padding-top: 3pt; }
     .ps table.lines .no { text-align: right; width: 4%; }
-    .ps .sign { margin-top: 40pt; font-size: 12pt; }
+    .ps .sign { margin-top: 40pt; font-size: 15pt; }
     .ps .sign table { width: 100%; }
     .ps .sign td { white-space: nowrap; padding: 0 2pt; text-align: center; }
     .ps .sign tr.second td { padding-top: 24pt; }
@@ -83,6 +83,9 @@ else
 @code {
     /// <summary>The title the legacy report printed under the company name.</summary>
     public const string Title = "ค่าแรงพนักงาน";
+
+    /// <summary>UAT-35: the company name and title in the page header, bigger than the standard 17 pt; the body is 15 pt (was 12).</summary>
+    public const int HeaderPt = 21;
 
     [Parameter, EditorRequired] public PaySummaryReport Report { get; set; } = default!;
 

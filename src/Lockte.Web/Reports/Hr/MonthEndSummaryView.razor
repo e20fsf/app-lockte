@@ -6,6 +6,9 @@
     .big { font-size: 17pt; line-height: 1.25; }
     .big .sub { font-size: 17pt; margin-bottom: 8pt; }
     .big table th, .big table td { font-size: 17pt; padding-top: 1.5pt; padding-bottom: 1.5pt; }
+    /* UAT-35: the double rule closes the table right under the รวมทั้งหมด row (the empty cell had a full line of its own) */
+    .big table td.end { padding: 0; font-size: 0; line-height: 0; height: 2pt; }
+    .big table tr.total td { padding-bottom: 0; }
 </style>
 <div class="big">
 <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
