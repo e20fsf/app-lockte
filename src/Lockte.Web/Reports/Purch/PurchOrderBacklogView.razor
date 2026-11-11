@@ -1,5 +1,5 @@
 @using Lockte.Purch
-@* RPT-04 รายงานวัตถุดิบที่ยังไม่ได้รับ, ระดับ B: the order lines still waited for — ordered less received, not cancelled — by เลขที่ใบสั่งซื้อ → ที่. The quantity is ยอดค้างรับ. *@
+@* RPT-04 รายงานวัตถุดิบที่ยังไม่ได้รับ, ระดับ B on A4 นอน (UAT วัตถุดิบ 1, #421: the letters were too small on A4 ตั้ง because the supplier column made the whole table shrink; on a landscape page one item stays on one line at the full size): the order lines still waited for — ordered less received, not cancelled — by เลขที่ใบสั่งซื้อ → ที่. The quantity is ยอดค้างรับ. *@
 @if (Lines.Count == 0)
 {
     <NoData />
@@ -7,7 +7,6 @@
 else
 {
     <table>
-        <colgroup><col style="width:11%" /><col style="width:9%" /><col style="width:5%" /><col style="width:26%" /><col style="width:10%" /><col style="width:7%" /><col style="width:11%" /><col style="width:21%" /></colgroup>
         <thead>
             <tr><th>วันที่สั่งซื้อ</th><th>เลขที่ใบสั่งซื้อ</th><th class="num">ที่</th><th>ชื่อวัตถุดิบ</th><th class="num">ยอดค้างรับ</th><th>หน่วย</th><th>วันที่ต้องการ</th><th>ชื่อผู้ขาย / โทรฯ</th></tr>
         </thead>

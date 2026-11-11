@@ -40,7 +40,12 @@
                 <MudNumericField T="decimal?" @bind-Value="row.Price" Label="ราคา/หน่วย" Min="0" Margin="Margin.Dense" Style="width:9rem" />
                 <MudText Style="width:13rem">@row.Result</MudText>
                 <MudTextField @bind-Value="row.ReturnNote" Label="อื่น ๆ (ส่งคืน)" Margin="Margin.Dense" Style="width:11rem" MaxLength="StockLedger.TextLength" />
-                <MudCheckBox T="bool" @bind-Value="row.Failed" Label="ผลตรวจไม่ผ่าน" Color="Color.Error" />
+                <MudSelect T="bool" @bind-Value="row.Failed" Label="ผลตรวจ" Margin="Margin.Dense" Style="width:8rem">
+                    @foreach (var (failed, text) in PurchChoices.InspectionResults)
+                    {
+                        <MudSelectItem T="bool" Value="failed">@text</MudSelectItem>
+                    }
+                </MudSelect>
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => CancelAsync(row))" aria-label="ลบรายการค้างรับ" />
             </MudStack>
         }
@@ -121,7 +126,7 @@ else if (orderId is not null)
         public string? InvoiceLineNo { get; set; }
         public decimal? Price { get; set; }
         public string? ReturnNote { get; set; }
-        public bool Failed { get; set; }
+        public bool Failed { get; set; } = PurchChoices.DefaultFailed;
 
         /// <summary>ส่งทัน/ไม่ทัน, ยอดค้างรับ and จำนวนเงิน as the legacy showed them while typing (BR-030).</summary>
         public string Result => Quantity is not > 0 ? "" :

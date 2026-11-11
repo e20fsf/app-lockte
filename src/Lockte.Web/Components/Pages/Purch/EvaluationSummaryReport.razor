@@ -11,13 +11,13 @@
 
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
     <MudStack Row="true" Spacing="2">
-        <MudSelect T="int" @bind-Value="quarter" @bind-Value:after="RememberAsync" Label="ไตรมาสที่" Style="max-width:10rem">
-            @for (var q = 1; q <= 4; q++)
+        <MudSelect T="int" @bind-Value="quarter" @bind-Value:after="RememberAsync" Label="ไตรมาสที่" Style="max-width:16rem">
+            @foreach (var (number, text) in PurchChoices.Quarters)
             {
-                <MudSelectItem T="int" Value="q">@q</MudSelectItem>
+                <MudSelectItem T="int" Value="number">@text</MudSelectItem>
             }
         </MudSelect>
-        <MudNumericField T="int" @bind-Value="year" @bind-Value:after="RememberAsync" Label="ปี (ค.ศ.)" Min="2000" Max="2100" Style="max-width:10rem" />
+        <MudNumericField T="int" @bind-Value="buddhistYear" @bind-Value:after="RememberAsync" Label="ปี (พ.ศ.)" Min="@PurchChoices.ToBuddhist(2000)" Max="@PurchChoices.ToBuddhist(2100)" Style="max-width:10rem" />
     </MudStack>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url" Target="_blank" StartIcon="@Icons.Material.Filled.Print" Class="mt-4">พิมพ์</MudButton>
 </MudPaper>
@@ -26,7 +26,8 @@
 
 @code {
     private int quarter = 1;
-    private int year = DateTime.Today.Year;
+    private int year = DateTime.Today.Year; // ค.ศ. — what the report and the data use; the screen shows พ.ศ.
+    private int buddhistYear { get => PurchChoices.ToBuddhist(year); set => year = PurchChoices.ToChristian(value); }
     private bool loadedMemory;
 
     private string Url => $"/reports/purch/evaluation-summary?year={year}&quarter={quarter}";

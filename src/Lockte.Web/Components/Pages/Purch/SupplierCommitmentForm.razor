@@ -1,9 +1,11 @@
 @page "/purch/reports/commitment"
 @attribute [Authorize]
 @using Lockte.Purch
+@using Lockte.SharedKernel
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @inject ScopedServices Services
 @inject ProtectedLocalStorage Storage
+@inject TimeProvider Clock
 
 @* พิมพ์หนังสือแสดงความมุ่งมั่นของผู้ส่งมอบ (SCR-02 → RPT-33): pick the supplier, print one letter for it to sign. The supplier chosen last is remembered in this browser (BR-081). *@
 <PageTitle>พิมพ์หนังสือแสดงความมุ่งมั่นของผู้ขาย — LOCKTE</PageTitle>
@@ -11,8 +13,9 @@
 
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
     <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (รหัสหรือชื่อ)" />
+    <MudDatePicker Editable="true" @bind-Date="date" Label="วันที่ (พิมพ์บนหนังสือ)" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Class="mt-4" Style="max-width:14rem" />
     <MudStack Row="true" Class="mt-4">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/reports/purch/commitment?supplier={supplier?.Id}")" Target="_blank" Disabled="@(supplier is null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/reports/purch/commitment?supplier={supplier?.Id}&date={Lockte.Web.Reports.Purch.UrlDate.Of(date)}")" Target="_blank" Disabled="@(supplier is null || date is null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
     </MudStack>
 </MudPaper>
 
@@ -21,6 +24,9 @@
 @code {
     private const string Key = "purch.commitment";
     private SupplierDto? supplier;
+    private DateTime? date;
+
+    protected override void OnInitialized() => date = Clock.GetLocalNow().Date;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
