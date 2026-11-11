@@ -1,0 +1,59 @@
+@page "/purch/reports/requests-monthly"
+@attribute [Authorize]
+@using Lockte.Web.Reports.Purch
+@inject TimeProvider Clock
+
+@* สรุปจำนวนใบขออนุมัติสั่งซื้อรายเดือนแยกตามแผนก (#420): the year and the months; printed as PDF or downloaded as Excel. *@
+<PageTitle>สรุปใบขออนุมัติสั่งซื้อรายเดือนแยกตามแผนก — LOCKTE</PageTitle>
+<h1 class="mb-4">พิมพ์สรุปจำนวนใบขออนุมัติสั่งซื้อรายเดือนแยกตามแผนก</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+    <MudStack Spacing="2">
+        <MudSelect T="int" @bind-Value="year" Label="ปี (พ.ศ.)" Style="max-width:12rem">
+            @foreach (var y in Years)
+            {
+                <MudSelectItem T="int" Value="y">@(y + 543)</MudSelectItem>
+            }
+        </MudSelect>
+        <MudStack Row="true" Spacing="2">
+            <MudSelect T="int" @bind-Value="fromMonth" Label="ตั้งแต่เดือน" Style="max-width:12rem">
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <MudSelectItem T="int" Value="m">@MonthName(m)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" @bind-Value="toMonth" Label="ถึงเดือน" Style="max-width:12rem">
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <MudSelectItem T="int" Value="m">@MonthName(m)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@Url(null)" Target="_blank" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="@Url("xlsx")" Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.TableChart">ส่งออก Excel</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@PurchMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private int year;
+    private int fromMonth = 1;
+    private int toMonth = 12;
+
+    private IEnumerable<int> Years => Enumerable.Range(Clock.GetLocalNow().Year - 6, 8).Reverse();
+
+    private string? Problem => PurchRequestMonthlyReports.Problem(year, fromMonth, toMonth);
+
+    private static string MonthName(int month) => Lockte.SharedKernel.ThaiDate.Culture.DateTimeFormat.GetMonthName(month);
+
+    protected override void OnInitialized() => year = Clock.GetLocalNow().Year;
+
+    private string Url(string? format) => $"reports/purch/requests/monthly?year={year}&fromMonth={fromMonth}&toMonth={toMonth}" + (format is null ? "" : "&format=" + format);
+}

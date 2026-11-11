@@ -311,6 +311,11 @@ public sealed class PurchaseRequestDirectory(PurchDbContext db)
             .Select(r => new PurchaseRequestSummary(r.Id, r.RequestNo, r.RequestDate, r.DepartmentId, r.Lines.Count)).ToListAsync();
     }
 
+    /// <summary>The แผนก and date of every request dated in the range (both ends included): what the monthly count of ใบขออนุมัติ per แผนก is made from (#420).</summary>
+    public async Task<IReadOnlyList<(int DepartmentId, DateOnly RequestDate)>> GetRequestDatesAsync(DateOnly from, DateOnly to)
+        => (await db.PurchaseRequests.AsNoTracking().Where(r => r.RequestDate >= from && r.RequestDate <= to)
+            .Select(r => new { r.DepartmentId, r.RequestDate }).ToListAsync()).Select(r => (r.DepartmentId, r.RequestDate)).ToList();
+
     /// <summary>Whether any request was issued for the แผนก.</summary>
     public Task<bool> HasRequestsAsync(int departmentId) => db.PurchaseRequests.AnyAsync(r => r.DepartmentId == departmentId);
 

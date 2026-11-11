@@ -64,6 +64,7 @@ public static class ReportsRegistration
         reports.MapDeliveryReports(); // เอกสาร ISO การส่งของ (#136)
         reports.MapOrderReports(); // ORDER ค้างส่ง และสรุปการรับ ORDER (#113)
         reports.MapPurchRequestReports(); // ใบขออนุมัติสั่งซื้อ (วัตถุดิบ #220)
+        reports.MapPurchRequestMonthlyReports(); // สรุปใบขออนุมัติรายเดือนต่อแผนก (วัตถุดิบ #420)
         reports.MapPurchaseOrderReports(); // ใบสั่งซื้อ (วัตถุดิบ #224)
         reports.MapSupplierEvaluationReports(); // ประเมินผู้ขาย (วัตถุดิบ #254)
         reports.MapSupplierEvaluationSummaryReports(); // แบบประเมินประจำปี และสรุปรายไตรมาส (วัตถุดิบ #255)

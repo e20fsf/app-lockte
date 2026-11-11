@@ -1,6 +1,6 @@
 using Lockte.Org;
 using Lockte.Purch;
-using Lockte.Web.Accounts;
+using Microsoft.Extensions.Options;
 
 namespace Lockte.Web.Reports.Purch;
 
@@ -12,13 +12,14 @@ public sealed record PurchRequestPrint(
     DateOnly RequestDate,
     string DepartmentName,
     string PurchasingLocation,
+    string LocationCode,
     DateOnly? DesiredDate,
     string? Reason,
     string? Note,
     IReadOnlyList<PurchRequestPrintLine> Lines);
 
 /// <summary>
-/// RPT-01 ใบขออนุมัติสั่งซื้อ (#220), ระดับ B: the PDF of a request, all its items or only the ones picked (พิมพ์ซ้ำ, BR-012, AC-36).
+/// RPT-01 ใบขออนุมัติสั่งซื้อ (#220; the factory's own form since #420, see <see cref="PurchRequestForm"/>): the PDF of a request, all its items or only the ones picked (พิมพ์ซ้ำ, BR-012, AC-36).
 /// Opened in a new tab as Access opened its preview.
 /// </summary>
 public static class PurchRequestReports
@@ -33,14 +34,14 @@ public static class PurchRequestReports
         var location = (await setup.GetLocationsAsync()).FirstOrDefault(l => l.Code == request.PurchasingLocation)?.Name ?? request.PurchasingLocation ?? "";
         var lines = request.Lines.Where(l => (lineIds is null || lineIds.Contains(l.Id)) && l.Quantity > 0)
             .Select(l => new PurchRequestPrintLine(l.LineNo, l.MaterialCode, l.MaterialName, l.Quantity, l.Unit)).ToList();
-        return new PurchRequestPrint(request.RequestNo, request.RequestDate, department, location, request.DesiredDate, request.Reason, request.Note, lines);
+        return new PurchRequestPrint(request.RequestNo, request.RequestDate, department, location, request.PurchasingLocation ?? "", request.DesiredDate, request.Reason, request.Note, lines);
     }
 
     public static RouteGroupBuilder MapPurchRequestReports(this RouteGroupBuilder reports)
     {
         // ?lines=12,15 → only those items (พิมพ์ซ้ำ); none given → every item
         reports.MapGet("/purch/request/{id:int}", async (int id, string? lines, HttpContext http, PurchaseRequestDirectory requests, OrgDirectory org,
-            RequestSetupDirectory setup, ReportPrinter printer, CancellationToken cancellationToken) =>
+            RequestSetupDirectory setup, DocumentNumberService numbers, IOptionsSnapshot<PurchLetterheadOptions> letterhead, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             IReadOnlyCollection<int>? ids = null;
             if (lines is not null)
@@ -51,8 +52,8 @@ public static class PurchRequestReports
             }
             if (await BuildAsync(requests, org, setup, id, ids) is not { } report) return Results.NotFound("ไม่พบใบขอซื้อนี้");
             if (report.Lines.Count == 0) return Results.BadRequest("ไม่มีรายการ");
-            var pdf = await printer.PrintAsync<PurchRequestView>(Title, Paper.A4Portrait, new() { [nameof(PurchRequestView.Report)] = report },
-                AccountClaims.DisplayNameOf(http.User), DocumentKeys.PurchRequest, cancellationToken);
+            var pages = PurchRequestForm.Layout(report, await numbers.PrintedTextAsync(DocumentKeys.PurchRequest), letterhead.Value);
+            var pdf = await printer.PrintFormAsync(ReportProgram.Purch, Title, pages, cancellationToken);
             return ReportsRegistration.Pdf(http, pdf, "ใบขอซื้อ " + report.RequestNo);
         });
         return reports;
