@@ -1,5 +1,6 @@
 @page "/purch/reports/evaluation-annual"
 @attribute [Authorize]
+@using Lockte.Purch
 @using Lockte.SharedKernel
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @inject ProtectedLocalStorage Storage
@@ -13,6 +14,7 @@
     <MudStack Row="true" Spacing="2">
         <DateRangePicker @bind-From="from" @bind-To="to" OnChanged="RememberAsync" Style="max-width:16rem" />
     </MudStack>
+    <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" Label="ผู้ขาย (ว่าง = ทุกราย)"/>
     @if (Problem is { } problem)
     {
         <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
@@ -23,13 +25,14 @@
 <MudButton Href="@PurchMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
 
 @code {
+    private SupplierDto? supplier;
     private DateTime? from;
     private DateTime? to;
     private bool loadedMemory;
 
     private string? Problem => from is null || to is null ? "กรุณากรอกตั้งแต่วันที่และถึงวันที่" : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่" : null;
 
-    private string Url => $"/reports/purch/evaluation-annual?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}";
+    private string Url => $"/reports/purch/evaluation-annual?from={Lockte.Web.Reports.Purch.UrlDate.Of(from)}&to={Lockte.Web.Reports.Purch.UrlDate.Of(to)}" + (supplier is null ? "" : $"&supplier={supplier.Id}");
 
     protected override void OnInitialized()
     {
