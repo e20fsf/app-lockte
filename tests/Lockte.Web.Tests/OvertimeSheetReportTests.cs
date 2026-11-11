@@ -52,8 +52,25 @@ public sealed class OvertimeSheetReportTests(ChromiumFixture chromium)
         Assert.Equal(2, CountOf(html, ">17:20<"));
         Assert.Equal(2, CountOf(html, ">20:20<"));
         Assert.True(html.IndexOf(">1<", StringComparison.Ordinal) < html.IndexOf(">2<", StringComparison.Ordinal));
-        Assert.Contains("ห้ามใส่รองเท้าแตะมาทำงาน ผู้ใดใส่มาไม่ให้ทำงานล่วงเวลา", html);
-        Assert.Contains("ผู้จัดการ", html);
+        Assert.DoesNotContain("ห้ามใส่รองเท้าแตะ", html); // #426: the footer is the page's, not the table's
+    }
+
+    [Fact] // #426 (ภาพ 9–10): หัวบรรทัดเดียว "บริษัท ล็อคเต้ จำกัด", ท้ายกระดาษล่างสุด (margin box), ไม่มี "พิมพ์เมื่อ"/"หน้า x จาก y"
+    public async Task The_page_is_the_Access_layout_one_header_line_and_the_footer_at_the_page_bottom()
+    {
+        var body = await HtmlAsync(Sheet(new DateOnly(2026, 10, 18), Lines));
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false, CompanyOnly: true,
+            PageFooter: (OvertimeSheetView.FooterLeft, OvertimeSheetView.FooterRight)), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+
+        var top = Regex.Match(html, @"@top-center\{content:""([^""]*)""").Groups[1].Value;
+        Assert.Equal(ReportHtml.Company, top);
+        Assert.Contains($"@bottom-left{{content:\"{OvertimeSheetView.FooterLeft}\"", html);
+        Assert.Contains($"@bottom-right{{content:\"{OvertimeSheetView.FooterRight}\"", html);
+        Assert.StartsWith("ผู้จัดการ", OvertimeSheetView.FooterRight);
+        Assert.DoesNotContain("counter(page)", html);
+
+        var pdf = await chromium.Renderer.RenderAsync(html, OvertimeSheetView.Paper);
+        Assert.StartsWith("%PDF", Encoding.Latin1.GetString(pdf));
     }
 
     [Fact] // #411: คนละช่วงเวลาอยู่ตารางเดียว แถวละเวลาของตน (ภาพ Access)
