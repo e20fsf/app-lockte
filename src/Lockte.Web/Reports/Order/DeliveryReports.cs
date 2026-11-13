@@ -8,8 +8,8 @@ public sealed record DeliveryCustomerGroup(string CustomerCode, string CustomerN
 {
     public decimal Amount => Rows.Sum(r => r.Amount ?? 0);
 
-    /// <summary>Σ กล่อง (DISC_PS) — the pieces shown in place of boxes for a customer of code <c>40…</c> are not boxes and are not added.</summary>
-    public decimal Boxes => Rows.Sum(r => r.Boxes ?? 0);
+    /// <summary>Σ กล่อง (DISC_PS) of the customer's bills (<see cref="DeliveryReports.Boxes"/>).</summary>
+    public decimal Boxes => DeliveryReports.Boxes(Rows);
 }
 
 /// <summary>RPT-07 ใบรายงานการส่งสินค้า: the deliveries of a range, a group per customer.</summary>
@@ -54,6 +54,18 @@ public static class DeliveryReports
     /// <summary>A customer of code <c>40…</c> (งานรับจ้างผลิต) is shown the pieces and "ชิ้น" in the box column.</summary>
     public static bool ShowsPieces(string customerCode) => customerCode.StartsWith("40", StringComparison.Ordinal);
 
+    /// <summary>
+    /// Σ กล่อง of delivery rows (UAT-46). The legacy entry wrote the box count of a bill on every line of it (in the migrated deliveries since 2025 the lines of 6,432 of
+    /// 6,452 bills of one order carry the same number), and รายงานส่งออก2 printed it once per customer, not per line. So a bill — date, เลขที่บิล
+    /// and ใบ ORDER — counts each different number on its lines once: 2, 2, 2 → 2; 4, 2 → 6. The pieces shown for a customer of code
+    /// <c>40…</c> are not boxes and are not added.
+    /// </summary>
+    public static decimal Boxes(IEnumerable<DeliveryReportRow> rows)
+        => rows.GroupBy(r => (r.DeliveryDate, r.InvoiceNo, r.OrderNo)).Sum(bill => bill.Where(r => r.Boxes is not null).Select(r => r.Boxes!.Value).Distinct().Sum());
+
+    /// <summary>The sign line at the foot of every page of ใบรายงานการส่งสินค้า, as รายงานส่งออก2 printed it (print-forms.md "เส้นจุดในบรรทัดท้ายหน้า").</summary>
+    public const string DeliverySignLine = "ผู้รายงาน ..............................   หัวหน้าแผนก ..............................   ผู้จัดการฝ่าย ..............................";
+
     /// <summary>A sample of the boxes of a customer, at most 5 (🔍 min(กล่อง, 5) from the samples; the legacy formula is not recovered).</summary>
     public const int MaxSample = 5;
 
@@ -73,7 +85,7 @@ public static class DeliveryReports
         var strips = (await deliveries.GetDeliveriesAsync(from, to)).GroupBy(r => (r.CustomerCode, r.CustomerName)).OrderBy(g => g.Key.CustomerCode, StringComparer.Ordinal)
             .Select(g =>
             {
-                var boxes = (int)Math.Ceiling(g.Sum(r => r.Boxes ?? 0));
+                var boxes = (int)Math.Ceiling(Boxes(g));
                 return new ShippingInspectionStrip(g.Key.CustomerCode, g.Key.CustomerName, g.Max(r => r.DeliveryDate), boxes, Math.Min(boxes, MaxSample));
             }).ToList();
         return new(from, to, strips);
@@ -109,7 +121,8 @@ public static class DeliveryReports
 
         group.MapGet("/", async (DateOnly? from, DateOnly? to, HttpContext http, SalesDeliveryReportDirectory deliveries, ReportPrinter printer, CancellationToken ct)
             => HrAttendanceReports.Range(from, to) ?? Pdf(http, await printer.PrintAsync<DeliveryReportView>(DeliveryTitle, Paper.A4Landscape,
-                new() { ["Report"] = await DeliveryAsync(deliveries, from!.Value, to!.Value) }, AccountClaims.DisplayNameOf(http.User), DocumentKeys.DeliveryReport, ct), DeliveryTitle));
+                new() { ["Report"] = await DeliveryAsync(deliveries, from!.Value, to!.Value) }, AccountClaims.DisplayNameOf(http.User), DocumentKeys.DeliveryReport, ct,
+                footerCenter: DeliverySignLine), DeliveryTitle));
 
         group.MapGet("/inspection", async (DateOnly? from, DateOnly? to, HttpContext http, SalesDeliveryReportDirectory deliveries, ReportPrinter printer, CancellationToken ct)
             => HrAttendanceReports.Range(from, to) ?? Pdf(http, await printer.PrintAsync<ShippingInspectionView>(InspectionTitle, Paper.A4Landscape,
