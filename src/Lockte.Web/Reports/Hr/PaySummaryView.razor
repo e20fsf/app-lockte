@@ -1,10 +1,11 @@
 @using Lockte.Hr
 @* RPT-03 สรุปค่าแรงรายแผนก (รายงาน สรุปค่าแรง, BR-060, print-samples.md): ระดับ B laid out as the Access report (UAT-30, ภาพ 6): the title under the
    company (the page header), ตั้งแต่วันที่ … ถึงวันที่ … วันที่จ่าย …, the line of days, one line per แผนก (Thai order) with the number in front of the
-   name, the totals between rules, and the signatures as lines after their labels. Smaller type (12 pt) and tighter lines than แบบกลาง, the head a little lower.
+   name, the totals between rules, and the signatures as lines after their labels. Tighter lines than แบบกลาง.
+   UAT-40: the period line sits right under the title, as ค่าแรง's does (the 7 mm the body used to start lower was the gap the user saw).
    The legacy query also carried จำนวนรายการโอน/ค่าธรรมเนียม but the report never showed them, so neither does this. *@
 <style>
-    .ps { margin-top: 7mm; font-size: 15pt; line-height: 1.1; }
+    .ps { margin-top: 0; font-size: 15pt; line-height: 1.1; }
     .ps .sub { font-size: 15pt; margin-bottom: 4pt; }
     .ps table.lines { width: 96%; margin: 8pt auto 0; }
     .ps table.lines th { font-size: 15pt; border-bottom: 1.5pt solid #000; text-align: center; padding: 2pt 3pt; }
