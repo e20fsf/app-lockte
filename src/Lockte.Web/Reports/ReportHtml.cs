@@ -18,9 +18,10 @@ public enum Paper
 /// <param name="DateAtTop">The Access layout of รายงานการลางาน (#411): the print date at the top left and "หน้า x จาก y" at the top right, no footer.</param>
 /// <param name="CompanyOnly">The Access layout of ใบขออนุมัติทำงานล่วงเวลา (#426): the header is the company line alone, no title line under it.</param>
 /// <param name="PageFooter">The sheet's own left and right text at the very bottom of every page, in place of the print date and page number (#426).</param>
+/// <param name="FooterCenter">Text between the print date and the page number of the standard footer, on every page (UAT-46: the sign line of ใบรายงานการส่งสินค้า).</param>
 /// <param name="Footer">False for a one-page sheet that prints no footer at all (no print date, no page number — #408 ใบขออนุมัติทำงานล่วงเวลา).</param>
 public sealed record ReportDocument(string Title, Paper Paper, string? DocumentNumber = null, bool Footer = true, bool DateAtTop = false, int? HeaderPt = null,
-    bool CompanyOnly = false, (string Left, string Right)? PageFooter = null);
+    bool CompanyOnly = false, (string Left, string Right)? PageFooter = null, string? FooterCenter = null);
 
 /// <summary>ท้ายหน้า: when it was printed and by whom (#40 แบบกลาง, #39 login).</summary>
 public sealed record PrintStamp(DateTimeOffset PrintedAt, string PrintedBy);
@@ -120,6 +121,8 @@ public static class ReportHtml
             // #408: the footer is the print date in full Thai (5 พฤศจิกายน 2569) on every page, no time and no user
             css.Append($"@bottom-left{{content:{CssString(PrintDate(stamp.PrintedAt))};{margin}vertical-align:top;padding-top:2mm}}");
             css.Append($"@bottom-right{{content:\"หน้า \" counter(page) \" จาก \" counter(pages);text-align:right;{margin}vertical-align:top;padding-top:2mm}}");
+            if (!string.IsNullOrWhiteSpace(document.FooterCenter))
+                css.Append($"@bottom-center{{content:{CssString(document.FooterCenter)};white-space:pre;text-align:center;{margin}vertical-align:top;padding-top:2mm}}");
         }
         css.Append('}');
         css.Append(BaseCss(font));

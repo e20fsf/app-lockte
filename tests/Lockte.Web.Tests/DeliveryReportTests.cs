@@ -119,9 +119,44 @@ public sealed class DeliveryReportTests(LocalDbFixture db)
         Assert.Contains("รวมทั้งหมด", html);
         Assert.Contains("บิล 3 ใบ", html);
         Assert.Contains("SALE ORDER 3 ใบ", html);
-        Assert.Contains("ผู้รายงาน", html);
-        Assert.Contains("ผู้จัดการฝ่าย", html);
         Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(html, f.CustomerCode).Count); // the head of the group, once
+    }
+
+    [Fact] // UAT-46: the columns of รายงานส่งออก2; the date on every row; ที่ = the line of the bill; the box count a bill repeats on its lines counts once
+    public async Task The_delivery_report_has_the_access_columns_and_counts_a_bills_boxes_once()
+    {
+        var f = await NewSetupAsync();
+        var month = NewMonth();
+        var order = await OrderAsync(f, $"{f.TerritoryCode}-70-0001", f.Customer, month, month.AddDays(10), L(f.Product, 100, 10m), L(f.Product, 50, 20m), L(f.Product, 30, 5m));
+        var other = await OrderAsync(f, $"{f.TerritoryCode}-70-0002", f.Customer, month, month.AddDays(10), L(f.Product, 20, 10m));
+        foreach (var line in new[] { 1, 2, 3 }) await DeliverAsync(order, month.AddDays(5), "0200001", line switch { 1 => 100, 2 => 50, _ => 30 }, 2, line);
+        await DeliverAsync(other, month.AddDays(7), "0200002", 20, 1);
+
+        var report = await AsAsync(s => DeliveryReports.DeliveryAsync(s.Get<SalesDeliveryReportDirectory>(), month, month.AddMonths(1).AddDays(-1)));
+
+        var group = Assert.Single(report.Customers);
+        Assert.Equal((4, 3m), (group.Rows.Count, group.Boxes)); // 2 (repeated on the 3 lines of bill 0200001) + 1
+        Assert.Equal(3m, report.Boxes);
+        var html = await HtmlAsync<DeliveryReportView>(report);
+        foreach (var head in new[] { "<th>รหัส</th><th>ชื่อลูกค้า</th><th>วันที่ส่ง</th>", "ที่</th>", "ชื่อสินค้า", "จำนวน</th>", "ราคา", "จำนวนเงิน", "ใบORDER", "เลขที่บิล", "LOT NO.", "กล่อง" })
+            Assert.Contains(head, html);
+        Assert.Contains("แผนก", html);
+        Assert.Contains("สโตร์", html);
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(html, System.Text.RegularExpressions.Regex.Escape(ReportText.Date(month.AddDays(5)))).Count);
+        Assert.Contains("<td class=\"num\">3</td>", html); // ที่ of the third line of the bill
+        Assert.Contains("รวม 4 รายการ", html);
+    }
+
+    [Fact] // UAT-46: the sign line ผู้รายงาน / หัวหน้าแผนก / ผู้จัดการฝ่าย in the footer of every page, between the print date and the page number
+    public void The_sign_line_is_in_the_footer_of_every_page()
+    {
+        var html = ReportHtml.Compose(new ReportDocument(DeliveryReports.DeliveryTitle, Paper.A4Landscape, FooterCenter: DeliveryReports.DeliverySignLine),
+            new PrintStamp(DateTimeOffset.Now, "ผู้ทดสอบ"), "<p>x</p>");
+
+        Assert.Contains("@bottom-center{content:\"ผู้รายงาน", html);
+        Assert.Contains("หัวหน้าแผนก", html);
+        Assert.Contains("ผู้จัดการฝ่าย", html);
+        Assert.Contains("@bottom-right{content:\"หน้า \" counter(page)", html);
     }
 
     [Fact] // a customer of code 40… is shown the pieces and "ชิ้น" in the box column; Σกล่อง counts real boxes only
