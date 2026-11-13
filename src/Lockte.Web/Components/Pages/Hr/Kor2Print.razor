@@ -38,6 +38,10 @@ else
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>
         </form>
+        @* UAT-38: the manager's name under ลงชื่อ and both addresses with their phones come from this settings page. *@
+        <MudButton Variant="Variant.Text" Href="hr/form-signers" StartIcon="@Icons.Material.Filled.Draw" Class="mt-2">
+            ตั้งชื่อผู้จัดการ ที่อยู่ และโทรศัพท์บนแบบ คร.2 (ผู้ลงนามและที่อยู่บนแบบฟอร์ม)
+        </MudButton>
     </MudPaper>
 }
 

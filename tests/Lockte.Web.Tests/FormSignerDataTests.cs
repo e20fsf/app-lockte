@@ -51,6 +51,33 @@ public sealed class FormSignerDataTests(LocalDbFixture db)
         Assert.Contains(rows, r => r.Column == "ชื่อเจ้าหน้าที่บุคคล" && r.NewValue == "เจ้าหน้าที่" + unique);
     }
 
+    [Fact] // UAT-38: both addresses of แบบ คร.2 are saved trimmed with the names, a blank field as none, and the history names the field
+    public async Task The_addresses_are_saved_with_the_signers_and_a_history()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..6];
+        var before = await LoadAsync();
+        var input = new FormSignersInput(before.ManagerTitle, before.ManagerFirstName, before.ManagerLastName, before.FactoryManagerName,
+            before.PersonnelOfficerName, before.RowVersion)
+        {
+            Office = new("9", null, null, "ถนนสมมุติ", "แขวงสมมุติ", "เขตสมมุติ", "กรุงเทพฯ", " 0200000000 "),
+            Workplace = new(" 12 ", "3", "  ", "สมมุติสาย " + unique, "ตำบลสมมุติ", "อำเภอสมมุติ", "จังหวัดสมมุติ", null),
+        };
+
+        var result = await SaveAsync(input);
+        Assert.True(result.Succeeded, string.Join(", ", result.Errors));
+        var saved = await LoadAsync();
+
+        Assert.Equal(new FormAddress("9", null, null, "ถนนสมมุติ", "แขวงสมมุติ", "เขตสมมุติ", "กรุงเทพฯ", "0200000000"), saved.Office);
+        Assert.Equal(new FormAddress("12", "3", null, "สมมุติสาย " + unique, "ตำบลสมมุติ", "อำเภอสมมุติ", "จังหวัดสมมุติ", null), saved.Workplace);
+
+        var tooLong = await SaveAsync(input with { RowVersion = saved.RowVersion, Workplace = input.Workplace with { Road = new string('ก', FormSignerSettings.AddressLength + 1) } });
+        Assert.False(tooLong.Succeeded);
+
+        await using var scope = db.Scope(AppUser.AdminUserName);
+        var rows = await scope.Get<HistoryService>().SearchAsync(new(Table: "ผู้ลงนามบนแบบฟอร์ม"));
+        Assert.Contains(rows, r => r.Column == "ถนน สถานที่ทำงาน" && r.NewValue == "สมมุติสาย " + unique && r.UserName == "hr1");
+    }
+
     [Fact] // a name longer than the column is refused with a message, not a database error
     public async Task A_name_that_is_too_long_is_refused()
     {

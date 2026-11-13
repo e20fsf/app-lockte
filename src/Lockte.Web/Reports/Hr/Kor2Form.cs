@@ -59,7 +59,9 @@ public static class Kor2Form
         T(105.2, 61, "เขต/อำเภอ"); T(125.5, 61, office.District, fit: 145.0 - 125.5);
         T(145.0, 61, "จังหวัด"); T(155.8, 61, office.Province, fit: 178.8 - 155.8);
         Dots(61.2, (37.1, 63.8), (82.1, 107.7), (122.9, 148.5), (158.5, 178.8));
-        T(30.1, 68, "โทรศัพท์"); T(47.5, 68, FormFormat.Phone(office.Phone), fit: 73.1 - 47.5);
+        // UAT-38: the phone starts just after its label (the legacy's 47.5 left 25 mm, too short for "02-1234567-8") and stops before
+        // จำนวนลูกจ้างทั้งหมด; only a longer value than that is squeezed.
+        T(30.1, 68, "โทรศัพท์"); T(43.6, 68, FormFormat.Phone(office.Phone), fit: 72.1 - 43.6);
         T(73.1, 68, "จำนวนลูกจ้างทั้งหมด"); T(107.35, 68, employee.WorkingEmployees.ToString("#,##0", ThaiDate.Culture), TextAnchor.Middle);
         T(113.8, 68, "คน"); T(122.6, 68, "สถานที่ใกล้เคียง");
         Dots(68.2, (41.7, 72.1), (102.0, 114.6), (145.3, 178.8));
@@ -144,10 +146,11 @@ public static class Kor2Form
 
         // ลงชื่อ
         T(84.6, 251, "ลงชื่อ"); page.Leader(92.0, 139.5, 251, Body); T(139.7, 251, "ผู้จัดการสถานประกอบกิจการ");
-        // UAT-29: the signer's name under the line — set on the screen ผู้ลงนามบนแบบฟอร์ม; none set leaves the brackets blank for a pen.
-        var manager = $"{employer.ManagerTitle}{employer.ManagerFirstName} {employer.ManagerLastName}".Trim();
+        // UAT-29: the signer's name under the line — set on the screen ผู้ลงนามและที่อยู่บนแบบฟอร์ม; none set leaves the brackets blank for a pen.
+        // UAT-38: written as the user's example "(นายสมมุติ  ตัวอย่าง)" — two spaces between the names, none inside the brackets.
+        var manager = $"{employer.ManagerTitle}{employer.ManagerFirstName}  {employer.ManagerLastName}".Trim();
         var named = !string.IsNullOrWhiteSpace(employer.ManagerFirstName) || !string.IsNullOrWhiteSpace(employer.ManagerLastName);
-        T(113.5, 258, named ? $"(  {manager}  )" : null, TextAnchor.Middle);
+        T(113.5, 258, named ? $"({manager})" : null, TextAnchor.Middle);
         Dots(258.2, (97.0, 129.7));
         T(85.5, 265, "วันที่"); page.Leader(91.7, 103.6, 265, Body);
         T(103.7, 265, "เดือน"); page.Leader(110.6, 132.8, 265, Body);

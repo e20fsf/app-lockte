@@ -46,7 +46,7 @@ public sealed class EmployerOptions
     public string SocialSecurityBranchNo { get; set; } = "";
 
     /// <summary>
-    /// A copy with the signers HR saved on the settings page (UAT-29) laid over these settings: a blank saved name keeps the server's,
+    /// A copy with the signers (UAT-29) and addresses (UAT-38) HR saved on the settings page laid over these settings: a blank saved name keeps the server's,
     /// so a form never loses a name it printed before.
     /// </summary>
     public EmployerOptions WithSigners(FormSignersDto saved)
@@ -58,6 +58,9 @@ public sealed class EmployerOptions
         copy.ManagerLastName = Pick(saved.ManagerLastName, ManagerLastName);
         copy.FactoryManagerName = Pick(saved.FactoryManagerName, FactoryManagerName);
         copy.PersonnelOfficerName = Pick(saved.PersonnelOfficerName, PersonnelOfficerName);
+        // UAT-38: an address is taken whole — HR's once any field of it is saved (so a ซอย left blank prints blank), else the server's.
+        copy.Office = saved.Office.IsBlank ? Office : EmployerAddress.From(saved.Office);
+        copy.Workplace = saved.Workplace.IsBlank ? Workplace : EmployerAddress.From(saved.Workplace);
         return copy;
     }
 }
@@ -84,4 +87,11 @@ public sealed class EmployerAddress
     public string District { get; set; } = "";
     public string Province { get; set; } = "";
     public string Phone { get; set; } = "";
+
+    /// <summary>The address HR saved on the settings page (UAT-38); a blank field prints blank.</summary>
+    public static EmployerAddress From(FormAddress saved) => new()
+    {
+        HouseNo = saved.HouseNo ?? "", Moo = saved.Moo ?? "", Soi = saved.Soi ?? "", Road = saved.Road ?? "",
+        Subdistrict = saved.Subdistrict ?? "", District = saved.District ?? "", Province = saved.Province ?? "", Phone = saved.Phone ?? "",
+    };
 }

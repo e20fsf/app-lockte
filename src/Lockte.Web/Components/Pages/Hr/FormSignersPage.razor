@@ -3,13 +3,17 @@
 @using Lockte.Hr
 @using Lockte.SharedKernel
 @using Lockte.SharedKernel.Persistence
+@using Lockte.Web.Reports.Hr
+@using Microsoft.Extensions.Options
 @inject ScopedServices Services
+@inject IOptionsSnapshot<EmployerOptions> Server
 @inject ISnackbar Snackbar
 
 @* ผู้ลงนามบนแบบฟอร์ม (UAT-29): the names printed under the signature lines of แบบ คร.2, ประกาศการคำนวณพักร้อน and ใบลาออก.
-   Kept in the database with a history instead of the server's settings. The ผู้จัดการฝ่าย of each แผนก is on เพิ่มและแก้ไขรายชื่อแผนก. *@
-<PageTitle>ผู้ลงนามบนแบบฟอร์ม — LOCKTE</PageTitle>
-<h1 class="mb-4">ผู้ลงนามบนแบบฟอร์ม</h1>
+   Kept in the database with a history instead of the server's settings. The ผู้จัดการฝ่าย of each แผนก is on เพิ่มและแก้ไขรายชื่อแผนก.
+   UAT-38: the two addresses of แบบ คร.2 too. An address never saved here shows the server's, so saving keeps what the form printed. *@
+<PageTitle>ผู้ลงนามและที่อยู่บนแบบฟอร์ม — LOCKTE</PageTitle>
+<h1 class="mb-4">ผู้ลงนามและที่อยู่บนแบบฟอร์ม</h1>
 
 <MudPaper Outlined="true" Class="pa-4 mb-3">
     <MudText Typo="Typo.h6">ผู้จัดการสถานประกอบกิจการ (แบบ คร.2)</MudText>
@@ -27,7 +31,15 @@
     <MudText Typo="Typo.h6">เจ้าหน้าที่แผนกบุคคลและธุรการ (ใบลาออก)</MudText>
     <MudTextField @bind-Value="form.PersonnelOfficerName" Label="ชื่อ-สกุล" MaxLength="FormSignerSettings.NameLength" Style="max-width:24rem" />
 </MudPaper>
-<MudText Typo="Typo.caption" Class="d-block mb-2">เว้นว่างไว้ = ใช้ค่าที่ตั้งบนเซิร์ฟเวอร์ (ถ้ามี) ผู้จัดการฝ่ายและผู้จัดการโรงงานบนใบลาออก สัญญาจ้าง หนังสือรับรอง ใช้ชื่อของแต่ละแผนกที่หน้าเพิ่มและแก้ไขรายชื่อแผนก</MudText>
+<MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudText Typo="Typo.h6">ที่ตั้งสถานประกอบกิจการ — สำนักงาน (แบบ คร.2 ด้านบน)</MudText>
+    @AddressFields(form.Office)
+</MudPaper>
+<MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudText Typo="Typo.h6">สถานที่ทำงาน — โรงงาน (แบบ คร.2 ด้านล่าง)</MudText>
+    @AddressFields(form.Workplace)
+</MudPaper>
+<MudText Typo="Typo.caption" Class="d-block mb-2">ชื่อที่เว้นว่างไว้ = ใช้ค่าที่ตั้งบนเซิร์ฟเวอร์ (ถ้ามี) ที่อยู่ที่ยังไม่เคยบันทึกแสดงค่าจากเซิร์ฟเวอร์ให้แก้ต่อได้ โทรศัพท์พิมพ์ตัวเลขติดกันได้ เช่น 0212345678 → 02-1234567-8 ผู้จัดการฝ่ายและผู้จัดการโรงงานบนใบลาออก สัญญาจ้าง หนังสือรับรอง ใช้ชื่อของแต่ละแผนกที่หน้าเพิ่มและแก้ไขรายชื่อแผนก</MudText>
 
 <MudStack Row="true" Spacing="2">
     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
@@ -48,6 +60,7 @@
         {
             ManagerTitle = saved.ManagerTitle, ManagerFirstName = saved.ManagerFirstName, ManagerLastName = saved.ManagerLastName,
             FactoryManagerName = saved.FactoryManagerName, PersonnelOfficerName = saved.PersonnelOfficerName,
+            Office = AddressModel.Of(saved.Office, Server.Value.Office), Workplace = AddressModel.Of(saved.Workplace, Server.Value.Workplace),
         };
     }
 
@@ -57,11 +70,11 @@
         try
         {
             var input = new FormSignersInput(form.ManagerTitle, form.ManagerFirstName, form.ManagerLastName, form.FactoryManagerName,
-                form.PersonnelOfficerName, saved.RowVersion);
+                form.PersonnelOfficerName, saved.RowVersion) { Office = form.Office.ToSaved(), Workplace = form.Workplace.ToSaved() };
             var result = await Services.RunAsync<FormSignerSettings, ServiceResult>(s => s.SaveAsync(input));
             foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
             if (!result.Succeeded) return;
-            Snackbar.Add("บันทึกผู้ลงนามบนแบบฟอร์มแล้ว", Severity.Success);
+            Snackbar.Add("บันทึกผู้ลงนามและที่อยู่บนแบบฟอร์มแล้ว", Severity.Success);
             await LoadAsync();
         }
         catch (ConcurrencyConflictException ex)
@@ -82,5 +95,39 @@
         public string? ManagerLastName { get; set; }
         public string? FactoryManagerName { get; set; }
         public string? PersonnelOfficerName { get; set; }
+        public AddressModel Office { get; set; } = new();
+        public AddressModel Workplace { get; set; } = new();
+    }
+
+    private RenderFragment AddressFields(AddressModel a) => @<MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap" Class="mt-2">
+        <MudTextField @bind-Value="a.HouseNo" Label="เลขที่" MaxLength="FormSignerSettings.AddressLength" Style="max-width:8rem" />
+        <MudTextField @bind-Value="a.Moo" Label="หมู่ที่" MaxLength="FormSignerSettings.AddressLength" Style="max-width:6rem" />
+        <MudTextField @bind-Value="a.Soi" Label="ตรอก/ซอย" MaxLength="FormSignerSettings.AddressLength" Style="max-width:14rem" />
+        <MudTextField @bind-Value="a.Road" Label="ถนน" MaxLength="FormSignerSettings.AddressLength" Style="max-width:16rem" />
+        <MudTextField @bind-Value="a.Subdistrict" Label="แขวง/ตำบล" MaxLength="FormSignerSettings.AddressLength" Style="max-width:14rem" />
+        <MudTextField @bind-Value="a.District" Label="เขต/อำเภอ" MaxLength="FormSignerSettings.AddressLength" Style="max-width:14rem" />
+        <MudTextField @bind-Value="a.Province" Label="จังหวัด" MaxLength="FormSignerSettings.AddressLength" Style="max-width:14rem" />
+        <MudTextField @bind-Value="a.Phone" Label="โทรศัพท์" MaxLength="FormSignerSettings.AddressLength" Style="max-width:12rem" />
+    </MudStack>;
+
+    private sealed class AddressModel
+    {
+        public string? HouseNo { get; set; }
+        public string? Moo { get; set; }
+        public string? Soi { get; set; }
+        public string? Road { get; set; }
+        public string? Subdistrict { get; set; }
+        public string? District { get; set; }
+        public string? Province { get; set; }
+        public string? Phone { get; set; }
+
+        /// <summary>The saved address, or the server's while none is saved.</summary>
+        public static AddressModel Of(FormAddress saved, EmployerAddress server) => saved.IsBlank
+            ? new() { HouseNo = server.HouseNo, Moo = server.Moo, Soi = server.Soi, Road = server.Road, Subdistrict = server.Subdistrict,
+                      District = server.District, Province = server.Province, Phone = server.Phone }
+            : new() { HouseNo = saved.HouseNo, Moo = saved.Moo, Soi = saved.Soi, Road = saved.Road, Subdistrict = saved.Subdistrict,
+                      District = saved.District, Province = saved.Province, Phone = saved.Phone };
+
+        public FormAddress ToSaved() => new(HouseNo, Moo, Soi, Road, Subdistrict, District, Province, Phone);
     }
 }
