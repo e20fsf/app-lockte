@@ -33,12 +33,13 @@ public sealed class WelfareFundTableTests
         var table = WelfareFundTable.Build(report, "บริษัท ทดสอบ จำกัด", new DateOnly(2026, 10, 5));
 
         Assert.Equal(["คำนำหน้า", "ชื่อ", "สกุล", "อายุ", "สัญชาติ", "เลขบัตรประชาชน/เลขหนังสือเดินทาง", "ประเภทการจ้าง (รายวัน/รายเดือน)",
-            "ค่าจ้าง (บาท)", "วันที่เริ่มงาน", "วันที่สิ้นสุดงาน", "สาเหตุการออกจากงาน/หมายเหตุอื่นๆ"], table.Columns.Select(c => c.Header));
+            "ค่าจ้าง (บาท)", "วันที่เริ่มงาน", "วันที่สิ้นสุดงาน", "สาเหตุการออกจากงาน/หมายเหตุอื่นๆ",
+            "เงินสมทบลูกจ้าง (บาท)", "เงินสมทบนายจ้าง (บาท)"], table.Columns.Select(c => c.Header));
         Assert.Contains("ชื่อสถานประกอบกิจการ บริษัท ทดสอบ จำกัด", table.Filter);
         Assert.Contains("รอบการส่งเงิน ปี พ.ศ. 2569 เดือน กันยายน", table.Filter);
         Assert.Contains("วันที่ดำเนินการนำส่ง 5/10/2569", table.Filter);
         Assert.Equal(2, table.Rows.Count);
-        Assert.Equal(new object?[] { "นางสาว", "สมมุติ", "ทดสอบ", 30, "ไทย", "1234567890123", "รายวัน", 9858m, "1/3/2563", null, null }, table.Rows[0]);
+        Assert.Equal(new object?[] { "นางสาว", "สมมุติ", "ทดสอบ", 30, "ไทย", "1234567890123", "รายวัน", 9858m, "1/3/2563", null, null, null, null }, table.Rows[0]);
         Assert.Equal("รายเดือน", table.Rows[1][6]);
         Assert.Equal("10/9/2569", table.Rows[1][9]);
         Assert.Equal("ลาออก", table.Rows[1][10]);

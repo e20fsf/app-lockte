@@ -74,7 +74,18 @@ public sealed record PayTotalsReport(DateOnly From, DateOnly To, IReadOnlyList<D
 /// <see cref="Wage"/> = ค่าจ้าง of the month-end report (รายเดือน SALARY, อื่น ΣPAY_W).
 /// </summary>
 public sealed record WelfareFundLine(string Code, string FullName, int? Age, string Nationality, string? NationalId, int? EmployeeType,
-    decimal Wage, DateOnly? StartDate, DateOnly? EndDate);
+    decimal Wage, DateOnly? StartDate, DateOnly? EndDate)
+{
+    /// <summary>UAT-43: เงินสมทบฝ่ายละ (ลูกจ้าง = บริษัท) = ค่าจ้าง × อัตรา, บาทเต็ม; null when the report has no rate.</summary>
+    public decimal? Contribution { get; init; }
+}
 
 /// <summary>ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง: the employees paid in งวด ending within From–To (month-end filter), by รหัส.</summary>
-public sealed record WelfareFundReport(DateOnly From, DateOnly To, string? DepartmentName, IReadOnlyList<WelfareFundLine> Lines);
+public sealed record WelfareFundReport(DateOnly From, DateOnly To, string? DepartmentName, IReadOnlyList<WelfareFundLine> Lines)
+{
+    /// <summary>UAT-43: อัตราเงินสมทบ % ฝ่ายละ in force on the งวด of the report; null with <see cref="RateProblem"/> or no งวด.</summary>
+    public decimal? RatePercent { get; init; }
+
+    /// <summary>UAT-43: why there is no rate (no range covers a งวด, or the งวด use two rates); the export is refused with it.</summary>
+    public string? RateProblem { get; init; }
+}

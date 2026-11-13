@@ -81,6 +81,7 @@ public static class EmployeeMenu
             new("ปิดงวดค่าแรงเป็น 2 ช่วง", SubMenu: 13),
             new("วิธีการทำเงินเดือนส่งแบงค์ทหารไทย", Code: "RPT-06-TTB", Page: "hr/pay-periods/bank-guide"),
             new("วิธีการทำเงิน OT ส่งแบงค์กสิกรไทย", Code: "RPT-06-KBANK", Page: "hr/pay-periods/bank-guide"),
+            new("อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง", Code: "SETTINGS-WELFARE", Page: "hr/welfare-rates"), // not in the legacy: UAT-43 (#436)
         ]),
         new(6, "ปิดงวดค่าแรงตามปกติ", 12,
         [
