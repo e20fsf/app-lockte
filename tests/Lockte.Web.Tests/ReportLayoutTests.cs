@@ -238,6 +238,18 @@ public sealed class ReportLayoutTests
         Assert.Contains("font-size: 15pt", html);
     }
 
+    [Fact] // UAT-40: the pay summary's period line sits right under the title "ค่าแรงพนักงาน" — the body no longer starts 7 mm lower
+    public async Task The_pay_summary_period_line_sits_right_under_the_title()
+    {
+        var html = await ReportBody.RenderAsync<PaySummaryView>(new()
+        {
+            [nameof(PaySummaryView.Report)] = new PaySummaryReport(Paid, 2, 1, [new DepartmentPayTotal("ไดคาสท์", 12, 77463, 2480, 0)]),
+        });
+
+        Assert.Contains(".ps { margin-top: 0;", html);
+        Assert.DoesNotContain("margin-top: 7mm", html);
+    }
+
     [Fact] // UAT-35: step 3 of ปิดงวดค่าแรง — พิมพ์ค่าแรง sits right next to the แผนก choice (the choice no longer grows to fill the row)
     public void The_pay_print_button_sits_next_to_the_department_choice()
     {
