@@ -1,3 +1,4 @@
+using Lockte.Hr;
 using Lockte.Web.Menus;
 
 namespace Lockte.Web.Tests;
@@ -55,10 +56,36 @@ public sealed class ProgramMenuTests
     public void An_item_not_built_yet_opens_the_placeholder_of_its_own_program()
     {
         Assert.Equal("order/qa/production/D", OrderMenu.Menu.HrefOf(OrderMenu.Menu.FindItem("SCR-12-1")!.Value.Item)); // built (#130): every item of the program has its page now
-        Assert.Equal("hr/SCR-41", EmployeeMenu.Menu.HrefOf(EmployeeMenu.Menu.FindItem("SCR-41")!.Value.Item));
+        Assert.Equal("hr/pay-periods?step=3", EmployeeMenu.Menu.HrefOf(EmployeeMenu.Menu.FindItem("SCR-41")!.Value.Item)); // UAT-41 (#434): a step of ปิดงวดค่าแรงตามปกติ
         Assert.Equal("order/menu/17", OrderMenu.HrefOf(17));
         Assert.Equal("order", OrderMenu.HrefOf(ProgramMenu.Main));
     }
+
+    [Fact] // UAT-41 (#434): every item of โปรแกรมพนักงาน is built, so none may fall back to "หน้านี้ยังไม่เปิดใช้งาน"
+    public void Every_employee_menu_item_opens_a_routed_page_not_the_placeholder()
+    {
+        var routes = typeof(EmployeeMenu).Assembly.GetTypes()
+            .Where(t => !t.Name.EndsWith("Placeholder", StringComparison.Ordinal))
+            .SelectMany(t => t.GetCustomAttributes(typeof(Microsoft.AspNetCore.Components.RouteAttribute), false))
+            .Select(a => ((Microsoft.AspNetCore.Components.RouteAttribute)a).Template.Trim('/').Split('/'))
+            .ToList();
+        static bool Matches(string[] template, string[] path)
+            => template.Length == path.Length && template.Zip(path).All(x => x.First.StartsWith('{') || x.First.Equals(x.Second, StringComparison.OrdinalIgnoreCase));
+
+        var leaves = EmployeeMenu.Menu.Pages.SelectMany(p => p.Items).Where(i => i.SubMenu is null).ToList();
+        Assert.All(leaves, i => Assert.NotNull(i.Page));
+        // reports/… are PDF endpoints, not Razor pages
+        Assert.All(leaves.Where(i => !i.Page!.StartsWith("reports/", StringComparison.Ordinal)),
+            i => Assert.True(routes.Any(r => Matches(r, i.Page!.Split('?', '#')[0].Split('/'))), $"{i.Code} {i.Page}: no page has this route"));
+    }
+
+    [Theory] // UAT-41 (#434): the items of เมนู 6 / 9 that are steps of /hr/pay-periods open it at their own step (the number the page shows)
+    [InlineData("SCR-41", PayPeriodStep.PayCalculated)]
+    [InlineData("RPT-03", PayPeriodStep.SummaryPrinted)]
+    [InlineData("SCR-42", PayPeriodStep.BankPrinted)]
+    [InlineData("RPT-04", PayPeriodStep.SlipPrinted)]
+    public void Pay_period_menu_items_open_their_own_step(string code, PayPeriodStep step)
+        => Assert.Equal($"hr/pay-periods?step={(int)step + 1}", EmployeeMenu.Menu.HrefOf(EmployeeMenu.Menu.FindItem(code)!.Value.Item));
 
     [Fact]
     public void Purch_main_menu_matches_the_legacy_switchboard_without_the_left_out_items()
