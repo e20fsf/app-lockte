@@ -125,6 +125,17 @@ public sealed class HrFormTests(ChromiumFixture chromium)
         Assert.Equal(3, Regex.Matches(blank, "dots dashed").Count);
     }
 
+    [Fact] // UAT-37: the dotted lines are vector strokes — a CSS gradient became a PDF pattern that printed as nothing
+    public async Task The_resignation_letter_dotted_lines_are_strokes_that_print()
+    {
+        var body = await Html<ResignationLetterView>(new() { ["Letter"] = Letter with { ResignDate = null }, ["Today"] = Today });
+        var html = FormHtml.Compose(ResignationLetterView.Title, Paper.A4Portrait, body);
+
+        Assert.DoesNotContain("gradient", html);
+        Assert.Equal(19, Regex.Matches(body, @"class=""dots[^""]*""[^>]*><svg [^>]*><line ").Count);
+        Assert.Contains("stroke-width:0.4", html);
+    }
+
     [Fact] // UAT-34: every lower signature block is dotted line → title → (name), all centred on the line's middle axis; a blank name keeps the stack
     public async Task The_resignation_letter_signature_blocks_stack_line_title_and_name_on_one_axis()
     {
