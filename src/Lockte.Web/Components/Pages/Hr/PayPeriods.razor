@@ -6,6 +6,7 @@
 @inject ScopedServices Services
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
+@inject NavigationManager Navigation
 
 @* ปิดงวดค่าแรงตามปกติ (เมนู 6) as one page (#22 แบบ B): the steps in the menu's order — ตั้งงวด (SCR-40 dates, filled in by
    the 12–26 / 27–11 pattern, Q-04) → พิมพ์เวลาทำงาน (BR-007/001/002 → RPT-01) → พิมพ์ค่าแรง → พิมพ์สรุปค่าแรง → ส่งแบงค์
@@ -27,7 +28,7 @@
 </MudStack>
 
 @* 1 ตั้งงวด *@
-<MudPaper Outlined="true" Class="pa-4 mb-3">
+<MudPaper Outlined="true" Class="pa-4 mb-3" id="@StepId(PayPeriodStep.Set)">
     @StepTitle(PayPeriodStep.Set)
     @if (period is { Migrated: true } && form.Id is not null)
     {
@@ -55,7 +56,7 @@
 @if (period is not null && form.Id is not null)
 {
     @* 2 พิมพ์เวลาทำงาน *@
-    <MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudPaper Outlined="true" Class="pa-4 mb-3" id="@StepId(PayPeriodStep.TimeCalculated)">
         @StepTitle(PayPeriodStep.TimeCalculated)
         @if (check is { HasWarnings: true })
         {
@@ -91,7 +92,7 @@
     <PayView>
     <ChildContent>
     @* 3 พิมพ์ค่าแรง (SCR-41): คำนวณ BR-003..006, then RPT-02 for one แผนก or all (the legacy * ) *@
-    <MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudPaper Outlined="true" Class="pa-4 mb-3" id="@StepId(PayPeriodStep.PayCalculated)">
         @StepTitle(PayPeriodStep.PayCalculated)
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CalculatePayAsync" StartIcon="@Icons.Material.Filled.Calculate"
@@ -113,7 +114,7 @@
     </MudPaper>
 
     @* 4 พิมพ์สรุปค่าแรง (RPT-03): printing it marks the step done *@
-    <MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudPaper Outlined="true" Class="pa-4 mb-3" id="@StepId(PayPeriodStep.SummaryPrinted)">
         @StepTitle(PayPeriodStep.SummaryPrinted)
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
             <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/pay-summary")" Target="_blank" Variant="Variant.Outlined"
@@ -124,7 +125,7 @@
 
     @* 5 พิมพ์ค่าแรงส่งแบงค์ (SCR-42, RPT-05, #54): the ttb list (PAY_W) and the กสิกร list (PAY_OT) as the report or as the Excel pasted into the template of
        the bank (INT-01/02, RPT-06 the guide); either one marks the step done *@
-    <MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudPaper Outlined="true" Class="pa-4 mb-3" id="@StepId(PayPeriodStep.BankPrinted)">
         @StepTitle(PayPeriodStep.BankPrinted)
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
             <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/bank/ttb")" Target="_blank" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf"
@@ -141,7 +142,7 @@
     </MudPaper>
 
     @* 6 พิมพ์ SLIP (RPT-04): the slips print once ค่าแรง is calculated here; printing marks the step done when step 5 is *@
-    <MudPaper Outlined="true" Class="pa-4 mb-3">
+    <MudPaper Outlined="true" Class="pa-4 mb-3" id="@StepId(PayPeriodStep.SlipPrinted)">
         @StepTitle(PayPeriodStep.SlipPrinted)
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
             <MudButton Href="@($"reports/hr/pay-periods/{period.Id}/slips")" Target="_blank" Variant="Variant.Outlined"
@@ -174,6 +175,15 @@
     private int departmentId;
     private bool busy;
 
+    /// <summary>UAT-41 (#434): the step to scroll to, by its number on the page (1 ตั้งงวด … 6 พิมพ์ SLIP) — the menu items of เมนู 6
+    /// and 9 that are steps of this page open it at their own step.</summary>
+    [SupplyParameterFromQuery(Name = "step")]
+    public int? Step { get; set; }
+
+    private bool loaded, scrolled;
+
+    private static string StepId(PayPeriodStep step) => $"step-{(int)step + 1}";
+
     /// <summary>A migrated period: its dates and calculations stay as the legacy left them.</summary>
     private bool Locked => form.Id is not null && period is { Migrated: true };
 
@@ -202,6 +212,15 @@
         await LoadPeriodsAsync();
         if (periods.Count > 0) await SelectAsync(periods[0].Id);
         else await NewPeriodAsync();
+        loaded = true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // the steps after ตั้งงวด render once the newest period is loaded; then a #fragment on this same page scrolls to the step
+        if (!loaded || scrolled || Step is not { } n) return;
+        scrolled = true;
+        Navigation.NavigateTo($"{Navigation.Uri.Split('#')[0]}#step-{n}", replace: true);
     }
 
     private async Task LoadPeriodsAsync()
