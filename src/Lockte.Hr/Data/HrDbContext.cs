@@ -24,6 +24,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<Warning> Warnings => Set<Warning>();
     internal DbSet<SlipSigner> SlipSigners => Set<SlipSigner>();
     internal DbSet<FormSigners> FormSigners => Set<FormSigners>();
+    internal DbSet<WelfareRate> WelfareRates => Set<WelfareRate>();
     internal DbSet<BonusRun> BonusRuns => Set<BonusRun>();
     internal DbSet<BonusResult> BonusResults => Set<BonusResult>();
 
@@ -240,6 +241,16 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             s.Property(x => x.WorkplaceDistrict).HasMaxLength(FormSignerSettings.AddressLength).HasAuditName("เขต/อำเภอ สถานที่ทำงาน");
             s.Property(x => x.WorkplaceProvince).HasMaxLength(FormSignerSettings.AddressLength).HasAuditName("จังหวัด สถานที่ทำงาน");
             s.Property(x => x.WorkplacePhone).HasMaxLength(FormSignerSettings.AddressLength).HasAuditName("โทรศัพท์ สถานที่ทำงาน");
+        });
+
+        // UAT-43: ranges never overlap (WelfareRateRegistry checks); วันเริ่ม is unique as a cheap guard.
+        modelBuilder.Entity<WelfareRate>(w =>
+        {
+            w.HasAuditName(WelfareRateRegistry.Title);
+            w.Property(x => x.StartDate).HasAuditName("วันเริ่มมีผล");
+            w.Property(x => x.EndDate).HasAuditName("วันสิ้นสุด");
+            w.Property(x => x.Percent).HasPrecision(9, 4).HasAuditName("อัตรา %");
+            w.HasIndex(x => x.StartDate).IsUnique();
         });
 
         // Written only by the calculation (one history event); one row per employee per period.

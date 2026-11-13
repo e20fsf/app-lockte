@@ -44,6 +44,8 @@ public static class HrPayHistoryReports
         {
             if (Range(from, to) is { } bad) return bad;
             var report = await pay.GetWelfareFundReportAsync(from!.Value, to!.Value, department);
+            // UAT-43: no rate set for a งวด (or two rates) is said, not guessed; the page checks first and shows the same text.
+            if (report.RateProblem is { } problem) return Results.Text(problem, statusCode: StatusCodes.Status409Conflict);
             var table = WelfareFundTable.Build(report, employer.Value.Name, DateOnly.FromDateTime(clock.GetLocalNow().DateTime));
             return Results.File(Order.XlsxWriter.Write(table), Order.XlsxWriter.ContentType,
                 "ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง " + Iso(report.To) + ".xlsx");

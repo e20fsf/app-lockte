@@ -2,15 +2,18 @@
 @attribute [Authorize]
 @layout PayGateLayout
 @using System.Globalization
+@using Lockte.Hr
 @using Lockte.Org
 @using Lockte.SharedKernel
 @inject ScopedServices Services
+@inject NavigationManager Navigation
 
 @* The forms of the reports over many งวดค่าแรง (#56): SCR-43 ตั้งวันที่พิมพ์ค่าแรงสิ้นเดือน (ตั้งแต่ ถึง แผนก; พิมพ์ / พิมพ์สรุป /
    ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (Excel)), ตั้งวันที่พิมพ์ค่าแรงแต่ละเดือน (RPT-09) and ตั้งวันที่พิมพ์รวมค่าแรง (RPT-10). Each button opens its
    PDF in a new tab. The legacy MO is not asked: RPT-08 prints ถึงวันที่'s month and RPT-09 ตั้งแต่วันที่'s year, as the
    legacy copied them (T_D → MO, F_D → MO). The legacy "พิมพ์สรุป" printed the table the last "พิมพ์" left; here it sums the
-   dates on the form again. *@
+   dates on the form again. UAT-43: the welfare-fund Excel first checks that HR set the อัตราเงินสมทบ for its งวด and says so here if not;
+   the rates page is linked below the buttons. *@
 <PageTitle>@Info.Title — LOCKTE</PageTitle>
 <h1 class="mb-4">@Info.Title</h1>
 
@@ -49,10 +52,18 @@
         {
             <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/summary")" Target="_blank"
                        Disabled="@(Problem is not null)">พิมพ์สรุป</MudButton>
-            <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/welfare-fund")" Disabled="@(Problem is not null)"
+            <MudButton Variant="Variant.Outlined" OnClick="WelfareFundAsync" Disabled="@(Problem is not null || busy)"
                        StartIcon="@Icons.Material.Filled.TableView">ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง</MudButton>
         }
     </MudStack>
+    @if (Kind == "month-end")
+    {
+        @if (welfareProblem is { } wp)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@wp</MudAlert>
+        }
+        <MudButton Variant="Variant.Text" Href="hr/welfare-rates" StartIcon="@Icons.Material.Filled.Percent" Class="mt-2">@WelfareRateRegistry.Title</MudButton>
+    }
 </MudPaper>
 
 <MudButton Href="@EmployeeMenu.HrefOf(Info.Menu)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
@@ -99,6 +110,29 @@
         }
         departmentId = null;
         printed = false;
+        welfareProblem = null;
+    }
+
+    private string? welfareProblem;
+    private bool busy;
+
+    /// <summary>UAT-43: the Excel only when every งวด of the dates has a rate; else the reason stays on the page.</summary>
+    private async Task WelfareFundAsync()
+    {
+        if (Problem is not null) return;
+        busy = true;
+        try
+        {
+            var (f, t) = (DateOnly.FromDateTime(from!.Value), DateOnly.FromDateTime(to!.Value));
+            var department = departmentId;
+            var rate = await Services.RunAsync<PayHistoryReportDirectory, (decimal? Percent, string? Problem)>(p => p.WelfareRateOfAsync(f, t, department));
+            welfareProblem = rate.Problem;
+            if (welfareProblem is null) Navigation.NavigateTo(PdfUrl("reports/hr/pay/month-end/welfare-fund"), forceLoad: true);
+        }
+        finally
+        {
+            busy = false;
+        }
     }
 
     private string? Problem

@@ -1169,6 +1169,59 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "วันหยุดประจำสัปดาห์");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.WelfareRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันสิ้นสุด");
+
+                    b.Property<decimal>("Percent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasAnnotation("Lockte:AuditName", "อัตรา %");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันเริ่มมีผล");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartDate")
+                        .IsUnique();
+
+                    b.ToTable("WelfareRates", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.WorkTime", b =>
                 {
                     b.Property<int>("Id")

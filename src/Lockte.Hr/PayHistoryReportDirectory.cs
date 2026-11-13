@@ -43,7 +43,9 @@ public sealed class PayHistoryReportDirectory(HrDbContext db, OrgDirectory org)
 
     /// <summary>
     /// ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (UAT-23): the same employees and ค่าจ้าง as <see cref="GetMonthEndReportAsync"/> for the same
-    /// dates/แผนก, with age (at ถึงวันที่), nationality, start and end dates from the register.
+    /// dates/แผนก, with age (at ถึงวันที่), nationality, start and end dates from the register. UAT-43: the rate is the one HR set
+    /// (<see cref="WelfareRateRegistry"/>) for the ถึงวันที่ of the งวด in the report; <see cref="WelfareFundReport.RateProblem"/> says
+    /// why there is none instead of a guess.
     /// </summary>
     public async Task<WelfareFundReport> GetWelfareFundReportAsync(DateOnly from, DateOnly to, int? departmentId)
     {
@@ -53,13 +55,41 @@ public sealed class PayHistoryReportDirectory(HrDbContext db, OrgDirectory org)
             .Select(e => new { e.Code, e.Name, e.BirthDate, e.Nationality, e.NationalId, e.EmployeeType, e.StartDate, e.ResignDate })
             .ToDictionaryAsync(e => e.Code);
         var name = departmentId is { } d ? (await org.GetDepartmentAsync(d))?.Name : null;
+        var (rate, problem) = await WelfareRateOfAsync(from, to, departmentId);
         var rows = lines.Select(l =>
         {
             var e = employees[l.Code];
             int? age = e.BirthDate is { } b ? to.Year - b.Year - (to < b.AddYears(to.Year - b.Year) ? 1 : 0) : null;
-            return new WelfareFundLine(l.Code, e.Name, age, e.Nationality, e.NationalId, e.EmployeeType, l.Wage, e.StartDate, e.ResignDate);
+            return new WelfareFundLine(l.Code, e.Name, age, e.Nationality, e.NationalId, e.EmployeeType, l.Wage, e.StartDate, e.ResignDate)
+            {
+                Contribution = rate is { } p ? WelfareRateTable.Contribution(l.Wage, p) : null,
+            };
         }).ToList();
-        return new WelfareFundReport(from, to, name, rows);
+        return new WelfareFundReport(from, to, name, rows) { RatePercent = rate, RateProblem = problem };
+    }
+
+    /// <summary>
+    /// UAT-43: the อัตราเงินสมทบ of ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง — the range covering ถึงวันที่ of every งวด the report sums. No
+    /// range for one of them, or two rates among them, is a problem to show (never a silent guess). No งวด at all: no rate needed.
+    /// </summary>
+    public async Task<(decimal? Percent, string? Problem)> WelfareRateOfAsync(DateOnly from, DateOnly to, int? departmentId)
+    {
+        var ends = await db.PayResults.AsNoTracking()
+            .Where(r => r.PayPeriod.ToDate >= from && r.PayPeriod.ToDate <= to && r.Employee.Evaluation1Grade == null
+                && (departmentId == null || r.Employee.DepartmentId == departmentId))
+            .Select(r => r.PayPeriod.ToDate).Distinct().ToListAsync();
+        if (ends.Count == 0) return (null, null);
+        var rates = await db.WelfareRates.AsNoTracking()
+            .Select(r => new WelfareRateDto(r.Id, r.StartDate, r.EndDate, r.Percent, r.RowVersion)).ToListAsync();
+        var found = ends.Order().Select(end => (End: end, Rate: WelfareRateTable.On(rates, end))).ToList();
+        var missing = found.Where(f => f.Rate is null).Select(f => f.End).ToList();
+        if (missing.Count > 0) return (null, WelfareRateTable.Missing(missing[0]));
+        var percents = found.Select(f => f.Rate!.Percent).Distinct().ToList();
+        if (percents.Count > 1)
+            return (null, "งวดในช่วงวันที่นี้ใช้อัตราเงินสมทบต่างกัน ("
+                + string.Join(", ", found.GroupBy(f => f.Rate!.Percent).Select(g => $"{WelfareRateTable.PercentText(g.Key)} งวดถึง {string.Join(", ", g.Select(f => ThaiDate.Format(f.End)))}"))
+                + ") — พิมพ์แยกทีละช่วงอัตรา");
+        return (percents[0], null);
     }
 
     /// <summary>
