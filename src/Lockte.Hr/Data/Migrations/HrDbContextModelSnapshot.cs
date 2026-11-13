@@ -471,6 +471,46 @@ namespace Lockte.Hr.Data.Migrations
                         .HasColumnType("nvarchar(30)")
                         .HasAnnotation("Lockte:AuditName", "คำนำหน้าผู้จัดการสถานประกอบกิจการ");
 
+                    b.Property<string>("OfficeDistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เขต/อำเภอ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeHouseNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeMoo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "หมู่ที่ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficePhone")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "โทรศัพท์ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeProvince")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "จังหวัด ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeRoad")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ถนน ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeSoi")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ตรอก/ซอย ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeSubdistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "แขวง/ตำบล ที่ตั้งสถานประกอบกิจการ");
+
                     b.Property<string>("PersonnelOfficerName")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
@@ -489,6 +529,46 @@ namespace Lockte.Hr.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("WorkplaceDistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เขต/อำเภอ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceHouseNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceMoo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "หมู่ที่ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplacePhone")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "โทรศัพท์ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceProvince")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "จังหวัด สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceRoad")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ถนน สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceSoi")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ตรอก/ซอย สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceSubdistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "แขวง/ตำบล สถานที่ทำงาน");
 
                     b.HasKey("Id");
 

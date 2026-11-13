@@ -64,10 +64,10 @@ public sealed class GovernmentFormTests
 
         Assert.Equal(("ข้าพเจ้า นาย", "สมมติ", "ทดสอบ"), (At(svg, 49.8, 40), At(svg, 75.4, 40), At(svg, 132.4, 40)));
         Assert.Equal(("บริษัท ล็อคเต้ จำกัด", "ผลิตผ้าเบรก", "99"), (At(svg, 84.8, 47), At(svg, 51.9, 54), At(svg, 136.5, 54)));
-        Assert.Equal(("ตัวอย่าง", "กรุงเทพฯ", "02-0000000"), (At(svg, 40.3, 61), At(svg, 155.8, 61), At(svg, 47.5, 68))); // UAT-29: ถนน without the word twice, the phone with its dash
+        Assert.Equal(("ตัวอย่าง", "กรุงเทพฯ", "02-0000000"), (At(svg, 40.3, 61), At(svg, 155.8, 61), At(svg, 43.6, 68))); // UAT-29: ถนน without the word twice, the phone with its dash
         Assert.Equal("187", At(svg, 107.35, 68));
         Assert.Equal(("88/8", "สมุทรสาคร"), (At(svg, 61.9, 189), At(svg, 124.7, 196)));
-        Assert.Equal("(  นายสมมติ ทดสอบ  )", At(svg, 113.5, 258));
+        Assert.Equal("(นายสมมติ  ทดสอบ)", At(svg, 113.5, 258));
         Assert.Equal("นายเด็ก  ทดสอบ", At(svg, 77.5, 75)); // ชื่อว่าง → ชื่อในทะเบียน
     }
 
@@ -103,13 +103,13 @@ public sealed class GovernmentFormTests
         var svg = Svg(Kor2Form.Layout(Child(), new(null, null, null, null), employer));
 
         Assert.Equal(("ตัวอย่างสาย 5", "02-4204554"), (At(svg, 144.9, 189), At(svg, 159.1, 196)));
-        Assert.Equal("02-2336002-3", At(svg, 47.5, 68));
+        Assert.Equal("02-2336002-3", At(svg, 43.6, 68));
     }
 
     [Fact] // UAT-29: the signer's name under the line when the settings have one; none set leaves the brackets blank
     public void Kor2_prints_the_signer_under_the_line_only_when_a_name_is_set()
     {
-        Assert.Equal("(  นายสมมติ ทดสอบ  )", At(Svg(Kor2Form.Layout(Child(), new(null, null, null, null), Employer)), 113.5, 258));
+        Assert.Equal("(นายสมมติ  ทดสอบ)", At(Svg(Kor2Form.Layout(Child(), new(null, null, null, null), Employer)), 113.5, 258));
         Assert.Null(At(Svg(Kor2Form.Layout(Child(), new(null, null, null, null), new EmployerOptions())), 113.5, 258));
     }
 
