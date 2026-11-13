@@ -38,13 +38,14 @@ public sealed class MasterListTests(LocalDbFixture db)
     }
 
     [Fact]
-    public async Task Customers_are_listed_by_code_with_address_credit_and_territory()
+    public async Task Customers_are_listed_by_code_with_address_credit_territory_and_transport()
     {
         var prefix = Unique("94-");
         var territory = await AsAsync(s => SavedAsync(s.Get<SalesTerritoryRegistry>().SaveAsync(new SalesTerritoryInput(null, TestCodes.Territory(), "เขตรายการ", null, null))));
         await AsAsync(s => SavedAsync(s.Get<CustomerRegistry>().SaveAsync(new CustomerInput(null, prefix + "B", "ลูกค้า ข", null, CreditDays: 0))));
         await AsAsync(s => SavedAsync(s.Get<CustomerRegistry>().SaveAsync(new CustomerInput(null, prefix + "A", "ลูกค้า ก", null, CreditDays: 60,
-            Address: "1 หมู่ 2", District: "เมือง", Province: "จังหวัดทดสอบ", PostalCode: "10000", Phone1: "081", Phone2: "082", SalesTerritoryId: territory))));
+            Address: "1 หมู่ 2", District: "เมือง", Province: "จังหวัดทดสอบ", PostalCode: "10000", Phone1: "081", Phone2: "082", SalesTerritoryId: territory,
+            TransportName: "ขนส่งสมมุติ", TransportAddress: "ถนนทดสอบ 5", TransportPhone: "02-000-0000"))));
 
         var list = await AsAsync(s => MasterListReports.CustomersAsync(s.Get<CustomerDirectory>()));
 
@@ -55,6 +56,10 @@ public sealed class MasterListTests(LocalDbFixture db)
         Assert.Contains("60 วัน", html);
         Assert.Contains("เงินสด", html);
         Assert.Contains("081, 082", html);
+        // UAT-44 (#441): ขนส่ง as Access P_CUS prints it — name + address, then the phone in its own column
+        Assert.Contains("<th>ขนส่ง</th><th>โทรขนส่ง</th>", html);
+        Assert.Contains("<td>ขนส่งสมมุติ ถนนทดสอบ 5</td>", html);
+        Assert.Contains("<td>02-000-0000</td>", html);
         Assert.True(html.IndexOf("ลูกค้า ก", StringComparison.Ordinal) < html.IndexOf("ลูกค้า ข", StringComparison.Ordinal));
     }
 
