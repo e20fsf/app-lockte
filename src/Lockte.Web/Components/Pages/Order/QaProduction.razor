@@ -73,12 +73,7 @@ else
         }
         else
         {
-            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                @foreach (var spec in specs)
-                {
-                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Href="@SheetUrl(spec.Id)" Target="_blank" Disabled="@Dirty">@ShortName(spec.Name)</MudButton>
-                }
-            </MudStack>
+            <QaSheetButtonGrid Buttons="specs" SheetUrl="SheetUrl" Disabled="Dirty" />
         }
     </MudPaper>
 }
@@ -91,7 +86,7 @@ else
     private ProductionDepartment? department;
     private DateTime? date = DateTime.Today;
     private List<LineRow> rows = [];
-    private IReadOnlyList<QaSpecSummary> specs = [];
+    private IReadOnlyList<QaSheetButtonView> specs = [];
     private bool busy;
 
     private sealed class LineRow(QaLineRow source)
@@ -115,7 +110,7 @@ else
     {
         department = ProductionDepartments.Find(Dept);
         if (department is null) return;
-        specs = await Services.RunAsync<QaSelectionDirectory, IReadOnlyList<QaSpecSummary>>(d => d.GetSpecsAsync(department.Code));
+        specs = await Services.RunAsync<QaSelectionDirectory, IReadOnlyList<QaSheetButtonView>>(d => d.GetButtonsAsync(department.Code));
         await LoadAsync();
     }
 
@@ -187,10 +182,4 @@ else
 
     private string SheetUrl(int specId)
         => $"/reports/order/qa/sheet?spec={specId}&dept={department!.Code}&date={DateOnly.FromDateTime(date ?? DateTime.Today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
-
-    private static string ShortName(string name)
-    {
-        var group = QaSpecGroups.GroupOf(name);
-        return group.Length > 0 && name.StartsWith(group, StringComparison.Ordinal) && name.Length > group.Length ? name[group.Length..] : name;
-    }
 }

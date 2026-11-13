@@ -20,26 +20,15 @@
     }
     else
     {
-        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-            @foreach (var spec in specs)
-            {
-                <MudButton Variant="Variant.Outlined" Size="Size.Small" Href="@($"/reports/order/qa/sheet?spec={spec.Id}")" Target="_blank">@ShortName(spec.Name)</MudButton>
-            }
-        </MudStack>
+        <QaSheetButtonGrid Buttons="specs" SheetUrl="@(id => $"/reports/order/qa/sheet?spec={id}")" />
     }
 </MudPaper>
 
 <MudButton Href="@OrderMenu.HrefOf(15)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
 
 @code {
-    private IReadOnlyList<QaSpecSummary>? specs;
+    private IReadOnlyList<QaSheetButtonView>? specs;
 
     protected override async Task OnInitializedAsync()
-        => specs = await Services.RunAsync<QaSelectionDirectory, IReadOnlyList<QaSpecSummary>>(d => d.GetMoldSpecsAsync());
-
-    private static string ShortName(string name)
-    {
-        var group = QaSpecGroups.GroupOf(name);
-        return group.Length > 0 && name.StartsWith(group, StringComparison.Ordinal) && name.Length > group.Length ? name[group.Length..] : name;
-    }
+        => specs = await Services.RunAsync<QaSelectionDirectory, IReadOnlyList<QaSheetButtonView>>(d => d.GetMoldButtonsAsync());
 }
