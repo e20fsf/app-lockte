@@ -77,14 +77,18 @@ public sealed class WelfareRateTableTests
 
 /// <summary>
 /// อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง (UAT-43, #436) through the public services: the seeded ranges, saving with a history, overlap
-/// refused, and ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง taking the rate of its งวด. The seed covers 1 ม.ค. 2570 onward, so ranges added here sit
-/// in the 1990s (one test's years each) and งวด without a rate in the 1980s; the report tests use งวด in 2031 of a แผนก of their own.
-/// Every name here is made up.
+/// refused, and ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง taking the rate of its งวด. The seed covers 1 ม.ค. 2570 onward, so the ranges added
+/// here sit before it. The report tests put their งวด and ranges in years 300+ of a แผนก of their own — below every other class's งวด
+/// (MigratedPayPeriodTests' 450+), since PayPeriodTests' default-dates test needs its own period to be the latest — and their employees
+/// take codes "I…", which no other class uses. Every name here is made up.
 /// </summary>
 [Collection(LocalDbCollection.Name)]
 public sealed class WelfareRateDataTests(LocalDbFixture db)
 {
     private static int lastCode;
+    private static int lastYear = 300;
+
+    private static int NewYear() => Interlocked.Increment(ref lastYear);
 
     private static DateOnly D(int year, int month, int day) => new(year, month, day);
 
@@ -161,7 +165,7 @@ public sealed class WelfareRateDataTests(LocalDbFixture db)
     {
         var sectionId = (await AsHrAsync(s => s.Get<OrgRegistry>().SaveSectionAsync(new SectionInput(null, Unique("ฝ่าย"), 1, null)))).Id!.Value;
         var id = (await AsHrAsync(s => s.Get<OrgRegistry>().SaveDepartmentAsync(new DepartmentInput(
-            null, Unique("J"), Unique("แผนก"), "J", 9, sectionId, null, [], null)))).Id!.Value;
+            null, Unique("I"), Unique("แผนก"), "I", 9, sectionId, null, [], null)))).Id!.Value;
         return (await AsHrAsync(s => s.Get<OrgDirectory>().GetDepartmentAsync(id)))!;
     }
 
@@ -169,7 +173,7 @@ public sealed class WelfareRateDataTests(LocalDbFixture db)
     {
         var result = await AsHrAsync(s => s.Get<EmployeeRegistry>().SaveAsync(new EmployeeInput
         {
-            Code = $"J{Interlocked.Increment(ref lastCode):D3}", Name = "นาย ทดสอบ " + Guid.NewGuid().ToString("N")[..4], DepartmentId = department.Id,
+            Code = $"I{Interlocked.Increment(ref lastCode):D3}", Name = "นาย ทดสอบ " + Guid.NewGuid().ToString("N")[..4], DepartmentId = department.Id,
             SectionId = department.SectionId, StartDate = D(2015, 3, 1), EmployeeType = type, Salary = salary, DailyWage = 400,
         }));
         Ok(result);
@@ -189,24 +193,27 @@ public sealed class WelfareRateDataTests(LocalDbFixture db)
     private Task<WelfareFundReport> ReportAsync(DateOnly from, DateOnly to, DepartmentDto department)
         => AsHrAsync(s => s.Get<PayHistoryReportDirectory>().GetWelfareFundReportAsync(from, to, department.Id));
 
-    [Fact] // งวดถึง 30 ก.ย. 2574 → 0.25%, งวดถึง 1 ต.ค. 2574 → 0.50%; both in one report: two rates, said instead of picked
-    public async Task The_report_takes_the_rate_of_the_end_of_its_period_on_both_sides_of_1_October_2574()
+    [Fact] // the change of แก้ครั้งที่ 5 in a year of its own: งวดถึง 30 ก.ย. → 0.25%, งวดถึง 1 ต.ค. → 0.50%; both in one report: two rates, said not picked
+    public async Task The_report_takes_the_rate_of_the_end_of_its_period_on_both_sides_of_1_October()
     {
+        var year = NewYear();
+        Ok(await RatesAsync(r => r.SaveAsync(new WelfareRateInput(null, D(year, 1, 1), D(year, 9, 30), 0.25m, null))));
+        Ok(await RatesAsync(r => r.SaveAsync(new WelfareRateInput(null, D(year, 10, 1), D(year, 12, 31), 0.50m, null))));
         var department = await NewDepartmentAsync();
         var daily = await NewEmployeeAsync(department);
         var monthly = await NewEmployeeAsync(department, EmployeeTypes.Monthly, salary: 15000);
-        await PeriodAsync(D(2031, 9, 17), D(2031, 9, 30), Pay(daily, 4692m), Pay(monthly, 7500m));
-        await PeriodAsync(D(2031, 10, 1), D(2031, 10, 1), Pay(daily, 10000m), Pay(monthly, 7500m));
+        await PeriodAsync(D(year, 9, 17), D(year, 9, 30), Pay(daily, 4692m), Pay(monthly, 7500m));
+        await PeriodAsync(D(year, 10, 1), D(year, 10, 1), Pay(daily, 10000m), Pay(monthly, 7500m));
 
-        var september = await ReportAsync(D(2031, 9, 30), D(2031, 9, 30), department);
+        var september = await ReportAsync(D(year, 9, 30), D(year, 9, 30), department);
         Assert.Equal((0.25m, (string?)null), (september.RatePercent, september.RateProblem));
         Assert.Equal([12m, 38m], september.Lines.Select(l => l.Contribution!.Value)); // 4692 → 11.73 → 12; รายเดือน 15000 → 37.5 → 38
 
-        var october = await ReportAsync(D(2031, 10, 1), D(2031, 10, 1), department);
+        var october = await ReportAsync(D(year, 10, 1), D(year, 10, 1), department);
         Assert.Equal(0.50m, october.RatePercent);
         Assert.Equal([50m, 75m], october.Lines.Select(l => l.Contribution!.Value));
 
-        var both = await ReportAsync(D(2031, 9, 30), D(2031, 10, 1), department);
+        var both = await ReportAsync(D(year, 9, 30), D(year, 10, 1), department);
         Assert.Null(both.RatePercent);
         Assert.Contains("อัตราเงินสมทบต่างกัน", both.RateProblem);
         Assert.All(both.Lines, l => Assert.Null(l.Contribution));
@@ -215,15 +222,16 @@ public sealed class WelfareRateDataTests(LocalDbFixture db)
     [Fact] // no range covers the งวด: the report says so (the Excel endpoint refuses with it), no amount is guessed
     public async Task A_period_no_rate_covers_is_reported_as_missing()
     {
+        var year = NewYear();
         var department = await NewDepartmentAsync();
         var daily = await NewEmployeeAsync(department);
-        await PeriodAsync(D(1984, 5, 1), D(1984, 5, 14), Pay(daily, 5000m));
+        await PeriodAsync(D(year, 5, 1), D(year, 5, 14), Pay(daily, 5000m));
 
-        var report = await ReportAsync(D(1984, 4, 27), D(1984, 5, 26), department);
+        var report = await ReportAsync(D(year, 4, 27), D(year, 5, 26), department);
 
         Assert.Null(report.RatePercent);
-        Assert.Equal(WelfareRateTable.Missing(D(1984, 5, 14)), report.RateProblem);
+        Assert.Equal(WelfareRateTable.Missing(D(year, 5, 14)), report.RateProblem);
         Assert.Null(Assert.Single(report.Lines).Contribution);
-        Assert.Equal((null, report.RateProblem), await AsHrAsync(s => s.Get<PayHistoryReportDirectory>().WelfareRateOfAsync(D(1984, 4, 27), D(1984, 5, 26), department.Id)));
+        Assert.Equal((null, report.RateProblem), await AsHrAsync(s => s.Get<PayHistoryReportDirectory>().WelfareRateOfAsync(D(year, 4, 27), D(year, 5, 26), department.Id)));
     }
 }
