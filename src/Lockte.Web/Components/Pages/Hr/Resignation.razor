@@ -26,6 +26,10 @@
         <MudButton Variant="Variant.Outlined" Target="_blank" Href="reports/hr/resigned"
                    StartIcon="@Icons.Material.Filled.Assessment">พิมพ์รายงานพนักงานที่ลาออก</MudButton>
     </MudStack>
+    @* UAT-37: the name in brackets under เจ้าหน้าที่แผนกบุคคลและธุรการ comes from this settings page. *@
+    <MudButton Variant="Variant.Text" Href="hr/form-signers" StartIcon="@Icons.Material.Filled.Draw" Class="mt-2">
+        ตั้งชื่อเจ้าหน้าที่แผนกบุคคลและธุรการ (ผู้ลงนามบนแบบฟอร์ม)
+    </MudButton>
 </MudPaper>
 
 <MudButton Href="@EmployeeMenu.HrefOf(18)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>

@@ -1,5 +1,5 @@
-@* The legacy dotted underline of a text box, from X1 to X2 at Y (mm). *@
-<div class="@(Dashed ? "dots dashed" : "dots")" style="left:@(FormHtml.Mm(X1))mm;width:@(FormHtml.Mm(X2 - X1))mm;top:@(FormHtml.Mm(Y))mm"></div>
+@* The legacy dotted underline of a text box, from X1 to X2 at Y (mm): a dashed vector stroke (UAT-37: prints on paper). *@
+<div class="@(Dashed ? "dots dashed" : "dots")" style="left:@(FormHtml.Mm(X1))mm;width:@(FormHtml.Mm(X2 - X1))mm;top:@(FormHtml.Mm(Y))mm"><svg viewBox="0 0 @(FormHtml.Mm(X2 - X1)) @(FormHtml.Mm(FormHtml.DotsWeight))" preserveAspectRatio="none"><line x1="0" y1="@(FormHtml.Mm(FormHtml.DotsWeight / 2))" x2="@(FormHtml.Mm(X2 - X1))" y2="@(FormHtml.Mm(FormHtml.DotsWeight / 2))" /></svg></div>
 
 @code {
     [Parameter, EditorRequired] public double X1 { get; set; }
