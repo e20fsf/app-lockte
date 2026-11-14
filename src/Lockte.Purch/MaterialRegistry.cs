@@ -146,10 +146,9 @@ public sealed class MaterialDirectory(PurchDbContext db)
     public async Task<IReadOnlyList<MaterialDto>> SearchAsync(string? text, int max = 50)
     {
         var term = text?.Trim();
-        return (await db.Materials.AsNoTracking().Include(m => m.LatestSupplier)
-                .Where(m => string.IsNullOrEmpty(term) || m.Code.Contains(term) || m.Name.Contains(term))
-                .OrderBy(m => m.Name).ThenBy(m => m.Code).Take(max).ToListAsync())
-            .Select(ToDto).ToList();
+        var found = await db.Materials.AsNoTracking().Include(m => m.LatestSupplier)
+            .Where(m => string.IsNullOrEmpty(term) || m.Code.Contains(term) || m.Name.Contains(term)).ToListAsync();
+        return NameOrder.ByName(found, m => m.Name, m => m.Code).Take(max).Select(ToDto).ToList();
     }
 
     public async Task<MaterialDto?> GetAsync(int id)

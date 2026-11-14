@@ -7,10 +7,11 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject TimeProvider Clock
+@inject IJSRuntime Js
 
 @* ออกใบสั่งซื้อ (SCR-05, BR-020…BR-023): pick a purchase request, tick the items to order, give the quantity and price, and choose the supplier — one order is one
    supplier, VAT at the head. The items left unordered stay as the request's ยอดค้างสั่ง; a request line can be ordered again, from another supplier too.
-   The number is proposed (the highest of the year + 1) and can be changed; one that is taken is refused. The printed order (RPT-02) comes with #224. *@
+   The number is proposed (the highest of the year + 1) and can be changed; one that is taken is refused. The order prints from here (บันทึกและพิมพ์, RPT-02) or later from SCR-07. *@
 <PageTitle>ออกใบสั่งซื้อ — LOCKTE</PageTitle>
 <h1 class="mb-4">ออกใบสั่งซื้อ</h1>
 
@@ -29,7 +30,7 @@
 @if (lines.Count > 0)
 {
     <MudPaper Class="pa-4 mt-4" Outlined="true">
-        <MudGrid Spacing="2">
+        <MudGrid Spacing="2" data-enter-next="true">
             <MudItem xs="12" sm="3"><MudTextField @bind-Value="head.No" Label="เลขที่ใบสั่งซื้อ" MaxLength="PurchaseOrderRegistry.NumberLength" Required="true" RequiredError="กรุณากรอกเลขที่" /></MudItem>
             <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="head.Date" Label="วันที่สั่งซื้อ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
             <MudItem xs="12" sm="3">
@@ -76,7 +77,8 @@
         <MudText>ยอดก่อนภาษี @totals.Subtotal.ToString("N2") · ภาษี @totals.Tax.ToString("N2") · <b>รวมทั้งสิ้น @totals.Total.ToString("N2")</b></MudText>
         <MudText Typo="Typo.caption">(@totals.TotalInWords)</MudText>
         <MudStack Row="true" Spacing="2" Class="mt-3">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="IssueAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">บันทึกใบสั่งซื้อ</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => IssueAsync(print: true))" Disabled="busy" StartIcon="@Icons.Material.Filled.Print">บันทึกและพิมพ์ใบสั่งซื้อ</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => IssueAsync(print: false))" Disabled="busy" StartIcon="@Icons.Material.Filled.Save">บันทึกใบสั่งซื้อ</MudButton>
         </MudStack>
     </MudPaper>
 }
@@ -141,7 +143,7 @@ else if (requestId is not null)
         head.Vat = picked.Vat;
     }
 
-    private async Task IssueAsync()
+    private async Task IssueAsync(bool print)
     {
         if (supplier is null) { Snackbar.Add("กรุณาเลือกผู้ขาย", Severity.Error); return; }
         busy = true;
@@ -154,6 +156,8 @@ else if (requestId is not null)
             foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
             if (!result.Succeeded) return;
             Snackbar.Add($"ออกใบสั่งซื้อ {head.No} แล้ว", Severity.Success);
+            // the printed order (RPT-02) opens in a new tab as Access opened its preview; this page starts again for the next one
+            if (print && result.Id is { } orderId) await Js.InvokeVoidAsync("open", $"reports/purch/order/{orderId}", "_blank");
             Navigation.NavigateTo("purch/orders/new", forceLoad: true);
         }
         finally

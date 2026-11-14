@@ -76,4 +76,14 @@ public sealed class PurchaseOrderFormTests(ChromiumFixture chromium)
         Assert.Equal(1, Pages(blankPdf));
         Keep("purchase-order-blank", blankPdf);
     }
+
+    [Fact]
+    public async Task The_location_code_and_the_larger_number_print_on_one_sheet()
+    {
+        var order = Order(("น้ำยาพ่นพิมพ์ DIE LUBE L-100", 2m, 8400m)) with { LocationCode = "F" };
+        var pages = PurchaseOrderForm.Layout(order, "PC-PU002-2/2547 ฉบับที่ 1", Letterhead);
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PurchaseOrderForm.Title, pages), pages[0].Paper);
+        Assert.Equal(1, Pages(pdf));
+        Keep("purchase-order-location-f", pdf);
+    }
 }

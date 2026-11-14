@@ -24,7 +24,7 @@ else
 {
     <MudPaper Class="pa-4" Outlined="true">
         <fieldset disabled="@(savedId is not null)" style="border:0;padding:0;margin:0">
-        <MudGrid Spacing="2">
+        <MudGrid Spacing="2" data-enter-next="true">
             <MudItem xs="12" sm="3"><MudTextField @bind-Value="head.No" Label="เลขที่ใบขออนุมัติสั่งซื้อ" MaxLength="PurchaseRequestRegistry.NumberLength" Required="true" RequiredError="กรุณากรอกเลขที่" /></MudItem>
             <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="head.Date" Label="วันที่ขอซื้อ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
             <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="head.Desired" Label="วันที่ต้องการ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
@@ -59,7 +59,7 @@ else
 
     @* ลำดับตามแบบฟอร์มพิมพ์: รายการ → เหตุผลในการซื้อ → หมายเหตุ (UAT-1 #420) *@
     <MudPaper Class="pa-4 mt-4" Outlined="true">
-        <MudGrid Spacing="2">
+        <MudGrid Spacing="2" data-enter-next="true">
             <MudItem xs="12" sm="6"><MudAutocomplete T="string" @bind-Value="head.Reason" SearchFunc="@(Suggest(reasons))" Label="เหตุผลในการขอซื้อ (เลือกหรือพิมพ์)" CoerceText="true" CoerceValue="true" Clearable="true" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
             <MudItem xs="12" sm="6"><MudAutocomplete T="string" @bind-Value="head.Note" SearchFunc="@(Suggest(notes))" Label="หมายเหตุ (เลือกหรือพิมพ์)" CoerceText="true" CoerceValue="true" Clearable="true" MaxLength="RequestSetupRegistry.TextLength" /></MudItem>
         </MudGrid>

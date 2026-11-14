@@ -36,7 +36,8 @@ public sealed record PurchaseOrderPrint(
     decimal Total,
     string TotalInWords,
     string? Reason,
-    string? Note);
+    string? Note,
+    string? LocationCode = null);
 
 /// <summary>
 /// RPT-02 ใบสั่งซื้อ (Purchase Order, <c>พิมพ์ใบสั่งซื้อ1</c>…<c>10</c>, PC-PU002-2/2547 ฉบับที่ 1, #224), ระดับ A (#40 ตรงแบบเดิม): every text, rule and box is where the
@@ -131,7 +132,9 @@ public static class PurchaseOrderForm
     {
         if (order is null) return;
         page.Text(22.5, 52.94, ThaiDate.Format(order.OrderDate), 16.9, fit: 36);
-        page.Text(171.8, 53.28, order.OrderNo, 14.9, bold: true, fit: 26);
+        page.Text(171.8, 53.88, order.OrderNo, 19.9, bold: true, fit: 26.5);
+        // the box beside เลขที่ holds the purchasing location's code (F = โรงงาน), as the legacy printed ผู้สั่งซื้อ there
+        page.Text(152.17, 53.0, order.LocationCode, 16.9, TextAnchor.Middle, bold: true, fit: 7.5);
         page.Text(24.0, 60.93, order.SupplierName, 13.9, fit: 103);
         page.Text(30.5, 68.28, order.Address1, 11.9, fit: 97).Text(30.5, 74.2, order.Address2, 11.9, fit: 97);
         page.Text(38.5, 79.36, order.Tel, 11.9, fit: 28).Text(77.0, 79.29, order.Fax, 11.9, fit: 50);
