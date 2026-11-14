@@ -20,7 +20,7 @@ public static class PurchaseOrderReports
         var departmentName = picked.Count > 0 ? (await org.GetDepartmentAsync(picked[0].DepartmentId))?.Name : null;
         var lines = picked.Select(l => new PurchaseOrderPrintLine(l.LineNo, l.RequestNo, l.MaterialName, l.Quantity, l.Unit, l.UnitPrice, l.NetAmount)).ToList();
         return new PurchaseOrderPrint(order.OrderNo, order.OrderDate, order.SupplierName, order.SupplierAddress1, order.SupplierAddress2, order.SupplierTel, order.SupplierFax,
-            departmentName, picked.FirstOrDefault()?.DesiredDate, order.CreditDays, lines, totals.Subtotal, totals.Tax, totals.Total, totals.TotalInWords, order.Reason, order.Note);
+            departmentName, picked.FirstOrDefault()?.DesiredDate, order.CreditDays, lines, totals.Subtotal, totals.Tax, totals.Total, totals.TotalInWords, order.Reason, order.Note, order.PurchasingLocation);
     }
 
     public static RouteGroupBuilder MapPurchaseOrderReports(this RouteGroupBuilder reports)

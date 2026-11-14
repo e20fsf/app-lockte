@@ -17,7 +17,7 @@
 
 <MudPaper Class="pa-4" Outlined="true">
     <MudText Typo="Typo.h6" Class="mb-2">@(form.Id is null ? "เพิ่มวัตถุดิบ" : $"แก้วัตถุดิบ {form.Code}")</MudText>
-    <MudGrid Spacing="2">
+    <MudGrid Spacing="2" data-enter-next="true">
         <MudItem xs="12" sm="3"><MudTextField @bind-Value="form.Code" Label="รหัสวัตถุดิบ" MaxLength="MaterialRegistry.CodeLength" Required="true" RequiredError="กรุณากรอกรหัสวัตถุดิบ" /></MudItem>
         <MudItem xs="12" sm="9">
             <MudTextField @bind-Value="form.Name" Label="ชื่อวัตถุดิบ" MaxLength="MaterialRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อวัตถุดิบ" Immediate="true"
@@ -92,10 +92,11 @@
     private string? group;
     private bool busy;
 
-    private IEnumerable<MaterialDto> Shown => (materials ?? [])
+    /// <summary>A–Z, then ก–ฮ, by ชื่อ (UAT วัตถุดิบ รอบ 2).</summary>
+    private IEnumerable<MaterialDto> Shown => NameOrder.ByName((materials ?? [])
         .Where(m => string.IsNullOrEmpty(group) || m.Code.StartsWith(group, StringComparison.OrdinalIgnoreCase))
         .Where(m => string.IsNullOrWhiteSpace(search)
-            || m.Code.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || m.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase));
+            || m.Code.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || m.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)), m => m.Name, m => m.Code);
 
     protected override async Task OnInitializedAsync()
     {

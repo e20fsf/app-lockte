@@ -21,17 +21,16 @@ public static class ListReports
     public const string SupplierByCodeTitle = "รายชื่อผู้ขายเรียงตามรหัส";
     public const string SupplierByNameTitle = "รายชื่อผู้ขายเรียงตามชื่อ";
 
-    private static readonly StringComparer Thai = StringComparer.Create(ThaiDate.Culture, ignoreCase: true);
 
     public static MaterialListReport Materials(IReadOnlyList<MaterialDto> all, string? group, bool byName)
     {
         var prefix = string.IsNullOrWhiteSpace(group) ? null : group.Trim().TrimEnd('*');
         var rows = all.Where(m => prefix is null || m.Code.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-        return new MaterialListReport(prefix, byName, (byName ? rows.OrderBy(m => m.Name, Thai).ThenBy(m => m.Code, StringComparer.Ordinal) : rows.OrderBy(m => m.Code, StringComparer.Ordinal)).ToList());
+        return new MaterialListReport(prefix, byName, (byName ? NameOrder.ByName(rows, m => m.Name, m => m.Code) : rows.OrderBy(m => m.Code, StringComparer.Ordinal)).ToList());
     }
 
     public static SupplierListReport Suppliers(IReadOnlyList<SupplierDto> all, bool byName)
-        => new(byName, (byName ? all.OrderBy(s => s.Name, Thai).ThenBy(s => s.Code, StringComparer.Ordinal) : all.OrderBy(s => s.Code, StringComparer.Ordinal)).ToList());
+        => new(byName, (byName ? NameOrder.ByName(all, s => s.Name, s => s.Code) : all.OrderBy(s => s.Code, StringComparer.Ordinal)).ToList());
 
     public static RouteGroupBuilder MapListReports(this RouteGroupBuilder reports)
     {
