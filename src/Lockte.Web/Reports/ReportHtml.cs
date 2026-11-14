@@ -151,6 +151,10 @@ public static class ReportHtml
         // text, so the first row under the header rule lost its marks. Room above the first row keeps them clear of the rule.
         + "tbody tr:first-child td{padding-top:4pt}"
         + ".end{border-bottom:3pt double #000;height:2pt}"
+        // UAT-4 (#449): a table drawn as a grid (บันทึกการรับของ, INCOMING Inspection): a line round every cell
+        + "table.grid th,table.grid td{border:0.75pt solid #000}"
+        // the page's own height (A4 less the margins) so the sign boxes can sit at the very bottom of the sheet
+        + ".sheet{display:flex;flex-direction:column}.sheet>.bottom{margin-top:auto}"
         + ".no-data{text-align:center;margin-top:12mm;font-size:16pt}";
 
     /// <summary>A CSS string literal: quotes, backslashes and line breaks escaped; &lt; and &gt; too, so it cannot end the style.</summary>

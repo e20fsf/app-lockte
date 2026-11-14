@@ -16,6 +16,10 @@
     [Parameter] public string Label { get; set; } = "วัตถุดิบ (รหัสหรือชื่อ)";
     [Parameter] public bool Dense { get; set; }
 
+    /// <summary>UAT-4 (#449): the arrow opens the list too — when the box still shows the chosen item's own text ("CA130  name") it is not a search term, so the list is every item.</summary>
+    public static string? Term(string? text, MaterialDto? chosen)
+        => chosen is not null && text == $"{chosen.Code}  {chosen.Name}" ? null : text;
+
     private Task<IEnumerable<MaterialDto>> SearchAsync(string? text, CancellationToken token)
-        => Services.RunAsync<MaterialDirectory, IEnumerable<MaterialDto>>(async d => await d.SearchAsync(text));
+        => Services.RunAsync<MaterialDirectory, IEnumerable<MaterialDto>>(async d => await d.SearchAsync(Term(text, Value)));
 }

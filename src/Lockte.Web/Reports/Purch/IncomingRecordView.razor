@@ -8,8 +8,9 @@
 else
 {
     var t = Report.Totals;
+    <div class="sheet" style="min-height:250mm">
     <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)&emsp;ชื่อผู้ขาย: @(Report.SupplierName ?? "ทั้งหมด")</p>
-    <table>
+    <table class="grid">
         <colgroup><col style="width:5%" /><col style="width:33%" /><col style="width:12%" /><col style="width:12%" /><col style="width:12%" /><col style="width:9%" /><col style="width:8%" /><col style="width:9%" /></colgroup>
         <thead>
             <tr><th class="num">ที่</th><th>ชื่อวัตถุดิบ</th><th class="num">จำนวน</th><th>วันที่ต้องการของ</th><th>วันที่รับของ</th><th>ใบ Certificate</th><th>ผลการตรวจสอบ</th><th>ผลการส่ง</th></tr>
@@ -29,11 +30,12 @@ else
                     <td>@(r.OnTime ? "ทัน" : "ไม่ทัน")</td>
                 </tr>
             }
-            <tr class="total"><td colspan="8"><b>รวมทั้งหมด @t.Count รายการ</b> · ใบรับรอง มี @t.WithCertificate / ไม่มี @t.WithoutCertificate · ส่งทัน @t.OnTime / ไม่ทัน @t.Late · ผ่าน @t.Passed / ไม่ผ่าน @t.Failed</td></tr>
-            <tr><td colspan="8" class="end"></td></tr>
         </tbody>
     </table>
-    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" />
+    <p class="lbl" style="margin:3pt 0"><b>รวมทั้งหมด @t.Count รายการ</b> · ใบรับรอง มี @t.WithCertificate / ไม่มี @t.WithoutCertificate · ส่งทัน @t.OnTime / ไม่ทัน @t.Late · ผ่าน @t.Passed / ไม่ผ่าน @t.Failed</p>
+    @* #449: the sign boxes at the bottom of the sheet, as the Access form has them *@
+    <div class="bottom"><Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" /></div>
+    </div>
 }
 
 @code {
