@@ -19,14 +19,15 @@ public sealed class ReportPrinter(ReportPdfRenderer pdf, DocumentNumberService d
     /// <param name="headerPt">The page header's size when it is not the standard <see cref="ReportHtml.TitleSizePt"/> (UAT-35: the pay reports).</param>
     /// <param name="companyOnly">The header is the company line alone (#426).</param>
     /// <param name="pageFooter">Left and right text at the bottom of every page instead of the print stamp (#426).</param>
+    /// <param name="footerCenter">Text in the middle of the standard footer of every page, between the print date and the page number (UAT-46: the sign line).</param>
     /// <param name="printedBy">The signed-in user's display name, printed in the footer.</param>
     public async Task<byte[]> PrintAsync<TReport>(string title, Paper paper, Dictionary<string, object?> parameters, string printedBy,
         string? documentKey = null, CancellationToken cancellationToken = default, ReportProgram? program = null, bool footer = true, bool dateAtTop = false, int? headerPt = null,
-        bool companyOnly = false, (string Left, string Right)? pageFooter = null) where TReport : IComponent
+        bool companyOnly = false, (string Left, string Right)? pageFooter = null, string? footerCenter = null) where TReport : IComponent
     {
         var number = documentKey is null ? null : await documentNumbers.PrintedTextAsync(documentKey);
         var body = await ReportBody.RenderAsync<TReport>(parameters);
-        var html = ReportHtml.Compose(new ReportDocument(title, paper, number, footer, dateAtTop, headerPt, companyOnly, pageFooter), new PrintStamp(clock.GetLocalNow(), printedBy), body,
+        var html = ReportHtml.Compose(new ReportDocument(title, paper, number, footer, dateAtTop, headerPt, companyOnly, pageFooter, footerCenter), new PrintStamp(clock.GetLocalNow(), printedBy), body,
             fonts.For(program ?? ProgramOf(typeof(TReport))));
         return await pdf.RenderAsync(html, paper, cancellationToken);
     }

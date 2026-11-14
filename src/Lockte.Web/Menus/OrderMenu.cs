@@ -72,7 +72,7 @@ public static class OrderMenu
         ]),
         new(5, "รายงานการส่งของ", 2, // รายงานการส่งออก
         [
-            new("การส่งของตามวันที่กำหนด", Code: "RPT-07", Page: "order/delivery-reports/deliveries"), // ส่งออกตามวันที่กำหนด
+            new("ใบรายงานการส่งสินค้า (การส่งของตามวันที่กำหนด)", Code: "RPT-07", Page: "order/delivery-reports/deliveries"), // ส่งออกตามวันที่กำหนด; UAT-46: the name of the printed sheet first, so it is found
             new("การส่งของตามลูกค้าและเขตการขาย", Code: "RPT-08-1", Page: "order/export-reports/customer-detail"), // ส่งออกตามลูกค้าและSALE
             new("การส่งของตามสินค้า", Code: "RPT-08-2", Page: "order/export-reports/product-summary"), // ส่งออกตามสินค้า
             new("การส่งของตามชนิดสินค้า", Code: "RPT-08-3", Page: "order/export-reports/type-summary"), // ส่งออกตามชนิดสินค้า (ยอดขายแต่ละชนิด RPT-09)
