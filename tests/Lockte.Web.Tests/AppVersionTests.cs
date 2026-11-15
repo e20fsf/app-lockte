@@ -28,7 +28,7 @@ public sealed class AppVersionTests
 
     [Fact]
     public async Task Label_shows_the_version() =>
-        Assert.Contains("Version 20261114-420537a · Server time 15/11/2026 12:03:41", await Render());
+        Assert.Contains("Version 20261114-420537a", await Render());
 
     [Fact]
     public void Login_layout_has_the_label_and_the_main_layout_does_not()
@@ -45,17 +45,10 @@ public sealed class AppVersionTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<TimeProvider>(new FixedClock(new DateTimeOffset(2026, 11, 15, 12, 3, 41, TimeSpan.FromHours(7))));
         services.AddSingleton(new AppVersion("20261114-420537a+abcdef"));
         await using var sp = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(sp, NullLoggerFactory.Instance);
         return await renderer.Dispatcher.InvokeAsync(async () =>
             (await renderer.RenderComponentAsync<AppVersionLabel>(ParameterView.Empty)).ToHtmlString());
-    }
-
-    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now.ToUniversalTime();
-        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.CreateCustomTimeZone("t", now.Offset, "t", "t");
     }
 }

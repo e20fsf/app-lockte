@@ -23,7 +23,7 @@
 .\deploy\Build-Package.ps1 -HostingBundle C:\Downloads\dotnet-hosting-10.0.x-win.exe   # ใส่ Hosting Bundle ไปด้วย
 ```
 
-เลขเวอร์ชัน (`yyyyMMdd-<commit>` ต่อท้าย `-dirty` ถ้ามีไฟล์ที่ยังไม่ commit, `-app-only` ถ้าใช้ `-AppOnly`) เป็นเลขเดียวกับชื่อ zip และ `version.txt` และถูกฝังใน `Lockte.Web.dll` (InformationalVersion) — ดูได้ที่ด้านล่างของหน้า login เป็นข้อความเล็ก ("Version … · Server time dd/MM/yyyy HH:mm:ss" วันที่เวลาของ server) โดยแสดงเลขเฉพาะ `yyyyMMdd-<commit>` ไม่แสดง `-dirty` / `-app-only`; เครื่องพัฒนาที่ไม่ได้ build ผ่านสคริปต์นี้จะแสดง `dev`
+เลขเวอร์ชัน (`yyyyMMdd-<commit>` ต่อท้าย `-dirty` ถ้ามีไฟล์ที่ยังไม่ commit, `-app-only` ถ้าใช้ `-AppOnly`) เป็นเลขเดียวกับชื่อ zip และ `version.txt` และถูกฝังใน `Lockte.Web.dll` (InformationalVersion) — ดูได้ที่ด้านล่างของหน้า login เป็นข้อความเล็ก ("Version …") โดยแสดงเลขเฉพาะ `yyyyMMdd-<commit>` ไม่แสดง `-dirty` / `-app-only`; เครื่องพัฒนาที่ไม่ได้ build ผ่านสคริปต์นี้จะแสดง `dev`
 
 ## 2. ติดตั้งครั้งแรก (บน server)
 
