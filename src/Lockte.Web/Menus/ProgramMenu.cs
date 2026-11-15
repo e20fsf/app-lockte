@@ -16,7 +16,7 @@ public sealed record MenuPage(int Number, string Title, int? Back, IReadOnlyList
 /// <see cref="OrderMenu"/>). Paths are relative to the site root, no leading slash: the main menu is at
 /// <see cref="Root"/>, menu page n at <c>{MenuRoot}/n</c>, an item not built yet at <c>{PlaceholderRoot}/{Code}</c>.
 /// </summary>
-public sealed class ProgramMenu(string key, string title, string root, string menuRoot, string placeholderRoot, IReadOnlyList<MenuPage> pages)
+public sealed class ProgramMenu(string key, string title, string icon, string root, string menuRoot, string placeholderRoot, IReadOnlyList<MenuPage> pages)
 {
     /// <summary>One step of the "you are here" trail; <see cref="Href"/> is null on the current page.</summary>
     public sealed record Crumb(string Text, string? Href);
@@ -28,6 +28,9 @@ public sealed class ProgramMenu(string key, string title, string root, string me
 
     /// <summary>The program's name on the program chooser and the app bar.</summary>
     public string Title { get; } = title;
+
+    /// <summary>The program's icon (a MudBlazor icon), the same on the program chooser and in the app bar's program menu.</summary>
+    public string Icon { get; } = icon;
 
     public string Root { get; } = root;
     public string PlaceholderRoot { get; } = placeholderRoot;

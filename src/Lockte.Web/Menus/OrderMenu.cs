@@ -1,3 +1,4 @@
+using MudBlazor;
 namespace Lockte.Web.Menus;
 
 /// <summary>
@@ -12,7 +13,7 @@ public static class OrderMenu
 {
     public static string HrefOf(int number) => Menu.HrefOf(number);
 
-    public static ProgramMenu Menu { get; } = new("order", "ผลผลิตและ ORDER", "order", "order/menu", "order",
+    public static ProgramMenu Menu { get; } = new("order", "ผลผลิตและ ORDER", Icons.Material.Filled.Factory, "order", "order/menu", "order",
     [
         new(1, "เมนูหลัก", null,
         [

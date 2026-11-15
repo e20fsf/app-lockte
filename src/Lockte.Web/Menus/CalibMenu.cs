@@ -1,3 +1,4 @@
+using MudBlazor;
 namespace Lockte.Web.Menus;
 
 /// <summary>
@@ -21,7 +22,7 @@ public static class CalibMenu
     public const int Jig = 7;
     public const int TempControl = 8;
 
-    public static ProgramMenu Menu { get; } = new("calib", "สอบเทียบ", "calib", "calib/menu", "calib",
+    public static ProgramMenu Menu { get; } = new("calib", "สอบเทียบ", Icons.Material.Filled.Straighten, "calib", "calib/menu", "calib",
     [
         new(1, "เมนูหลัก", null,
         [

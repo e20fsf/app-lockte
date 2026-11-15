@@ -111,6 +111,8 @@ a.program-card:hover { border-color: #E3A9A9; box-shadow: var(--lk-shadow-lg); t
 .program-card-later { background: var(--lk-head); box-shadow: none; border-style: dashed; cursor: default; opacity: .7; }
 .program-card-later .program-card-icon { color: var(--lk-muted); }
 .app-bar .program-switcher .mud-button-root { font-weight: 500; }
+.mud-menu-item.program-current { font-weight: 700; color: var(--lk-red-dark); background: var(--lk-red-tint); }
+.mud-menu-item.program-current .mud-icon-root { color: var(--lk-red); }
 
 /* หน้า login / เปลี่ยนรหัส (static HTML) */
 .account-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; background: linear-gradient(180deg, #fff 0, var(--lk-bg) 55%); border-top: 4px solid var(--lk-red); }
