@@ -1,4 +1,6 @@
+@using System.Globalization
 @inject AppVersion Version
+@inject TimeProvider Clock
 
-@* Package version (#453), shown at the bottom of the login page (AccountLayout) so one can tell which build the server runs. *@
-<p class="app-version" title="Installed package version">Version @Version.Text</p>
+@* Package version (#453) and the server's date/time, shown at the bottom of the login page (AccountLayout) so one can tell which build the server runs and its clock. *@
+<p class="app-version" title="Installed package version and server date/time">Version @Version.Text · Server time @Clock.GetLocalNow().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)</p>
