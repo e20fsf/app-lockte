@@ -28,7 +28,7 @@ public sealed class AppVersionTests
 
     [Fact]
     public async Task Label_shows_the_version() =>
-        Assert.Contains("Version 20261114-420537a · Server time 2026-11-15 12:03", await Render());
+        Assert.Contains("Version 20261114-420537a · Server time 15/11/2026 12:03:41", await Render());
 
     [Fact]
     public void Login_layout_has_the_label_and_the_main_layout_does_not()
