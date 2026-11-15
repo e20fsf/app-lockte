@@ -16,7 +16,8 @@ if ($AppOnly) { $version += '-app-only' }
 
 Remove-Item $Out -Recurse -Force -ErrorAction SilentlyContinue
 $app = Join-Path $Out 'app'
-dotnet publish (Join-Path $repo 'src\Lockte.Web\Lockte.Web.csproj') -c Release -r win-x64 --self-contained false -o $app
+dotnet publish (Join-Path $repo 'src\Lockte.Web\Lockte.Web.csproj') -c Release -r win-x64 --self-contained false -o $app `
+    -p:InformationalVersion=$version -p:IncludeSourceRevisionInInformationalVersion=false
 if ($LASTEXITCODE) { throw 'dotnet publish failed' }
 # Never ship a developer's settings: production settings live on the server (config\appsettings.Production.json).
 Remove-Item (Join-Path $app 'appsettings.Development.json') -ErrorAction SilentlyContinue

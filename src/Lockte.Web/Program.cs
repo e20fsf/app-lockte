@@ -23,6 +23,7 @@ var connectionString = AccountsRegistration.ConnectionString(builder.Configurati
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddMudServices();
 
+builder.Services.AddSingleton(AppVersion.FromAssembly(typeof(Program).Assembly));
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<CurrentUser>());
 builder.Services.AddScoped<CircuitHandler, CurrentUserCircuitHandler>();
