@@ -1,3 +1,4 @@
+using MudBlazor;
 namespace Lockte.Web.Menus;
 
 /// <summary>
@@ -12,7 +13,7 @@ public static class PurchMenu
 {
     public static string HrefOf(int number) => Menu.HrefOf(number);
 
-    public static ProgramMenu Menu { get; } = new("purch", "วัตถุดิบ", "purch", "purch/menu", "purch",
+    public static ProgramMenu Menu { get; } = new("purch", "วัตถุดิบ", Icons.Material.Filled.Inventory2, "purch", "purch/menu", "purch",
     [
         new(1, "เมนูหลัก", null,
         [

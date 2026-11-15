@@ -8,10 +8,10 @@
     <img src="brand/logo.svg" alt="LOCKTE" class="menu-logo" />
     <h1 class="menu-title">เลือกโปรแกรม</h1>
     <div class="program-cards">
-        @foreach (var (program, icon, detail) in Cards)
+        @foreach (var (program, detail) in Cards)
         {
             <a href="@program.Root" class="program-card">
-                <MudIcon Icon="@icon" Class="program-card-icon" />
+                <MudIcon Icon="@program.Icon" Class="program-card-icon" />
                 <span class="program-card-title">@program.Title</span>
                 <span class="program-card-detail">@detail</span>
             </a>
@@ -20,12 +20,12 @@
 </div>
 
 @code {
-    private static readonly (ProgramMenu Program, string Icon, string Detail)[] Cards =
+    private static readonly (ProgramMenu Program, string Detail)[] Cards =
     [
-        (EmployeeMenu.Menu, Icons.Material.Filled.Badge, "ข้อมูลพนักงาน เวลาทำงาน การลา ปิดงวดค่าแรง"),
-        (OrderMenu.Menu, Icons.Material.Filled.Factory, "ลูกค้า สินค้า ORDER การส่งของ ผลผลิต แม่พิมพ์ QA"),
-        (PurchMenu.Menu, Icons.Material.Filled.Inventory2, "ผู้ขาย วัตถุดิบ ใบสั่งซื้อ รับวัตถุดิบ ประเมินผู้ขาย สต็อกวัตถุดิบ"),
-        (CalibMenu.Menu, Icons.Material.Filled.Straighten, "เครื่องมือวัด 6 ชนิด แผนและบัญชีรายชื่อ สติกเกอร์ ใบตรวจ JIG"),
-        (CashMenu.Menu, Icons.Material.Filled.Payments, "ค่าใช้จ่ายเงินสดย่อย ใบสำคัญจ่าย ขายของเก่า ยอดรอนำส่ง"),
+        (EmployeeMenu.Menu, "ข้อมูลพนักงาน เวลาทำงาน การลา ปิดงวดค่าแรง"),
+        (OrderMenu.Menu, "ลูกค้า สินค้า ORDER การส่งของ ผลผลิต แม่พิมพ์ QA"),
+        (PurchMenu.Menu, "ผู้ขาย วัตถุดิบ ใบสั่งซื้อ รับวัตถุดิบ ประเมินผู้ขาย สต็อกวัตถุดิบ"),
+        (CalibMenu.Menu, "เครื่องมือวัด 6 ชนิด แผนและบัญชีรายชื่อ สติกเกอร์ ใบตรวจ JIG"),
+        (CashMenu.Menu, "ค่าใช้จ่ายเงินสดย่อย ใบสำคัญจ่าย ขายของเก่า ยอดรอนำส่ง"),
     ];
 }

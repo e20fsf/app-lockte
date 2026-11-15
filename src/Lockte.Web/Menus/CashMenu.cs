@@ -1,3 +1,4 @@
+using MudBlazor;
 namespace Lockte.Web.Menus;
 
 /// <summary>
@@ -17,7 +18,7 @@ public static class CashMenu
     public const int Receipts = 2;
     public const int Reports = 3;
 
-    public static ProgramMenu Menu { get; } = new("cash", "เงินสดย่อย", "cash", "cash/menu", "cash",
+    public static ProgramMenu Menu { get; } = new("cash", "เงินสดย่อย", Icons.Material.Filled.Payments, "cash", "cash/menu", "cash",
     [
         new(1, "เมนูหลัก", null,
         [
