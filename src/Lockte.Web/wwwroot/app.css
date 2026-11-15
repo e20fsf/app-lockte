@@ -33,6 +33,7 @@ h1:focus { outline: none; }
 .app-bar .brand { display: flex; align-items: center; gap: .75rem; color: inherit; text-decoration: none; }
 .app-bar .brand-logo { height: 38px; }
 .app-bar .brand-text { font-size: 1.15rem; font-weight: 700; letter-spacing: .01em; }
+.account-page .app-version { position: absolute; left: 0; right: 0; bottom: .75rem; margin: 0; text-align: center; font-size: .75rem; color: var(--lk-muted); }
 .app-bar .user-name { margin-right: .25rem; font-weight: 500; }
 .app-bar .mud-button-root { color: var(--lk-ink); }
 .app-bar .mud-button-root:hover { background: var(--lk-red-tint); color: var(--lk-red-dark); }
@@ -113,7 +114,7 @@ a.program-card:hover { border-color: #E3A9A9; box-shadow: var(--lk-shadow-lg); t
 .app-bar .program-switcher .mud-button-root { font-weight: 500; }
 
 /* หน้า login / เปลี่ยนรหัส (static HTML) */
-.account-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; background: linear-gradient(180deg, #fff 0, var(--lk-bg) 55%); border-top: 4px solid var(--lk-red); }
+.account-page { position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; background: linear-gradient(180deg, #fff 0, var(--lk-bg) 55%); border-top: 4px solid var(--lk-red); }
 .account-card { width: 100%; max-width: 400px; background: #fff; border: 1px solid var(--lk-line); border-radius: 16px; padding: 2.5rem 2rem; text-align: center; box-shadow: 0 8px 24px rgba(31,41,51,.08); }
 .account-card form { display: flex; flex-direction: column; text-align: left; }
 .account-card h1 { font-size: 1.5rem; font-weight: 700; margin: .75rem 0 1rem; }
