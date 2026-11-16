@@ -156,13 +156,15 @@ public sealed class WarningTests(LocalDbFixture db)
 
         var report = await AsHrAsync(s => s.Get<WarningDirectory>().GetReportAsync(Day(5, 1), Day(12, 31)));
 
+        // The fixture's database is shared by the tests of this class: look only at this test's own people.
+        var own = report.Lines.Where(l => l.EmployeeCode is "W901" or "W902" or "W903").ToList();
         Assert.Equal(
             [
                 new WarningReportLine(Day(5, 20), "W901", first.Name, department.Name, "ใบเตือนเป็นหนังสือ", "ข้อ 2"),
                 new WarningReportLine(Day(6, 1), "W901", first.Name, department.Name, "เลิกจ้าง", "ข้อ 3"),
                 new WarningReportLine(Day(5, 1), "W902", second.Name, department.Name, "ใบเตือนด้วยวาจา", "ข้อ 1"),
             ],
-            report.Lines);
+            own);
     }
 
     [Fact] // UAT7-6 (#467): พิมพ์แยกรายคน — only that person's rows in the dates; the all-employees report is unchanged
