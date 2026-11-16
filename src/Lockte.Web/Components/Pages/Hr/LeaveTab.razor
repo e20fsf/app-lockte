@@ -208,10 +208,10 @@
                 }
             </MudSelect>
         </td>
-        <td>
-            <MudSelect T="bool?" Value="f.Paid" ValueChanged="ChoosePaidAsync" Disabled="busy || DateRangeRule.IsInvalid(f.FromDate, f.ToDate)" Style="min-width:4.5rem">
-                <MudSelectItem T="bool?" Value="true">Y ได้</MudSelectItem>
-                <MudSelectItem T="bool?" Value="false">N ไม่ได้</MudSelectItem>
+        <td style="min-width:8rem;white-space:nowrap">
+            <MudSelect T="bool?" Value="f.Paid" ValueChanged="ChoosePaidAsync" Disabled="busy || DateRangeRule.IsInvalid(f.FromDate, f.ToDate)" Style="min-width:8rem" Class="leave-paid-select">
+                <MudSelectItem T="bool?" Value="true"><span style="white-space:nowrap">Y ได้</span></MudSelectItem>
+                <MudSelectItem T="bool?" Value="false"><span style="white-space:nowrap">N ไม่ได้</span></MudSelectItem>
             </MudSelect>
         </td>
         <td><MudTextField @bind-Value="f.Remark" MaxLength="LeaveRegistry.RemarkLength" Style="min-width:7rem" /></td>
