@@ -21,6 +21,10 @@ public sealed class WelfareFundTableTests
     public void The_name_field_is_cut_into_title_first_and_last(string full, string title, string first, string last)
         => Assert.Equal((title, first, last), WelfareFundTable.SplitName(full));
 
+    [Fact] // UAT7-4: the date in the file name is พ.ศ. as the screens, not ค.ศ.
+    public void The_file_name_carries_the_date_in_the_buddhist_year()
+        => Assert.Equal("ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง 2569-10-26", WelfareFundTable.FileName(new DateOnly(2026, 10, 26)));
+
     [Fact]
     public void The_sheet_has_the_funds_header_and_one_row_per_employee_in_the_funds_column_order()
     {

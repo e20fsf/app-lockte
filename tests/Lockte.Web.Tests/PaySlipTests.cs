@@ -118,6 +118,20 @@ public sealed class PaySlipTests
         return new PaySlipBatch(period, Enumerable.Range(1, count).Select(i => slip with { Code = $"A{i:D3}" }).ToList(), signers);
     }
 
+    [Theory] // UAT7-4: the head of the เงินสงเคราะห์ columns names the rate of the งวด from the table, not a fixed 0.25%
+    [InlineData(null, "0.25%")]  // no range set for the งวด: the built-in rate
+    [InlineData("0.25", "0.25%")]
+    [InlineData("0.50", "0.5%")]
+    public void The_welfare_heads_show_the_rate_of_the_period(string? percent, string shown)
+    {
+        var batch = Batch(1) with { WelfarePercent = percent is null ? null : decimal.Parse(percent, CultureInfo.InvariantCulture) };
+
+        var texts = Texts(PaySlipForm.Layout(batch)[0]).Select(t => t.Text).ToList();
+
+        Assert.Contains($"ลูกจ้าง ({shown})", texts);
+        Assert.Contains($"บริษัท ({shown})", texts);
+    }
+
     /// <summary>The texts of an SVG page with their x and baseline.</summary>
     private static List<(double X, double Y, string Text)> Texts(FormPage page)
         => Regex.Matches(page.ToSvg(), "<text x=\"([\\d.]+)\" y=\"([\\d.]+)\"[^>]*>([^<]*)</text>")

@@ -15,6 +15,9 @@ public static class WelfareFundTable
 {
     public const string Title = "ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง";
 
+    /// <summary>"ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง 2569-10-26" (UAT7-4: the year of the file name is พ.ศ. as the screens; without the extension).</summary>
+    public static string FileName(DateOnly to) => Title + " " + to.ToString("yyyy-MM-dd", Lockte.SharedKernel.ThaiDate.Culture);
+
     /// <summary>Longest first, so "นางสาว" is not read as "นาง".</summary>
     private static readonly string[] Titles =
         ["เด็กหญิง", "เด็กชาย", "นางสาว", "น.ส.", "นาง", "นาย", "ด.ช.", "ด.ญ.", "Miss", "Mrs.", "Mr.", "Ms.", "Mrs", "Mr", "Ms"];
