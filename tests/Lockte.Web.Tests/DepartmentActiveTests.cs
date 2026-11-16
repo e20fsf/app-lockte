@@ -1,6 +1,7 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Lockte.Hr;
 using Lockte.Org;
+using Microsoft.EntityFrameworkCore;
 using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Audit;
@@ -127,5 +128,47 @@ public sealed class DepartmentActiveTests(LocalDbFixture db)
 
         Assert.True(checkedPages >= 10, $"expected to find the department choices, found {checkedPages}");
         Assert.Empty(offenders);
+    }
+
+    private async Task<DepartmentDto> ActiveDepartmentNamedAsync(string name)
+    {
+        await using var scope = db.Scope("hr1");
+        var org = scope.Get<OrgRegistry>();
+        var existing = (await scope.Get<OrgDirectory>().GetDepartmentsAsync()).FirstOrDefault(d => d.Name == name);
+        if (existing is null)
+        {
+            var sectionId = (await org.SaveSectionAsync(new SectionInput(null, Unique("ผลิต"), 1, null))).Id!.Value;
+            var id = (await org.SaveDepartmentAsync(new DepartmentInput(null, Unique("D"), name, "D", 3, sectionId, null, [], null))).Id!.Value;
+            return (await scope.Get<OrgDirectory>().GetDepartmentAsync(id))!;
+        }
+        if (!existing.IsActive) Assert.True((await org.SetDepartmentActiveAsync(existing.Id, true, existing.RowVersion)).Succeeded);
+        return (await scope.Get<OrgDirectory>().GetDepartmentAsync(existing.Id))!;
+    }
+
+    private async Task RunRetireStepAsync()
+    {
+        await using var scope = db.Scope("hr1");
+        await scope.Get<Lockte.Org.Data.OrgDbContext>().Database.ExecuteSqlRawAsync(Lockte.Org.Data.Migrations.RetireDecorate2Department.RetireSql);
+    }
+
+    /// <summary>#472: the upgrade step retires ตกแต่ง 2 / ตกแต่ง2 only; running it again changes nothing; nothing else is touched.</summary>
+    [Fact]
+    public async Task The_one_time_step_retires_decorate_2_by_name_only_and_is_safe_to_repeat()
+    {
+        var spaced = await ActiveDepartmentNamedAsync("ตกแต่ง 2");
+        var joined = await ActiveDepartmentNamedAsync("ตกแต่ง2");
+        var other = await NewDepartmentAsync();
+
+        await RunRetireStepAsync();
+        var (_, active) = await ListsAsync();
+        Assert.DoesNotContain(active, d => d.Id == spaced.Id);
+        Assert.DoesNotContain(active, d => d.Id == joined.Id);
+        Assert.Contains(active, d => d.Id == other.Id);
+
+        var (allAfterFirst, _) = await ListsAsync();
+        await RunRetireStepAsync();
+        var (allAfterSecond, _) = await ListsAsync();
+        Assert.Equal(allAfterFirst.Select(d => (d.Id, d.IsActive)), allAfterSecond.Select(d => (d.Id, d.IsActive)));
+        Assert.Contains(allAfterSecond, d => d.Id == spaced.Id && !d.IsActive); // kept, not deleted
     }
 }
