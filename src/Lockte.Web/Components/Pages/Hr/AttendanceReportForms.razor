@@ -102,7 +102,7 @@
 
     private static readonly Dictionary<string, Form> Forms = new()
     {
-        ["warnings"] = new("พิมพ์รายงานใบเตือน", "reports/hr/warnings", 4),
+        ["warnings"] = new("พิมพ์รายงานใบเตือน", "reports/hr/warnings", 4, Employee: EmployeeChoice.Optional),
         ["leave-department"] = new("พิมพ์ลางานทั้งแผนก", "reports/hr/leave/department", 17,
             Department: DepartmentChoice.Optional, Headcount: true, WorkDays: true),
         ["resignation-summary"] = new("สรุปใบลาออกรายเดือน", "reports/hr/resignation-summary", 18, Department: DepartmentChoice.Optional),

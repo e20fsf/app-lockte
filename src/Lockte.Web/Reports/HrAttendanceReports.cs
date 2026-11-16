@@ -27,12 +27,12 @@ public static class HrAttendanceReports
                 "สรุปใบลาออก " + Iso(report.From), cancellationToken);
         });
 
-        // RPT-30 รายงานพนักงานที่ได้รับใบเตือน (เมนู 4)
-        reports.MapGet("/hr/warnings", async (DateOnly? from, DateOnly? to, HttpContext http, WarningDirectory warnings, ReportPrinter printer,
+        // RPT-30 รายงานพนักงานที่ได้รับใบเตือน (เมนู 4): ?employee= one employee (none = ทุกคน, UAT7-6)
+        reports.MapGet("/hr/warnings", async (DateOnly? from, DateOnly? to, int? employee, HttpContext http, WarningDirectory warnings, ReportPrinter printer,
             CancellationToken cancellationToken) =>
         {
             if (Range(from, to) is { } bad) return bad;
-            var report = await warnings.GetReportAsync(from!.Value, to!.Value);
+            var report = await warnings.GetReportAsync(from!.Value, to!.Value, employee);
             return await PrintAsync<WarningReportView>(http, printer, WarningReportView.Title, Paper.A5Landscape, report,
                 "ใบเตือน " + Iso(report.From), cancellationToken);
         });

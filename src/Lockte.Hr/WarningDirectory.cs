@@ -24,10 +24,15 @@ public sealed class WarningDirectory(HrDbContext db, OrgDirectory org)
     /// sorting). The legacy printed its current table — the warnings since the last ย้ายข้อมูลใบเตือน (BR-040); with one
     /// table for every year (#41) the dates choose them instead.
     /// </summary>
-    public async Task<WarningReport> GetReportAsync(DateOnly from, DateOnly to)
+    /// <remarks>
+    /// <paramref name="employeeId"/> (UAT7-6, #467) prints one person's warnings instead of everyone's; the person is chosen
+    /// on purpose, so a resigned employee is not left out.
+    /// </remarks>
+    public async Task<WarningReport> GetReportAsync(DateOnly from, DateOnly to, int? employeeId = null)
     {
         var rows = await db.Warnings.AsNoTracking()
-            .Where(w => w.Employee.ResignDate == null && w.Date >= from && w.Date <= to)
+            .Where(w => w.Date >= from && w.Date <= to
+                && (employeeId == null ? w.Employee.ResignDate == null : w.EmployeeId == employeeId))
             .Select(w => new { w.Id, w.Date, w.Employee.Code, w.Employee.Name, w.DepartmentId, w.Level, w.Remark })
             .ToListAsync();
         var departments = await DepartmentNamesAsync();

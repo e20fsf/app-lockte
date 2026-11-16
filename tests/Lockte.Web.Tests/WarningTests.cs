@@ -156,12 +156,37 @@ public sealed class WarningTests(LocalDbFixture db)
 
         var report = await AsHrAsync(s => s.Get<WarningDirectory>().GetReportAsync(Day(5, 1), Day(12, 31)));
 
+        // The fixture's database is shared by the tests of this class: look only at this test's own people.
+        var own = report.Lines.Where(l => l.EmployeeCode is "W901" or "W902" or "W903").ToList();
         Assert.Equal(
             [
                 new WarningReportLine(Day(5, 20), "W901", first.Name, department.Name, "ใบเตือนเป็นหนังสือ", "ข้อ 2"),
                 new WarningReportLine(Day(6, 1), "W901", first.Name, department.Name, "เลิกจ้าง", "ข้อ 3"),
                 new WarningReportLine(Day(5, 1), "W902", second.Name, department.Name, "ใบเตือนด้วยวาจา", "ข้อ 1"),
             ],
-            report.Lines);
+            own);
+    }
+
+    [Fact] // UAT7-6 (#467): พิมพ์แยกรายคน — only that person's rows in the dates; the all-employees report is unchanged
+    public async Task The_report_can_be_limited_to_one_employee()
+    {
+        var department = await NewDepartmentAsync();
+        var first = await NewEmployeeAsync(department, code: "W911");
+        var second = await NewEmployeeAsync(department, code: "W912");
+        var resigned = await NewEmployeeAsync(department, resign: Day(1, 31), code: "W913");
+        await AddAsync(first, Day(5, 20), WarningLevels.Written, "ข้อ 2");
+        await AddAsync(first, Day(4, 30)); // before the dates
+        await AddAsync(second, Day(5, 1), WarningLevels.Verbal, "ข้อ 1");
+        await AddAsync(resigned, Day(5, 2), WarningLevels.Verbal, "ข้อ 4");
+
+        var one = await AsHrAsync(s => s.Get<WarningDirectory>().GetReportAsync(Day(5, 1), Day(12, 31), first.Id));
+        var line = Assert.Single(one.Lines);
+        Assert.Equal(new WarningReportLine(Day(5, 20), "W911", first.Name, department.Name, "ใบเตือนเป็นหนังสือ", "ข้อ 2"), line);
+
+        var gone = await AsHrAsync(s => s.Get<WarningDirectory>().GetReportAsync(Day(5, 1), Day(12, 31), resigned.Id));
+        Assert.Equal("W913", Assert.Single(gone.Lines).EmployeeCode);
+
+        var all = await AsHrAsync(s => s.Get<WarningDirectory>().GetReportAsync(Day(5, 1), Day(12, 31)));
+        Assert.Equal(["W911", "W912"], all.Lines.Where(l => l.EmployeeCode is "W911" or "W912" or "W913").Select(l => l.EmployeeCode));
     }
 }
