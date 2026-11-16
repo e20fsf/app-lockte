@@ -93,7 +93,7 @@ powershell -ExecutionPolicy Bypass -File .\deploy\Build-Package.ps1 -AppOnly   #
 ## 9. การตั้งค่าที่ผู้ดูแลต้องกรอก (ข้อมูล ไม่ใช่โค้ด)
 
 - `Employer:Office`, `Employer:Workplace` (ที่อยู่ที่ใช้หัวสลิป/เอกสาร; ถนนของที่ตั้งโรงงานตั้งที่ `Employer:Workplace:Road`)
-- `Employer:PersonnelOfficerName` (เจ้าหน้าที่บุคคลบนใบลาออก)
+- `Employer:PersonnelOfficerName` (เจ้าหน้าที่บุคคลบนใบลาออก); ค่าตั้งต้นของบริษัท (ผู้จัดการ คร.2, เจ้าหน้าที่บุคคล, เบอร์สำนักงาน, ถนนโรงงาน) commit ไว้ใน `appsettings.json` — appsettings.Production.json และหน้า "ผู้ลงนามบนแบบฟอร์ม" ทับได้ (#462)
 - ชื่อผู้ลงนามบนสลิป/ผู้จัดการแผนก (ตั้งในหน้าตั้งค่าของแอป), ชื่อผู้จัดการสำหรับ คร.2
 - เลิกใช้แผนกที่ไม่ใช้แล้ว (เช่น "ตกแต่ง2") ที่หน้าแผนกในแอป: แผนกที่เลิกใช้จะไม่โผล่ใน dropdown
 - เปลี่ยนรหัสผ่านบัญชี Administrator ของ Windows และ `sa` ที่ยังเปิดอยู่
