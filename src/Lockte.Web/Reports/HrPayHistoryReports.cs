@@ -38,17 +38,25 @@ public static class HrPayHistoryReports
             return ReportsRegistration.Pdf(http, pdf, title);
         });
 
-        // ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (SCR-43, UAT-23): Excel ตามแบบกองทุน, ช่วงวันที่/แผนกเดียวกับ "พิมพ์"
-        reports.MapGet("/hr/pay/month-end/welfare-fund", async (DateOnly? from, DateOnly? to, int? department, PayHistoryReportDirectory pay,
-            IOptionsSnapshot<EmployerOptions> employer, TimeProvider clock) =>
+        // ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (SCR-43, UAT-23): Excel ตามแบบกองทุน (+ PDF ?format=pdf, UAT7-4), ช่วงวันที่/แผนกเดียวกับ "พิมพ์"
+        reports.MapGet("/hr/pay/month-end/welfare-fund", async (DateOnly? from, DateOnly? to, int? department, string? format, HttpContext http,
+            PayHistoryReportDirectory pay, IOptionsSnapshot<EmployerOptions> employer, TimeProvider clock, ReportPrinter printer,
+            CancellationToken cancellationToken) =>
         {
             if (Range(from, to) is { } bad) return bad;
             var report = await pay.GetWelfareFundReportAsync(from!.Value, to!.Value, department);
             // UAT-43: no rate set for a งวด (or two rates) is said, not guessed; the page checks first and shows the same text.
             if (report.RateProblem is { } problem) return Results.Text(problem, statusCode: StatusCodes.Status409Conflict);
             var table = WelfareFundTable.Build(report, employer.Value.Name, DateOnly.FromDateTime(clock.GetLocalNow().DateTime));
-            return Results.File(Order.XlsxWriter.Write(table), Order.XlsxWriter.ContentType,
-                "ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง " + Iso(report.To) + ".xlsx");
+            var fileName = WelfareFundTable.FileName(report.To);
+            // UAT7-4: the same table as a PDF (?format=pdf) beside the Excel (the default); same dates and แผนก.
+            if (string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                var pdf = await printer.PrintAsync<Order.SummaryTableView>(table.Title, Paper.A4Landscape, new() { ["Table"] = table },
+                    AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken, program: ReportProgram.Hr);
+                return ReportsRegistration.Pdf(http, pdf, fileName);
+            }
+            return Results.File(Order.XlsxWriter.Write(table), Order.XlsxWriter.ContentType, fileName + ".xlsx");
         });
 
         // RPT-09 สรุปค่าแรงแต่ละเดือน (เมนู 9): วันที่จ่าย within the dates

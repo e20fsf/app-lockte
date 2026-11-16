@@ -131,7 +131,8 @@ public static class PaySlipForm
             else { T(middle, headUp, first, TextAnchor.Middle, headSmall, fit); T(middle, headDown, second, TextAnchor.Middle, headSmall, fit); }
         }
         void Value(int column, decimal value) => T((TotalsEdges[column] + TotalsEdges[column + 1]) / 2, totals, ReportText.Baht(value), TextAnchor.Middle);
-        Head(0, "ATM"); Head(1, "ประกันสังคม"); Head(2, "กองทุนสงเคราะห์", "ลูกจ้าง (0.25%)"); Head(3, "กองทุนสงเคราะห์", "บริษัท (0.25%)");
+        Head(0, "ATM"); Head(1, "ประกันสังคม"); var percent = WelfareRateTable.PercentText(batch.HeadPercent);
+        Head(2, "กองทุนสงเคราะห์", $"ลูกจ้าง ({percent})"); Head(3, "กองทุนสงเคราะห์", $"บริษัท ({percent})");
         Head(4, "รวมเงินสะสม", "ทั้งหมด"); Head(5, "ภาษี"); Head(6, "โบนัส"); Head(7, "ค่าพักร้อน"); Head(8, "รวมค่าแรง"); Head(9, "เงินได้สุทธิ");
         if (s.Atm is { } atm) T(TotalsEdges[1] - 1.03, totals, Forms.FormFormat.Standard((double)atm, 2), TextAnchor.End);
         Value(2, s.WelfareEmployee); Value(3, s.WelfareCompany); Value(4, s.WelfareAccumulated);

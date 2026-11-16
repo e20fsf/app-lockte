@@ -52,8 +52,10 @@
         {
             <MudButton Variant="Variant.Outlined" Href="@PdfUrl("reports/hr/pay/month-end/summary")" Target="_blank"
                        Disabled="@(Problem is not null)">พิมพ์สรุป</MudButton>
-            <MudButton Variant="Variant.Outlined" OnClick="WelfareFundAsync" Disabled="@(Problem is not null || busy)"
-                       StartIcon="@Icons.Material.Filled.TableView">ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => WelfareFundAsync(false))" Disabled="@(Problem is not null || busy)"
+                       StartIcon="@Icons.Material.Filled.TableView">ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (Excel)</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => WelfareFundAsync(true))" Disabled="@(Problem is not null || busy)"
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf">ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (PDF)</MudButton>
         }
     </MudStack>
     @if (Kind == "month-end")
@@ -117,7 +119,7 @@
     private bool busy;
 
     /// <summary>UAT-43: the Excel only when every งวด of the dates has a rate; else the reason stays on the page.</summary>
-    private async Task WelfareFundAsync()
+    private async Task WelfareFundAsync(bool pdf)
     {
         if (Problem is not null) return;
         busy = true;
@@ -127,7 +129,7 @@
             var department = departmentId;
             var rate = await Services.RunAsync<PayHistoryReportDirectory, (decimal? Percent, string? Problem)>(p => p.WelfareRateOfAsync(f, t, department));
             welfareProblem = rate.Problem;
-            if (welfareProblem is null) Navigation.NavigateTo(PdfUrl("reports/hr/pay/month-end/welfare-fund"), forceLoad: true);
+            if (welfareProblem is null) Navigation.NavigateTo(PdfUrl("reports/hr/pay/month-end/welfare-fund") + (pdf ? "&format=pdf" : ""), forceLoad: true);
         }
         finally
         {
