@@ -4,7 +4,7 @@
 @inject ScopedServices Services
 
 @* เลือก JIG ที่ต้องการพิมพ์ (SCR-05): one button for every sheet of the model of JIG, opening its PDF in a new tab. The buttons are made from the sheets QA maintains (#199), so a model added
-   there appears here. "JIG วัดศูนย์" is RPT-05 (23 sheets including PIN GAUGE and TAPER GAUGE), "JIG กรอ" RPT-06 (19 sheets, none for 068, 168, PIN and TAPER). *@
+   there appears here. "JIG วัดศูนย์" is RPT-05 (23 sheets including PIN GAUGE and TAPER GAUGE), "JIG กรอ" RPT-06 (21 sheets, none for PIN and TAPER); each group ends with a blank form to write by hand (#478). *@
 <PageTitle>เลือก JIG ที่ต้องการพิมพ์ — LOCKTE</PageTitle>
 <h1 class="mb-4">เลือก JIG ที่ต้องการพิมพ์</h1>
 
@@ -21,6 +21,7 @@ else
             {
                 <MudButton Variant="Variant.Outlined" Href="@($"reports/calib/jig/{sheet.Id}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print">@sheet.ModelKey</MudButton>
             }
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="reports/calib/jig/blank/zero" Target="_blank" StartIcon="@Icons.Material.Filled.Description">แบบฟอร์มเปล่า</MudButton>
         </MudStack>
     </MudPaper>
     <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
@@ -30,6 +31,7 @@ else
             {
                 <MudButton Variant="Variant.Outlined" Href="@($"reports/calib/jig/{sheet.Id}")" Target="_blank" StartIcon="@Icons.Material.Filled.Print">@sheet.ModelKey</MudButton>
             }
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="reports/calib/jig/blank/grinding" Target="_blank" StartIcon="@Icons.Material.Filled.Description">แบบฟอร์มเปล่า</MudButton>
         </MudStack>
     </MudPaper>
 }

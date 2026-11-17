@@ -14,6 +14,14 @@ public static class JigInspectionReports
             var page = JigInspectionForm.Page(sheet, await images.GetAsync(sheet.Id), await numbers.PrintedTextAsync(sheet.DocumentKey));
             return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Calib, JigInspectionForm.TitleOf(sheet), [page], cancellationToken), JigInspectionForm.FileName(sheet));
         });
+        // แบบฟอร์มเปล่า (#478): /calib/jig/blank/zero or /grinding, nothing typed on it, to write by hand
+        reports.MapGet("/calib/jig/blank/{kind}", async (string kind, ReportPrinter printer, HttpContext http, CancellationToken cancellationToken) =>
+        {
+            JigSheetType? type = kind switch { "zero" => JigSheetType.ZeroCheck, "grinding" => JigSheetType.Grinding, _ => null };
+            if (type is not { } t) return Results.NotFound("ไม่พบแบบฟอร์ม");
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Calib, JigInspectionForm.BlankTitleOf(t), [JigInspectionForm.BlankPage(t)], cancellationToken),
+                JigInspectionForm.BlankFileName(t));
+        });
         return reports;
     }
 }

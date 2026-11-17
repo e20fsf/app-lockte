@@ -27,7 +27,24 @@ public static class JigInspectionForm
     /// <summary><c>Diameter 20.00 ± 0.20 mm.</c> or <c>Length &gt;15.00</c>: the kind of the point, the value and its tolerance as the sheet prints them.</summary>
     public static string SpecificationOf(JigPointDto point) => $"{point.Kind} {point.SpecificationText}";
 
-    public static FormPage Page(JigSheetDto sheet, JigImageData? image, string? documentNumber)
+    /// <summary>
+    /// แบบฟอร์มเปล่า (#478): the sheet of a kind with no JIG, no number and no specification typed — the points are only labelled, to be written by hand. Zero-check has
+    /// P1–P6 (the points of most models), grinding P1–P3.
+    /// </summary>
+    public static JigSheetDto BlankSheet(JigSheetType type)
+    {
+        var labels = type == JigSheetType.Grinding ? new[] { "P1", "P2", "P3" } : ["P1", "P2", "P3", "P4", "P5", "P6"];
+        return new JigSheetDto(0, type, "", "", "", 0, false,
+            labels.Select((l, i) => new JigPointDto(i + 1, l, JigPointKind.Dimension, 0m, JigToleranceKind.PlusMinus, 0m, [])).ToList(), []);
+    }
+
+    public static string BlankTitleOf(JigSheetType type) => TitleOf(BlankSheet(type));
+
+    public static string BlankFileName(JigSheetType type) => $"ฟอร์มเปล่า {(type == JigSheetType.Grinding ? "JIG กรอ" : "JIG วัดศูนย์")}";
+
+    public static FormPage BlankPage(JigSheetType type) => Page(BlankSheet(type), null, null, blank: true);
+
+    public static FormPage Page(JigSheetDto sheet, JigImageData? image, string? documentNumber, bool blank = false)
     {
         var page = new FormPage(Paper.A4Portrait);
         page.Text(105, 16, Company, 18, TextAnchor.Middle, bold: true);
@@ -47,13 +64,13 @@ public static class JigInspectionForm
         page.Text(Left + 7, 67, "สอบเทียบภายใน", 14);
         // the label runs to about x = 124 mm at 14 pt: the dotted line starts after it (it used to start at 112 and run through the last words)
         Field(page, 67, 62, 127, Right, "หมายเลขเวอร์เนียที่ใช้(ผ่านการสอบเทียบแล้ว)", null);
-        Field(page, 76, Left, 54, 105, "ขีดจำกัดที่ยอมรับได้", "± 0.20 mm.");
+        Field(page, 76, Left, 54, 105, "ขีดจำกัดที่ยอมรับได้", blank ? null : "± 0.20 mm.");
 
         // the picture of the JIG, an empty frame when the sheet has none
         page.Box(30, 82, 150, 62, 0.4);
         if (image is not null) page.Image(31, 83, 148, 60, image.ContentType, image.Data);
 
-        Table(page, sheet);
+        Table(page, sheet, blank);
         var y = TableTop + HeaderHeight + sheet.Points.Count * RowHeight + 10;
         page.Text(Left, y, "ผลการตรวจสอบ", 14, bold: true);
         page.Box(48, y - 3.6, 4.6, 4.6);
@@ -87,7 +104,7 @@ public static class JigInspectionForm
         (12, 28, "Point"), (28, 82, "ค่าที่กำหนด (Specification)"), (82, 102, "1"), (102, 122, "2"), (122, 142, "3"), (142, 160, "ค่าเฉลี่ย"), (160, 178, "ค่าผิดพลาด"), (178, 198, "หมายเหตุ"),
     ];
 
-    private static void Table(FormPage page, JigSheetDto sheet)
+    private static void Table(FormPage page, JigSheetDto sheet, bool blank)
     {
         var rows = sheet.Points.Count;
         var bottom = TableTop + HeaderHeight + rows * RowHeight;
@@ -106,7 +123,7 @@ public static class JigInspectionForm
             if (i > 0) page.Line(Left, top, Right, top, 0.25);
             var point = sheet.Points[i];
             page.Text(20, top + 5.6, point.Label, 13, TextAnchor.Middle);
-            page.Text(55, top + 5.6, SpecificationOf(point), 13, TextAnchor.Middle, fit: 50);
+            if (!blank) page.Text(55, top + 5.6, SpecificationOf(point), 13, TextAnchor.Middle, fit: 50);
         }
     }
 

@@ -133,12 +133,36 @@ public sealed class JigInspectionFormTests(ChromiumFixture chromium)
     public void The_name_of_the_jig_is_printed_on_every_grinding_sheet_233_061_and_143_included()
         => Assert.All(JigInspectionSeed.Sheets.Where(s => s.Type == JigSheetType.Grinding), s => Assert.Contains($">{s.Title}<", Svg(Sheet(JigSheetType.Grinding, s.ModelKey))));
 
-    [Fact] // 19 sheets, none for 068, 168, PIN GAUGE, TAPER GAUGE
-    public void There_is_no_grinding_sheet_for_the_four_models_without_one()
+    [Fact] // 21 sheets (068 and 168 added in #478), none for PIN GAUGE, TAPER GAUGE
+    public void There_is_no_grinding_sheet_for_pin_and_taper_gauge()
     {
         var models = JigInspectionSeed.Sheets.Where(s => s.Type == JigSheetType.Grinding).Select(s => s.ModelKey).ToList();
-        Assert.Equal(19, models.Count);
-        foreach (var none in new[] { "068", "168", "PIN GAUGE", "TAPER GAUGE" }) Assert.DoesNotContain(none, models);
+        Assert.Equal(21, models.Count);
+        foreach (var none in new[] { "PIN GAUGE", "TAPER GAUGE" }) Assert.DoesNotContain(none, models);
+        Assert.Contains(">Diameter 12.00 ± 0.20 mm.<", Svg(Sheet(JigSheetType.Grinding, "068")));
+        Assert.Contains(">Length 21.20 ± 0.20 mm.<", Svg(Sheet(JigSheetType.Grinding, "168")));
+    }
+
+    [Theory] // #478: the blank form has the head and the empty table but no specification, no JIG name, no number, no limit
+    [InlineData(JigSheetType.ZeroCheck, 6, "รายงานการตรวจสอบ JIG วัดศูนย์ก้ามเบรก", "ฟอร์มเปล่า JIG วัดศูนย์")]
+    [InlineData(JigSheetType.Grinding, 3, "รายงานการตรวจสอบ JIG กรอก้ามเบรก", "ฟอร์มเปล่า JIG กรอ")]
+    public async Task A_blank_form_has_no_specification_and_is_one_page(JigSheetType type, int points, string title, string file)
+    {
+        var page = JigInspectionForm.BlankPage(type);
+        var svg = System.Net.WebUtility.HtmlDecode(page.ToSvg());
+        Assert.Contains($">{title}<", svg);
+        Assert.Contains($">P{points}<", svg);
+        Assert.DoesNotContain($">P{points + 1}<", svg);
+        Assert.DoesNotContain("mm.<", svg);
+        Assert.DoesNotContain(">Diameter", svg);
+        Assert.DoesNotContain(">Length", svg);
+        Assert.DoesNotContain(">Wide", svg);
+        Assert.DoesNotContain(">Dimension", svg);
+        Assert.DoesNotContain("WI-QA049-", svg, StringComparison.Ordinal); // the manual "WI-QA049" itself stays printed, the document number does not
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(JigInspectionForm.BlankTitleOf(type), [page]), page.Paper);
+        Keep($"calib-jig-blank-{type}", pdf);
+        Assert.Equal(1, Pages(pdf));
+        Assert.Equal(file, JigInspectionForm.BlankFileName(type));
     }
 
     [Fact]
