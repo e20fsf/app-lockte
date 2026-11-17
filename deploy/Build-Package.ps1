@@ -10,9 +10,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..')
-$version = '{0}-{1}' -f (Get-Date -Format 'yyyyMMdd'), (git -C $repo rev-parse --short HEAD)
+$version = '{0}-{1}' -f (Get-Date -Format 'yyyyMMdd-HHmm'),(git -C $repo rev-parse --short HEAD)
 if (git -C $repo status --porcelain --untracked-files=no) { $version += '-dirty' }
-if ($AppOnly) { $version += '-app-only' }
 
 Remove-Item $Out -Recurse -Force -ErrorAction SilentlyContinue
 $app = Join-Path $Out 'app'
