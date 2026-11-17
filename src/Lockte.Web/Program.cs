@@ -51,6 +51,8 @@ var app = builder.Build();
 
 if (args is ["reset-admin", .. var rest])
     return await ResetAdminCommand.RunAsync(app.Services, rest);
+if (args is ["round-pay-data", .. var roundArgs])
+    return await RoundPayDataCommand.RunAsync(app.Services, roundArgs);
 if (args is ["seed-purch-fake"])
     return await Lockte.Web.Seeding.SeedPurchFakeCommand.RunAsync(app.Services);
 if (args is ["seed-cash-fake"])

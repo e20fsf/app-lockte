@@ -77,7 +77,7 @@ public sealed class EmployeeListTableTests
 
         Assert.Equal("รายชื่อพนักงานแผนกตกแต่ง", table.Title);
         Assert.Equal(10, table.Columns.Count);
-        Assert.Contains("<v>587</v>", sheet); // ค่าแรง/วัน whole (#354); เงินเดือน keeps its satang
+        Assert.Contains("<v>587.32</v>", sheet); // ค่าแรง/วัน keeps its satang (#392); เงินเดือน is whole
         Assert.Contains("<v>12928</v>", sheet);
         Assert.Contains("รวม 2 คน", sheet);
         Assert.Contains("<v>50</v>", sheet); // (54 + 45) / 2 = 49.5 → 50
