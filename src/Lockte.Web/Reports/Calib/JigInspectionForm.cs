@@ -45,7 +45,8 @@ public static class JigInspectionForm
         page.Line(Left, 63.4, Left + 4.6, 68, 0.5);
         page.Line(Left + 4.6, 63.4, Left, 68, 0.5);
         page.Text(Left + 7, 67, "สอบเทียบภายใน", 14);
-        Field(page, 67, 62, 112, 150, "หมายเลขเวอร์เนียที่ใช้(ผ่านการสอบเทียบแล้ว)", null);
+        // the label runs to about x = 124 mm at 14 pt: the dotted line starts after it (it used to start at 112 and run through the last words)
+        Field(page, 67, 62, 127, Right, "หมายเลขเวอร์เนียที่ใช้(ผ่านการสอบเทียบแล้ว)", null);
         Field(page, 76, Left, 54, 105, "ขีดจำกัดที่ยอมรับได้", "± 0.20 mm.");
 
         // the picture of the JIG, an empty frame when the sheet has none
