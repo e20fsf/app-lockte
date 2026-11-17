@@ -13,10 +13,10 @@ public sealed class JigInspectionSeedTests
     private static string Spec(JigSheetSeed s) => string.Join(", ", s.Points.Select(p => $"{p.Label} {p.Kind} {p.Value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}{(p.Tolerance == JigToleranceKind.GreaterThan ? ">" : "±")}"));
 
     [Fact]
-    public void There_are_23_zero_check_sheets_and_19_grinding_sheets()
+    public void There_are_23_zero_check_sheets_and_21_grinding_sheets()
     {
         Assert.Equal(23, Of(JigSheetType.ZeroCheck).Count);
-        Assert.Equal(19, Of(JigSheetType.Grinding).Count);
+        Assert.Equal(21, Of(JigSheetType.Grinding).Count);
         Assert.Equal(Of(JigSheetType.ZeroCheck).Count, Of(JigSheetType.ZeroCheck).Select(s => s.ModelKey).Distinct().Count());
         Assert.Equal(JigInspectionSeed.Sheets.Count, JigInspectionSeed.Sheets.Select(s => s.DocumentKey).Distinct().Count());
     }
@@ -106,7 +106,7 @@ public sealed class JigSheetTests(LocalDbFixture db)
     public async Task The_migration_loaded_all_sheets_and_their_document_numbers()
     {
         var sheets = await AsQaAsync(s => s.Get<JigSheetDirectory>().ListAsync());
-        Assert.Equal((23, 19), (sheets.Count(s => s.Type == JigSheetType.ZeroCheck), sheets.Count(s => s.Type == JigSheetType.Grinding)));
+        Assert.Equal((23, 21), (sheets.Count(s => s.Type == JigSheetType.ZeroCheck), sheets.Count(s => s.Type == JigSheetType.Grinding)));
         foreach (var seed in JigInspectionSeed.Sheets)
         {
             var sheet = sheets.Single(s => s.Type == seed.Type && s.ModelKey == seed.ModelKey);

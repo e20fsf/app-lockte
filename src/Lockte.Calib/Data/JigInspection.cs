@@ -3,7 +3,7 @@ using Lockte.SharedKernel.Persistence;
 namespace Lockte.Calib.Data;
 
 /// <summary>
-/// แบบตรวจ JIG รายรุ่น (RPT-05 วัดศูนย์ / RPT-06 กรอ): the legacy printed these as 42 reports with the specifications typed into each; here
+/// แบบตรวจ JIG รายรุ่น (RPT-05 วัดศูนย์ / RPT-06 กรอ): the legacy printed these as 42 reports (44 sheets since #478) with the specifications typed into each; here
 /// they are master data QA edits. One sheet = one model of JIG, used for every instrument number of that model — not tied to the register (BR-031).
 /// </summary>
 internal sealed class JigInspectionSheet : IAudited
