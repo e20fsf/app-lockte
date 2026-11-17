@@ -47,6 +47,38 @@ namespace Lockte.Calib.Data.Migrations
                         .HasDefaultValue("เครื่องทดสอบแรงเสียดทาน สอบเทียบที่โรงงาน มีรายละเอียดดังนี้ 1.ความเร็วรอบมอเตอร์ 500 rpm 2.ตัวควบคุมอุณหภูมิ (temp control) 100,150,200,250 3. แรงกด 125 Kgs.")
                         .HasAnnotation("Lockte:AuditName", "หมายเหตุท้ายบัญชีสอบเทียบภายนอก");
 
+                    b.Property<string>("ManualCaliper")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("")
+                        .HasAnnotation("Lockte:AuditName", "คู่มือวิธีการที่ใช้เลขที่ (เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์)");
+
+                    b.Property<string>("ManualPressureGauge")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("")
+                        .HasAnnotation("Lockte:AuditName", "คู่มือวิธีการที่ใช้เลขที่ (เพรสเซอร์เกจ)");
+
+                    b.Property<string>("ManualScale")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("")
+                        .HasAnnotation("Lockte:AuditName", "คู่มือวิธีการที่ใช้เลขที่ (เครื่องชั่ง)");
+
+                    b.Property<string>("ManualTempControl")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("")
+                        .HasAnnotation("Lockte:AuditName", "คู่มือวิธีการที่ใช้เลขที่ (ตัวควบคุมอุณหภูมิ)");
+
                     b.Property<int>("PlanExternalMonth")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")

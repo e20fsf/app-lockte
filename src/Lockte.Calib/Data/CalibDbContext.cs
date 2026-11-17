@@ -40,6 +40,10 @@ public sealed class CalibDbContext(DbContextOptions<CalibDbContext> options) : M
             s.Property(x => x.TempControlName).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.TempControlName).HasAuditName("ชื่อเครื่องมือ (บันทึกผลตัวควบคุมอุณหภูมิ)");
             s.Property(x => x.TempControlRange).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.TempControlRange).HasAuditName("พิกัดใช้งาน (บันทึกผลตัวควบคุมอุณหภูมิ)");
             s.Property(x => x.TempControlLimit).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue(CalibSettingsDefaults.TempControlLimit).HasAuditName("ขีดจำกัด (บันทึกผลตัวควบคุมอุณหภูมิ)");
+            s.Property(x => x.ManualCaliper).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue("").HasAuditName("คู่มือวิธีการที่ใช้เลขที่ (เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์)");
+            s.Property(x => x.ManualScale).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue("").HasAuditName("คู่มือวิธีการที่ใช้เลขที่ (เครื่องชั่ง)");
+            s.Property(x => x.ManualPressureGauge).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue("").HasAuditName("คู่มือวิธีการที่ใช้เลขที่ (เพรสเซอร์เกจ)");
+            s.Property(x => x.ManualTempControl).HasMaxLength(CalibSettingsRegistry.ShortTextLength).HasDefaultValue("").HasAuditName("คู่มือวิธีการที่ใช้เลขที่ (ตัวควบคุมอุณหภูมิ)");
         });
 
         modelBuilder.Entity<Instrument>(i =>

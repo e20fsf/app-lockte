@@ -16,8 +16,18 @@ public static class RecordReports
     /// instrument whatever its own range — Q-13), หมายเลข "ทุกเครื่อง", and the calibrator and company boxes empty.
     /// </summary>
     public static RecordHead FixedHead(InstrumentKind kind, CalibSettingsDto settings) => kind == InstrumentKind.PressureGauge
-        ? new RecordHead(settings.PressureGaugeName, AllMachines, settings.PressureGaugeRange, settings.PressureGaugeLimit, null, null, null, false)
-        : new RecordHead(settings.TempControlName, AllMachines, settings.TempControlRange, settings.TempControlLimit, null, null, null, false);
+        ? new RecordHead(settings.PressureGaugeName, AllMachines, settings.PressureGaugeRange, settings.PressureGaugeLimit, null, null, null, false, RecordForm.Manual(null, settings.ManualPressureGauge))
+        : new RecordHead(settings.TempControlName, AllMachines, settings.TempControlRange, settings.TempControlLimit, null, null, null, false, RecordForm.Manual(null, settings.ManualTempControl));
+
+    /// <summary>The manual number the settings hold for the internal kinds printed from the register (#476).</summary>
+    public static string? KindManual(InstrumentKind kind, CalibSettingsDto settings) => kind switch
+    {
+        InstrumentKind.Caliper => settings.ManualCaliper,
+        InstrumentKind.Scale => settings.ManualScale,
+        InstrumentKind.PressureGauge => settings.ManualPressureGauge,
+        InstrumentKind.TempControl => settings.ManualTempControl,
+        _ => null,
+    };
 
     public const string AllMachines = "ทุกเครื่อง";
 
@@ -28,13 +38,14 @@ public static class RecordReports
         {
             if (InstrumentKindInfo.Find(kind) is not { } info || !(IsPerInstrument(info.Kind) || IsFixed(info.Kind))) return Results.NotFound("ไม่พบชนิดเครื่องมือวัด");
             IReadOnlyList<RecordHead> heads;
-            if (IsFixed(info.Kind)) heads = [FixedHead(info.Kind, await settings.GetAsync())];
+            var calibSettings = await settings.GetAsync();
+            if (IsFixed(info.Kind)) heads = [FixedHead(info.Kind, calibSettings)];
             else
             {
                 var rows = await instruments.ListAsync(info.Kind);
                 if (instrument is { } id) rows = rows.Where(i => i.Id == id).ToList();
                 if (rows.Count == 0) return Results.NotFound("ไม่พบเครื่องมือวัด");
-                heads = rows.Select(RecordForm.HeadOf).ToList();
+                heads = rows.Select(i => RecordForm.HeadOf(i, KindManual(info.Kind, calibSettings))).ToList();
             }
             var pages = RecordForm.Layout(heads, await numbers.PrintedTextAsync(DocumentKeys.CalibRecord));
             return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Calib, RecordForm.Title, pages, cancellationToken), "บันทึกผลการสอบเทียบ " + info.Key);

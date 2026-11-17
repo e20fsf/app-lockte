@@ -30,6 +30,11 @@ internal sealed class CalibSettings : IAudited
     public string TempControlName { get; set; } = CalibSettingsDefaults.TempControlName;
     public string TempControlRange { get; set; } = CalibSettingsDefaults.TempControlRange;
     public string TempControlLimit { get; set; } = CalibSettingsDefaults.TempControlLimit;
+    /// <summary>คู่มือวิธีการที่ใช้เลขที่ ของบันทึกผลสอบเทียบภายใน แยกตามชนิด (#476); ว่าง = ยังไม่ได้กรอก พิมพ์ช่องว่าง.</summary>
+    public string ManualCaliper { get; set; } = "";
+    public string ManualScale { get; set; } = "";
+    public string ManualPressureGauge { get; set; } = "";
+    public string ManualTempControl { get; set; } = "";
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

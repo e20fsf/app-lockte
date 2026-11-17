@@ -51,6 +51,16 @@ else
         </MudStack>
     </MudPaper>
     <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
+        <MudText Typo="Typo.h6">คู่มือวิธีการที่ใช้เลขที่ (RPT-03 สอบเทียบภายใน)</MudText>
+        <MudText Typo="Typo.caption">พิมพ์ลงช่อง "คู่มือวิธีการที่ใช้เลขที่" ของบันทึกผลทุกใบของชนิดนั้น (JIG พิมพ์ WI-QA049 ตามแบบเดิม) — ถ้าเครื่องมือวัดตัวใดมีเลขของตัวเอง (ในหน้าแก้ไขเครื่องมือ) จะพิมพ์เลขของตัวนั้นแทน ว่าง = ไม่พิมพ์</MudText>
+        <MudStack Row="true" Spacing="2" Class="mt-2" Wrap="Wrap.Wrap">
+            <MudTextField @bind-Value="form.ManualCaliper" Label="เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.ManualScale" Label="เครื่องชั่ง" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.ManualPg" Label="เพรสเซอร์เกจ" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+            <MudTextField @bind-Value="form.ManualTc" Label="ตัวควบคุมอุณหภูมิ" MaxLength="CalibSettingsRegistry.ShortTextLength" Style="max-width:14rem" />
+        </MudStack>
+    </MudPaper>
+    <MudPaper Outlined="true" Class="pa-4 mb-3" Style="max-width:56rem">
         <MudText Typo="Typo.h6">สติกเกอร์ (RPT-04)</MudText>
         <MudStack Row="true" Spacing="2" Class="mt-2">
             <MudNumericField T="decimal" @bind-Value="form.StickerWidthCm" Label="กว้าง (ซม.)" Min="0.5m" Max="21m" Style="max-width:10rem" />
@@ -81,6 +91,7 @@ else
             StickerWidthCm = s.StickerWidthCm, StickerHeightCm = s.StickerHeightCm, ExternalMonth = s.PlanExternalMonth, InternalMonth = s.PlanInternalMonth,
             Responsible = s.PlanResponsible, Reviewer = s.PlanReviewer, PlanNote = s.PlanNote, ExternalNote = s.ExternalRegisterNote,
             PgName = s.PressureGaugeName, PgRange = s.PressureGaugeRange, PgLimit = s.PressureGaugeLimit, TcName = s.TempControlName, TcRange = s.TempControlRange, TcLimit = s.TempControlLimit,
+            ManualCaliper = s.ManualCaliper, ManualScale = s.ManualScale, ManualPg = s.ManualPressureGauge, ManualTc = s.ManualTempControl,
         };
     }
 
@@ -91,7 +102,8 @@ else
         {
             var f = form!;
             var input = new CalibSettingsInput(f.StickerWidthCm, f.StickerHeightCm, rowVersion, f.ExternalMonth, f.InternalMonth, f.Responsible ?? "", f.Reviewer ?? "", f.PlanNote ?? "", f.ExternalNote ?? "",
-                f.PgName ?? "", f.PgRange ?? "", f.PgLimit ?? "", f.TcName ?? "", f.TcRange ?? "", f.TcLimit ?? "");
+                f.PgName ?? "", f.PgRange ?? "", f.PgLimit ?? "", f.TcName ?? "", f.TcRange ?? "", f.TcLimit ?? "",
+                f.ManualCaliper ?? "", f.ManualScale ?? "", f.ManualPg ?? "", f.ManualTc ?? "");
             var result = await Services.RunAsync<CalibSettingsRegistry, ServiceResult>(r => r.SaveAsync(input));
             foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
             if (result.Succeeded) Snackbar.Add("บันทึกแล้ว", Severity.Success);
@@ -123,5 +135,9 @@ else
         public string? TcName { get; set; }
         public string? TcRange { get; set; }
         public string? TcLimit { get; set; }
+        public string? ManualCaliper { get; set; }
+        public string? ManualScale { get; set; }
+        public string? ManualPg { get; set; }
+        public string? ManualTc { get; set; }
     }
 }

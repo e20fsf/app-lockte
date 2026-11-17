@@ -31,9 +31,9 @@ public sealed record InstrumentKindInfo(
     [
         new(InstrumentKind.External, "ext", CalibMenu.External, "เพิ่มเครื่องมือวัดสอบเทียบภายนอก", "แก้ไขและลบเครื่องมือวัดสอบเทียบภายนอก", "ชื่อเครื่องมือวัด",
             ShowStandard: false, Internal: false),
-        new(InstrumentKind.Caliper, "caliper", CalibMenu.Caliper, "เพิ่มรายชื่อเครื่องมือวัดสอบเทียบภายใน", "แก้ไขและลบเครื่องมือวัด (เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์)", "ชื่อเครื่องมือวัด"),
+        new(InstrumentKind.Caliper, "caliper", CalibMenu.Caliper, "เพิ่มรายชื่อเครื่องมือวัดสอบเทียบภายใน", "แก้ไขและลบเครื่องมือวัด (เวอร์เนีย, ไฮเกจ, ไมโครมิเตอร์)", "ชื่อเครื่องมือวัด", ShowManual: true),
         new(InstrumentKind.PressureGauge, "pg", CalibMenu.PressureGauge, "เพิ่มรายชื่อเครื่องมือวัดสอบเทียบภายใน", "แก้ไขและลบเครื่องมือวัด (เพรสเซอร์เกจ)", "ชื่อเครื่องมือวัด"),
-        new(InstrumentKind.Scale, "scale", CalibMenu.Scale, "เพิ่มรายชื่อเครื่องมือวัดสอบเทียบภายใน", "แก้ไขและลบเครื่องมือวัด (เครื่องชั่ง)", "ชื่อเครื่องมือวัด"),
+        new(InstrumentKind.Scale, "scale", CalibMenu.Scale, "เพิ่มรายชื่อเครื่องมือวัดสอบเทียบภายใน", "แก้ไขและลบเครื่องมือวัด (เครื่องชั่ง)", "ชื่อเครื่องมือวัด", ShowManual: true),
         new(InstrumentKind.Jig, "jig", CalibMenu.Jig, "เพิ่มรายชื่อ JIG", "แก้ไขและลบรายชื่อ JIG", "ชื่อ JIG",
             ShowMaker: false, ShowRange: false, ShowResolution: false, ShowUnit: false, ShowAxis: true, ShowManual: true,
             StandardLabel: "หมายเลขเวอร์เนียที่ใช้ (ผ่านการสอบเทียบแล้ว)"),

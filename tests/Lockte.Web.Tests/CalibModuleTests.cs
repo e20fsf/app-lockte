@@ -43,6 +43,29 @@ public sealed class CalibModuleTests(LocalDbFixture db)
         Assert.Equal(width, decimal.Parse(change.NewValue!, System.Globalization.CultureInfo.InvariantCulture));
     }
 
+    [Fact] // #476: the manual numbers are kept per kind, trimmed, blank by default, and a save that leaves them out keeps them
+    public async Task The_manual_numbers_of_the_kinds_are_saved()
+    {
+        CalibSettingsDto current;
+        await using (var scope = db.Scope()) current = await scope.Get<CalibSettingsDirectory>().GetAsync();
+        await using (var scope = db.Scope())
+            if (current.RowVersion is null) Assert.True((await scope.Get<CalibSettingsRegistry>().SaveAsync(new(current.StickerWidthCm, current.StickerHeightCm, null))).Succeeded);
+        await using (var scope = db.Scope()) current = await scope.Get<CalibSettingsDirectory>().GetAsync();
+
+        await using (var scope = db.Scope())
+            Assert.True((await scope.Get<CalibSettingsRegistry>().SaveAsync(new(current.StickerWidthCm, current.StickerHeightCm, current.RowVersion, ManualCaliper: " WI-QA052 ", ManualScale: "WI-QA053"))).Succeeded);
+        await using (var scope = db.Scope()) current = await scope.Get<CalibSettingsDirectory>().GetAsync();
+        Assert.Equal(("WI-QA052", "WI-QA053"), (current.ManualCaliper, current.ManualScale));
+
+        await using (var scope = db.Scope())
+            Assert.True((await scope.Get<CalibSettingsRegistry>().SaveAsync(new(current.StickerWidthCm, current.StickerHeightCm, current.RowVersion, ManualScale: ""))).Succeeded);
+        await using (var scope = db.Scope()) current = await scope.Get<CalibSettingsDirectory>().GetAsync();
+        Assert.Equal(("WI-QA052", ""), (current.ManualCaliper, current.ManualScale));
+
+        await using (var scope = db.Scope())
+            Assert.False((await scope.Get<CalibSettingsRegistry>().SaveAsync(new(current.StickerWidthCm, current.StickerHeightCm, current.RowVersion, ManualTempControl: new string('x', 101)))).Succeeded);
+    }
+
     [Fact]
     public async Task A_stale_settings_save_is_a_conflict_and_bad_sizes_are_rejected()
     {
