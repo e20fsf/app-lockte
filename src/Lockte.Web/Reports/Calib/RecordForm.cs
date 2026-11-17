@@ -14,7 +14,8 @@ public sealed record RecordHead(
     string? StandardUsed,
     string? Calibrator,
     string? Provider,
-    bool External);
+    bool External,
+    string? Manual = null);
 
 /// <summary>
 /// RPT-03 แบบฟอร์มบันทึกผลการสอบเทียบ (เปล่า, PC-QA009-4/2547 ฉบับที่ 2), ระดับ A (#205 #206, Q-26): A4 portrait, one instrument to a page, the head typed from the register and a
@@ -55,7 +56,7 @@ public static class RecordForm
         Field(page, 77, Left, 36, 75, "วันที่สอบเทียบ", null);
         Tick(page, 82, 75, "สอบเทียบภายใน", !head.External);
         Tick(page, 152, 75, "สอบเทียบภายนอก", head.External);
-        Field(page, 86, Left, 54, Mid - 3, "คู่มือวิธีการที่ใช้เลขที่", null);
+        Field(page, 86, Left, 54, Mid - 3, "คู่มือวิธีการที่ใช้เลขที่", head.Manual);
         Field(page, 86, Mid, 143, Right, "หมายเลขเอกสารสอบเทียบ", null);
         page.Text(Left, 95, "สภาวะการสอบเทียบ", 14);
         Field(page, 95, 46, 75, 98, "อุณหภูมิ", null, "°C");
@@ -128,13 +129,16 @@ public static class RecordForm
     }
 
     /// <summary>The head of an instrument as the legacy printed it: ranges and limits with the unit, the calibrator of an internal one, the company of an external one.</summary>
-    public static RecordHead HeadOf(InstrumentDto i)
+    public static RecordHead HeadOf(InstrumentDto i, string? kindManual = null)
     {
         var external = i.Kind == InstrumentKind.External;
         var name = i.Kind == InstrumentKind.Scale && !string.IsNullOrWhiteSpace(i.DepartmentText) ? $"{i.Name} {i.DepartmentText}".Trim() : i.Name; // เครื่องชั่ง: แผนกต่อท้ายชื่อ ไม่มีป้าย
         return new RecordHead(name, i.Code, WithUnit(i.Range, i.Unit), Limit(i.Limit, i.Unit), external ? null : i.StandardUsed, external ? null : i.CalibratorName,
-            external ? i.ProviderName : null, external);
+            external ? i.ProviderName : null, external, external ? null : Manual(i.ManualNo, kindManual));
     }
+
+    /// <summary>The manual of an internal sheet (#476): the number kept on the instrument, else the one of its kind in the settings; blank when neither is filled. An external sheet prints none.</summary>
+    public static string? Manual(string? own, string? kindDefault) => !string.IsNullOrWhiteSpace(own) ? own.Trim() : string.IsNullOrWhiteSpace(kindDefault) ? null : kindDefault.Trim();
 
     private static string? WithUnit(string? value, string? unit) => string.IsNullOrWhiteSpace(value) ? null : string.IsNullOrWhiteSpace(unit) ? value : $"{value} {unit}";
 

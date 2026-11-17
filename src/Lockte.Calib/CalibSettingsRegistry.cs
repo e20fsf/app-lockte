@@ -46,7 +46,11 @@ public sealed record CalibSettingsDto(
     string TempControlName,
     string TempControlRange,
     string TempControlLimit,
-    byte[]? RowVersion);
+    byte[]? RowVersion,
+    string ManualCaliper = "",
+    string ManualScale = "",
+    string ManualPressureGauge = "",
+    string ManualTempControl = "");
 
 /// <summary>
 /// The fields of the settings; <see cref="RowVersion"/> null while nothing has been saved yet. The fields after it are optional: left out (null) they keep the value they have
@@ -67,7 +71,11 @@ public sealed record CalibSettingsInput(
     string? PressureGaugeLimit = null,
     string? TempControlName = null,
     string? TempControlRange = null,
-    string? TempControlLimit = null);
+    string? TempControlLimit = null,
+    string? ManualCaliper = null,
+    string? ManualScale = null,
+    string? ManualPressureGauge = null,
+    string? ManualTempControl = null);
 
 /// <summary>The public, read-only face of ค่าตั้งค่า (ADR 0002). Writes go through <see cref="CalibSettingsRegistry"/>.</summary>
 public sealed class CalibSettingsDirectory(CalibDbContext db)
@@ -81,7 +89,8 @@ public sealed class CalibSettingsDirectory(CalibDbContext db)
                 CalibSettingsDefaults.ExternalRegisterNote, CalibSettingsDefaults.PressureGaugeName, CalibSettingsDefaults.PressureGaugeRange, CalibSettingsDefaults.PressureGaugeLimit,
                 CalibSettingsDefaults.TempControlName, CalibSettingsDefaults.TempControlRange, CalibSettingsDefaults.TempControlLimit, null)
             : new CalibSettingsDto(row.StickerWidthCm, row.StickerHeightCm, row.PlanExternalMonth, row.PlanInternalMonth, row.PlanResponsible, row.PlanReviewer, row.PlanNote,
-                row.ExternalRegisterNote, row.PressureGaugeName, row.PressureGaugeRange, row.PressureGaugeLimit, row.TempControlName, row.TempControlRange, row.TempControlLimit, row.RowVersion);
+                row.ExternalRegisterNote, row.PressureGaugeName, row.PressureGaugeRange, row.PressureGaugeLimit, row.TempControlName, row.TempControlRange, row.TempControlLimit, row.RowVersion,
+                row.ManualCaliper, row.ManualScale, row.ManualPressureGauge, row.ManualTempControl);
     }
 }
 
@@ -106,7 +115,7 @@ public sealed class CalibSettingsRegistry(CalibDbContext db)
         var externalNote = Clean(input.ExternalRegisterNote);
         if (responsible?.Length > ShortTextLength || reviewer?.Length > ShortTextLength) errors.Add($"ผู้รับผิดชอบและผู้ตรวจสอบยาวได้ไม่เกิน {ShortTextLength} ตัว");
         if (note?.Length > NoteLength || externalNote?.Length > NoteLength) errors.Add($"หมายเหตุยาวได้ไม่เกิน {NoteLength} ตัว");
-        if (new[] { input.PressureGaugeName, input.PressureGaugeRange, input.PressureGaugeLimit, input.TempControlName, input.TempControlRange, input.TempControlLimit }.Any(t => t?.Trim().Length > ShortTextLength))
+        if (new[] { input.PressureGaugeName, input.PressureGaugeRange, input.PressureGaugeLimit, input.TempControlName, input.TempControlRange, input.TempControlLimit, input.ManualCaliper, input.ManualScale, input.ManualPressureGauge, input.ManualTempControl }.Any(t => t?.Trim().Length > ShortTextLength))
             errors.Add($"ข้อความของแบบฟอร์มบันทึกผลยาวได้ไม่เกิน {ShortTextLength} ตัว");
         if (errors.Count > 0) return new ServiceResult(false, errors);
 
@@ -131,6 +140,10 @@ public sealed class CalibSettingsRegistry(CalibDbContext db)
         if (input.TempControlName is not null) row.TempControlName = Clean(input.TempControlName) ?? "";
         if (input.TempControlRange is not null) row.TempControlRange = Clean(input.TempControlRange) ?? "";
         if (input.TempControlLimit is not null) row.TempControlLimit = Clean(input.TempControlLimit) ?? "";
+        if (input.ManualCaliper is not null) row.ManualCaliper = Clean(input.ManualCaliper) ?? "";
+        if (input.ManualScale is not null) row.ManualScale = Clean(input.ManualScale) ?? "";
+        if (input.ManualPressureGauge is not null) row.ManualPressureGauge = Clean(input.ManualPressureGauge) ?? "";
+        if (input.ManualTempControl is not null) row.ManualTempControl = Clean(input.ManualTempControl) ?? "";
         await db.SaveChangesAsync();
         return ServiceResult.Ok(row.Id);
     }

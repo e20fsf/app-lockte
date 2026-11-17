@@ -38,6 +38,20 @@ public sealed class RecordFormTests(ChromiumFixture chromium)
         Assert.Equal(2, Regex.Matches(svg, ">(?:ผ่าน|ไม่ผ่าน)<").Count);
     }
 
+    [Fact] // #476: the box "คู่มือวิธีการที่ใช้เลขที่" of an internal sheet is typed: the instrument own number, else the kind one, else blank; an external sheet prints none
+    public void An_internal_sheet_prints_the_manual_number()
+    {
+        static string Svg(RecordHead h) => System.Net.WebUtility.HtmlDecode(RecordForm.Page(h, null).ToSvg());
+        var caliper = Instrument(InstrumentKind.Caliper, "HG-DM002/2547");
+        Assert.Null(RecordForm.HeadOf(caliper).Manual);
+        Assert.Equal("WI-QA052", RecordForm.HeadOf(caliper, "WI-QA052").Manual);
+        Assert.Contains(">WI-QA052<", Svg(RecordForm.HeadOf(caliper, "WI-QA052")));
+        Assert.Equal("WI-QA099", RecordForm.HeadOf(caliper with { ManualNo = "WI-QA099" }, "WI-QA052").Manual);
+        Assert.Null(RecordForm.HeadOf(caliper, "  ").Manual);
+        var external = Instrument(InstrumentKind.External, "GB-QA001/2551", provider: "Q Co.");
+        Assert.Null(RecordForm.HeadOf(external with { ManualNo = "WI-QA099" }, "WI-QA052").Manual);
+    }
+
     [Fact] // print-samples: the external sheet has the company in "หน่วยงานสอบเทียบ" and nothing in "ผู้สอบเทียบ"; no standard instrument
     public void An_external_sheet_puts_the_company_in_the_organisation_box()
     {
@@ -81,6 +95,15 @@ public sealed class RecordFormTests(ChromiumFixture chromium)
         Assert.Equal(13, Pages(pdf));
     }
 
+    [Fact] // #476: the real PDF of an internal sheet with a manual number is one page
+    public async Task A_sheet_with_a_manual_number_prints_as_a_pdf()
+    {
+        var pages = RecordForm.Layout([RecordForm.HeadOf(Instrument(InstrumentKind.Caliper, "HG-DM002/2547"), "WI-QA052")], "PC-QA009-4/2547 ฉบับที่ 2");
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(RecordForm.Title, pages), pages[0].Paper);
+        Keep("calib-record-manual", pdf);
+        Assert.Equal(1, Pages(pdf));
+    }
+
     [Fact]
     public async Task A_long_value_is_squeezed_into_its_line_and_the_page_still_prints_once()
     {
@@ -118,6 +141,25 @@ public sealed class FixedRecordFormTests
     [Fact] // the values are master data: another value in the settings prints
     public void The_sheet_follows_the_settings()
         => Assert.Equal("0 - 700 Kg/cm²", RecordReports.FixedHead(InstrumentKind.PressureGauge, Defaults with { PressureGaugeRange = "0 - 700 Kg/cm²" }).Range);
+
+    [Fact] // #476: the manual number of the kind prints in the box, blank while the settings hold none (no guessing)
+    public void The_fixed_sheets_print_the_manual_number_of_the_settings()
+    {
+        Assert.Null(RecordReports.FixedHead(InstrumentKind.PressureGauge, Defaults).Manual);
+        var withManual = Defaults with { ManualPressureGauge = "WI-QA050", ManualTempControl = " WI-QA051 " };
+        Assert.Equal("WI-QA050", RecordReports.FixedHead(InstrumentKind.PressureGauge, withManual).Manual);
+        Assert.Equal("WI-QA051", RecordReports.FixedHead(InstrumentKind.TempControl, withManual).Manual);
+        var svg = System.Net.WebUtility.HtmlDecode(RecordForm.Page(RecordReports.FixedHead(InstrumentKind.PressureGauge, withManual), null).ToSvg());
+        Assert.Contains(">WI-QA050<", svg);
+    }
+
+    [Fact]
+    public void The_manual_of_a_kind_comes_from_its_own_setting()
+    {
+        var s = Defaults with { ManualCaliper = "WI-QA052", ManualScale = "WI-QA053", ManualPressureGauge = "WI-QA050", ManualTempControl = "WI-QA051" };
+        Assert.Equal(["WI-QA052", "WI-QA053", "WI-QA050", "WI-QA051", null, null],
+            new[] { InstrumentKind.Caliper, InstrumentKind.Scale, InstrumentKind.PressureGauge, InstrumentKind.TempControl, InstrumentKind.External, InstrumentKind.Jig }.Select(k => RecordReports.KindManual(k, s)));
+    }
 
     [Fact]
     public void Only_the_two_fixed_kinds_are_fixed()
