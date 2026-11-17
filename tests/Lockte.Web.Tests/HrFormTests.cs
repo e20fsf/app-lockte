@@ -113,6 +113,86 @@ public sealed class HrFormTests(ChromiumFixture chromium)
         Assert.Contains("WI-PE006-1/2547 ฉบับที่ 1", text);
     }
 
+    [Fact] // UAT-25: ชื่อเจ้าหน้าที่บุคคล from the settings (a made-up name here); blank prints none; dashes only while the date is blank
+    public async Task The_resignation_letter_prints_the_personnel_officer_and_dashes_for_a_blank_date()
+    {
+        var named = await Html<ResignationLetterView>(new() { ["Letter"] = Letter, ["Today"] = Today, ["PersonnelOfficerName"] = "นางสมมุติ ทดสอบ" });
+        var blank = await Html<ResignationLetterView>(new() { ["Letter"] = Letter with { ResignDate = null }, ["Today"] = Today });
+
+        Assert.Contains("(นางสมมุติ ทดสอบ)", Text(named));
+        Assert.DoesNotContain("dots dashed", named);
+        Assert.DoesNotContain("นางสมมุติ", Text(blank));
+        Assert.Equal(3, Regex.Matches(blank, "dots dashed").Count);
+    }
+
+    [Fact] // UAT-37: the dotted lines are vector strokes — a CSS gradient became a PDF pattern that printed as nothing
+    public async Task The_resignation_letter_dotted_lines_are_strokes_that_print()
+    {
+        var body = await Html<ResignationLetterView>(new() { ["Letter"] = Letter with { ResignDate = null }, ["Today"] = Today });
+        var html = FormHtml.Compose(ResignationLetterView.Title, Paper.A4Portrait, body);
+
+        Assert.DoesNotContain("gradient", html);
+        Assert.Equal(19, Regex.Matches(body, @"class=""dots[^""]*""[^>]*><svg [^>]*><line ").Count);
+        Assert.Contains("stroke-width:0.4", html);
+    }
+
+    [Fact] // UAT-34: every lower signature block is dotted line → title → (name), all centred on the line's middle axis; a blank name keeps the stack
+    public async Task The_resignation_letter_signature_blocks_stack_line_title_and_name_on_one_axis()
+    {
+        var html = await Html<ResignationLetterView>(new() { ["Letter"] = Letter with { ManagerName = null }, ["Today"] = Today, ["PersonnelOfficerName"] = "นางสมมุติ ทดสอบ" });
+        var lineAxes = Regex.Matches(html, @"class=""dots"" style=""left:([\d.]+)mm;width:([\d.]+)mm;top:(2[2-4][\d.]+)mm""")
+            .Select(m => (Axis: double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) + double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) / 2,
+                          Top: double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture))).OrderBy(l => l.Top).ThenBy(l => l.Axis).ToList();
+        Assert.Equal(4, lineAxes.Count);
+
+        string StyleOf(string text) => Regex.Matches(html, @"<div class=""t"" style=""([^""]*)"">([^<]*)</div>")
+            .Where(m => System.Net.WebUtility.HtmlDecode(m.Groups[2].Value) == text).Select(m => m.Groups[1].Value).Single();
+        double Left(string style) => double.Parse(Regex.Match(style, @"left:([\d.]+)mm").Groups[1].Value, CultureInfo.InvariantCulture);
+        double Top(string style) => double.Parse(Regex.Match(style, @"top:([\d.]+)mm").Groups[1].Value, CultureInfo.InvariantCulture);
+
+        var blocks = new[] { ("เจ้าหน้าที่แผนกบุคคลและธุรการ", "(นางสมมุติ ทดสอบ)", 0), ("หัวหน้าแผนก", "(นางสาวอัมพร   เจริญสุข)", 1),
+            ("ผู้จัดการฝ่าย", "( )", 2), ("ผู้จัดการโรงงาน", "(นายสมบัติ  ตัวอย่างดี)", 3) };
+        foreach (var (title, name, i) in blocks)
+        {
+            var (t, n) = (StyleOf(title), StyleOf(name));
+            Assert.Contains("translateX(-50%)", t);
+            Assert.Contains("translateX(-50%)", n);
+            Assert.Equal(lineAxes[i].Axis, Left(t), 1);
+            Assert.Equal(lineAxes[i].Axis, Left(n), 1);
+            Assert.True(Top(t) > lineAxes[i].Top && Top(n) > Top(t), $"{title}: line, then title, then name");
+        }
+    }
+
+    [Fact] // UAT-25: both signature columns use the same two lines in both rows, so signatures and names line up
+    public async Task The_resignation_letter_signature_lines_are_the_same_in_both_rows()
+    {
+        var html = await Html<ResignationLetterView>(new() { ["Letter"] = Letter, ["Today"] = Today });
+        var lines = Regex.Matches(html, @"class=""dots"" style=""left:([\d.]+)mm;width:([\d.]+)mm;top:(2[2-4][\d.]+)mm""")
+            .Select(m => (Left: m.Groups[1].Value, Width: m.Groups[2].Value, Top: double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture))).ToList();
+
+        var row1 = lines.Where(l => l.Top < 230).Select(l => (l.Left, l.Width)).OrderBy(l => l.Left, StringComparer.Ordinal).ToList();
+        var row2 = lines.Where(l => l.Top >= 230).Select(l => (l.Left, l.Width)).OrderBy(l => l.Left, StringComparer.Ordinal).ToList();
+        Assert.Equal(2, row1.Count);
+        Assert.Equal(row1, row2);
+    }
+
+    [Fact] // UAT-25 สรุปใบลาออก: the page and the Excel sheet carry the same month rows and the รวม
+    public async Task The_resignation_summary_prints_and_exports_the_same_rows()
+    {
+        var report = new ResignationSummaryReport(new DateOnly(2026, 1, 1), new DateOnly(2026, 3, 31), null,
+            [new(2026, 1, 2), new(2026, 2, 0), new(2026, 3, 5)]);
+
+        var text = Text(await Html<ResignationSummaryReportView>(new() { ["Report"] = report }));
+        var table = ResignationSummaryTable.Build(report);
+
+        Assert.Contains("มกราคม 2569", text);
+        Assert.Contains("กุมภาพันธ์ 2569", text);
+        Assert.Contains("ทั้งหมด", text);
+        Assert.Equal([2, 0, 5], table.Rows.Select(r => (int)r[2]!));
+        Assert.Equal(7, table.TotalRow![2]);
+        Assert.Equal("มีนาคม 2569", table.Rows[2][1]);
+    }
+
     [Fact] // RPT-55 list: 34 rows a page, "หน้า x จาก y" on every page, "รวม n คน" once; none → ไม่มีข้อมูล (D-6)
     public async Task The_resigned_list_pages_by_34_rows_and_counts_them()
     {
@@ -156,14 +236,14 @@ public sealed class HrFormTests(ChromiumFixture chromium)
             }),
         };
 
-        var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(FormHtml.Compose(form, paper, body), paper));
+        var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(FormHtml.Compose(form, paper, body, TestFonts.Hr), paper));
 
         Assert.Equal(pages, Regex.Matches(pdf, @"/Type /Page\b").Count);
         var box = Regex.Match(pdf, @"/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]");
         var (width, height) = ReportHtml.PageMillimetres(paper);
         Assert.Equal(width, double.Parse(box.Groups[1].Value, CultureInfo.InvariantCulture) * 25.4 / 72, 0);
         Assert.Equal(height, double.Parse(box.Groups[2].Value, CultureInfo.InvariantCulture) * 25.4 / 72, 0);
-        Assert.Contains("THSarabunNew", pdf);
+        Assert.Contains(TestFonts.HrPdfName, pdf);
     }
 
     [Fact] // ระดับ A has no แบบกลาง header/footer and no margins: the form places everything itself

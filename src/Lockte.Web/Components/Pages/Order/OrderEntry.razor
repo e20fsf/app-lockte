@@ -23,8 +23,7 @@
         </MudItem>
         <MudItem xs="6" sm="3"><MudTextField @bind-Value="orderNo" Label="เลขที่ใบ ORDER" MaxLength="SalesOrderRegistry.OrderNoLength" Required="true" HelperText="@(own ? "พิมพ์เอง เช่น 24/2564" : "เลขถัดไปของเขตนี้ แก้ได้ แต่ห้ามซ้ำ")" /></MudItem>
         <MudItem xs="12" sm="6">
-            <MudAutocomplete T="CustomerDto" Value="customer" ValueChanged="CustomerChangedAsync" Label="รหัสลูกค้า (รหัส หรือ ชื่อ)" SearchFunc="SearchCustomerAsync"
-                             ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+            <CustomerPicker Value="customer" ValueChanged="CustomerChangedAsync" Clearable="true" />
         </MudItem>
         <MudItem xs="12" sm="6"><MudTextField @bind-Value="customerName" Label="ชื่อลูกค้า" MaxLength="CustomerRegistry.NameLength" /></MudItem>
         <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="deliveryDate" Label="กำหนดวันที่ส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
@@ -119,9 +118,6 @@
         orderDate = value;
         if (value is { } d) deliveryDate = d.AddDays(7); // กำหนดส่ง = วันที่ + 7
     }
-
-    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
-        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
 
     private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
         => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));

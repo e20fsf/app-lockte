@@ -104,6 +104,18 @@ public sealed record ResignationLetterData(
     string? ManagerName,
     string? FactoryManagerName);
 
+/// <summary>
+/// สรุปใบลาออก (UAT-25): ใบลาออก = พนักงานที่มี วันลาออก, counted per calendar month of วันลาออก within <see cref="From"/>–<see cref="To"/>;
+/// every month of the range has a line (0 when none), so "a month has how many" reads off the page.
+/// </summary>
+/// <param name="DepartmentName">null = ทุกแผนก.</param>
+public sealed record ResignationSummaryReport(DateOnly From, DateOnly To, string? DepartmentName, IReadOnlyList<ResignationMonthLine> Months)
+{
+    public int Total => Months.Sum(m => m.Count);
+}
+
+public sealed record ResignationMonthLine(int Year, int Month, int Count);
+
 /// <summary>One row of RPT-55 รายงานพนักงานที่ลาออก (คิวรี พิมพ์ใบลาออก3).</summary>
 /// <param name="Years">อายุงาน(ปี) = (RESIGN − START) / 365; null without a start date.</param>
 public sealed record ResignedEmployee(string Code, string Name, DateOnly? StartDate, DateOnly ResignDate, double? Years, string? Reason);

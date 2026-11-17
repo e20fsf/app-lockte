@@ -12,10 +12,10 @@ public sealed class ReportHealthTests(ChromiumFixture chromium)
     [Fact]
     public async Task The_check_page_prints_as_one_A4_page_with_the_Thai_font_embedded()
     {
-        var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(ReportHealth.Html(), Paper.A4Portrait));
+        var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(ReportHealth.Html(TestFonts.Default), Paper.A4Portrait));
 
         Assert.StartsWith("%PDF-", pdf);
-        Assert.Contains("THSarabunNew", pdf);
+        Assert.Contains(TestFonts.DefaultPdfName, pdf);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(pdf, @"/Type /Page\b"));
     }
 

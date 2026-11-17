@@ -104,6 +104,28 @@ public sealed class HrDocumentTests(LocalDbFixture db)
         Assert.StartsWith("ประกอบ", letter.DepartmentName);
     }
 
+    [Fact] // UAT-25 สรุปใบลาออก: counted per month of วันลาออก, every month of the range listed, one แผนก only when chosen, range ends inclusive
+    public async Task The_resignation_summary_counts_resignations_per_month()
+    {
+        var (mine, _, _) = await NewDepartmentAsync();
+        var (other, _, _) = await NewDepartmentAsync();
+        foreach (var (name, department, date) in new (string, int, DateOnly)[]
+                 {
+                     ("ก", mine, D(2031, 1, 1)), ("ข", mine, D(2031, 1, 31)), ("ค", mine, D(2031, 3, 15)),
+                     ("ง", other, D(2031, 3, 16)), ("จ", mine, D(2031, 4, 1)), ("ฉ", mine, D(2030, 12, 31)),
+                 })
+            await NewEmployeeAsync(new EmployeeInput { Name = name, DepartmentId = department, ResignDate = date });
+        await NewEmployeeAsync(new EmployeeInput { Name = "ช", DepartmentId = mine }); // still working: not a resignation
+
+        var one = await AsHrAsync(s => s.Get<HrDocumentDirectory>().GetResignationSummaryAsync(D(2031, 1, 1), D(2031, 3, 31), mine));
+        var all = await AsHrAsync(s => s.Get<HrDocumentDirectory>().GetResignationSummaryAsync(D(2031, 1, 1), D(2031, 3, 31), other));
+
+        Assert.Equal([(2031, 1, 2), (2031, 2, 0), (2031, 3, 1)], one.Months.Select(m => (m.Year, m.Month, m.Count)));
+        Assert.Equal(3, one.Total);
+        Assert.StartsWith("ประกอบ", one.DepartmentName);
+        Assert.Equal([0, 0, 1], all.Months.Select(m => m.Count));
+    }
+
     [Fact] // RPT-50: วันลาสะสมของปีนี้ by SR and the total; leave of last year is not counted
     public async Task The_leave_form_sums_this_years_leave_by_type()
     {

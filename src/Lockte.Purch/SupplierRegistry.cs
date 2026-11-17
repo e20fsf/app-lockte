@@ -161,7 +161,7 @@ public sealed class SupplierDirectory(PurchDbContext db)
     public static IReadOnlyList<string> DefaultBusinessTypes { get; } =
         ["ผลิต (manufacturing)", "บริการ (service)", "ขายสินค้า (trading)", "รับเหมาช่วง (sub contractor)"];
 
-    /// <summary>By รหัส.</summary>
+    /// <summary>By รหัส (the lists on screen and in print sort it themselves, by ชื่อ: <see cref="NameOrder"/>).</summary>
     public async Task<IReadOnlyList<SupplierDto>> GetAllAsync(bool usedInProductionOnly = false)
         => (await db.Suppliers.AsNoTracking().Where(s => !usedInProductionOnly || s.UsedInProduction).OrderBy(s => s.Code).ToListAsync())
             .Select(ToDto).ToList();
@@ -170,8 +170,8 @@ public sealed class SupplierDirectory(PurchDbContext db)
     public async Task<IReadOnlyList<SupplierDto>> SearchAsync(string? text, int max = 50, bool productionOnly = false)
     {
         var term = text?.Trim();
-        return (await db.Suppliers.AsNoTracking().Where(s => !productionOnly || s.UsedInProduction).Where(s => string.IsNullOrEmpty(term) || s.Code.Contains(term) || s.Name.Contains(term))
-            .OrderBy(s => s.Name).ThenBy(s => s.Code).Take(max).ToListAsync()).Select(ToDto).ToList();
+        var found = await db.Suppliers.AsNoTracking().Where(s => !productionOnly || s.UsedInProduction).Where(s => string.IsNullOrEmpty(term) || s.Code.Contains(term) || s.Name.Contains(term)).ToListAsync();
+        return NameOrder.ByName(found, s => s.Name, s => s.Code).Take(max).Select(ToDto).ToList();
     }
 
     /// <summary>

@@ -44,7 +44,7 @@
             <MudItem xs="12" sm="3"><MudDatePicker Editable="true" @bind-Date="form.Desired" Label="วันที่ต้องการ" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
             <MudItem xs="12" sm="3">
                 <MudSelect T="int" @bind-Value="form.DepartmentId" Label="แผนกที่ขอซื้อ">
-                    @foreach (var d in departments)
+                    @foreach (var d in departments.Where(x => x.IsActive))
                     {
                         <MudSelectItem T="int" Value="d.Id">@d.Name</MudSelectItem>
                     }

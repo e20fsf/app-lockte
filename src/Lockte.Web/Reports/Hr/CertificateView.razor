@@ -28,8 +28,8 @@
     {
         <FormText X="35.2" Base="149.9" Text="เงินค่าจ้างเดือนละ" />
         <FormText X="85.1" Base="150.0" Anchor="FormAnchor.Right" Text="@FormFormat.Standard(Person.MonthlyPay, 2)" />
-        <FormText X="85.6" Base="150.0" Text="บาท" />
-        <FormText X="93.6" Base="150.0" Text="@($"({ThaiNumber.Baht(Person.MonthlyPay)})")" />
+        <FormText X="87.6" Base="150.0" Text="บาท" />
+        <FormText X="96.0" Base="150.0" Text="@($"({ThaiNumber.Baht(Person.MonthlyPay)})")" />
     }
     else
     {
@@ -39,9 +39,10 @@
     <FormText X="51.0" Base="167.0" Text="ขอรับรองว่าหนังสือสำคัญฉบับนี้เป็นความจริงทุกประการ" />
     <FormText X="51.0" Base="177.1" Text="ให้ไว้  ณ  วันที่" />
     <FormText X="75.3" Base="177.1" Text="@Person.IssuedText" />
-    <FormText X="146.4" Base="192.0" Text="ขอแสดงความนับถือ" />
-    <FormText X="161.7" Base="217.0" Anchor="FormAnchor.Center" Text="@($"({Person.FactoryManagerName})")" />
-    <FormText X="149.9" Base="224.0" Text="ผู้จัดการโรงงาน" />
+    @* UAT-29: ขอแสดงความนับถือ and the signer below it sit 7 mm lower, so there is room between ให้ไว้ ณ วันที่ and the closing. *@
+    <FormText X="146.4" Base="199.0" Text="ขอแสดงความนับถือ" />
+    <FormText X="161.7" Base="224.0" Anchor="FormAnchor.Center" Text="@($"({Person.FactoryManagerName})")" />
+    <FormText X="149.9" Base="231.0" Text="ผู้จัดการโรงงาน" />
 </FormPage>
 
 @code {

@@ -31,8 +31,11 @@ public sealed record PaySlip(string Code, string Name, int Days, int WeeklyHolid
 }
 
 /// <summary>The slips of one period, by รหัส ↑, with the signers printed on every slip.</summary>
-public sealed record PaySlipBatch(PayPeriodDto Period, IReadOnlyList<PaySlip> Slips, IReadOnlyList<SlipSignerDto> Signers)
+public sealed record PaySlipBatch(PayPeriodDto Period, IReadOnlyList<PaySlip> Slips, IReadOnlyList<SlipSignerDto> Signers, decimal? WelfarePercent = null)
 {
+    /// <summary>UAT7-4: the rate % printed in the head of the เงินสงเคราะห์ columns — the table's rate on ถึงวันที่ of the งวด (null → the built-in <see cref="Welfare.RateOn"/>).</summary>
+    public decimal HeadPercent => WelfarePercent ?? Welfare.RateOn(Period.To) * 100m;
+
     public SlipSignerDto? Signer(SlipSignerRole role) => Signers.FirstOrDefault(s => s.Role == role);
 }
 

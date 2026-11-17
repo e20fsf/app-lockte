@@ -37,7 +37,7 @@
         <MudItem xs="6" sm="2"><MudDatePicker Editable="true" @bind-Date="form.EndDate" Label="วันที่เลิกใช้" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" HelperText="ว่าง = ยังใช้อยู่" /></MudItem>
         <MudItem xs="12" sm="4">
             <MudSelect T="int?" @bind-Value="form.DepartmentId" Label="แผนก" Clearable="true">
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
                 }

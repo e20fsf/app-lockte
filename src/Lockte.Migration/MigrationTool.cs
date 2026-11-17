@@ -43,6 +43,8 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
     public const string CalibCompareProgram = "compare-calib";
     /// <summary>Compares เงินสดย่อย (RPT-02, 04, 08, 09, the totals of the receipts, the sizes) with the baseline of the old reports exported from Access (#248), and checks AC-01, 16, 23, 24; reads only.</summary>
     public const string CashCompareProgram = "compare-cash";
+    /// <summary>Compares วัตถุดิบ (RPT-04, 11, 20, 22, 26, the balances, the evaluations, the totals of the orders) with the baseline of the old reports exported from Access (#271); reads only, unless a rehearsal cut is asked for.</summary>
+    public const string PurchCompareProgram = "compare-purch";
     /// <summary>Compares one closed period with Access: เวลารวม, ค่าแรง, ยอดส่งธนาคาร, สลิป (#57).</summary>
     public const string ComparePeriodProgram = "compare-period";
 
@@ -69,6 +71,10 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
           ย้ายเงินสดย่อย.accdb: ประเภทค่าใช้จ่าย (ชื่อที่บรรทัดค่าใช้จ่ายใช้แต่ทะเบียนไม่มี → ประเภทเลิกใช้), ผู้ซื้อของเก่า, ชนิดของเก่า, แล้วบรรทัดค่าใช้จ่าย (ซื้อของเงินสด ทุกแถว เก็บจำนวนเงินตามต้นทาง) และใบเสร็จขายของเก่าพร้อมสถานะนำส่ง · --map ใช้ kind cash-expense-type เพื่อรวมชื่อที่สะกดต่าง (ไฟล์จับคู่มีชื่อจริง เก็บนอก git) · ลบแล้วโหลดใหม่ รันซ้ำได้
         Lockte.Migration --program compare-cash --baseline <folder ของ tools/baseline/export_cash_baseline.py> --connection "<SQL Server connection string>" --out <folder> [--map <code-map.csv>]
           เทียบรายงานเงินสดย่อยที่คำนวณจากข้อมูลที่ย้ายแล้วกับผลของรายงานเดิมใน Access (อ่านอย่างเดียว) ทุกช่วงทุกแถว + ด่าน AC-01, 16, 23, 24 → cash-compare.csv, cash-compare-details.csv, cash-gate.csv, cash-summary.md (ข้อมูลจริง ห้าม commit) · --map = ไฟล์จับคู่ที่ใช้ตอนย้าย (แสดงยอดตามประเภทหลังรวมชื่อ)
+        Lockte.Migration --program compare-purch --baseline <folder ของ tools/baseline/export_purch_baseline.py> --connection "<SQL Server connection string>" --out <folder> [--map <code-map.csv>]
+                         [--rehearse-cut <YYYY-MM-DD> --confirm <database>]
+          เทียบรายงานวัตถุดิบที่คำนวณจากข้อมูลที่ย้ายแล้วกับผลของ query รายงานเดิมใน Access ทุกช่วงทุกแถว + ด่าน AC-07, 18, 20, 21, 24, 25, 26, 28, 30 → purch-compare.csv, purch-compare-details.csv, purch-gate.csv, purch-summary.md (ข้อมูลจริง ห้าม commit)
+          อ่านอย่างเดียว · --rehearse-cut = ซ้อมตัดสต็อกด้วยโปรแกรมใหม่ ณ วันนั้นสองครั้งก่อนเทียบ RPT-26 (เขียนลงฐาน — ฐานซ้อมเท่านั้น ต้อง --confirm ชื่อฐาน; ฐานที่ตั้งธงเปิดใช้งานแล้วไม่ยอม)
         Lockte.Migration --program compare-calib --baseline <folder ของ tools/baseline/export_calib_baseline.py> --connection "<SQL Server connection string>" --out <folder>
           เทียบเครื่องมือวัดที่ย้ายแล้วกับบัญชีรายชื่อ (RPT-02) ของ Access ทีละแถว + ด่าน AC-01…14 (อ่านอย่างเดียว) → calib-compare.csv, calib-gate.csv, calib-summary.md (ข้อมูลจริง ห้าม commit)
           --program purch-master = ย้ายข้อมูลหลักของ วัตถุดิบ.accdb: ผู้ขาย วัตถุดิบ ตัวเลือก และ prefix เลขที่ใบขอซื้อของแผนก (รันหลังโปรแกรมพนักงาน/ORDER; ฐานข้อมูลต้องยังไม่มีเอกสารจัดซื้อ; ใช้กับฐานข้อมูลทดสอบแยกชื่อเท่านั้น)
@@ -86,9 +92,9 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
         }
         var connection = values.GetValueOrDefault("connection") ?? Environment.GetEnvironmentVariable(ConnectionVariable);
         var program = values.GetValueOrDefault("program") ?? EmployeeProgram;
-        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or PurchHistoryProgram or CalibProgram or CashProgram or CalibCompareProgram or CashCompareProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
-            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {PurchHistoryProgram}, {CalibProgram}, {CashProgram}, {CalibCompareProgram}, {CashCompareProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
-        var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram or CalibCompareProgram or CashCompareProgram;
+        if (program is not (EmployeeProgram or OrderProgram or PurchMasterProgram or PurchHistoryProgram or CalibProgram or CashProgram or CalibCompareProgram or CashCompareProgram or PurchCompareProgram or QaSpecProgram or AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram))
+            return (null, $"--program ต้องเป็น {EmployeeProgram}, {OrderProgram}, {PurchMasterProgram}, {PurchHistoryProgram}, {CalibProgram}, {CashProgram}, {CalibCompareProgram}, {CashCompareProgram}, {PurchCompareProgram}, {QaSpecProgram}, {AllProgram}, {MarkGoLiveProgram}, {CompareProgram} หรือ {ComparePeriodProgram}");
+        var whole = program is AllProgram or MarkGoLiveProgram or CompareProgram or ComparePeriodProgram or CalibCompareProgram or CashCompareProgram or PurchCompareProgram;
         if (!whole && values.GetValueOrDefault("source") is null) return (null, "ไม่ได้ระบุ --source");
         var source = values.GetValueOrDefault("source") ?? "";
         if (program == AllProgram && (values.GetValueOrDefault("employee") is null || values.GetValueOrDefault("order") is null)) return (null, "--program all ต้องระบุ --employee และ --order");
@@ -107,6 +113,16 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
             cut = parsed;
         }
         if (program == CashCompareProgram && values.GetValueOrDefault("baseline") is null) return (null, "--program compare-cash ต้องระบุ --baseline (โฟลเดอร์จาก tools/baseline/export_cash_baseline.py)");
+        if (program == PurchCompareProgram)
+        {
+            if (values.GetValueOrDefault("baseline") is null) return (null, "--program compare-purch ต้องระบุ --baseline (โฟลเดอร์จาก tools/baseline/export_purch_baseline.py)");
+            if (values.GetValueOrDefault("rehearse-cut") is { } rehearse)
+            {
+                if (!DateOnly.TryParseExact(rehearse, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)) return (null, "--rehearse-cut ต้องเป็น YYYY-MM-DD");
+                if (!string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase)) return (null, $"--rehearse-cut ตัดสต็อกในฐานข้อมูล — ต้องยืนยันด้วย --confirm {database} (ใช้กับฐานซ้อมเท่านั้น)");
+                cut = parsed;
+            }
+        }
         if (program == CalibCompareProgram && values.GetValueOrDefault("baseline") is null) return (null, "--program compare-calib ต้องระบุ --baseline (โฟลเดอร์จาก tools/baseline/export_calib_baseline.py)");
         DateOnly? periodFrom = null;
         if (program == ComparePeriodProgram)
@@ -115,7 +131,7 @@ public sealed record MigrationOptions(string SourceFile, string ConnectionString
             if (!DateOnly.TryParseExact(values.GetValueOrDefault("from"), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var from)) return (null, "--program compare-period ต้องระบุ --from YYYY-MM-DD (วันเริ่มงวด)");
             periodFrom = from;
         }
-        if (program is not (CompareProgram or ComparePeriodProgram or CalibCompareProgram or CashCompareProgram) && !string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
+        if (program is not (CompareProgram or ComparePeriodProgram or CalibCompareProgram or CashCompareProgram or PurchCompareProgram) && !string.Equals(values.GetValueOrDefault("confirm"), database, StringComparison.OrdinalIgnoreCase))
             return (null, $"ต้องยืนยันด้วย --confirm {database} (ข้อมูลหลักในฐานข้อมูลนี้จะถูกลบแล้วโหลดใหม่)");
         return (new MigrationOptions(source, connection, values.GetValueOrDefault("map"), output, program, string.Equals(values.GetValueOrDefault("remove-stock-duplicates"), "yes", StringComparison.OrdinalIgnoreCase),
             values.GetValueOrDefault("employee"), values.GetValueOrDefault("order"), values.GetValueOrDefault("qa"), values.GetValueOrDefault("baseline"), cut, periodFrom, string.Equals(values.GetValueOrDefault("calculate"), "yes", StringComparison.OrdinalIgnoreCase), values.GetValueOrDefault("jig-images"), values.GetValueOrDefault("cash")), null);

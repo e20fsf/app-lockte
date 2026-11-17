@@ -35,9 +35,9 @@ public sealed class EmployeeListTableTests
             [nameof(WorkingEmployeesView.List)] = new WorkingEmployeeList([new("T214", LongName, "ตกแต่ง", "หัวหน้า", new(1979, 1, 2), new(2002, 12, 10), 1, 47.5, "รพ.")], 0, 1),
         });
 
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(probation, "<td class=\"nw\">").Count); // ชื่อ, เริ่ม, ถึงกำหนด
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(roster, "<td class=\"nw\">").Count); // ชื่อ, เริ่มทำงาน
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(working, "<td class=\"nw\">").Count); // ชื่อ, เกิด, เริ่มทำงาน
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(probation, "<td class=\"nw\">").Count); // ชื่อ, ตำแหน่ง, เริ่ม, ถึงกำหนด
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(roster, "<td class=\"nw\">").Count); // ชื่อ, เริ่มทำงาน, ตำแหน่ง
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(working, "<td class=\"nw\">").Count); // ชื่อ, เกิด, เริ่มทำงาน, ตำแหน่ง
     }
 
     [Fact] // the heading is printed once: the page header; no second copy of the title above the table
@@ -151,16 +151,19 @@ public sealed class DepartmentLeaveAllTests
         Assert.Equal(1.0 / 2 / 20 * 100, All().PercentOf(1, 2));
     }
 
-    [Fact]
-    public async Task The_report_prints_each_department_total_and_the_total_of_all()
+    [Fact] // #411: one list by แผนก, numbered through, and the summary rows once at the end (as the Access report), not per แผนก
+    public async Task The_report_of_all_departments_has_the_total_once_at_the_end()
     {
         var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<DepartmentLeaveReportView>(new() { ["Report"] = All() }));
 
-        Assert.Contains("รวมแผนกประกอบ", html);
-        Assert.Contains("รวมแผนกตกแต่ง", html);
-        Assert.Contains("รวมทั้งหมดทุกแผนก", html);
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(html, "คิดเป็นเปอร์เซ็นต์").Count); // two แผนก and the company
+        Assert.DoesNotContain("รวมแผนก", html);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "รวมทั้งหมด"));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "คิดเป็นเปอร์เซ็นต์"));
         Assert.Contains(">3.0<", html); // company: SR1 = 2 + 1
+        // by แผนก (ตกแต่ง first), numbered 1..3, the summary after the last person
+        Assert.True(html.IndexOf("A002", StringComparison.Ordinal) < html.IndexOf("A001", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("A003", StringComparison.Ordinal) < html.IndexOf("รวมทั้งหมด", StringComparison.Ordinal));
+        Assert.Contains(">3<", html);
     }
 
     [Fact] // a single แผนก keeps the legacy form: one รวมทั้งหมด
@@ -168,7 +171,6 @@ public sealed class DepartmentLeaveAllTests
     {
         var html = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<DepartmentLeaveReportView>(new() { ["Report"] = All() with { DepartmentName = "ประกอบ" } }));
 
-        Assert.DoesNotContain("รวมทั้งหมดทุกแผนก", html);
         Assert.DoesNotContain("รวมแผนก", html);
         Assert.Contains("รวมทั้งหมด", html);
     }
@@ -194,5 +196,24 @@ public sealed class DepartmentLeaveAllTests
 
         Assert.DoesNotContain(table.Rows, r => Equals(r[1], "คิดเป็นเปอร์เซ็นต์"));
         Assert.Equal("รวมทั้งหมดทุกแผนก 3 คน", table.TotalRow![1]);
+    }
+
+    [Fact] // #399: "คะแนนที่ได้(1)-(2)" is squeezed into its cell (98.8–124.5), not printed over the score cell
+    public void The_yearly_sheet_keeps_the_score_label_inside_its_cell()
+    {
+        var sheet = new YearlyEvaluationSheet("Y999", "นาย ทดสอบ", "ฝ่ายทดสอบ", 3, 1, 1, 2, 0, 1, 0);
+        var staff = new YearlyEvaluationReport(YearlyEvaluationKind.Staff, new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), null, [sheet]);
+
+        Assert.Contains("data-fit=\"23.7\">คะแนนที่ได้(1)-(2)</text>", EvaluationForms.Sheet(staff, sheet, new DateOnly(2026, 10, 15), null).ToSvg());
+    }
+
+    [Fact] // #399: the four EMPLO print buttons are menu items under ข้อมูลพนักงาน, each with its own page
+    public void The_menu_has_the_four_employee_document_prints()
+    {
+        var items = Lockte.Web.Menus.EmployeeMenu.Menu.Find(2)!.Items.Select(i => i.Text).ToList();
+        Assert.Contains("พิมพ์แบบ คร.2", items);
+        Assert.Contains("พิมพ์สัญญาจ้างรายวัน", items);
+        Assert.Contains("พิมพ์สัญญาจ้างรายเดือน", items);
+        Assert.Contains("พิมพ์ฟอร์มการรับพนักงาน", items);
     }
 }

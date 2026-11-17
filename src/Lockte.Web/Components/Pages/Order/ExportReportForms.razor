@@ -16,14 +16,12 @@
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
     <MudStack Spacing="2">
         <MudStack Row="true" Spacing="2">
-            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
-            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <DateRangePicker @bind-From="from" @bind-To="to" OnChanged="RememberAsync" Style="max-width:16rem" />
         </MudStack>
         @if (Info.Customer != Choice.None)
         {
-            <MudAutocomplete T="CustomerDto" @bind-Value="customer" @bind-Value:after="RememberAsync" SearchFunc="SearchCustomerAsync"
-                             Label="@(Info.Customer == Choice.Required ? "ลูกค้า" : "ลูกค้า (ว่าง = ทุกราย)")" ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")"
-                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="max-width:30rem" />
+            <CustomerPicker @bind-Value="customer" @bind-Value:after="RememberAsync" Label="@(Info.Customer == Choice.Required ? "ลูกค้า" : "ลูกค้า (ว่าง = ทุกราย)")"
+                            Clearable="true" Style="max-width:30rem" />
         }
         @if (Info.Territory != Choice.None)
         {
@@ -165,9 +163,6 @@
             // remembering is a convenience only
         }
     }
-
-    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
-        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
 
     private string Url(string? format)
     {

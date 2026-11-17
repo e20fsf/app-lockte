@@ -20,6 +20,7 @@
     <Routes @rendermode="PageRenderMode" />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="@Assets["_content/MudBlazor/MudBlazor.min.js"]"></script>
+    <script src="@Assets["js/enter-next.js"]"></script>
     @if (HttpContext.User.Identity?.IsAuthenticated == true)
     {
         <script src="@Assets["js/idle.js"]" data-timeout-minutes="@AuthOptions.Value.IdleTimeoutMinutes"></script>

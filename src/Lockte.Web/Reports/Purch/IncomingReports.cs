@@ -23,6 +23,9 @@ public sealed record IncomingReport(DateOnly From, DateOnly To, string? Supplier
 /// </summary>
 public static class IncomingReports
 {
+    /// <summary>UAT-4 (#449): neither document prints the print date and page number at its foot.</summary>
+    public const bool PrintsFooter = false;
+
     public const string RecordTitle = "บันทึกการรับของ";
     public const string InspectionTitle = "บันทึกการทำ INCOMING INSPECTION";
 
@@ -44,8 +47,8 @@ public static class IncomingReports
             var report = await BuildAsync(receipts, suppliers, from.Value, to.Value, supplier, mainOnly ?? false);
             var user = AccountClaims.DisplayNameOf(http.User);
             var pdf = kind == "record"
-                ? await printer.PrintAsync<IncomingRecordView>(RecordTitle, Paper.A4Portrait, new() { [nameof(IncomingRecordView.Report)] = report }, user, DocumentKeys.IncomingRecord, cancellationToken)
-                : await printer.PrintAsync<IncomingInspectionView>(InspectionTitle, Paper.A4Landscape, new() { [nameof(IncomingInspectionView.Report)] = report }, user, DocumentKeys.IncomingInspection, cancellationToken);
+                ? await printer.PrintAsync<IncomingRecordView>(RecordTitle, Paper.A4Portrait, new() { [nameof(IncomingRecordView.Report)] = report }, user, DocumentKeys.IncomingRecord, cancellationToken, footer: PrintsFooter)
+                : await printer.PrintAsync<IncomingInspectionView>(InspectionTitle, Paper.A4Landscape, new() { [nameof(IncomingInspectionView.Report)] = report }, user, DocumentKeys.IncomingInspection, cancellationToken, footer: PrintsFooter);
             return ReportsRegistration.Pdf(http, pdf, kind == "record" ? "บันทึกการรับของ" : "INCOMING INSPECTION");
         });
         return reports;

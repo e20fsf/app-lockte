@@ -1,8 +1,17 @@
-@* RPT-07 ใบรายงานการส่งสินค้า (รายงานส่งออก2, WI-ST005-1/2551 ฉบับที่2), ระดับ B on A4 นอน: ตั้งแต่วันที่ … ถึงวันที่ …, a group per customer — head "รหัส ชื่อลูกค้า",
-   the rows by วันที่ส่ง → เลขที่บิล (ที่ starts at 1 again at every invoice), "รวม n รายการ Σจำนวนเงิน Σกล่อง" at the end of a group — and, at the end,
-   "รวมทั้งหมด Σจำนวนเงิน บิล n ใบ ลูกค้า n ราย SALE ORDER n ใบ Σกล่อง" with the sign boxes ผู้รายงาน / หัวหน้าแผนก / ผู้จัดการฝ่าย.
-   A customer of code 40… (งานรับจ้างผลิต) is shown the pieces and "ชิ้น" in the กล่อง column instead of boxes; Σกล่อง counts the real boxes only. *@
-<p class="sub">แผนกสโตร์&emsp;ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)</p>
+@* RPT-07 ใบรายงานการส่งสินค้า (รายงานส่งออก2, WI-ST005-1/2551 ฉบับที่2), ระดับ B on A4 นอน, in the columns of the Access report (UAT-46):
+   รหัส · ชื่อลูกค้า · วันที่ส่ง · ที่ · รหัส · ชื่อสินค้า · จำนวน + หน่วย · ราคา · จำนวนเงิน · ใบORDER · เลขที่บิล · LOT NO. · กล่อง.
+   Under "แผนก สโตร์  ตั้งแต่วันที่ …  ถึงวันที่ …", a group per customer — its head puts รหัส and ชื่อลูกค้า in their own columns, the rows under it
+   (by วันที่ส่ง → เลขที่บิล) start at วันที่ส่ง, which is printed on every row as Access did; ที่ is the line of the bill (INV_SUF), 1 again at every bill —
+   then "รวม n รายการ Σจำนวนเงิน Σกล่อง". At the end "รวมทั้งหมด Σจำนวนเงิน บิล n ใบ ลูกค้า n ราย SALE ORDER n ใบ Σกล่อง". กล่อง is printed in the
+   totals only (Access had no box on a row; the box count of a bill was repeated on its lines — DeliveryReports.Boxes); a customer of code 40…
+   (งานรับจ้างผลิต) is shown the pieces and "ชิ้น" on its rows instead. The sign line ผู้รายงาน / หัวหน้าแผนก / ผู้จัดการฝ่าย is in the footer of every
+   page (DeliveryReports.DeliverySignLine). *@
+<div class="sub" style="display:flex;justify-content:space-between;text-align:left">
+    <span>แผนก <u>&ensp;สโตร์&ensp;</u></span>
+    <span>ตั้งแต่วันที่ @ReportText.Date(Report.From)</span>
+    <span>ถึงวันที่ @ReportText.Date(Report.To)</span>
+    <span></span>
+</div>
 @if (Report.Rows == 0)
 {
     <NoData />
@@ -11,19 +20,21 @@ else
 {
     <table>
         <colgroup>
-            <col style="width:8%" /><col style="width:3%" /><col style="width:8%" /><col style="width:22%" /><col style="width:7%" /><col style="width:4%" />
-            <col style="width:7%" /><col style="width:9%" /><col style="width:10%" /><col style="width:8%" /><col style="width:8%" /><col style="width:6%" />
+            <col style="width:6%" /><col style="width:12%" /><col style="width:7%" /><col style="width:3%" /><col style="width:6%" /><col style="width:20%" />
+            <col style="width:5%" /><col style="width:3%" /><col style="width:5%" /><col style="width:8%" /><col style="width:8%" /><col style="width:7%" />
+            <col style="width:6%" /><col style="width:4%" />
         </colgroup>
         <thead>
             <tr>
-                <th>วันที่ส่ง</th><th class="num">ที่</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th>
-                <th class="num">ราคา</th><th class="num">จำนวนเงิน</th><th>ใบ ORDER</th><th>เลขที่บิล</th><th>LOT NO.</th><th class="num">กล่อง</th>
+                <th>รหัส</th><th>ชื่อลูกค้า</th><th>วันที่ส่ง</th><th class="num">ที่</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="num" colspan="2">จำนวน</th>
+                <th class="num">ราคา</th><th class="num">จำนวนเงิน</th><th>ใบORDER</th><th>เลขที่บิล</th><th>LOT NO.</th><th class="num">กล่อง</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var customer in Report.Customers)
             {
-                <tr><td colspan="12"><b>@customer.CustomerCode&emsp;@customer.CustomerName</b></td></tr>
+                var pieces = DeliveryReports.ShowsPieces(customer.CustomerCode);
+                <tr><td><b>@customer.CustomerCode</b></td><td colspan="13"><b>@customer.CustomerName</b></td></tr>
                 DateOnly? lastDate = null;
                 string? lastInvoice = null;
                 var no = 0;
@@ -31,10 +42,10 @@ else
                 {
                     if (row.InvoiceNo != lastInvoice || row.DeliveryDate != lastDate) no = 0;
                     no++;
-                    var pieces = DeliveryReports.ShowsPieces(customer.CustomerCode);
                     <tr>
-                        <td>@(row.DeliveryDate != lastDate ? ReportText.Date(row.DeliveryDate) : null)</td>
-                        <td class="num">@no</td>
+                        <td></td><td></td>
+                        <td>@ReportText.Date(row.DeliveryDate)</td>
+                        <td class="num">@(row.InvoiceLine ?? no)</td>
                         <td>@row.ProductCode</td>
                         <td>@row.ProductName</td>
                         <td class="num">@OrderReports.Qty(row.Quantity)</td>
@@ -44,12 +55,13 @@ else
                         <td>@row.OrderNo</td>
                         <td>@row.InvoiceNo</td>
                         <td>@row.Lot</td>
-                        <td class="num">@(pieces ? $"{OrderReports.Qty(row.Quantity)} ชิ้น" : row.Boxes is { } boxes ? OrderReports.Qty(boxes) : "")</td>
+                        <td class="num">@(pieces ? $"{OrderReports.Qty(row.Quantity)} ชิ้น" : "")</td>
                     </tr>
                     lastDate = row.DeliveryDate;
                     lastInvoice = row.InvoiceNo;
                 }
                 <tr class="total">
+                    <td colspan="2"></td>
                     <td colspan="4"><b>รวม @customer.Rows.Count รายการ</b></td>
                     <td colspan="3"></td>
                     <td class="num"><b>@ReportText.Decimal2(customer.Amount)</b></td>
@@ -58,16 +70,15 @@ else
                 </tr>
             }
             <tr class="total">
-                <td colspan="4"><b>รวมทั้งหมด</b></td>
+                <td colspan="6"><b>รวมทั้งหมด</b></td>
                 <td colspan="3"></td>
                 <td class="num"><b>@ReportText.Decimal2(Report.Amount)</b></td>
                 <td colspan="3"><b>บิล @Report.Invoices ใบ&ensp;ลูกค้า @Report.Customers.Count ราย&ensp;SALE ORDER @Report.Orders ใบ</b></td>
                 <td class="num"><b>@OrderReports.Qty(Report.Boxes)</b></td>
             </tr>
-            <tr><td colspan="12" class="end"></td></tr>
+            <tr><td colspan="14" class="end"></td></tr>
         </tbody>
     </table>
-    <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["ผู้รายงาน", "หัวหน้าแผนก", "ผู้จัดการฝ่าย"])" />
 }
 
 @code {

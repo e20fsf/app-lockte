@@ -7,7 +7,7 @@ namespace Lockte.Web.Reports.Purch;
 /// <summary>RPT-32 ทะเบียนผู้ขาย (Approved Supplier List): the suppliers used in production, by รหัส.</summary>
 public sealed record ApprovedSupplierReport(IReadOnlyList<SupplierDto> Rows);
 
-/// <summary>RPT-33 หนังสือแสดงความมุ่งมั่นของผู้ส่งมอบหรือผู้รับเหมาช่วง: one letter for the supplier chosen, dated the day of printing.</summary>
+/// <summary>RPT-33 หนังสือแสดงความมุ่งมั่นของผู้ส่งมอบหรือผู้รับเหมาช่วง: one letter for the supplier chosen, dated the day the user chose (today by default); prints no footer.</summary>
 public sealed record SupplierCommitmentLetter(string SupplierName, DateOnly Date)
 {
     public string LongDate => Date.ToString("d MMMM yyyy", ThaiDate.Culture);
@@ -32,11 +32,11 @@ public static class SupplierDocumentReports
             return ReportsRegistration.Pdf(http, pdf, "ทะเบียนผู้ขาย");
         });
 
-        reports.MapGet("/purch/commitment", async (int? supplier, SupplierDirectory suppliers, TimeProvider clock, HttpContext http, ReportPrinter printer, CancellationToken cancellationToken) =>
+        reports.MapGet("/purch/commitment", async (int? supplier, DateOnly? date, SupplierDirectory suppliers, TimeProvider clock, HttpContext http, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (supplier is not { } id || (await suppliers.GetAllAsync()).FirstOrDefault(s => s.Id == id) is not { } found) return Results.BadRequest("กรุณาเลือกผู้ขาย");
-            var letter = new SupplierCommitmentLetter(found.Name, DateOnly.FromDateTime(clock.GetLocalNow().DateTime));
-            var pdf = await printer.PrintAsync<SupplierCommitmentView>(CommitmentTitle, Paper.A4Portrait, new() { ["Report"] = letter }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            var letter = new SupplierCommitmentLetter(found.Name, date ?? DateOnly.FromDateTime(clock.GetLocalNow().DateTime));
+            var pdf = await printer.PrintAsync<SupplierCommitmentView>(CommitmentTitle, Paper.A4Portrait, new() { ["Report"] = letter }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken, footer: false);
             return ReportsRegistration.Pdf(http, pdf, "หนังสือมุ่งมั่น " + found.Code);
         });
         return reports;

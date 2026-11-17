@@ -15,6 +15,18 @@ public static class WorkTypes
     public const int Length = 2;
 
     public static IReadOnlyList<string> Codes { get; } = [Normal, Overtime, Sunday, SundayOvertime, Holiday, HolidayOvertime];
+
+    /// <summary>
+    /// T-ประเภทการทำงาน.NAME (specs/employee glossary and data-model): what each code means, shown beside it in the dropdowns (#411).
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> Descriptions { get; } = new Dictionary<string, string>
+    {
+        [Normal] = "ทำงานปกติ", [Overtime] = "OT วันปกติ", [Sunday] = "ทำงานวันอาทิตย์", [SundayOvertime] = "OT วันอาทิตย์",
+        [Holiday] = "ทำงานวันหยุด", [HolidayOvertime] = "OT วันหยุด",
+    };
+
+    /// <summary>"O1 — OT วันปกติ".</summary>
+    public static string Label(string code) => Descriptions.TryGetValue(code, out var text) ? $"{code} — {text}" : code;
 }
 
 /// <summary>A ไม่มาทำงาน row of SCR-10, with the employee's code and name.</summary>

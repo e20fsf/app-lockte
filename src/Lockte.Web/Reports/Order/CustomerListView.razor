@@ -1,5 +1,6 @@
 @* RPT-21 รายชื่อลูกค้า (พิมพ์รายชื่อลูกค้า, เมนู 7): ระดับ B, A4 นอน — ทุกลูกค้าตามรหัส. The legacy columns wider than the page were cut
-   (D-4): here they are sized to fit and the address wraps. *@
+   (D-4): here they are sized to fit and the address wraps. ขนส่ง (UAT-44, #441) as Access P_CUS prints it: ชื่อขนส่ง + ที่อยู่ขนส่ง,
+   then โทรขนส่ง in a column of its own so a row stays one line where it can. *@
 @if (Report.Lines.Count == 0)
 {
     <NoData />
@@ -8,11 +9,11 @@ else
 {
     <table>
         <colgroup>
-            <col style="width:4%" /><col style="width:9%" /><col style="width:22%" /><col style="width:27%" /><col style="width:11%" />
-            <col style="width:7%" /><col style="width:10%" /><col style="width:10%" />
+            <col style="width:3%" /><col style="width:7%" /><col style="width:15%" /><col style="width:20%" /><col style="width:7%" />
+            <col style="width:5%" /><col style="width:10%" /><col style="width:6%" /><col style="width:19%" /><col style="width:8%" />
         </colgroup>
         <thead>
-            <tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อลูกค้า</th><th>ที่อยู่</th><th>จังหวัด</th><th>เครดิต</th><th>โทร</th><th>เขตการขาย</th></tr>
+            <tr><th class="num">ที่</th><th>รหัส</th><th>ชื่อลูกค้า</th><th>ที่อยู่</th><th>จังหวัด</th><th>เครดิต</th><th>โทร</th><th>เขตการขาย</th><th>ขนส่ง</th><th>โทรขนส่ง</th></tr>
         </thead>
         <tbody>
             @for (var i = 0; i < Report.Lines.Count; i++)
@@ -27,6 +28,8 @@ else
                     <td>@c.CreditText</td>
                     <td>@string.Join(", ", new[] { c.Phone1, c.Phone2 }.Where(x => !string.IsNullOrWhiteSpace(x)))</td>
                     <td>@c.SalesTerritoryCode</td>
+                    <td>@string.Join(" ", new[] { c.TransportName, c.TransportAddress }.Where(x => !string.IsNullOrWhiteSpace(x)))</td>
+                    <td>@c.TransportPhone</td>
                 </tr>
             }
         </tbody>
@@ -35,4 +38,5 @@ else
 
 @code {
     [Parameter, EditorRequired] public MasterList<CustomerDto> Report { get; set; } = null!;
+
 }

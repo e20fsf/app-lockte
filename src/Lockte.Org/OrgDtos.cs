@@ -45,7 +45,8 @@ public sealed record DepartmentDto(
     int? HeadEmployeeId,
     IReadOnlyList<DepartmentShiftDto> Shifts,
     byte[] RowVersion,
-    int? StaffingTarget);
+    int? StaffingTarget,
+    bool IsActive = true);
 
 /// <summary>
 /// A row of SCR-05 to save, with the shifts the department works. <see cref="Id"/> null = new row;

@@ -9,7 +9,7 @@ else
 {
     var t = Report.Totals;
     <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From)&emsp;ถึงวันที่ @ReportText.Date(Report.To)&emsp;ชื่อผู้ขาย: @(Report.SupplierName ?? "ทั้งหมด")</p>
-    <table>
+    <table class="grid">
         <thead>
             <tr><th class="num">ที่</th><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>ผู้ขาย</th><th class="num">จำนวน</th><th>หน่วย</th><th>วันที่รับเข้า</th><th>วันที่ต้องการ</th><th>LOT</th><th>การตรวจสอบ</th><th>ใบรับรอง</th><th>ผลการส่ง</th><th>หมายเหตุ</th></tr>
         </thead>
@@ -36,10 +36,9 @@ else
                     <td>@r.QaNote</td>
                 </tr>
             }
-            <tr class="total"><td colspan="13"><b>รวมทั้งหมด @t.Count รายการ</b> · ใบรับรอง มี @t.WithCertificate / ไม่มี @t.WithoutCertificate · ส่งทัน @t.OnTime / ไม่ทัน @t.Late · ผ่าน @t.Passed / ไม่ผ่าน @t.Failed</td></tr>
-            <tr><td colspan="13" class="end"></td></tr>
         </tbody>
     </table>
+    <p class="lbl" style="margin:3pt 0"><b>รวมทั้งหมด @t.Count รายการ</b> · ใบรับรอง มี @t.WithCertificate / ไม่มี @t.WithoutCertificate · ส่งทัน @t.OnTime / ไม่ทัน @t.Late · ผ่าน @t.Passed / ไม่ผ่าน @t.Failed</p>
     <Lockte.Web.Reports.Hr.SignatureBoxes Labels="@(["Prepared by", "Reviewed by", "Approved by"])" />
 }
 

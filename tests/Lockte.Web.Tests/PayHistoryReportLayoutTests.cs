@@ -59,22 +59,25 @@ public sealed class PayHistoryReportLayoutTests
         Assert.DoesNotContain("10,194.00", html); // 10,044 + 150 is not printed
         Assert.Equal(2, html.Split(">32,242.00<").Length - 1); // รวมทั้งหมด under ค่าจ้าง and รวมเงินทั้งสิ้น
         Assert.Contains("ลายมือชื่อ", html);
+        // UAT-30: the แผนก line is in the table head (repeated on every page), not a paragraph of the first page; the signature column is the widest after the name
+        Assert.DoesNotContain("<p class=\"sub\">", html);
+        Assert.True(html.IndexOf("แผนก ทั้งหมด", StringComparison.Ordinal) < html.IndexOf("<tbody>", StringComparison.Ordinal));
+        Assert.Matches("<thead>\\s*<tr><th class=\"dept\"[^>]*>แผนก ทั้งหมด", html);
+        Assert.Contains("<col style=\"width:12%\" />", html);
     }
 
-    [Fact] // สรุปบัญชีคำนวณค่าจ้าง: Σค่าจ้าง; สรุปค่าแรงประจำเดือน (ต้นทุน): Σ(PAY_W + PAY_OT); หัวตามถึงวันที่
-    public async Task The_summaries_print_the_wages_or_the_cost()
+    [Fact] // สรุปบัญชีคำนวณค่าจ้าง: Σค่าจ้าง; หัวตามถึงวันที่ (ปุ่ม "พิมพ์สรุป (ต้นทุน)" เอาออกแล้ว, UAT-23)
+    public async Task The_summary_prints_the_wages()
     {
         var summary = new MonthEndPaySummary(From, To,
             [new MonthEndDepartmentTotal("ไดคาสท์", 12, 150442m, 150850m), new MonthEndDepartmentTotal("ตกแต่ง", 22, 230950m, 231000m)]);
 
         var wages = await HtmlAsync<MonthEndSummaryView>(new() { ["Report"] = summary });
-        var cost = await HtmlAsync<MonthEndSummaryView>(new() { ["Report"] = summary, ["Cost"] = true });
 
-        Assert.Equal("สรุปบัญชีคำนวณค่าจ้างเดือน กันยายน 2569", MonthEndSummaryView.TitleOf(summary, cost: false));
-        Assert.Equal("สรุปค่าแรงประจำเดือน กันยายน 2569", MonthEndSummaryView.TitleOf(summary, cost: true));
+        Assert.Equal("สรุปบัญชีคำนวณค่าจ้างเดือน กันยายน 2569", MonthEndSummaryView.TitleOf(summary));
         Assert.Contains(">150,442.00<", wages);
         Assert.Contains(">381,392.00<", wages);
-        Assert.Contains(">381,850.00<", cost);
+        Assert.DoesNotContain(">381,850.00<", wages);
         Assert.Contains(">34<", wages);
         Assert.Contains("รวมทั้งหมด", wages);
     }

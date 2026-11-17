@@ -1,4 +1,5 @@
 using Lockte.Hr;
+using Lockte.SharedKernel;
 using Lockte.SharedKernel.Persistence;
 using Lockte.Web.Audit;
 
@@ -227,7 +228,7 @@ public sealed class LeaveTests(LocalDbFixture db)
         Assert.Equal(["กรุณาเลือกพนักงาน"], (await SaveAsync(ok with { EmployeeId = null })).Save.Errors);
         Assert.Equal(["ไม่พบพนักงานที่เลือก"], (await SaveAsync(ok with { EmployeeId = -1 })).Save.Errors);
         Assert.Equal(["กรุณากรอกวันที่ลา"], (await SaveAsync(ok with { ToDate = null })).Save.Errors);
-        Assert.Equal(["วันที่เริ่มต้องไม่หลังวันที่สิ้นสุด"], (await SaveAsync(ok with { ToDate = Day(3, 2) })).Save.Errors);
+        Assert.Equal([DateRangeRule.Message], (await SaveAsync(ok with { ToDate = Day(3, 2) })).Save.Errors);
         Assert.Equal(["กรุณากรอกจำนวนวัน"], (await SaveAsync(ok with { Days = null })).Save.Errors);
         Assert.Equal(["จำนวนวันต้องมากกว่า 0"], (await SaveAsync(ok with { Days = 0 })).Save.Errors);
         Assert.Equal(["กรุณาเลือกประเภทการลา"], (await SaveAsync(ok with { Type = " " })).Save.Errors);
@@ -292,7 +293,7 @@ public sealed class LeaveTests(LocalDbFixture db)
         Assert.Equal([before, after], (await ListAsync(employee)).Select(r => r.Id));
         Assert.Single(await ListAsync(other));
         var backwards = await AsHrAsync(s => s.Get<LeaveRegistry>().DeleteRangeAsync(employee.Id, Day(6, 2), Day(6, 1)));
-        Assert.Equal(["วันที่เริ่มต้องไม่หลังวันที่สิ้นสุด"], backwards.Errors);
+        Assert.Equal([DateRangeRule.Message], backwards.Errors);
     }
 
     [Fact] // SCR-30: แก้และลบทีละแถว with the rowversion the screen loaded

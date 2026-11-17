@@ -13,8 +13,7 @@
 
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
     <MudStack Row="true" Spacing="2">
-        <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
-        <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+        <DateRangePicker @bind-From="from" @bind-To="to" Style="max-width:16rem" />
     </MudStack>
     <MudText Typo="Typo.body2" Class="mt-3">ทำใหม่ทั้งช่วง: ลบรายการผลผลิตของช่วงนี้ในสต็อกแล้วสร้างใหม่จากใบรายงานผลผลิตของทุกแผนก (จำนวนรวม = ดี + เสีย)</MudText>
     @if (Problem is { } problem)

@@ -20,6 +20,7 @@ public static class HrModule
         services.AddScoped<EmployeeDirectory>();
         services.AddScoped<LegacyPayRounding>();
         services.AddScoped<EmployeeRegistry>();
+        services.AddScoped<Lockte.Org.IDepartmentOccupancy, EmployeeDepartmentOccupancy>();
         services.AddScoped<Lockte.Sales.IEmployeeLookup, SalesEmployeeLookup>();
         services.AddScoped<Lockte.Prod.IProductionEmployeeLookup, ProductionEmployeeLookup>();
         services.AddScoped<Lockte.Purch.IPurchEmployeeLookup, PurchEmployeeLookup>();
@@ -39,6 +40,8 @@ public static class HrModule
         services.AddScoped<PayHistoryReportDirectory>();
         services.AddScoped<ContractLaborDirectory>();
         services.AddScoped<SlipSignerRegistry>();
+        services.AddScoped<FormSignerSettings>();
+        services.AddScoped<WelfareRateRegistry>();
         services.AddScoped<HrDocumentDirectory>();
         services.AddScoped<ResignationRegistry>();
         services.AddScoped<OnboardingDirectory>();
@@ -79,6 +82,8 @@ public sealed class HrDataReset(HrDbContext db)
     public async Task DeleteAllAsync()
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.BonusResults.ExecuteDeleteAsync();
+        await db.BonusRuns.ExecuteDeleteAsync();
         await db.WeeklyHolidays.ExecuteDeleteAsync();
         await db.PublicHolidays.ExecuteDeleteAsync();
         await db.Warnings.ExecuteDeleteAsync();

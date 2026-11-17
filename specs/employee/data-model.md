@@ -480,7 +480,7 @@ Index: ไม่มี · คีย์ธรรมชาติในทางป
 
 ```mermaid
 erDiagram
-  แผนก ||--o{ EMPLO : "DEPART = DEPARTMENT"
+  "แผนก" ||--o{ EMPLO : "DEPART = DEPARTMENT"
   SHIFT ||--o{ EMPLO : SHIFT
   EMPLO ||--o{ E_WORK : ID
   EMPLO ||--o{ ADD_EW : ID
@@ -488,13 +488,13 @@ erDiagram
   EMPLO ||--o{ OT : ID
   EMPLO ||--o{ LEAVE : ID
   EMPLO ||--o{ LEAVE_ADD : ID
-  EMPLO ||--o{ ใบเตือน : ID
-  EMPLO ||--o{ ใบเตือนADD : ID
-  EMPLO ||--o{ สำเนาของ_ค่าแรง : ID
-  ประเภทการลางาน ||--o{ LEAVE : "ID = SR"
-  ประเภทการทำงาน ||--o{ E_WORK : "CODE = TYPE"
-  ชื่อใบเตือน ||--o{ ใบเตือน : CODE
-  แผนก2 ||--|| แผนก : DEPART
+  EMPLO ||--o{ "ใบเตือน" : ID
+  EMPLO ||--o{ "ใบเตือนADD" : ID
+  EMPLO ||--o{ "สำเนาของ_ค่าแรง" : ID
+  "ประเภทการลางาน" ||--o{ LEAVE : "ID = SR"
+  "ประเภทการทำงาน" ||--o{ E_WORK : "CODE = TYPE"
+  "ชื่อใบเตือน" ||--o{ "ใบเตือน" : CODE
+  "แผนก2" ||--|| "แผนก" : DEPART
 ```
 
 พฤติกรรมเมื่อลบ/แก้แถวแม่ในระบบเดิม:

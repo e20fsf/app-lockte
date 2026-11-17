@@ -5,11 +5,11 @@
 @inject NavigationManager Navigation
 @inject ScopedServices Services
 
-<MudMenu Label="@(current?.Title ?? "เลือกโปรแกรม")" StartIcon="@Icons.Material.Filled.Apps" EndIcon="@Icons.Material.Filled.ArrowDropDown"
+<MudMenu Label="@(current?.Title ?? "เลือกโปรแกรม")" StartIcon="@(current?.Icon ?? Icons.Material.Filled.Apps)" EndIcon="@Icons.Material.Filled.ArrowDropDown"
          Variant="Variant.Text" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Class="program-switcher mr-2">
     @foreach (var program in ProgramMenus.All)
     {
-        <MudMenuItem Href="@program.Root" Icon="@(program == current ? Icons.Material.Filled.Check : Icons.Material.Filled.Apps)">@program.Title</MudMenuItem>
+        <MudMenuItem Href="@program.Root" Icon="@program.Icon" Class="@(program == current ? "program-current" : null)">@program.Title</MudMenuItem>
     }
     <MudDivider />
     <MudMenuItem Href="@ProgramMenus.ChooserHref" Icon="@Icons.Material.Filled.GridView">หน้าเลือกโปรแกรม</MudMenuItem>

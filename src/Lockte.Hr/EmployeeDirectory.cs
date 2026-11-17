@@ -68,7 +68,8 @@ public sealed class EmployeeDirectory(HrDbContext db, OrgDirectory org, TimeProv
         var working = await db.Employees.AsNoTracking().Where(e => e.ResignDate == null)
             .Select(e => new { e.DepartmentId, e.Sex, e.Education, e.Hospital })
             .ToListAsync();
-        var departments = await org.GetDepartmentsAsync();
+        // A department no longer used is left out unless somebody still works in it (UAT-32).
+        var departments = (await org.GetDepartmentsAsync()).Where(d => d.IsActive || working.Any(e => e.DepartmentId == d.Id)).ToList();
 
         var byDepartment = departments.Select(d =>
         {
@@ -160,4 +161,11 @@ internal sealed class CalibEmployeeLookup(EmployeeDirectory employees) : Lockte.
 
     public async Task<IReadOnlyList<Lockte.Calib.CalibEmployeeRef>> SearchAsync(string? text, int take)
         => (await employees.SearchAsync(text)).Where(e => e.IsWorking).Take(take).Select(e => new Lockte.Calib.CalibEmployeeRef(e.Id, e.Code, e.Name)).ToList();
+}
+
+/// <summary>Tells องค์กร how many employees still work in a แผนก, so it can refuse เลิกใช้แผนก while there are any (UAT-32).</summary>
+internal sealed class EmployeeDepartmentOccupancy(HrDbContext db) : Lockte.Org.IDepartmentOccupancy
+{
+    public Task<int> CountWorkingAsync(int departmentId)
+        => db.Employees.AsNoTracking().CountAsync(e => e.DepartmentId == departmentId && e.ResignDate == null && !e.IsMigrationStub);
 }

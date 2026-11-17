@@ -194,7 +194,9 @@ public sealed class PayPeriodDirectory(HrDbContext db, OrgDirectory org, TimePro
                 r.WelfareEmployee, r.WelfareCompany, accumulated.GetValueOrDefault(r.Pay.EmployeeId))
                 with { Bonus = bonus?.GetValueOrDefault(r.Pay.EmployeeId) ?? 0 })
             .OrderBy(s => s.Code, StringComparer.Ordinal).ToList();
-        return new PaySlipBatch(period, slips, await ListSlipSignersAsync());
+        var rates = await db.WelfareRates.AsNoTracking()
+            .Select(r => new WelfareRateDto(r.Id, r.StartDate, r.EndDate, r.Percent, r.RowVersion)).ToListAsync();
+        return new PaySlipBatch(period, slips, await ListSlipSignersAsync(), WelfareRateTable.On(rates, period.To)?.Percent);
     }
 
     /// <summary>ผู้ลงนามบนสลิป, one per <see cref="SlipSignerRole"/> (a role never saved comes back blank).</summary>

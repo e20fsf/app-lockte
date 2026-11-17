@@ -1,0 +1,26 @@
+@using Lockte.Sales
+@* The one รหัสลูกค้า (รหัส หรือ ชื่อ) pick-box of every screen (UAT-33, #414). Digits/dashes = the code starts with them (05 → 05-…,
+   not 01-01-005); anything else searches the name. The list is not cut at a count (it scrolls) and is sorted by รหัส; each row shows the
+   seven columns of the legacy combo (CustomerPickerRow). With Candidates the same rule runs over that list instead of the register. *@
+<MudAutocomplete T="CustomerDto" Value="Value" ValueChanged="ValueChanged" Label="@Label" SearchFunc="SearchAsync" Clearable="@Clearable"
+                 ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" ResetValueOnEmptyText="true" MaxItems="@null" Style="@Style"
+                 CoerceText="false" Dense="true" ShowProgressIndicator="true" RelativeWidth="DropdownWidth.Adaptive">
+    <ItemTemplate Context="c"><CustomerPickerRow Customer="c" /></ItemTemplate>
+</MudAutocomplete>
+
+@code {
+    [Inject] private ScopedServices Services { get; set; } = default!;
+
+    [Parameter] public CustomerDto? Value { get; set; }
+    [Parameter] public EventCallback<CustomerDto?> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "รหัสลูกค้า (รหัส หรือ ชื่อ)";
+    [Parameter] public bool Clearable { get; set; }
+    [Parameter] public string? Style { get; set; }
+    /// <summary>Pick from this list (same search rule) instead of the whole register.</summary>
+    [Parameter] public IReadOnlyList<CustomerDto>? Candidates { get; set; }
+
+    private async Task<IEnumerable<CustomerDto>> SearchAsync(string? text, CancellationToken _)
+        => Candidates is { } list
+            ? CustomerSearch.Filter(list, text).ToList()
+            : await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text));
+}

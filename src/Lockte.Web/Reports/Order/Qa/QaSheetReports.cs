@@ -27,7 +27,7 @@ public static class QaSheetReports
 
             var content = new QaSheetContent(sheet.DocumentName, QaSheetForm.DocumentNumber(sheet.DocumentCode, sheet.DocumentSequence, sheet.Revision), sheet.Models,
                 sheet.Points.Select(QaSheetForm.PointText).ToList(), sheet.Defects, sheet.Image, sheet.ImageContentType);
-            var pdf = await printer.PrintFormAsync(QaSheetForm.Title, QaSheetForm.Layout(template, content, lines), ct);
+            var pdf = await printer.PrintFormAsync(ReportProgram.Order, QaSheetForm.Title, QaSheetForm.Layout(template, content, lines), ct);
             return ReportsRegistration.Pdf(http, pdf, sheet.Name);
         });
         return reports;

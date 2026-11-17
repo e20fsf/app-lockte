@@ -125,7 +125,7 @@ public sealed class PayAccessTests
             "/reports/hr/pay-periods/{id:int}/pay", "/reports/hr/pay-periods/{id:int}/pay-summary", "/reports/hr/pay-periods/{id:int}/bank/{bank}",
             "/reports/hr/pay-periods/{id:int}/slips", "/reports/hr/pay-periods/{id:int}/slips-with-bonus",
             "/reports/hr/pay-periods/{id:int}/bonus-bank/{bank}", "/reports/hr/bonus", "/reports/hr/pay-adjustment",
-            "/reports/hr/pay/month-end", "/reports/hr/pay/monthly", "/reports/hr/vacation-pay", "/reports/hr/severance/{employeeId:int}",
+            "/reports/hr/pay/month-end", "/reports/hr/pay/month-end/welfare-fund", "/reports/hr/pay/monthly", "/reports/hr/vacation-pay", "/reports/hr/severance/{employeeId:int}",
             "/reports/hr/two-part-periods/{first:int}/{second:int}/bank",
         ];
         Assert.All(expected, r => Assert.Contains(r, PayReportRoutes.Pay));

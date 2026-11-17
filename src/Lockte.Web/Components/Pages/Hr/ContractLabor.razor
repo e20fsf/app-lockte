@@ -17,10 +17,7 @@
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
     <MudStack Spacing="2">
         <MudStack Row="true" Spacing="2">
-            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                           Style="max-width:12rem" />
-            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
-                           Style="max-width:12rem" />
+            <DateRangePicker @bind-From="from" @bind-To="to" Style="max-width:12rem" />
         </MudStack>
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
             <MudSelect T="string" @bind-Value="customerCode" Label="ลูกค้า" Style="max-width:10rem" Disabled="customers.Count == 0">

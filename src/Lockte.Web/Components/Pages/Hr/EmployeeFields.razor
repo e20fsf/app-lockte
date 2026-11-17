@@ -52,7 +52,7 @@
     </MudItem>
     <MudItem xs="6" sm="3">
         <MudSelect T="int?" Value="Form.DepartmentId" ValueChanged="DepartmentChanged" Label="แผนก" Clearable="true">
-            @foreach (var d in Departments)
+            @foreach (var d in Departments.Where(x => x.IsActive || x.Id == Form.DepartmentId))
             {
                 <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
             }

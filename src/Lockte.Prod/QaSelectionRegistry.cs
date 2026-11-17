@@ -123,6 +123,13 @@ public sealed class QaSelectionDirectory(ProdDbContext db)
     /// <summary>The specs of a new mold's inspection (ตรวจสอบพิมพ์), by name.</summary>
     public Task<IReadOnlyList<QaSpecSummary>> GetMoldSpecsAsync() => SpecsWhereAsync(QaSpecGroups.NewMold.Contains);
 
+    /// <summary>The buttons of a department's specs, as the legacy form laid them out (UAT-45, see <see cref="QaSheetButtons"/>).</summary>
+    public async Task<IReadOnlyList<QaSheetButtonView>> GetButtonsAsync(string departmentCode)
+        => QaSheetButtons.Arrange(QaSheetButtons.OfDepartment(departmentCode), await GetSpecsAsync(departmentCode));
+
+    /// <summary>The buttons of the mold sheets, as <c>ตรวจสอบพิมพ์</c> laid them out.</summary>
+    public async Task<IReadOnlyList<QaSheetButtonView>> GetMoldButtonsAsync() => QaSheetButtons.Arrange(QaSheetButtons.OfMold, await GetMoldSpecsAsync());
+
     private async Task<IReadOnlyList<QaSpecSummary>> SpecsWhereAsync(Func<string, bool> groupFits)
     {
         var all = await db.QaModelSpecs.AsNoTracking().Select(s => new { s.Id, s.DocumentTypeId, TypeCode = s.DocumentType.Code, s.Name, s.Models, s.DocumentSequence, Points = s.Points.Count, Defects = s.Defects.Count }).ToListAsync();

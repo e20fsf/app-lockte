@@ -1,0 +1,35 @@
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@* สรุปใบลาออก (UAT-25): ระดับ B on A4 ตั้ง — จำนวนใบลาออกต่อเดือน of วันลาออก in the chosen range (every month listed, 0 when
+   none) and รวม at the end; the range and the แผนก (ทุกแผนก when not chosen) are printed on top. Rows from
+   HrDocumentDirectory.GetResignationSummaryAsync. *@
+<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)&emsp;แผนก @(Report.DepartmentName ?? "ทั้งหมด")</p>
+<table>
+    <colgroup><col style="width:12%" /><col style="width:58%" /><col style="width:30%" /></colgroup>
+    <thead>
+        <tr><th class="num"></th><th>เดือน</th><th class="num">จำนวนใบลาออก (ใบ)</th></tr>
+    </thead>
+    <tbody>
+        @for (var i = 0; i < Report.Months.Count; i++)
+        {
+            var line = Report.Months[i];
+            <tr>
+                <td class="num">@(i + 1)</td>
+                <td>@MonthText(line)</td>
+                <td class="num">@line.Count</td>
+            </tr>
+        }
+        <tr class="total"><td colspan="2">รวม</td><td class="num">@Report.Total</td></tr>
+        <tr><td colspan="3" class="end"></td></tr>
+    </tbody>
+</table>
+
+@code {
+    public const string Title = "สรุปใบลาออก";
+
+    [Parameter, EditorRequired] public ResignationSummaryReport Report { get; set; } = default!;
+
+    /// <summary>"ตุลาคม 2569".</summary>
+    public static string MonthText(ResignationMonthLine line)
+        => new DateOnly(line.Year, line.Month, 1).ToString("MMMM yyyy", ThaiDate.Culture);
+}

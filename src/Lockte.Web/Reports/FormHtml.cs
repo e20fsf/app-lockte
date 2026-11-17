@@ -22,20 +22,27 @@ public static class FormHtml
 
     public const double MillimetresPerPoint = 25.4 / 72;
 
-    public static string Compose(string title, Paper paper, string bodyHtml)
+    /// <summary>Thickness of a dotted/dashed fill-in line (<see cref="Forms.FormDots"/>), mm.</summary>
+    public const double DotsWeight = 0.4;
+
+    public static string Compose(string title, Paper paper, string bodyHtml, ReportFont? font = null)
     {
+        font ??= ReportFonts.ThSarabunNew;
         var (width, height) = ReportHtml.PageMillimetres(paper);
-        var css = new StringBuilder();
-        foreach (var (file, weight) in ReportHtml.Fonts)
-            css.Append($"@font-face{{font-family:'THSarabunNew';font-weight:{weight};src:url('{ReportHtml.FontHost}{Uri.EscapeDataString(file)}') format('truetype')}}");
+        var css = new StringBuilder(font.FaceCss);
         css.Append($"@page{{size:{ReportHtml.PageSize(paper)};margin:0}}");
         css.Append("html,body{margin:0}");
-        css.Append("body{font-family:'THSarabunNew';color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}");
+        css.Append($"body{{font-family:'{font.Family}';" + "color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}");
         css.Append($".page{{position:relative;width:{Mm(width)}mm;height:{Mm(height)}mm;overflow:hidden;break-after:page}}");
         css.Append(".page:last-child{break-after:auto}");
         css.Append(".t{position:absolute;white-space:pre;line-height:1}");
-        // The legacy dotted underline: 0.5 mm dashes every 1.05 mm, 0.3 mm thick.
-        css.Append(".dots{position:absolute;height:0.3mm;background:repeating-linear-gradient(90deg,#000 0 0.5mm,transparent 0.5mm 1.05mm)}");
+        // The legacy dotted underline (Forms.FormDots): an SVG dashed stroke, like FormPage.Dots. UAT-37: a CSS gradient here
+        // became a PDF tiling/shading pattern that printers dropped (lines on screen, none on paper); a plain vector stroke
+        // prints. 0.6 mm dashes every 1.05 mm, 0.4 mm thick (the legacy's 0.5 × 0.3 mm printed too faint).
+        css.Append($".dots{{position:absolute;height:{Mm(DotsWeight)}mm}}");
+        css.Append(".dots svg{display:block;width:100%;height:100%;overflow:visible}");
+        css.Append($".dots line{{stroke:#000;stroke-width:{Mm(DotsWeight)};stroke-dasharray:0.6 0.45}}");
+        css.Append(".dots.dashed line{stroke-dasharray:1.6 0.8}");
         css.Append(".line{position:absolute;background:#000}");
         css.Append(".box{position:absolute;box-sizing:border-box;border:0.3mm solid #000}");
         return $"<!doctype html><html lang=\"th\"><head><meta charset=\"utf-8\"><title>{System.Net.WebUtility.HtmlEncode(title)}</title>"

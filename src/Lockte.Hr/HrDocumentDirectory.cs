@@ -77,8 +77,17 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
         var place = await PlaceAsync(e);
         return new ResignationLetterData(e.Code, e.Name, place.Department?.Name, place.ShiftCode, e.StartDate, resignDate,
             string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(),
-            place.Names?.SupervisorName, place.Names?.ManagerName, place.Names?.FactoryManagerName);
+            place.Names?.SupervisorName, DepartmentName(place, n => n.ManagerName), DepartmentName(place, n => n.FactoryManagerName));
     }
+
+    /// <summary>
+    /// The ผู้จัดการฝ่าย / ผู้จัดการโรงงาน of the employee's แผนก: the name set for the employee's own กะ, else the one set for
+    /// another กะ of the same แผนก (UAT-29 — the name is the แผนก's, so a กะ left blank must not print someone else's or nothing).
+    /// </summary>
+    private static string? DepartmentName((DepartmentDto? Department, string? ShiftCode, DepartmentShiftDto? Names) place, Func<DepartmentShiftDto, string?> pick)
+        => place.Names is { } own && !string.IsNullOrWhiteSpace(pick(own))
+            ? pick(own)
+            : place.Department?.Shifts.Select(pick).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
 
     /// <summary>RPT-55 รายงานพนักงานที่ลาออก: everyone with a วันลาออก, by วันลาออก then รหัส (no date filter, as before).</summary>
     public async Task<IReadOnlyList<ResignedEmployee>> ListResignedAsync()
@@ -89,6 +98,21 @@ public sealed class HrDocumentDirectory(HrDbContext db, OrgDirectory org, TimePr
             .Select(r => new ResignedEmployee(r.Code, r.Name, r.StartDate, r.ResignDate,
                 r.StartDate is { } start ? (r.ResignDate.DayNumber - start.DayNumber) / 365.0 : null, r.Memo))
             .ToList();
+    }
+
+    /// <summary>สรุปใบลาออก: the number of resignations per month of วันลาออก in the range, optionally of one แผนก (the employee's current one).</summary>
+    public async Task<ResignationSummaryReport> GetResignationSummaryAsync(DateOnly from, DateOnly to, int? departmentId)
+    {
+        var dates = await db.Employees.AsNoTracking()
+            .Where(e => e.ResignDate != null && !e.IsMigrationStub && e.ResignDate >= from && e.ResignDate <= to
+                        && (departmentId == null || e.DepartmentId == departmentId))
+            .Select(e => e.ResignDate!.Value).ToListAsync();
+        var counts = dates.GroupBy(d => (d.Year, d.Month)).ToDictionary(g => g.Key, g => g.Count());
+        var months = new List<ResignationMonthLine>();
+        for (var m = new DateOnly(from.Year, from.Month, 1); m <= to; m = m.AddMonths(1))
+            months.Add(new ResignationMonthLine(m.Year, m.Month, counts.GetValueOrDefault((m.Year, m.Month))));
+        var name = departmentId is { } d ? (await org.GetDepartmentAsync(d))?.Name : null;
+        return new ResignationSummaryReport(from, to, name, months);
     }
 
     private async Task<CertificateData> CertificateAsync(Employee e, DateTime now)

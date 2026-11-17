@@ -26,6 +26,7 @@ public static class PayReportRoutes
         "/reports/hr/pay/contract-labor",
         "/reports/hr/pay/month-end",
         "/reports/hr/pay/month-end/summary",
+        "/reports/hr/pay/month-end/welfare-fund",
         "/reports/hr/pay/monthly",
         "/reports/hr/pay/totals",
         "/reports/hr/bonus",
@@ -71,6 +72,7 @@ public static class PayReportRoutes
         "/reports/hr/leave-form/{employeeId:int}",
         "/reports/hr/resignation-letter/{employeeId:int}",
         "/reports/hr/resigned",
+        "/reports/hr/resignation-summary",
         "/reports/hr/vacation-notice",
     };
 

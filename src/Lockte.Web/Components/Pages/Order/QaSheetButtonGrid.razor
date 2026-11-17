@@ -1,0 +1,25 @@
+@using Lockte.Prod
+
+@* The buttons of the models of a QA sheet form (UAT-45, #442): in the order and with the captions of the legacy form, row by row, in blocks where the form had them (ผ้าเบรค / ดิสเบรค). *@
+@foreach (var block in Blocks())
+{
+    @if (block.Key is { } section)
+    {
+        <MudText Typo="Typo.subtitle2" Class="mt-2 mb-1">@section</MudText>
+    }
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr));gap:4px">
+        @foreach (var button in block)
+        {
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" Href="@SheetUrl(button.Spec.Id)" Target="_blank" Disabled="Disabled" title="@button.Spec.Name">@button.Caption</MudButton>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<QaSheetButtonView> Buttons { get; set; } = [];
+    [Parameter, EditorRequired] public Func<int, string> SheetUrl { get; set; } = _ => "";
+    [Parameter] public bool Disabled { get; set; }
+
+    // the blocks in the order they first come, each with its buttons in the order given
+    private IEnumerable<IGrouping<string?, QaSheetButtonView>> Blocks() => Buttons.GroupBy(b => b.Section);
+}

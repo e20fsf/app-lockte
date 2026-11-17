@@ -1,0 +1,112 @@
+@page "/hr/welfare-rates"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง (UAT-43): not in the legacy — HR sets the rate by ranges of dates because the law changes it.
+   One rate per range for both the employee's and the company's portion; วันสิ้นสุดว่าง = เป็นต้นไป; ranges never overlap. ยอดเงินส่ง
+   กองทุนสงเคราะห์ลูกจ้าง (SCR-43) uses the range covering the ถึงวันที่ of its งวด. Every change is in the history. *@
+<PageTitle>@WelfareRateRegistry.Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@WelfareRateRegistry.Title</h1>
+
+<MudTable Items="rows" Dense="true" Hover="true" T="WelfareRateDto" OnRowClick="@((TableRowClickEventArgs<WelfareRateDto> e) => Edit(e.Item!))"
+          Style="max-width:44rem">
+    <HeaderContent><MudTh>วันเริ่มมีผล</MudTh><MudTh>วันสิ้นสุด</MudTh><MudTh>อัตรา (ฝ่ายละ)</MudTh></HeaderContent>
+    <RowTemplate>
+        <MudTd>@ThaiDate.Format(context.StartDate)</MudTd>
+        <MudTd>@(context.EndDate is { } end ? ThaiDate.Format(end) : "เป็นต้นไป")</MudTd>
+        <MudTd>@WelfareRateTable.PercentText(context.Percent)</MudTd>
+    </RowTemplate>
+    <NoRecordsContent><MudText>ยังไม่มีอัตรา</MudText></NoRecordsContent>
+</MudTable>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true" Style="max-width:44rem">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">@(form.Id is null ? "เพิ่มช่วงอัตรา" : "แก้ช่วงอัตราที่เลือก")</MudText>
+        <MudSpacer />
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">ช่วงใหม่</MudButton>
+    </MudStack>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="form.StartDate" Label="วันเริ่มมีผล" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                       Style="max-width:12rem" />
+        <MudDatePicker Editable="true" @bind-Date="form.EndDate" Label="วันสิ้นสุด (ว่าง = เป็นต้นไป)" Culture="ThaiDate.Culture"
+                       DateFormat="@ThaiDate.Pattern" Clearable="true" Style="max-width:14rem" />
+        <MudNumericField T="decimal?" @bind-Value="form.Percent" Label="อัตรา %" Min="0m" Max="WelfareRateRegistry.MaxPercent" Format="0.####"
+                         HideSpinButtons="true" Style="max-width:8rem" />
+    </MudStack>
+    <MudText Typo="Typo.caption" Class="d-block mt-2">อัตราเดียวใช้ทั้งส่วนลูกจ้างและส่วนบริษัท · ใส่ 0.25 = 0.25% · ช่วงวันที่ห้ามทับกัน ถ้าจะเปลี่ยนอัตรา ให้ใส่วันสิ้นสุดของช่วงเดิมก่อนแล้วเพิ่มช่วงใหม่</MudText>
+    <MudStack Row="true" Spacing="2" Class="mt-3">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy">ลบช่วงนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudStack Row="true" Spacing="2" Class="mt-4">
+    <MudButton Href="hr/reports/pay/month-end" StartIcon="@Icons.Material.Filled.ArrowBack">พิมพ์ค่าแรงสิ้นเดือนและสรุป</MudButton>
+    <MudButton Href="@EmployeeMenu.HrefOf(12)" StartIcon="@Icons.Material.Filled.ArrowBack">กลับเมนูเดิม</MudButton>
+</MudStack>
+
+@code {
+    private IReadOnlyList<WelfareRateDto> rows = [];
+    private RowForm form = new();
+    private bool busy;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync() => rows = await Services.RunAsync<WelfareRateRegistry, IReadOnlyList<WelfareRateDto>>(r => r.ListAsync());
+
+    private void New() => form = new RowForm();
+
+    private void Edit(WelfareRateDto row) => form = new RowForm
+    {
+        Id = row.Id, StartDate = row.StartDate.ToDateTime(TimeOnly.MinValue), EndDate = row.EndDate?.ToDateTime(TimeOnly.MinValue),
+        Percent = row.Percent, RowVersion = row.RowVersion,
+    };
+
+    private Task SaveAsync()
+    {
+        var input = new WelfareRateInput(form.Id, form.StartDate is { } s ? DateOnly.FromDateTime(s) : null,
+            form.EndDate is { } e ? DateOnly.FromDateTime(e) : null, form.Percent, form.RowVersion);
+        return RunAsync(r => r.SaveAsync(input), "บันทึกอัตราแล้ว");
+    }
+
+    private Task DeleteAsync() => RunAsync(r => r.DeleteAsync(form.Id!.Value, form.RowVersion!), "ลบช่วงอัตราแล้ว");
+
+    private async Task RunAsync(Func<WelfareRateRegistry, Task<ServiceResult>> action, string done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync(action);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(done, Severity.Success);
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            New();
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+
+    private sealed class RowForm
+    {
+        public int? Id { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public decimal? Percent { get; set; }
+        public byte[]? RowVersion { get; set; }
+    }
+}

@@ -36,15 +36,22 @@ public static class SupplierEvaluationSummaryReports
 
     public static RouteGroupBuilder MapSupplierEvaluationSummaryReports(this RouteGroupBuilder reports)
     {
-        reports.MapGet("/purch/evaluation-annual", async (DateOnly? from, DateOnly? to, SupplierDirectory suppliers, TimeProvider clock, HttpContext http, ReportPrinter printer, CancellationToken cancellationToken) =>
+        reports.MapGet("/purch/evaluation-annual", async (DateOnly? from, DateOnly? to, int? supplier, SupplierDirectory suppliers, TimeProvider clock, HttpContext http, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (from is null || to is null) return Results.BadRequest("กรุณากรอกช่วงวันที่");
             if (from > to) return Results.BadRequest("ตั้งแต่วันที่ต้องไม่หลังถึงวันที่");
-            var list = await suppliers.GetProductionSuppliersWithReceiptsAsync(from.Value, to.Value);
+            IReadOnlyList<SupplierDto> list;
+            if (supplier is { } id)
+            {
+                // one supplier chosen: its form is printed whether or not it had receipts in the period
+                if (await suppliers.GetAsync(id) is not { } one) return Results.BadRequest("ไม่พบผู้ขายที่เลือก");
+                list = [one];
+            }
+            else list = await suppliers.GetProductionSuppliersWithReceiptsAsync(from.Value, to.Value);
             var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
             var pdf = await printer.PrintAsync<SupplierAnnualEvaluationView>(AnnualTitle, Paper.A4Portrait, new() { ["Suppliers"] = list, ["Year"] = from.Value.Year, ["Date"] = today },
                 AccountClaims.DisplayNameOf(http.User), DocumentKeys.SupplierAnnualEvaluation, cancellationToken);
-            return ReportsRegistration.Pdf(http, pdf, "แบบประเมินผู้ขายประจำปี " + from.Value.Year);
+            return ReportsRegistration.Pdf(http, pdf, "แบบประเมินผู้ขายประจำปี " + (from.Value.Year + 543));
         });
 
         reports.MapGet("/purch/evaluation-summary", async (int year, int quarter, SupplierDirectory suppliers, SupplierEvaluationDirectory evaluations, HttpContext http, ReportPrinter printer,

@@ -20,7 +20,7 @@ public static class PurchaseOrderReports
         var departmentName = picked.Count > 0 ? (await org.GetDepartmentAsync(picked[0].DepartmentId))?.Name : null;
         var lines = picked.Select(l => new PurchaseOrderPrintLine(l.LineNo, l.RequestNo, l.MaterialName, l.Quantity, l.Unit, l.UnitPrice, l.NetAmount)).ToList();
         return new PurchaseOrderPrint(order.OrderNo, order.OrderDate, order.SupplierName, order.SupplierAddress1, order.SupplierAddress2, order.SupplierTel, order.SupplierFax,
-            departmentName, picked.FirstOrDefault()?.DesiredDate, order.CreditDays, lines, totals.Subtotal, totals.Tax, totals.Total, totals.TotalInWords, order.Reason, order.Note);
+            departmentName, picked.FirstOrDefault()?.DesiredDate, order.CreditDays, lines, totals.Subtotal, totals.Tax, totals.Total, totals.TotalInWords, order.Reason, order.Note, order.PurchasingLocation);
     }
 
     public static RouteGroupBuilder MapPurchaseOrderReports(this RouteGroupBuilder reports)
@@ -39,7 +39,7 @@ public static class PurchaseOrderReports
             if (await BuildAsync(orders, org, settings, id, ids) is not { } report) return Results.NotFound("ไม่พบใบสั่งซื้อนี้");
             if (report.Lines.Count == 0) return Results.BadRequest("ไม่มีรายการ");
             var pages = PurchaseOrderForm.Layout(report, await numbers.PrintedTextAsync(DocumentKeys.PurchaseOrder), letterhead.Value);
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(PurchaseOrderForm.Title, pages, cancellationToken), "ใบสั่งซื้อ " + report.OrderNo);
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Purch, PurchaseOrderForm.Title, pages, cancellationToken), "ใบสั่งซื้อ " + report.OrderNo);
         });
 
         // พิมพ์ฟอร์มเปล่า
@@ -47,7 +47,7 @@ public static class PurchaseOrderReports
             CancellationToken cancellationToken) =>
         {
             var page = PurchaseOrderForm.Blank(await numbers.PrintedTextAsync(DocumentKeys.PurchaseOrder), letterhead.Value);
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(PurchaseOrderForm.Title, [page], cancellationToken), "ใบสั่งซื้อ ฟอร์มเปล่า");
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Purch, PurchaseOrderForm.Title, [page], cancellationToken), "ใบสั่งซื้อ ฟอร์มเปล่า");
         });
         return reports;
     }

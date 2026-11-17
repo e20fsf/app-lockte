@@ -435,6 +435,148 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "พนักงาน");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.FormSigners", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("FactoryManagerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อผู้จัดการโรงงาน");
+
+                    b.Property<string>("ManagerFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อผู้จัดการสถานประกอบกิจการ");
+
+                    b.Property<string>("ManagerLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "นามสกุลผู้จัดการสถานประกอบกิจการ");
+
+                    b.Property<string>("ManagerTitle")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasAnnotation("Lockte:AuditName", "คำนำหน้าผู้จัดการสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeDistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เขต/อำเภอ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeHouseNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeMoo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "หมู่ที่ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficePhone")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "โทรศัพท์ ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeProvince")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "จังหวัด ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeRoad")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ถนน ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeSoi")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ตรอก/ซอย ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("OfficeSubdistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "แขวง/ตำบล ที่ตั้งสถานประกอบกิจการ");
+
+                    b.Property<string>("PersonnelOfficerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ชื่อเจ้าหน้าที่บุคคล");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("WorkplaceDistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เขต/อำเภอ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceHouseNo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เลขที่ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceMoo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "หมู่ที่ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplacePhone")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "โทรศัพท์ สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceProvince")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "จังหวัด สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceRoad")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ถนน สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceSoi")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "ตรอก/ซอย สถานที่ทำงาน");
+
+                    b.Property<string>("WorkplaceSubdistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "แขวง/ตำบล สถานที่ทำงาน");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FormSigners", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "ผู้ลงนามบนแบบฟอร์ม");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.Leave", b =>
                 {
                     b.Property<int>("Id")
@@ -1025,6 +1167,59 @@ namespace Lockte.Hr.Data.Migrations
                     b.ToTable("WeeklyHolidays", "hr");
 
                     b.HasAnnotation("Lockte:AuditName", "วันหยุดประจำสัปดาห์");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.WelfareRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันสิ้นสุด");
+
+                    b.Property<decimal>("Percent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)")
+                        .HasAnnotation("Lockte:AuditName", "อัตรา %");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันเริ่มมีผล");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartDate")
+                        .IsUnique();
+
+                    b.ToTable("WelfareRates", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง");
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.WorkTime", b =>

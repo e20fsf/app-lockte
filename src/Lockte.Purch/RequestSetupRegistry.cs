@@ -106,7 +106,7 @@ public sealed class RequestSetupDirectory(PurchDbContext db, OrgDirectory org)
     public async Task<IReadOnlyList<DepartmentPrefixDto>> GetDepartmentsAsync()
     {
         var prefixes = await db.DepartmentPrefixes.AsNoTracking().ToDictionaryAsync(p => p.DepartmentId);
-        return (await org.GetDepartmentsAsync()).OrderBy(d => d.SortOrder)
+        return (await org.GetActiveDepartmentsAsync()).OrderBy(d => d.SortOrder)
             .Select(d => prefixes.TryGetValue(d.Id, out var p)
                 ? new DepartmentPrefixDto(d.Id, d.Name, p.Prefix, d.HeadEmployeeId, p.RowVersion)
                 : new DepartmentPrefixDto(d.Id, d.Name, null, d.HeadEmployeeId, null)).ToList();

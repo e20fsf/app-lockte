@@ -17,7 +17,7 @@ public static class StickerReports
             if (found.Count == 0) return Results.NotFound("ไม่พบเครื่องมือวัด");
             var size = await settings.GetAsync();
             var pages = StickerForm.Layout(found.Select(i => new StickerLabel(i.Code, cal.Value, due.Value)).ToList(), (double)size.StickerWidthCm * 10, (double)size.StickerHeightCm * 10);
-            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(StickerForm.Title, pages, cancellationToken), "สติกเกอร์ " + info.Key);
+            return ReportsRegistration.Pdf(http, await printer.PrintFormAsync(ReportProgram.Calib, StickerForm.Title, pages, cancellationToken), "สติกเกอร์ " + info.Key);
         });
         return reports;
     }

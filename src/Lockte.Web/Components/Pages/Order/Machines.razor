@@ -20,7 +20,7 @@
         <MudItem xs="12" sm="5"><MudTextField @bind-Value="form.Name" Label="ชื่อเครื่องจักร" MaxLength="OrgRegistry.NameLength" Required="true" RequiredError="กรุณากรอกชื่อเครื่องจักร" /></MudItem>
         <MudItem xs="12" sm="4">
             <MudSelect T="int?" @bind-Value="form.DepartmentId" Label="แผนก" Required="true" RequiredError="กรุณาเลือกแผนก">
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
                 }

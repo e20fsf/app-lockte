@@ -59,6 +59,11 @@ public sealed class PurchDocumentMigrationTests(MigrationDbFixture db) : IDispos
         // D: one order number, two suppliers: two orders
         file.Row("PO_RECEI4", [.. Head("RD" + tag, "PD" + tag, 1, s1, m1, 10, 10)]);
         file.Row("PO_RECEI4", [.. Head("RD" + tag, "PD" + tag, 2, s2, m2, 20, 20)]);
+        // G: 30 of 100 came and the line is no longer in PO_RECEI4 (taken off ค้างรับ, BR-033): not waited for any more
+        file.Row("PO_RECEI5", [.. Head("RG" + tag, "PG" + tag, 1, s1, m1, 100, 100), ("RE_DATE", d.AddDays(6)), ("RE_QTY", 30.0), ("NET_AMT", 300.0)]);
+        // H: the same ที่ of one order typed for the lines of two requests: two lines, each with its own request
+        file.Row("PO_RECEI5", [.. Head("RH1" + tag, "PH" + tag, 1, s1, m1, 10, 10), ("RE_DATE", d.AddDays(6)), ("RE_QTY", 10.0), ("NET_AMT", 100.0)]);
+        file.Row("PO_RECEI5", [.. Head("RH2" + tag, "PH" + tag, 1, s1, m2, 20, 20), ("RE_DATE", d.AddDays(7)), ("RE_QTY", 20.0), ("NET_AMT", 200.0)]);
         // exceptions: a leftover row, a material nobody has, a department nobody has
         file.Row("PO_RECEI5", ("PO_NO", "PX" + tag), ("PO_SUF", 1f));
         file.Row("PO_RECEI4", [.. Head("RE" + tag, "PE" + tag, 1, s1, "NOPE" + tag, 5, 5)]);
@@ -73,7 +78,7 @@ public sealed class PurchDocumentMigrationTests(MigrationDbFixture db) : IDispos
             var waiting = report.Tables.Single(t => t.LegacyTable == "PO_RECEI4");
             var history = report.Tables.Single(t => t.LegacyTable == "PO_RECEI5");
             Assert.Equal((6, 2, 4, 4), (waiting.SourceRows, waiting.Rejected, waiting.Loaded, waiting.InDatabase)); // A, C, D1, D2 are waiting lines; E and F cannot be loaded (B has no waiting row)
-            Assert.Equal((5, 1, 4, 4), (history.SourceRows, history.Rejected, history.Loaded, history.InDatabase));        // the leftover row is not loaded
+            Assert.Equal((8, 1, 7, 7), (history.SourceRows, history.Rejected, history.Loaded, history.InDatabase));        // the leftover row is not loaded
             Assert.True(report.Balanced, string.Join("; ", report.Tables.Where(t => !t.Balanced).Select(t => $"{t.LegacyTable} {t.SourceRows}/{t.Excluded}/{t.Rejected}/{t.Loaded}/{t.InDatabase}")
                 .Concat(report.MonthlyTotals.Where(m => !m.Balanced).Select(m => m.Measure))));
 
@@ -91,6 +96,16 @@ public sealed class PurchDocumentMigrationTests(MigrationDbFixture db) : IDispos
             Assert.True((await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetOrderReceiptsAsync(c.Id))).Single().Failed);
             Assert.Single((await OrderAsync("PD" + tag)).Lines);
             Assert.Single((await OrderAsync("PD" + tag + "-2")).Lines);
+
+            var g = await OrderAsync("PG" + tag);
+            Assert.Equal(100m, g.Lines.Single().Quantity);
+            var outstanding = await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetAllOutstandingAsync());
+            Assert.DoesNotContain(outstanding, l => l.OrderNo == "PG" + tag);
+            Assert.Contains(outstanding, l => l.OrderNo == "PA" + tag);
+            var h = await OrderAsync("PH" + tag);
+            Assert.Equal([1, 1], h.Lines.Select(l => l.LineNo));
+            var received = await AsAsync(s => s.Get<GoodsReceiptDirectory>().GetReceivedLinesAsync(DateOnly.FromDateTime(d), DateOnly.FromDateTime(d.AddDays(30))));
+            Assert.Equal(["RH1" + tag, "RH2" + tag], received.Where(l => l.OrderNo == "PH" + tag).Select(l => l.RequestNo).Order(StringComparer.Ordinal));
 
             Assert.Contains(report.Exceptions, e => e.Rule == "DQ-05" && e.Key == "PX" + tag);
             Assert.Contains(report.Exceptions, e => e.Rule == "DQ-19" && e.Key == "PD" + tag);

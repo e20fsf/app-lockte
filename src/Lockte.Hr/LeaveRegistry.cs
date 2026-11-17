@@ -89,7 +89,7 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
     /// </summary>
     public async Task<ServiceResult> DeleteRangeAsync(int employeeId, DateOnly from, DateOnly to)
     {
-        if (from > to) return ServiceResult.Fail("วันที่เริ่มต้องไม่หลังวันที่สิ้นสุด");
+        if (from > to) return ServiceResult.Fail(DateRangeRule.Message);
         var rows = await db.Leaves.Include(l => l.Employee)
             .Where(l => l.EmployeeId == employeeId && l.FromDate >= from && l.FromDate <= to)
             .ToListAsync();
@@ -102,7 +102,7 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
     {
         if (input.EmployeeId is not { } employeeId) return ServiceResult.Fail("กรุณาเลือกพนักงาน");
         if (input.FromDate is not { } from || input.ToDate is not { } to) return ServiceResult.Fail("กรุณากรอกวันที่ลา");
-        if (from > to) return ServiceResult.Fail("วันที่เริ่มต้องไม่หลังวันที่สิ้นสุด");
+        if (from > to) return ServiceResult.Fail(DateRangeRule.Message);
         if (input.Days is not { } days) return ServiceResult.Fail("กรุณากรอกจำนวนวัน");
         if (days <= 0) return ServiceResult.Fail("จำนวนวันต้องมากกว่า 0");
         if (string.IsNullOrWhiteSpace(input.Type)) return ServiceResult.Fail("กรุณาเลือกประเภทการลา");

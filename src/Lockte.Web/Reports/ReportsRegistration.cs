@@ -28,7 +28,9 @@ public static class ReportsRegistration
         services.Configure<ReportOptions>(configuration.GetSection(ReportOptions.Section));
         services.Configure<EmployerOptions>(configuration.GetSection(EmployerOptions.Section));
         services.Configure<PurchLetterheadOptions>(configuration.GetSection(PurchLetterheadOptions.Section));
+        services.AddScoped<EmployerSettings>();
         services.AddSingleton<ReportPdfRenderer>();
+        services.AddSingleton<ReportFontResolver>();
         services.AddHostedService<ReportWarmUp>();
         services.AddScoped<ReportPrinter>();
         services.AddMemoryCache();
@@ -62,6 +64,7 @@ public static class ReportsRegistration
         reports.MapDeliveryReports(); // เอกสาร ISO การส่งของ (#136)
         reports.MapOrderReports(); // ORDER ค้างส่ง และสรุปการรับ ORDER (#113)
         reports.MapPurchRequestReports(); // ใบขออนุมัติสั่งซื้อ (วัตถุดิบ #220)
+        reports.MapPurchRequestMonthlyReports(); // สรุปใบขออนุมัติรายเดือนต่อแผนก (วัตถุดิบ #420)
         reports.MapPurchaseOrderReports(); // ใบสั่งซื้อ (วัตถุดิบ #224)
         reports.MapSupplierEvaluationReports(); // ประเมินผู้ขาย (วัตถุดิบ #254)
         reports.MapSupplierEvaluationSummaryReports(); // แบบประเมินประจำปี และสรุปรายไตรมาส (วัตถุดิบ #255)
@@ -94,7 +97,7 @@ public static class ReportsRegistration
         {
             if (await periods.GetTimeReportAsync(id) is not { } report) return Results.NotFound("ยังไม่ได้คำนวณเวลาทำงานของงวดนี้");
             var pdf = await printer.PrintAsync<TimeReportView>(TimeReportView.Title, Paper.A4Portrait,
-                new() { [nameof(TimeReportView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+                new() { [nameof(TimeReportView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken, footer: false);
             return Pdf(http, pdf, "เวลาทำงาน " + report.Period.From.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         });
 
@@ -104,7 +107,8 @@ public static class ReportsRegistration
         {
             if (await periods.GetPayReportAsync(id, department) is not { } report) return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้");
             var pdf = await printer.PrintAsync<PayReportView>(PayReportView.Title, Paper.A4Portrait,
-                new() { [nameof(PayReportView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+                new() { [nameof(PayReportView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken,
+                headerPt: PayReportView.HeaderPt);
             return Pdf(http, pdf, "ค่าแรง " + Iso(report.Period.From) + (report.DepartmentName is { } name ? " " + name : ""));
         });
 
@@ -114,7 +118,8 @@ public static class ReportsRegistration
         {
             if (await periods.GetPaySummaryAsync(id) is not { } report) return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้");
             var pdf = await printer.PrintAsync<PaySummaryView>(PaySummaryView.Title, Paper.A4Portrait,
-                new() { [nameof(PaySummaryView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+                new() { [nameof(PaySummaryView.Report)] = report }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken,
+                headerPt: PaySummaryView.HeaderPt);
             await registry.CompleteStepAsync(id, PayPeriodStep.SummaryPrinted);
             return Pdf(http, pdf, "สรุปค่าแรง " + Iso(report.Period.From));
         });
@@ -188,7 +193,7 @@ public static class ReportsRegistration
             if (await periods.GetSlipsAsync(id) is not { } batch)
                 return Results.NotFound("ยังไม่ได้คำนวณค่าแรงของงวดนี้ในระบบใหม่ (งวดที่ย้ายมาจากระบบเดิมพิมพ์สลิปไม่ได้)");
             if (batch.Slips.Count == 0) return Results.NotFound("งวดนี้ไม่มีพนักงานที่คำนวณค่าแรง");
-            var pdf = await printer.PrintFormAsync(PaySlipForm.Title, PaySlipForm.Layout(batch), cancellationToken);
+            var pdf = await printer.PrintFormAsync(ReportProgram.Hr, PaySlipForm.Title, PaySlipForm.Layout(batch), cancellationToken);
             await registry.CompleteStepAsync(id, PayPeriodStep.SlipPrinted);
             return Pdf(http, pdf, "สลิป " + Iso(batch.Period.From));
         });
@@ -199,7 +204,8 @@ public static class ReportsRegistration
         {
             if (sheets.Find(key, http.User.Identity?.Name) is not { } sheet) return Results.NotFound("ไม่พบใบขออนุมัติทำ OT นี้ กรุณาพิมพ์ใหม่จากหน้าจอ");
             var pdf = await printer.PrintAsync<OvertimeSheetView>(OvertimeSheetView.Title, OvertimeSheetView.Paper,
-                new() { [nameof(OvertimeSheetView.Sheet)] = sheet }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+                new() { [nameof(OvertimeSheetView.Sheet)] = sheet }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken, footer: false,
+                companyOnly: true, pageFooter: (OvertimeSheetView.FooterLeft, OvertimeSheetView.FooterRight));
             return Pdf(http, pdf, "ใบขออนุมัติทำ OT " + sheet.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         });
 
@@ -210,18 +216,18 @@ public static class ReportsRegistration
             ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             var pages = InsuredPersonsForm.Layout(await forms.ListInsuredPersonsAsync(current == true), employer.Value);
-            return Pdf(http, await printer.PrintFormAsync(InsuredPersonsForm.Title, pages, cancellationToken), InsuredPersonsForm.Title);
+            return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, InsuredPersonsForm.Title, pages, cancellationToken), InsuredPersonsForm.Title);
         });
 
         // RPT-57 แบบ คร.2 (ปุ่มในข้อมูลพนักงาน): ระดับ A, A4 ตั้ง. A POST from the form on SCR-02/03, so the names of
         // the parents HR types stay out of the URL (and the server's logs); the form carries the antiforgery token.
         reports.MapPost("/hr/employees/{id:int}/kor2", async (int id, [FromForm] string? name, [FromForm] string? job,
             [FromForm] string? father, [FromForm] string? mother, HttpContext http, GovernmentFormDirectory forms,
-            IOptionsSnapshot<EmployerOptions> employer, ReportPrinter printer, CancellationToken cancellationToken) =>
+            EmployerSettings employer, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (await forms.GetKor2Async(id) is not { } employee) return Results.NotFound("ไม่พบพนักงาน");
-            var page = Kor2Form.Layout(employee, new Kor2Input(name, job, father, mother), employer.Value);
-            return Pdf(http, await printer.PrintFormAsync(Kor2Form.Title, [page], cancellationToken), $"แบบ คร.2 {employee.Code}");
+            var page = Kor2Form.Layout(employee, new Kor2Input(name, job, father, mother), await employer.GetAsync());
+            return Pdf(http, await printer.PrintFormAsync(ReportProgram.Hr, Kor2Form.Title, [page], cancellationToken), $"แบบ คร.2 {employee.Code}");
         });
 
         return app;

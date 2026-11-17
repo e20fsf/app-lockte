@@ -1,7 +1,9 @@
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 using Lockte.Hr;
+using Lockte.Web.Reports;
 using Lockte.Web.Reports.Hr;
+using Lockte.Web.Reports.Order;
 
 namespace Lockte.Web.Tests;
 
@@ -25,14 +27,26 @@ public sealed class BankFileTests
         Assert.Equal([null, "รวม 2 รายการ", 9228m, null, null], table.TotalRow);
     }
 
-    [Fact] // the กสิกร list: ลำดับ · เลขบัญชี · คำนำหน้า · ชื่อ (English) · จำนวนเงิน — PAY_OT > 0 and ACC2 only
-    public void The_kbank_table_is_the_legacy_report()
+    [Fact] // UAT-30 the กสิกร list: เลขบัญชี · ชื่อ-นามสกุล (คำนำหน้า + ชื่อ + นามสกุล) · จำนวนเงิน — PAY_OT > 0 and ACC2 only
+    public void The_kbank_table_has_three_columns_with_the_full_name()
     {
         var table = BankFiles.Kbank(BankTransfers.Build(Pay));
 
-        Assert.Equal(["ลำดับ", "เลขบัญชี", "คำนำหน้า", "ชื่อ", "จำนวนเงิน"], table.Columns.Select(c => c.Header));
-        Assert.Equal([[1, "0498514049", "Mr.", "SOMCHAI TEST", 140m], [2, "2383297004", "Mr.", "SOMSAK TEST", 461m]], table.Rows.Select(r => r));
-        Assert.Equal([null, "รวม 2 รายการ", null, null, 601m], table.TotalRow);
+        Assert.Equal(["เลขบัญชี", "ชื่อ-นามสกุล", "จำนวนเงิน"], table.Columns.Select(c => c.Header));
+        Assert.Equal([["0498514049", "Mr. SOMCHAI TEST", 140m], ["2383297004", "Mr. SOMSAK TEST", 461m]], table.Rows.Select(r => r));
+        Assert.Equal(["รวม 2 รายการ", null, 601m], table.TotalRow);
+        Assert.Equal(SummaryFormat.Money, table.Columns[2].Format);
+    }
+
+    [Fact] // UAT-30: every amount of the PDF has two decimals, the total too (Access printed the total without them; not followed)
+    public async Task The_kbank_pdf_shows_two_decimals_and_the_ttb_one_has_airy_lines()
+    {
+        var kbank = await ReportBody.RenderAsync<SummaryTableView>(new() { ["Table"] = BankFiles.Kbank(BankTransfers.Build(Pay)) });
+        Assert.Contains("140.00", kbank);
+        Assert.Contains("461.00", kbank);
+        Assert.Contains("601.00", kbank);
+        Assert.DoesNotContain("airy", kbank);
+        Assert.Contains("airy", await ReportBody.RenderAsync<SummaryTableView>(new() { ["Table"] = BankFiles.Ttb(BankTransfers.Build(Pay)) }));
     }
 
     [Fact] // the list of the address is ttb or kbank in either case; anything else is not a list
@@ -56,11 +70,11 @@ public sealed class BankFileTests
         var sheet = Sheet(BankFiles.Excel(BankFiles.Kbank(BankTransfers.Build(Pay))));
 
         Assert.Equal(["1", "2", "3", "4"], Regex.Matches(sheet, "<row r=\"(\\d+)\"").Select(m => m.Groups[1].Value));
-        Assert.Contains("<c r=\"A1\" t=\"inlineStr\" s=\"1\"><is><t>ลำดับ</t></is></c>", sheet);
-        Assert.Contains("<c r=\"B2\" t=\"inlineStr\" s=\"0\"><is><t xml:space=\"preserve\">0498514049</t></is></c>", sheet);
-        Assert.Contains("<c r=\"E2\" s=\"3\"><v>140</v></c>", sheet);
+        Assert.Contains("<c r=\"A1\" t=\"inlineStr\" s=\"1\"><is><t>เลขบัญชี</t></is></c>", sheet);
+        Assert.Contains("<c r=\"A2\" t=\"inlineStr\" s=\"0\"><is><t xml:space=\"preserve\">0498514049</t></is></c>", sheet);
+        Assert.Contains("<c r=\"C2\" s=\"3\"><v>140</v></c>", sheet);
         Assert.Contains("รวม 2 รายการ", sheet);
-        Assert.Contains("<c r=\"E4\" s=\"3\"><v>601</v></c>", sheet);
+        Assert.Contains("<c r=\"C4\" s=\"3\"><v>601</v></c>", sheet);
     }
 
     [Fact] // the lists with the bonus (RPT-40/41) have the same shape under their own titles

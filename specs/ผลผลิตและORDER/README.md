@@ -40,12 +40,12 @@
 ## Workflow หลัก
 ```mermaid
 flowchart LR
-  subgraph ขาย
+  subgraph SG1["ขาย"]
     A[ออกเลข SO<br/>BR-001] --> B[กรอก ORDER<br/>BR-002] --> C[พิมพ์ SALE ORDER<br/>RPT-01]
     B --> D[ORDER ค้างส่ง<br/>RPT-02/05]
     D --> E[บันทึกส่งของ<br/>BR-003]
   end
-  subgraph ผลิต
+  subgraph SG2["ผลิต"]
     F[ใบรายงานผลผลิต 7 แผนก<br/>BR-015/016] --> G[QA สุ่มตรวจ<br/>BR-017]
     F --> H[โอนเข้าสต็อก<br/>BR-005]
     I[เบิกเพื่อผลิต<br/>BR-018] --> S

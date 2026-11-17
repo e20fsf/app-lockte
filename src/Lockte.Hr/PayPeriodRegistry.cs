@@ -157,6 +157,10 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
                 await db.WeeklyHolidays.CountAsync(h => h.Date >= from && h.Date <= to),
                 await db.PublicHolidays.Where(h => h.Date >= from && h.Date <= to).OrderBy(h => h.Date).Select(h => (DateOnly?)h.Date)
                     .FirstOrDefaultAsync(), period.PartDays);
+            // UAT7-4: the rate HR set for ถึงวันที่ of the งวด; no range covers it (a งวด before the table) → the built-in rate.
+            var ranges = await db.WelfareRates.AsNoTracking()
+                .Select(w => new WelfareRateDto(w.Id, w.StartDate, w.EndDate, w.Percent, w.RowVersion)).ToListAsync();
+            var welfarePercent = WelfareRateTable.On(ranges, to)?.Percent ?? Welfare.RateOn(to) * 100m;
             var results = rows
                 .Select(r => (r.Employee, r.DepartmentId, Pay: PayCalculation.Calculate(facts, r.Time, r.Employee)))
                 .Where(r => r.Pay is not null)
@@ -168,7 +172,7 @@ public sealed class PayPeriodRegistry(HrDbContext db, AuditScope audit, ICurrent
                     PublicHolidays = r.Pay.PublicHolidays, WeeklyHolidays = r.Pay.WeeklyHolidays,
                     OvertimePay = r.Pay.Parts.Overtime, SundayPay = r.Pay.Parts.Sunday, SundayOvertimePay = r.Pay.Parts.SundayOvertime,
                     HolidayPay = r.Pay.Parts.Holiday, HolidayOvertimePay = r.Pay.Parts.HolidayOvertime,
-                    WelfareEmployee = Welfare.Contribution(r.Pay.Total), WelfareCompany = Welfare.Contribution(r.Pay.Total),
+                    WelfareEmployee = WelfareRateTable.Contribution(r.Pay.Total, welfarePercent), WelfareCompany = WelfareRateTable.Contribution(r.Pay.Total, welfarePercent),
                 })
                 .ToList();
 

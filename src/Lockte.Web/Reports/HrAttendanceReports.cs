@@ -14,12 +14,25 @@ public static class HrAttendanceReports
 {
     public static RouteGroupBuilder MapHrAttendanceReports(this RouteGroupBuilder reports)
     {
-        // RPT-30 รายงานพนักงานที่ได้รับใบเตือน (เมนู 4)
-        reports.MapGet("/hr/warnings", async (DateOnly? from, DateOnly? to, HttpContext http, WarningDirectory warnings, ReportPrinter printer,
+        // สรุปใบลาออก (UAT-25, เมนู 18; ?format=xlsx = Excel): จำนวนใบลาออกต่อเดือน, ?department= one แผนก (none = ทุกแผนก)
+        reports.MapGet("/hr/resignation-summary", async (DateOnly? from, DateOnly? to, int? department, string? format, HttpContext http,
+            HrDocumentDirectory documents, ReportPrinter printer, CancellationToken cancellationToken) =>
+        {
+            if (Range(from, to) is { } bad) return bad;
+            var report = await documents.GetResignationSummaryAsync(from!.Value, to!.Value, department);
+            if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
+                return Results.File(Order.XlsxWriter.Write(ResignationSummaryTable.Build(report)), Order.XlsxWriter.ContentType,
+                    ResignationSummaryReportView.Title + ".xlsx");
+            return await PrintAsync<ResignationSummaryReportView>(http, printer, ResignationSummaryReportView.Title, Paper.A4Portrait, report,
+                "สรุปใบลาออก " + Iso(report.From), cancellationToken);
+        });
+
+        // RPT-30 รายงานพนักงานที่ได้รับใบเตือน (เมนู 4): ?employee= one employee (none = ทุกคน, UAT7-6)
+        reports.MapGet("/hr/warnings", async (DateOnly? from, DateOnly? to, int? employee, HttpContext http, WarningDirectory warnings, ReportPrinter printer,
             CancellationToken cancellationToken) =>
         {
             if (Range(from, to) is { } bad) return bad;
-            var report = await warnings.GetReportAsync(from!.Value, to!.Value);
+            var report = await warnings.GetReportAsync(from!.Value, to!.Value, employee);
             return await PrintAsync<WarningReportView>(http, printer, WarningReportView.Title, Paper.A5Landscape, report,
                 "ใบเตือน " + Iso(report.From), cancellationToken);
         });
@@ -34,7 +47,7 @@ public static class HrAttendanceReports
                 return Results.File(Order.XlsxWriter.Write(DepartmentLeaveTable.Build(report)), Order.XlsxWriter.ContentType,
                     DepartmentLeaveReportView.TitleOf(report) + ".xlsx");
             return await PrintAsync<DepartmentLeaveReportView>(http, printer, DepartmentLeaveReportView.TitleOf(report), Paper.A4Landscape, report,
-                "ลางานแผนก " + (report.DepartmentName ?? "ทั้งหมด") + " " + Iso(report.From), cancellationToken);
+                "ลางานแผนก " + (report.DepartmentName ?? "ทั้งหมด") + " " + Iso(report.From), cancellationToken, dateAtTop: true);
         });
 
         // RPT-31 ปุ่ม "พิมพ์ลางานตามวันที่" (รายงาน พิมพ์ลางานทั้งแผนก100)
@@ -138,10 +151,10 @@ public static class HrAttendanceReports
             : from > to ? Results.BadRequest("ตั้งแต่วันที่ต้องไม่หลังถึงวันที่") : null;
 
     internal static async Task<IResult> PrintAsync<TView>(HttpContext http, ReportPrinter printer, string title, Paper paper, object report,
-        string fileName, CancellationToken cancellationToken) where TView : Microsoft.AspNetCore.Components.IComponent
+        string fileName, CancellationToken cancellationToken, bool dateAtTop = false) where TView : Microsoft.AspNetCore.Components.IComponent
     {
         var pdf = await printer.PrintAsync<TView>(title, paper, new() { ["Report"] = report }, AccountClaims.DisplayNameOf(http.User),
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken, dateAtTop: dateAtTop);
         return ReportsRegistration.Pdf(http, pdf, fileName);
     }
 

@@ -24,7 +24,7 @@ public static class PurchBacklogReports
         reports.MapGet("/purch/backlog/orders", async (GoodsReceiptDirectory receipts, HttpContext http, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             var lines = await receipts.GetAllOutstandingAsync();
-            var pdf = await printer.PrintAsync<PurchOrderBacklogView>(OrdersTitle, Paper.A4Portrait, new() { ["Lines"] = lines }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
+            var pdf = await printer.PrintAsync<PurchOrderBacklogView>(OrdersTitle, Paper.A4Landscape, new() { ["Lines"] = lines }, AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
             return ReportsRegistration.Pdf(http, pdf, "วัตถุดิบค้างรับ");
         });
         return reports;

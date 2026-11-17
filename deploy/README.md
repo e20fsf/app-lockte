@@ -13,6 +13,7 @@
 | ฐานข้อมูล | SQL Server 2025 Standard (เครื่องเดียวกันหรือคนละเครื่องก็ได้) |
 | IIS | สคริปต์ติดตั้งให้เอง ได้แก่ Web-Server, WebSocket และ Application Initialization |
 | .NET | **ASP.NET Core Hosting Bundle .NET 10** ถ้า server ไม่มีอินเทอร์เน็ต ให้ดาวน์โหลดจาก <https://dotnet.microsoft.com/download/dotnet/10.0> (หัวข้อ Hosting Bundle) แล้วใส่ไว้ในโฟลเดอร์ `prereqs\` ของแพ็กเกจ สคริปต์จะติดตั้งให้ |
+| ฟอนต์ | **Angsana New** ต้องติดตั้งบน server (มากับ Windows ที่มีภาษาไทย: `C:\Windows\Fontsngsana.ttc` — ฟอนต์ลิขสิทธิ์ของ Microsoft จึง **ไม่อยู่ในแพ็กเกจ/repo**) เอกสาร PDF ที่พิมพ์ของ **ทุกโปรแกรม** (พนักงานและค่าแรง, ORDER, ผลผลิต, จัดซื้อ, สอบเทียบ, เงินสดย่อย) พิมพ์ด้วยฟอนต์นี้ ถ้าไม่พบ แอปถอยกลับไปใช้ TH Sarabun New (ในแพ็กเกจ) และเขียน log ระดับ Warning ว่า `Font Angsana New is NOT installed` ตรวจได้ที่ `/health/reports` (ช่อง `fonts`) ถ้าจะสลับกลับเป็น TH Sarabun New เอง ตั้ง `Reports:ProgramFonts:Default` เป็น `THSarabunNew` (ทุกโปรแกรม) หรือตั้งทีละโปรแกรมด้วย `Reports:ProgramFonts:Hr` / `Order` / `Prod` / `Purch` / `Calib` / `Cash` ใน `appsettings.json` (หรือ env `Reports__ProgramFonts__Default`) |
 | ฐานข้อมูล login | **SQL login** ที่สร้างฐานข้อมูลได้ (ครั้งแรกแอปสร้างตารางเอง) หรือถ้า SQL Server อยู่เครื่องเดียวกัน ใช้ Windows authentication ของ app pool (`IIS AppPool\Lockte`) ได้ |
 
 ## 1. สร้างแพ็กเกจ (เครื่องนักพัฒนา)
@@ -21,6 +22,8 @@
 .\deploy\Build-Package.ps1                                       # ได้ out\lockte-<version>.zip
 .\deploy\Build-Package.ps1 -HostingBundle C:\Downloads\dotnet-hosting-10.0.x-win.exe   # ใส่ Hosting Bundle ไปด้วย
 ```
+
+เลขเวอร์ชัน (`yyyyMMdd-<commit>` ต่อท้าย `-dirty` ถ้ามีไฟล์ที่ยังไม่ commit, `-app-only` ถ้าใช้ `-AppOnly`) เป็นเลขเดียวกับชื่อ zip และ `version.txt` และถูกฝังใน `Lockte.Web.dll` (InformationalVersion) — ดูได้ที่ด้านล่างของหน้า login เป็นข้อความเล็ก ("Version …") โดยแสดงเลขเฉพาะ `yyyyMMdd-<commit>` ไม่แสดง `-dirty` / `-app-only`; เครื่องพัฒนาที่ไม่ได้ build ผ่านสคริปต์นี้จะแสดง `dev`
 
 ## 2. ติดตั้งครั้งแรก (บน server)
 
@@ -62,6 +65,8 @@
 ```
 
 - **Employer:\*** ใช้กับ คร.2, ทะเบียนผู้ประกันตน, หนังสือรับรอง และประกาศพักร้อน ตามรายชื่อช่องใน `appsettings.json` ของแอป ใส่เฉพาะช่องที่ต้องการเปลี่ยน
+  - ชื่อผู้ลงนาม (`ManagerTitle/FirstName/LastName`, `FactoryManagerName`, `PersonnelOfficerName`) ตั้งได้ในแอปที่หน้า "ผู้ลงนามบนแบบฟอร์ม" (`/hr/form-signers`, เก็บในฐานข้อมูลพร้อมประวัติแก้ไข) ค่าที่ตั้งในแอปใช้ก่อน เว้นว่างไว้จะใช้ค่าในไฟล์นี้ (ค่าตั้งต้นของบริษัทใส่ไว้ใน `appsettings.json` ที่ commit แล้ว — ผู้ลงนาม คร.2, เจ้าหน้าที่บุคคล, เบอร์สำนักงาน, ถนนโรงงาน — ไม่ต้องตั้งบน server ใหม่ ถ้าจะเปลี่ยนให้ทับใน `appsettings.Production.json`) — ผู้จัดการฝ่าย/ผู้จัดการโรงงานของแต่ละแผนกตั้งที่หน้าแผนก
+  - ที่อยู่ เบอร์โทร และถนน (`Office:*`, `Workplace:*`) ยังตั้งที่นี่ — ถนนสถานที่ทำงานของ คร.2 คือ `Employer:Workplace:Road` (เช่น `ตัวอย่างสาย 5` ใส่หรือไม่ใส่คำว่า ถนน ก็ได้)
 - **ผู้ลงนามสลิป** (แผนกบุคคล, ผู้จัดการโรงงาน) ตั้งในหน้าจอของระบบ ไม่ได้อยู่ในไฟล์นี้
 - แก้ไฟล์แล้ว ให้รัน `.\Install-Lockte.ps1` อีกครั้ง สคริปต์จะคัดลอกค่าเข้าแอปและเริ่มแอปใหม่ หรือจะคัดลอกไฟล์ไปที่ `C:\Lockte\app\` เองแล้ว `Restart-WebAppPool Lockte` ก็ได้
 - **ห้าม** commit ไฟล์นี้หรือส่งต่อทางแชต/อีเมล
@@ -100,6 +105,7 @@
 | เปิดเว็บไม่ขึ้น / HTTP 500.30 | `C:\Lockte\logs\stdout_*.log` (log ของแอป) สคริปต์ติดตั้งแสดงท้าย log ให้อัตโนมัติเมื่อเจอ 500.30 |
 | `Login failed for user 'IIS APPPOOL\Lockte'` | ไฟล์ตั้งค่าใช้ Windows authentication แต่ app pool ยังไม่มีสิทธิ์ใน SQL Server ให้รันสคริปต์รุ่นนี้อีกครั้ง (ขั้น 4b ให้สิทธิ์ให้) หรือเปลี่ยนไปใช้ SQL login ด้วย `-SqlUser <login> -ResetSettings` |
 | พิมพ์รายงานไม่ออก | เปิด `http://localhost:8080/health/reports` **บน server** ถ้าได้ `"ok":false` จะมีข้อความ error บอก หรือหาคำว่า `Chromium` ใน stdout log |
+| PDF เป็นฟอนต์ TH Sarabun New ไม่ใช่ Angsana New | log มีคำเตือน `Font Angsana New is NOT installed` → ติดตั้งฟอนต์ Angsana New บน server (Settings → Fonts หรือคัดลอก `angsana.ttc` ไป `C:\Windows\Fonts`) แล้ว recycle app pool หรือสั่งพิมพ์ใหม่ (แอปตรวจทุกครั้งที่พิมพ์) |
 | หน้าจอขึ้น reconnect บ่อย | ตรวจว่า IIS เปิด WebSocket แล้ว (สคริปต์ติดตั้งให้) และเครือข่าย/VPN ไม่หลุด |
 | ลืมรหัส admin | `.\Install-Lockte.ps1 -ResetAdmin` แล้วตั้งรหัสชั่วคราวใหม่ |
 

@@ -1,22 +1,23 @@
 @using Lockte.Hr
 @* RPT-16 ใบขออนุมัติทำงานล่วงเวลา (รายงาน OT, print-samples.md): ระดับ B, A5 ตั้ง. The legacy's own lines are kept —
    "เรื่อง … แผนก … วัน<ชื่อวัน>ที่ <วันที่>", the full grid (a box to sign per row), and "ห้ามใส่รองเท้าแตะ… ผู้จัดการ ____" —
-   while the company, title, print stamp and page numbers are แบบกลาง (ReportHtml). The legacy prints the date as Long
-   Date; แบบกลาง prints d/M/yyyy พ.ศ. The manager line is the legacy's page footer: here it ends the sheet. *@
+   while the company (alone, #426), print stamp and page numbers are แบบกลาง (ReportHtml). The legacy prints the date as Long
+   Date; แบบกลาง prints d/M/yyyy พ.ศ. The shoe rule and manager line are the legacy's page footer (#426): ReportHtml PageFooter. *@
 <style>
     .ot-head { display: flex; justify-content: space-between; margin: 0 0 4pt; font-weight: bold; }
     .ot-grid th, .ot-grid td { border: 0.75pt solid #000; padding: 1pt 3pt; }
     .ot-grid th { text-align: center; }
     .ot-grid td { height: 18pt; vertical-align: middle; }
+    .ot-grid td.n { white-space: nowrap; } /* #408: a long name stays on one line */
+    .ot-grid tbody tr:first-child td { padding-top: 4pt; }
     .ot-grid .c { text-align: center; white-space: nowrap; }
-    .ot-foot { display: flex; justify-content: space-between; margin-top: 18pt; font-weight: bold; }
-    .ot-sign { display: inline-block; width: 30mm; border-bottom: 0.75pt solid #000; }
     /* #356: about 25 people on one A5 page — smaller type and rows, no row is ever cut (tr break-inside:avoid); a longer sheet goes on */
     .ot-grid.compact { font-size: 10.5pt; line-height: 1.1; }
     .ot-grid.compact th, .ot-grid.compact td { padding: 0 3pt; }
     .ot-grid.compact td { height: 11.5pt; }
     .ot-grid.compact td.n { white-space: nowrap; }
-    .ot-foot.compact { margin-top: 8pt; }
+    /* #411: the หมายเหตุ column is wide and its text stays on one line */
+    .ot-grid td.m { white-space: nowrap; }
 </style>
 <div class="ot-head">
     <span>เรื่อง ขออนุมัติทำงานล่วงเวลา&emsp;แผนก @Sheet.DepartmentName</span>
@@ -30,8 +31,8 @@ else
 {
     <table class="@GridClass">
         <colgroup>
-            <col style="width:6%" /><col style="width:10%" /><col style="width:32%" />
-            <col style="width:11%" /><col style="width:11%" /><col style="width:13%" /><col style="width:17%" />
+            <col style="width:4%" /><col style="width:8%" /><col style="width:22%" />
+            <col style="width:8%" /><col style="width:8%" /><col style="width:9%" /><col style="width:41%" />
         </colgroup>
         <thead>
             <tr><th>ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เริ่มงาน</th><th>เลิกงาน</th><th>ลายเซ็นต์</th><th>หมายเหตุ</th></tr>
@@ -44,23 +45,24 @@ else
                     <td class="c">@(i + 1)</td>
                     <td>@line.EmployeeCode</td>
                     <td class="n">@line.EmployeeName</td>
-                    <td class="c">@Time(Sheet.WorkIn)</td>
-                    <td class="c">@Time(Sheet.WorkOut)</td>
+                    <td class="c">@Time(line.WorkIn)</td>
+                    <td class="c">@Time(line.WorkOut)</td>
                     <td></td>
-                    <td>@line.Memo</td>
+                    <td class="m">@line.Memo</td>
                 </tr>
             }
         </tbody>
     </table>
 }
-<div class="@FootClass">
-    <span>ห้ามใส่รองเท้าแตะมาทำงาน ผู้ใดใส่มาไม่ให้ทำงานล่วงเวลา</span>
-    <span>ผู้จัดการ <span class="ot-sign"></span></span>
-</div>
 
 @code {
     /// <summary>The title of the sheet under the company name (the legacy's "เรื่อง ขออนุมัติทำงานล่วงเวลา").</summary>
     public const string Title = "ใบขออนุมัติทำงานล่วงเวลา";
+
+    /// <summary>#426 (as the Access page footer): the shoe rule at the left and the manager's line at the right, at the very bottom of the page (printed by the report's page footer).</summary>
+    public const string FooterLeft = "ห้ามใส่รองเท้าแตะมาทำงาน ผู้ใดใส่มาไม่ให้ทำงานล่วงเวลา";
+
+    public const string FooterRight = "ผู้จัดการ ______________";
 
     public const Paper Paper = Lockte.Web.Reports.Paper.A5Portrait;
 
@@ -72,8 +74,6 @@ else
     private bool Compact => Sheet.Lines.Count > NormalLines;
 
     private string GridClass => Compact ? "ot-grid compact" : "ot-grid";
-
-    private string FootClass => Compact ? "ot-foot compact" : "ot-foot";
 
     /// <summary>Text73 of รายงาน OT: the day name from DATE, "วันอาทิตย์ที่" … "วันเสาร์ที่".</summary>
     private static string DayTitle(DateOnly date) => date.DayOfWeek switch

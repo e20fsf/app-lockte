@@ -1,3 +1,6 @@
+using Lockte.Hr;
+using Microsoft.Extensions.Options;
+
 namespace Lockte.Web.Reports.Hr;
 
 /// <summary>
@@ -21,6 +24,9 @@ public sealed class EmployerOptions
     /// <summary>ผู้จัดการโรงงาน who signs ประกาศการคำนวณพักร้อน (RPT-52), as printed in the brackets.</summary>
     public string FactoryManagerName { get; set; } = "";
 
+    /// <summary>ชื่อเจ้าหน้าที่บุคคล printed in the brackets of ใบลาออก (UAT-25); blank prints no name.</summary>
+    public string PersonnelOfficerName { get; set; } = "";
+
     /// <summary>ประกอบกิจการ.</summary>
     public string Business { get; set; } = "";
 
@@ -38,6 +44,31 @@ public sealed class EmployerOptions
 
     /// <summary>ลำดับที่สาขา สปส. 6 หลัก.</summary>
     public string SocialSecurityBranchNo { get; set; } = "";
+
+    /// <summary>
+    /// A copy with the signers (UAT-29) and addresses (UAT-38) HR saved on the settings page laid over these settings: a blank saved name keeps the server's,
+    /// so a form never loses a name it printed before.
+    /// </summary>
+    public EmployerOptions WithSigners(FormSignersDto saved)
+    {
+        var copy = (EmployerOptions)MemberwiseClone();
+        static string Pick(string? saved, string fallback) => string.IsNullOrWhiteSpace(saved) ? fallback : saved;
+        copy.ManagerTitle = Pick(saved.ManagerTitle, ManagerTitle);
+        copy.ManagerFirstName = Pick(saved.ManagerFirstName, ManagerFirstName);
+        copy.ManagerLastName = Pick(saved.ManagerLastName, ManagerLastName);
+        copy.FactoryManagerName = Pick(saved.FactoryManagerName, FactoryManagerName);
+        copy.PersonnelOfficerName = Pick(saved.PersonnelOfficerName, PersonnelOfficerName);
+        // UAT-38: an address is taken whole — HR's once any field of it is saved (so a ซอย left blank prints blank), else the server's.
+        copy.Office = saved.Office.IsBlank ? Office : EmployerAddress.From(saved.Office);
+        copy.Workplace = saved.Workplace.IsBlank ? Workplace : EmployerAddress.From(saved.Workplace);
+        return copy;
+    }
+}
+
+/// <summary>The employer's settings as the forms print them: the server's <see cref="EmployerOptions"/> with the signers HR saved in the app.</summary>
+public sealed class EmployerSettings(IOptionsSnapshot<EmployerOptions> options, FormSignerSettings signers)
+{
+    public async Task<EmployerOptions> GetAsync() => options.Value.WithSigners(await signers.GetAsync());
 }
 
 public sealed class EmployerAddress
@@ -56,4 +87,11 @@ public sealed class EmployerAddress
     public string District { get; set; } = "";
     public string Province { get; set; } = "";
     public string Phone { get; set; } = "";
+
+    /// <summary>The address HR saved on the settings page (UAT-38); a blank field prints blank.</summary>
+    public static EmployerAddress From(FormAddress saved) => new()
+    {
+        HouseNo = saved.HouseNo ?? "", Moo = saved.Moo ?? "", Soi = saved.Soi ?? "", Road = saved.Road ?? "",
+        Subdistrict = saved.Subdistrict ?? "", District = saved.District ?? "", Province = saved.Province ?? "", Phone = saved.Phone ?? "",
+    };
 }

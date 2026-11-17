@@ -1,0 +1,17 @@
+@* One customer in the pick-box list (UAT-33), the columns of the legacy combo: รหัสลูกค้า // ชื่อลูกค้า // ที่อยู่ // รหัสเซล // เครดิต //
+   จังหวัด // หมายเหตุ. Every cell is one line (ellipsis, full text on hover); the widths are fixed so the rows line up like a table. *@
+<div class="customer-pick-row" style="@RowStyle">
+    <span class="cp-code" title="@Customer.Code">@Customer.Code</span>
+    <span class="cp-name" title="@Customer.Name">@Customer.Name</span>
+    <span class="cp-addr" title="@Customer.Address">@Customer.Address</span>
+    <span class="cp-sale" title="@Customer.SalesTerritoryCode">@Customer.SalesTerritoryCode</span>
+    <span class="cp-credit" title="@Customer.CreditText">@Customer.CreditText</span>
+    <span class="cp-prov" title="@Customer.Province">@Customer.Province</span>
+    <span class="cp-remark" title="@Customer.Remark">@Customer.Remark</span>
+</div>
+
+@code {
+    public const string RowStyle = "display:grid;grid-template-columns:7rem 16rem 20rem 5rem 6rem 8rem 14rem;column-gap:.75rem;align-items:center;white-space:nowrap;min-width:max-content";
+
+    [Parameter, EditorRequired] public Lockte.Sales.CustomerDto Customer { get; set; } = default!;
+}

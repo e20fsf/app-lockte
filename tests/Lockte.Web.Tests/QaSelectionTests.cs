@@ -118,5 +118,10 @@ public sealed class QaSelectionTests(LocalDbFixture db)
         Assert.Equal([$"ตกแต่ง{stem}"], trim);
         Assert.Equal([$"พิมพ์{stem}"], mold);
         Assert.Empty(await AsAsync(s => s.Get<QaSelectionDirectory>().GetSpecsAsync("P")));
+
+        // UAT-45: the buttons — a spec no legacy button names is captioned with its short name
+        var buttons = (await AsAsync(s => s.Get<QaSelectionDirectory>().GetButtonsAsync("D"))).Where(b => b.Spec.Name.Contains(stem)).Select(b => b.Caption).ToList();
+        Assert.Equal([stem, stem + "X"], buttons);
+        Assert.Equal([stem], (await AsAsync(s => s.Get<QaSelectionDirectory>().GetMoldButtonsAsync())).Where(b => b.Spec.Name.Contains(stem)).Select(b => b.Caption));
     }
 }

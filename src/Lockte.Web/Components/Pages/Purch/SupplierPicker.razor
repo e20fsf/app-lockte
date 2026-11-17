@@ -19,6 +19,10 @@
     /// <summary>Only the suppliers marked ใช้ในการผลิต (the ones that are evaluated).</summary>
     [Parameter] public bool ProductionOnly { get; set; }
 
+    /// <summary>UAT-4 (#449): the arrow opens the list too — the chosen item's own text in the box is not a search term.</summary>
+    public static string? Term(string? text, SupplierDto? chosen)
+        => chosen is not null && text == $"{chosen.Code}  {chosen.Name}" ? null : text;
+
     private Task<IEnumerable<SupplierDto>> SearchAsync(string? text, CancellationToken token)
-        => Services.RunAsync<SupplierDirectory, IEnumerable<SupplierDto>>(async d => await d.SearchAsync(text, 50, ProductionOnly));
+        => Services.RunAsync<SupplierDirectory, IEnumerable<SupplierDto>>(async d => await d.SearchAsync(Term(text, Value), 50, ProductionOnly));
 }

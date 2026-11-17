@@ -13,12 +13,12 @@ namespace Lockte.Web.Tests;
 public sealed class OvertimeSheetReportTests(ChromiumFixture chromium)
 {
     private static OvertimeSheet Sheet(DateOnly date, params OvertimeSheetLine[] lines)
-        => new(date, "ประกอบ", new TimeOnly(17, 20), new TimeOnly(20, 20), WorkTypes.Overtime, lines);
+        => new(date, "ประกอบ", WorkTypes.Overtime, lines);
 
     private static readonly OvertimeSheetLine[] Lines =
     [
-        new("A001", "นาย ทดสอบ หนึ่ง", "D11 ฉีดก้ามเบรก"),
-        new("A002", "นางสาว ทดสอบ สอง", null),
+        new("A001", "นาย ทดสอบ หนึ่ง", new TimeOnly(17, 20), new TimeOnly(20, 20), "D11 ฉีดก้ามเบรก"),
+        new("A002", "นางสาว ทดสอบ สอง", new TimeOnly(17, 20), new TimeOnly(20, 20), null),
     ];
 
     /// <summary>The body as text: HtmlRenderer writes the Thai of the data as character references.</summary>
@@ -52,8 +52,38 @@ public sealed class OvertimeSheetReportTests(ChromiumFixture chromium)
         Assert.Equal(2, CountOf(html, ">17:20<"));
         Assert.Equal(2, CountOf(html, ">20:20<"));
         Assert.True(html.IndexOf(">1<", StringComparison.Ordinal) < html.IndexOf(">2<", StringComparison.Ordinal));
-        Assert.Contains("ห้ามใส่รองเท้าแตะมาทำงาน ผู้ใดใส่มาไม่ให้ทำงานล่วงเวลา", html);
-        Assert.Contains("ผู้จัดการ", html);
+        Assert.DoesNotContain("ห้ามใส่รองเท้าแตะ", html); // #426: the footer is the page's, not the table's
+    }
+
+    [Fact] // #426 (ภาพ 9–10): หัวบรรทัดเดียว "บริษัท ล็อคเต้ จำกัด", ท้ายกระดาษล่างสุด (margin box), ไม่มี "พิมพ์เมื่อ"/"หน้า x จาก y"
+    public async Task The_page_is_the_Access_layout_one_header_line_and_the_footer_at_the_page_bottom()
+    {
+        var body = await HtmlAsync(Sheet(new DateOnly(2026, 10, 18), Lines));
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false, CompanyOnly: true,
+            PageFooter: (OvertimeSheetView.FooterLeft, OvertimeSheetView.FooterRight)), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+
+        var top = Regex.Match(html, @"@top-center\{content:""([^""]*)""").Groups[1].Value;
+        Assert.Equal(ReportHtml.Company, top);
+        Assert.Contains($"@bottom-left{{content:\"{OvertimeSheetView.FooterLeft}\"", html);
+        Assert.Contains($"@bottom-right{{content:\"{OvertimeSheetView.FooterRight}\"", html);
+        Assert.StartsWith("ผู้จัดการ", OvertimeSheetView.FooterRight);
+        Assert.DoesNotContain("counter(page)", html);
+
+        var pdf = await chromium.Renderer.RenderAsync(html, OvertimeSheetView.Paper);
+        Assert.StartsWith("%PDF", Encoding.Latin1.GetString(pdf));
+    }
+
+    [Fact] // #411: คนละช่วงเวลาอยู่ตารางเดียว แถวละเวลาของตน (ภาพ Access)
+    public async Task Lines_of_different_times_are_one_table_each_with_its_own_times()
+    {
+        var html = await HtmlAsync(Sheet(new DateOnly(2026, 10, 18),
+            new OvertimeSheetLine("A001", "นาย ทดสอบ หนึ่ง", new TimeOnly(17, 20), new TimeOnly(20, 20), null),
+            new OvertimeSheetLine("A002", "นาย ทดสอบ สอง", new TimeOnly(15, 20), new TimeOnly(18, 20), null)));
+
+        Assert.Equal(1, CountOf(html, "<table"));
+        Assert.Equal(1, CountOf(html, ">17:20<"));
+        Assert.Equal(1, CountOf(html, ">15:20<"));
+        Assert.Equal(1, CountOf(html, ">18:20<"));
     }
 
     [Fact] // D-6: ไม่มีข้อมูล → "ไม่มีข้อมูล" แทนแถวเดียวเลข 1
@@ -69,7 +99,7 @@ public sealed class OvertimeSheetReportTests(ChromiumFixture chromium)
     public async Task The_sheet_prints_on_A5_portrait()
     {
         var body = await ReportBody.RenderAsync<OvertimeSheetView>(new() { [nameof(OvertimeSheetView.Sheet)] = Sheet(new DateOnly(2026, 10, 18), Lines) });
-        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false), new PrintStamp(DateTimeOffset.Now, "tester"), body);
 
         var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(html, OvertimeSheetView.Paper));
 
@@ -103,12 +133,28 @@ public sealed class OvertimeSheetLargeTests(ChromiumFixture chromium)
         Assert.Equal(["08:10", "15:00", "16:00", "17:00", "18:00", "18:20", "19:00", "20:00", "20:10", "20:20"], end);
     }
 
+    [Fact] // #411: ตัวเลือกบนหน้าจอ
+    public void The_screen_offers_the_extra_end_times_the_type_descriptions_and_the_combined_department()
+    {
+        var ends = OvertimeSheetRegistry.WithExtras([new TimeOnly(20, 20)], OvertimeSheetRegistry.ExtraEndTimes);
+        foreach (var t in new[] { "15:00", "16:00", "17:00", "18:00", "18:20", "19:00", "20:00" })
+            Assert.Contains(TimeOnly.Parse(t), ends);
+        Assert.Equal(ends.Distinct().Order(), ends);
+
+        Assert.Equal(WorkTypes.Codes, WorkTypes.Descriptions.Keys);
+        Assert.Equal("O1 — OT วันปกติ", WorkTypes.Label("O1"));
+        Assert.Equal("W — ทำงานปกติ", WorkTypes.Label("W"));
+
+        Assert.Equal("แผนกรวม", OvertimeSheetRegistry.DepartmentLabel("ทั่วไป"));
+        Assert.Equal("ประกอบ", OvertimeSheetRegistry.DepartmentLabel("ประกอบ"));
+    }
+
     private async Task<int> PagesAsync(int people)
     {
-        var lines = Enumerable.Range(1, people).Select(i => new OvertimeSheetLine($"A{i:D3}", "นางสาวสมหญิง ตัวอย่างนามสกุล " + i, i % 3 == 0 ? "งานเร่งด่วนส่งของลูกค้า" : null)).ToList();
-        var sheet = new OvertimeSheet(new DateOnly(2026, 11, 3), "ประกอบ", new(17, 20), new(20, 20), "O1", lines);
+        var lines = Enumerable.Range(1, people).Select(i => new OvertimeSheetLine($"A{i:D3}", "นางสาวสมหญิง ตัวอย่างนามสกุล " + i, new(17, 20), new(20, 20), i % 3 == 0 ? "งานเร่งด่วนส่งของลูกค้า" : null)).ToList();
+        var sheet = new OvertimeSheet(new DateOnly(2026, 11, 3), "ประกอบ", "O1", lines);
         var body = await ReportBody.RenderAsync<OvertimeSheetView>(new() { [nameof(OvertimeSheetView.Sheet)] = sheet });
-        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false), new PrintStamp(DateTimeOffset.Now, "tester"), body);
         var pdf = Encoding.Latin1.GetString(await chromium.Renderer.RenderAsync(html, OvertimeSheetView.Paper));
         return Regex.Matches(pdf, @"/Type /Page\b").Count;
     }
@@ -123,8 +169,8 @@ public sealed class OvertimeSheetLargeTests(ChromiumFixture chromium)
     [Fact] // the legacy size for a short sheet, the compact look above it
     public async Task Only_a_long_sheet_is_compact()
     {
-        var small = new OvertimeSheet(new DateOnly(2026, 11, 3), null, new(17, 20), new(20, 20), "O1", [new("A001", "ก", null)]);
-        var big = small with { Lines = Enumerable.Range(1, OvertimeSheetView.NormalLines + 1).Select(i => new OvertimeSheetLine($"A{i:D3}", "ข", null)).ToList() };
+        var small = new OvertimeSheet(new DateOnly(2026, 11, 3), null, "O1", [new("A001", "ก", new(17, 20), new(20, 20), null)]);
+        var big = small with { Lines = Enumerable.Range(1, OvertimeSheetView.NormalLines + 1).Select(i => new OvertimeSheetLine($"A{i:D3}", "ข", new(17, 20), new(20, 20), null)).ToList() };
 
         Assert.DoesNotContain("class=\"ot-grid compact\"", await ReportBody.RenderAsync<OvertimeSheetView>(new() { ["Sheet"] = small }));
         Assert.Contains("class=\"ot-grid compact\"", await ReportBody.RenderAsync<OvertimeSheetView>(new() { ["Sheet"] = big }));

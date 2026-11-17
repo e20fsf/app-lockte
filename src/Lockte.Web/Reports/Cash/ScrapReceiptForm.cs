@@ -141,7 +141,7 @@ public static class ScrapReceiptForm
             var receipt = id is { } i ? await receipts.GetAsync(i) : no is { Length: > 0 } n ? await receipts.GetByNoAsync(n) : null;
             if (receipt is null) return Results.NotFound("ไม่พบใบเสร็จ");
             if (receipt.IsCancelled) return Results.BadRequest($"ใบเสร็จเลขที่ {receipt.No} ถูกยกเลิกแล้ว พิมพ์ไม่ได้");
-            var pdf = await printer.PrintFormAsync(Title, Layout(receipt), cancellationToken);
+            var pdf = await printer.PrintFormAsync(ReportProgram.Cash, Title, Layout(receipt), cancellationToken);
             return ReportsRegistration.Pdf(http, pdf, "ใบเสร็จ " + receipt.No);
         });
         return reports;

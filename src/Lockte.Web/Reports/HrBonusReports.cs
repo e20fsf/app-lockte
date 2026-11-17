@@ -52,7 +52,7 @@ public static class HrBonusReports
             if (await periods.GetSlipsAsync(id, withBonus: true) is not { } batch)
                 return Results.NotFound("ยังไม่ได้คำนวณโบนัส หรือยังไม่ได้คำนวณค่าแรงของงวดนี้ในระบบใหม่");
             if (batch.Slips.Count == 0) return Results.NotFound("ไม่มีพนักงานที่ได้โบนัสรวมในสลิปของงวดนี้");
-            var pdf = await printer.PrintFormAsync(PaySlipForm.Title, PaySlipForm.Layout(batch), cancellationToken);
+            var pdf = await printer.PrintFormAsync(ReportProgram.Hr, PaySlipForm.Title, PaySlipForm.Layout(batch), cancellationToken);
             return ReportsRegistration.Pdf(http, pdf, "สลิปรวมโบนัส " + Iso(batch.Period.From));
         });
 
@@ -68,7 +68,7 @@ public static class HrBonusReports
         if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
             return Results.File(BankFiles.Excel(table), XlsxWriter.ContentType, table.Title + ".xlsx");
         var pdf = await printer.PrintAsync<SummaryTableView>(table.Title, Paper.A4Portrait, new() { ["Table"] = table }, AccountClaims.DisplayNameOf(http.User),
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken, program: ReportProgram.Hr);
         return ReportsRegistration.Pdf(http, pdf, table.Title);
     }
 }

@@ -80,6 +80,24 @@ public sealed class PaySlipTests
     public void Welfare_is_a_quarter_percent_rounded_to_the_baht(decimal total, decimal expected)
         => Assert.Equal(expected, Welfare.Contribution(total));
 
+    [Theory] // UAT-23: อัตราตามวันสิ้นสุดงวด (ค.ศ. = พ.ศ. − 543): ก่อน 2570 และ 2570–2574 = 0.25%, ตั้งแต่ 1 ม.ค. 2575 (ค.ศ. 2032) = 0.50%
+    [InlineData(2026, 10, 26, "0.0025")]  // 2569
+    [InlineData(2026, 12, 31, "0.0025")]  // 31 ธ.ค. 2569
+    [InlineData(2027, 1, 1, "0.0025")]    // 1 ม.ค. 2570
+    [InlineData(2031, 12, 31, "0.0025")]  // 31 ธ.ค. 2574
+    [InlineData(2032, 1, 1, "0.0050")]    // 1 ม.ค. 2575
+    [InlineData(2040, 6, 30, "0.0050")]
+    public void Welfare_rate_follows_the_end_of_the_period(int year, int month, int day, string expected)
+        => Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), Welfare.RateOn(new DateOnly(year, month, day)));
+
+    [Fact] // UAT-23: 10,000 → 25 บาท until 31 ธ.ค. 2574, 50 บาท from 1 ม.ค. 2575; the one-argument form stays 0.25%
+    public void Welfare_contribution_switches_to_half_a_percent_on_1_january_2575()
+    {
+        Assert.Equal(25m, Welfare.Contribution(10000m, new DateOnly(2031, 12, 31)));
+        Assert.Equal(50m, Welfare.Contribution(10000m, new DateOnly(2032, 1, 1)));
+        Assert.Equal(25m, Welfare.Contribution(10000m));
+    }
+
     [Fact] // #180: the employee's share leaves the net, the company's does not; a slip without welfare (a migrated period) keeps net = total
     public void Employee_welfare_is_deducted_from_the_net()
     {
@@ -98,6 +116,20 @@ public sealed class PaySlipTests
         var slip = Slip(Time(w: 14, l: 1, o1: 3.5), new PayEmployee(EmployeeTypes.Daily, 0, 400, null, false, null))
             with { WelfareEmployee = 15, WelfareCompany = 15, WelfareAccumulated = 40 };
         return new PaySlipBatch(period, Enumerable.Range(1, count).Select(i => slip with { Code = $"A{i:D3}" }).ToList(), signers);
+    }
+
+    [Theory] // UAT7-4: the head of the เงินสงเคราะห์ columns names the rate of the งวด from the table, not a fixed 0.25%
+    [InlineData(null, "0.25%")]  // no range set for the งวด: the built-in rate
+    [InlineData("0.25", "0.25%")]
+    [InlineData("0.50", "0.5%")]
+    public void The_welfare_heads_show_the_rate_of_the_period(string? percent, string shown)
+    {
+        var batch = Batch(1) with { WelfarePercent = percent is null ? null : decimal.Parse(percent, CultureInfo.InvariantCulture) };
+
+        var texts = Texts(PaySlipForm.Layout(batch)[0]).Select(t => t.Text).ToList();
+
+        Assert.Contains($"ลูกจ้าง ({shown})", texts);
+        Assert.Contains($"บริษัท ({shown})", texts);
     }
 
     /// <summary>The texts of an SVG page with their x and baseline.</summary>
@@ -143,8 +175,8 @@ public sealed class PaySlipTests
         Assert.Equal(2, pages.Count);
         Assert.All(pages, p => Assert.Equal(Paper.A4Portrait, p.Paper));
         Assert.Equal(["A001", "A002", "A003"], Texts(pages[0]).Where(t => Math.Abs(t.X - 49.82) < 0.01).Select(t => t.Text));
-        Assert.Equal([35.52, 130.52, 225.52], Texts(pages[0]).Where(t => Math.Abs(t.X - 49.82) < 0.01).Select(t => t.Y));
-        Assert.Equal("A004", TextAt(pages[1], 49.82, 35.52));
+        Assert.Equal([29.5, 124.5, 219.5], Texts(pages[0]).Where(t => Math.Abs(t.X - 49.82) < 0.01).Select(t => t.Y));
+        Assert.Equal("A004", TextAt(pages[1], 49.82, 29.5));
         Assert.Equal(3, Regex.Matches(pages[0].ToSvg(), "<image ").Count); // the logo of each slip
     }
 
@@ -154,9 +186,9 @@ public sealed class PaySlipTests
         var page = PaySlipForm.Layout(Batch(1))[0];
 
         Assert.Equal("16/9/2569", TextAt(page, 120.96, 23.18));
-        Assert.Equal(("27/8/2569", "11/9/2569"), (TextAt(page, 46.86, 29.5), TextAt(page, 71.53, 29.5)));
-        Assert.Equal(("16", "2", "0", "14"), (TextAt(page, 101.53, 29.5), TextAt(page, 123.46, 29.5), TextAt(page, 143.07, 29.5), TextAt(page, 165.86, 29.5)));
-        Assert.Equal("400", TextAt(page, 159.95, 35.52)); // #354: a whole wage prints without satang
+        Assert.Equal(("27/8/2569", "11/9/2569"), (TextAt(page, 46.86, 35.52), TextAt(page, 71.53, 35.52)));
+        Assert.Equal(("16", "2", "0", "14"), (TextAt(page, 101.53, 35.52), TextAt(page, 123.46, 35.52), TextAt(page, 143.07, 35.52), TextAt(page, 165.86, 35.52)));
+        Assert.Equal("400", TextAt(page, 159.95, 29.5)); // #354: a whole wage prints without satang
         Assert.Equal(("14.0", "1.0", "3.5"), (TextAt(page, 34.47, 56.49), TextAt(page, 41.84, 56.49), TextAt(page, 72.54, 56.49)));
         Assert.Equal(("5,600", "263"), (TextAt(page, 113.76, 56.49), TextAt(page, 153.94, 56.49)));
         // #180: เงินสงเคราะห์ลูกจ้าง, บริษัท, รวมเงินสะสม, then โบนัส, ค่าพักร้อน, รวมค่าแรง, เงินได้สุทธิ (= 5,863 − 15)
@@ -184,9 +216,82 @@ public sealed class PaySlipTests
             new SlipSignerDto(SlipSignerRole.HrDepartment, "สมหญิง", png, "image/png", null),
             new SlipSignerDto(SlipSignerRole.FactoryManager, "สมชาย", null, null, null)))[0];
 
-        Assert.Equal("สมชาย", TextAt(page, 146.68, 78.59));
+        Assert.Equal("สมชาย", TextAt(page, 156.825, 78.8));
         Assert.DoesNotContain(Texts(page), t => t.Text == "สมหญิง");
         Assert.Contains("href=\"data:image/png;base64," + Convert.ToBase64String(png) + "\"", page.ToSvg());
+    }
+
+    [Fact] // UAT-35 (was #397): every slip prints its employee's FIRST name over the ผู้รับเงิน line (full name stays at ชื่อ-นามสกุล), squeezed to the line
+    public void Every_slip_prints_the_employee_first_name_over_the_payee_line()
+    {
+        var batch = Batch(4);
+        batch = batch with { Slips = batch.Slips.Select((s, i) => s with { Name = i == 3 ? "นางสาวสมมุติอย่างยาวมากเป็นพิเศษทดสอบ นามสกุล" : $"นายสมมุติ{i} ทดสอบ" }).ToList() };
+        var pages = PaySlipForm.Layout(batch);
+
+        foreach (var (page, offset, slip) in new[] { (pages[0], 0.0, batch.Slips[0]), (pages[0], 95.0, batch.Slips[1]), (pages[0], 190.0, batch.Slips[2]), (pages[1], 0.0, batch.Slips[3]) })
+        {
+            var payee = Assert.Single(Texts(page), t => Math.Abs(t.Y - (offset + 78.8)) < 0.01 && t.X < 70);
+            Assert.Equal(PaySlipForm.FirstName(slip.Name), payee.Text);
+            Assert.False(payee.Text.Contains(' '));
+            Assert.Equal(slip.Name, TextAt(page, 81.44, offset + 29.5)); // the full name stays at ชื่อ-นามสกุล
+            Assert.DoesNotContain(Texts(page), t => Math.Abs(t.Y - (offset + 85.2)) < 0.01); // nothing under the line any more
+        }
+        Assert.Contains("data-fit=\"26.69\"", pages[1].ToSvg());
+    }
+
+    [Fact] // UAT-35: the name stands over its line — its baseline above the line (79.2), clear of the label's baseline (79.46) it shares the row with
+    public void The_names_stand_over_their_lines()
+    {
+        var batch = Batch(1,
+            new SlipSignerDto(SlipSignerRole.HrDepartment, "นางสาวสมหญิง ใจดี", null, null, null),
+            new SlipSignerDto(SlipSignerRole.FactoryManager, "นายสมชาย", null, null, null));
+        var page = PaySlipForm.Layout(batch with { Slips = [batch.Slips[0] with { Name = "นายสมมุติ ทดสอบ" }] })[0];
+
+        foreach (var (x, name) in new[] { (63.715, "สมมุติ"), (106.425, "สมหญิง"), (156.825, "สมชาย") })
+        {
+            var text = Assert.Single(Texts(page), t => t.Text == name && Math.Abs(t.X - x) < 0.01);
+            Assert.True(text.Y < 79.2, $"{text.Text} baseline {text.Y} must be above the line");
+            Assert.True(text.Y > 76, $"{text.Text} must stand on the line");
+        }
+    }
+
+    [Theory] // UAT-35: first name only — titles with or without a space, surname, a single name, other titles, a title alone
+    [InlineData("นางสาวทองใส โชติรัตน์", "ทองใส")]
+    [InlineData("นางสาว ทองใส โชติรัตน์", "ทองใส")]
+    [InlineData("นายสมชาย ใจดี", "สมชาย")]
+    [InlineData("นาย สมชาย ใจดี", "สมชาย")]
+    [InlineData("นางสมหญิง แสงคำ", "สมหญิง")]
+    [InlineData("น.ส.สมศรี มีสุข", "สมศรี")]
+    [InlineData("นส. สมศรี มีสุข", "สมศรี")]
+    [InlineData("ด.ช.สมปอง ดี", "สมปอง")]
+    [InlineData("เด็กหญิงสมใจ ดี", "สมใจ")]
+    [InlineData("คุณสมพร ดี", "สมพร")]
+    [InlineData("Mr. John Smith", "John")]
+    [InlineData("ทองใส", "ทองใส")]
+    [InlineData("ทองใส โชติรัตน์", "ทองใส")]
+    [InlineData("สมชาย  ใจดี  มาก", "สมชาย")]
+    [InlineData("  ทองใส  ", "ทองใส")]
+    [InlineData("นางสาวทองใส", "ทองใส")]
+    [InlineData("นาย", "นาย")]
+    [InlineData("นางสาว", "นางสาว")]
+    [InlineData("", "")]
+    [InlineData(null, "")]
+    [InlineData("   ", "")]
+    public void The_first_name_is_the_name_without_title_and_surname(string? full, string first) => Assert.Equal(first, PaySlipForm.FirstName(full));
+
+    [Fact] // UAT-30: รหัสพนักงาน … ชื่อ-นามสกุล is above ตั้งแต่วันที่ … ถึงวันที่ …; the signers' names stand under their lines, the name only
+    public void The_employee_row_is_above_the_dates_and_the_signers_names_are_under_their_lines()
+    {
+        var page = PaySlipForm.Layout(Batch(1,
+            new SlipSignerDto(SlipSignerRole.HrDepartment, "สมหญิง", null, null, null),
+            new SlipSignerDto(SlipSignerRole.FactoryManager, "สมชาย", null, null, null)))[0];
+        var texts = Texts(page);
+
+        Assert.True(texts.Single(t => t.Text == "รหัสพนักงาน").Y < texts.Single(t => t.Text == "ตั้งแต่วันที่").Y);
+        Assert.Equal("สมหญิง", TextAt(page, 106.425, 78.8));
+        Assert.Equal("สมชาย", TextAt(page, 156.825, 78.8));
+        Assert.DoesNotContain(texts, t => t.Text.Contains("ผู้รับเงิน") && t.Text != "ผู้รับเงิน");
+        Assert.DoesNotContain(texts, t => Math.Abs(t.Y - 85.2) < 0.01);
     }
 
     [Fact] // no signer saved yet: the lines stay empty
@@ -418,10 +523,10 @@ public sealed class PaySlipPdfTests(ChromiumFixture chromium)
         var slip = new PaySlip("A005", "นางสาวทดสอบ ระบบ", 15, 2, 1, 525, 3, 1.8, 0, 0, 0, 0, 0, 3019, OvertimeParts.None, 0, null);
         var batch = new PaySlipBatch(period, Enumerable.Repeat(slip, 7).ToList(), []);
 
-        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch)), Paper.A4Portrait);
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch), TestFonts.Hr), Paper.A4Portrait);
 
         Assert.Equal(3, Pages(pdf));
-        Assert.Contains("THSarabunNew", System.Text.Encoding.Latin1.GetString(pdf));
+        Assert.Contains(TestFonts.HrPdfName, System.Text.Encoding.Latin1.GetString(pdf));
     }
 
     /// <summary>
@@ -435,7 +540,26 @@ public sealed class PaySlipPdfTests(ChromiumFixture chromium)
         if (string.IsNullOrEmpty(dir) || !File.Exists(Path.Combine(dir, "slips.json"))) return;
         var batch = JsonSerializer.Deserialize<PaySlipBatch>(await File.ReadAllTextAsync(Path.Combine(dir, "slips.json")),
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch)), Paper.A4Portrait);
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, PaySlipForm.Layout(batch), TestFonts.Hr), Paper.A4Portrait);
         await File.WriteAllBytesAsync(Path.Combine(dir, "slips.pdf"), pdf);
+    }
+}
+
+/// <summary>#397: the slip through Chromium — a long employee name under ผู้รับเงิน stays on one line and the page stays one page.</summary>
+[Collection(ChromiumCollection.Name)]
+public sealed class PaySlipPayeePdfTests(ChromiumFixture chromium)
+{
+    [Fact] // with LOCKTE_FORM_OVERLAY_DIR set, also writes payee-slip.pdf there for a look
+    public async Task A_long_payee_name_prints_on_a_one_page_slip()
+    {
+        var dates = new PayPeriodDates(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 15), new DateOnly(2026, 9, 20));
+        var period = new PayPeriodDto(1, dates.From, dates.To, dates.PayDate, PayPeriodStep.PayCalculated, null, null, [], DateTimeOffset.Now, "hr1");
+        var slip = new PaySlip("A001", "นางสาวสมมุติ นามสกุลยาวมากเป็นพิเศษ ทดสอบชื่อยาว", 15, 2, 0, 400, 100, 0, 0, 0, 0, 0, 0, 5000, new OvertimeParts(0, 0, 0, 0, 0), 0, null);
+        var pages = PaySlipForm.Layout(new PaySlipBatch(period, [slip], []));
+        var pdf = await chromium.Renderer.RenderAsync(FormPageHtml.Compose(PaySlipForm.Title, pages), pages[0].Paper);
+
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(System.Text.Encoding.Latin1.GetString(pdf), @"/Type /Page\b").Count);
+        if (Environment.GetEnvironmentVariable("LOCKTE_FORM_OVERLAY_DIR") is { Length: > 0 } dir)
+            await File.WriteAllBytesAsync(Path.Combine(dir, "payee-slip.pdf"), pdf);
     }
 }

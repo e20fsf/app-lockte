@@ -1,3 +1,4 @@
+using MudBlazor;
 namespace Lockte.Web.Menus;
 
 /// <summary>
@@ -15,7 +16,7 @@ public static class EmployeeMenu
     public static string HrefOf(int number) => Menu.HrefOf(number);
 
     // Menu pages stay at menu/n, as before the ORDER program joined the app; the main menu moved from "/" to "hr".
-    public static ProgramMenu Menu { get; } = new("hr", "พนักงานและค่าแรง", "hr", "menu", "hr",
+    public static ProgramMenu Menu { get; } = new("hr", "พนักงานและค่าแรง", Icons.Material.Filled.Badge, "hr", "menu", "hr",
     [
         new(1, "เมนูหลัก", null,
         [
@@ -36,6 +37,11 @@ public static class EmployeeMenu
             new("เพิ่มและแก้ไขรายชื่อแผนก", Code: "SCR-05", Page: "org/departments"),
             new("พิมพ์หนังสือรับรอง, เกษียณและปลดออก", SubMenu: 19),
             new("พิมพ์ใบอนุมัติผ่านทดลองงาน", Code: "SCR-06", Page: "hr/employees/probation-approval"),
+            // #399: the print buttons of the legacy EMPLO form as menu items: pick an employee, then print (ViewPay, ADR 0004).
+            new("พิมพ์แบบ คร.2", Code: "RPT-57", Page: "hr/employees/print/kor2"),
+            new("พิมพ์สัญญาจ้างรายวัน", Code: "RPT-56-daily", Page: "hr/employees/print/daily"),
+            new("พิมพ์สัญญาจ้างรายเดือน", Code: "RPT-56-monthly", Page: "hr/employees/print/monthly"),
+            new("พิมพ์ฟอร์มการรับพนักงาน", Code: "RPT-56-hiring", Page: "hr/employees/print/hiring"),
         ]),
         new(7, "วันอาทิตย์และวันหยุด", 1,
         [
@@ -76,20 +82,21 @@ public static class EmployeeMenu
             new("ปิดงวดค่าแรงเป็น 2 ช่วง", SubMenu: 13),
             new("วิธีการทำเงินเดือนส่งแบงค์ทหารไทย", Code: "RPT-06-TTB", Page: "hr/pay-periods/bank-guide"),
             new("วิธีการทำเงิน OT ส่งแบงค์กสิกรไทย", Code: "RPT-06-KBANK", Page: "hr/pay-periods/bank-guide"),
+            new("อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง", Code: "SETTINGS-WELFARE", Page: "hr/welfare-rates"), // not in the legacy: UAT-43 (#436)
         ]),
         new(6, "ปิดงวดค่าแรงตามปกติ", 12,
         [
             new("พิมพ์เวลาทำงาน", Code: "SCR-40", Page: "hr/pay-periods"),
-            new("พิมพ์ค่าแรง", Code: "SCR-41"),
+            new("พิมพ์ค่าแรง", Code: "SCR-41", Page: "hr/pay-periods?step=3"),
             new("พิมพ์สรุปค่าแรง", SubMenu: 9),
-            new("พิมพ์ค่าแรงส่งแบงค์", Code: "SCR-42", Page: "hr/pay-periods"),
-            new("พิมพ์ SLIP", Code: "RPT-04"),
+            new("พิมพ์ค่าแรงส่งแบงค์", Code: "SCR-42", Page: "hr/pay-periods?step=5"),
+            new("พิมพ์ SLIP", Code: "RPT-04", Page: "hr/pay-periods?step=6"),
             new("พิมพ์ค่าแรงสิ้นเดือนและสรุป", Code: "SCR-43", Page: "hr/reports/pay/month-end"),
             new("คำนวณโบนัสและปรับค่าแรง", SubMenu: 10),
         ]),
         new(9, "พิมพ์สรุปค่าแรง", 6,
         [
-            new("ค่าแรงทั่วไป", Code: "RPT-03"),
+            new("ค่าแรงทั่วไป", Code: "RPT-03", Page: "hr/pay-periods?step=4"),
             new("ค่าแรงงานรับจ้าง", Code: "SCR-44", Page: "hr/pay/contract-labor"),
             new("สรุปค่าแรงแต่ละเดือน", Code: "RPT-09", Page: "hr/reports/pay/monthly"),
             new("รวมค่าแรง", Code: "RPT-10", Page: "hr/reports/pay/totals"),
@@ -133,6 +140,7 @@ public static class EmployeeMenu
         [
             new("พิมพ์ใบลา", Code: "RPT-50", Page: "hr/leave-form"),
             new("พิมพ์ใบลาออกและรายงาน", Code: "SCR-33", Page: "hr/resignation"),
+            new("สรุปใบลาออกรายเดือน", Code: "RPT-55-sum", Page: "hr/reports/resignation-summary"),
             new("พิมพ์ทะเบียนผู้ประกันตน", Code: "RPT-51", Page: "reports/hr/insured-persons", NewTab: true),
             new("พิมพ์ทะเบียนผู้ประกันตนเฉพาะพนักงานที่มีอยู่ปัจจุบัน", Code: "RPT-51-current", Page: "reports/hr/insured-persons?current=true", NewTab: true),
             new("ประกาศการคำนวณพักร้อนพนักงานใหม่", Code: "RPT-52", Page: "reports/hr/vacation-notice", NewTab: true),

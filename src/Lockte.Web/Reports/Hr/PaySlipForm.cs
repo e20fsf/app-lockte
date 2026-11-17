@@ -30,6 +30,12 @@ public static class PaySlipForm
     /// #353: the rule under the totals heads sat at 65.21, where the second line of "กองทุนสงเคราะห์ / ลูกจ้าง (0.25%)" stood on it; it
     /// moved down to give two lines of 10 pt room (the values row below keeps its place).
     /// </summary>
+    /// <summary>
+    /// UAT-35: the first name only (#397 put the full name under the line) stands ON the ผู้รับเงิน line — over it, centred, squeezed into the line's
+    /// length so it never runs into the label (50.37–77.06).
+    /// </summary>
+    private const double PayeeLeft = 50.37, PayeeRight = 77.06, NameBaseline = 78.8;
+
     private const double TotalsHeadBottom = 66.6;
 
     /// <summary>The rules between the thirteen columns of the time and wage heads (วันปกติ … OTวันหยุด), left to right.</summary>
@@ -77,7 +83,8 @@ public static class PaySlipForm
         T(74.48, 23.18, "รายละเอียดการจ่ายค่าแรงงวดวันที่", points: 14);
         T(120.96, 23.18, ThaiDate.Format(period.PayDate), points: 14);
 
-        const double days = 29.5;
+        // UAT-30: รหัสพนักงาน/ชื่อ-นามสกุล is the upper row, ตั้งแต่วันที่ … ถึงวันที่ … the lower one
+        const double days = 35.52;
         T(33.45, days, "ตั้งแต่วันที่"); T(46.86, days, ThaiDate.Format(period.From), fit: 61.0 - 46.86); // TH Sarabun's digits are wider
         T(61.86, days, "ถึงวันที่"); T(71.53, days, ThaiDate.Format(period.To), fit: 87.0 - 71.53);
         T(87.91, days, "จำนวน"); T(101.53, days, Whole(s.Days), TextAnchor.End); T(104.22, days, "วัน");
@@ -85,7 +92,7 @@ public static class PaySlipForm
         T(131.8, days, "วันหยุด"); T(143.07, days, Whole(s.PublicHolidays), TextAnchor.End); T(144.59, days, "วัน");
         T(151.08, days, "วันทำงาน"); T(165.86, days, Whole(s.WorkingDays), TextAnchor.End); T(167.4, days, "วัน");
 
-        const double who = 35.52;
+        const double who = 29.5;
         T(32.98, who, "รหัสพนักงาน"); T(49.82, who, s.Code);
         T(65.59, who, "ชื่อ-นามสกุล"); T(81.44, who, s.Name, fit: 116.2 - 81.44);
         T(116.98, who, "ค่าแรงเดือนละหรือวันละ"); T(159.95, who, Forms.FormFormat.Standard(s.Rate, s.Rate % 1 == 0 ? 0 : 2), TextAnchor.End); T(161.43, who, "บาท");
@@ -124,7 +131,8 @@ public static class PaySlipForm
             else { T(middle, headUp, first, TextAnchor.Middle, headSmall, fit); T(middle, headDown, second, TextAnchor.Middle, headSmall, fit); }
         }
         void Value(int column, decimal value) => T((TotalsEdges[column] + TotalsEdges[column + 1]) / 2, totals, ReportText.Baht(value), TextAnchor.Middle);
-        Head(0, "ATM"); Head(1, "ประกันสังคม"); Head(2, "กองทุนสงเคราะห์", "ลูกจ้าง (0.25%)"); Head(3, "กองทุนสงเคราะห์", "บริษัท (0.25%)");
+        Head(0, "ATM"); Head(1, "ประกันสังคม"); var percent = WelfareRateTable.PercentText(batch.HeadPercent);
+        Head(2, "กองทุนสงเคราะห์", $"ลูกจ้าง ({percent})"); Head(3, "กองทุนสงเคราะห์", $"บริษัท ({percent})");
         Head(4, "รวมเงินสะสม", "ทั้งหมด"); Head(5, "ภาษี"); Head(6, "โบนัส"); Head(7, "ค่าพักร้อน"); Head(8, "รวมค่าแรง"); Head(9, "เงินได้สุทธิ");
         if (s.Atm is { } atm) T(TotalsEdges[1] - 1.03, totals, Forms.FormFormat.Standard((double)atm, 2), TextAnchor.End);
         Value(2, s.WelfareEmployee); Value(3, s.WelfareCompany); Value(4, s.WelfareAccumulated);
@@ -133,19 +141,43 @@ public static class PaySlipForm
         // ลงนาม: ผู้รับเงิน on its own line; แผนกบุคคล and ผู้จัดการโรงงาน by name or signature picture
         const double sign = 79.46;
         T(39.79, sign, "ผู้รับเงิน"); page.Line(50.37, top + 79.2, 77.06, top + 79.2, 0.1);
+        // UAT-35: the employee's first name over the line (the full name is at ชื่อ-นามสกุล above)
+        T((PayeeLeft + PayeeRight) / 2, NameBaseline, FirstName(s.Name), TextAnchor.Middle, fit: PayeeRight - PayeeLeft);
         T(78.37, sign, "แผนกบุคคล"); page.Line(93.06, top + 79.4, 119.79, top + 79.4, 0.1);
         T(124.82, sign, "ผู้จัดการโรงงาน"); page.Line(143.48, top + 79.4, 170.17, top + 79.4, 0.1);
-        Signer(page, top, batch.Signer(SlipSignerRole.HrDepartment), 93.06, 119.79, 94.06);
-        Signer(page, top, batch.Signer(SlipSignerRole.FactoryManager), 143.48, 170.17, 146.68);
+        Signer(page, top, batch.Signer(SlipSignerRole.HrDepartment), 93.06, 119.79);
+        Signer(page, top, batch.Signer(SlipSignerRole.FactoryManager), 143.48, 170.17);
     }
 
-    /// <summary>The picture over the line (it may cross it, as a pen does), else the name where the legacy label had it.</summary>
-    private static void Signer(FormPage page, double top, SlipSignerDto? signer, double x0, double x1, double nameX)
+    /// <summary>The picture over the line (it may cross it, as a pen does); the name — the first name only, from ตั้งค่าผู้ลงนามบนสลิป — over the line (UAT-35).</summary>
+    private static void Signer(FormPage page, double top, SlipSignerDto? signer, double x0, double x1)
     {
         if (signer?.Signature is { Length: > 0 } picture && signer.SignatureContentType is { } type)
             page.Image(x0, top + 73.8, x1 - x0, 7.6, type, picture);
-        else
-            page.Text(nameX, top + 78.59, signer?.Name, Body, fit: x1 - nameX);
+        else if (FirstName(signer?.Name) is { Length: > 0 } name)
+            page.Text((x0 + x1) / 2, top + NameBaseline, name, Body, TextAnchor.Middle, fit: x1 - x0);
+    }
+
+    /// <summary>The titles a name may start with, longest first (so นางสาว is not cut as นาง).</summary>
+    private static readonly string[] Titles =
+        ["เด็กหญิง", "เด็กชาย", "นางสาว", "น.ส.", "นส.", "นาย", "นาง", "ด.ช.", "ด.ญ.", "คุณ", "Miss", "Mrs.", "Mr.", "Ms."];
+
+    /// <summary>
+    /// UAT-35: the first name of a full name — no title (นาย/นาง/นางสาว …, with or without a space after it) and no surname: "นางสาวทองใส โชติรัตน์"
+    /// → "ทองใส"; "ทองใส" stays; "นาย สมชาย ใจดี" → "สมชาย". A title that is all there is of the name (nothing after it) stays as it is.
+    /// </summary>
+    public static string FirstName(string? fullName)
+    {
+        var name = string.Join(' ', (fullName ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        foreach (var title in Titles)
+        {
+            if (!name.StartsWith(title, StringComparison.OrdinalIgnoreCase)) continue;
+            var rest = name[title.Length..].TrimStart();
+            if (rest.Length > 0) name = rest;
+            break; // the longest title decides; a title that is the whole name stays
+        }
+        var space = name.IndexOf(' ');
+        return space < 0 ? name : name[..space];
     }
 
     private static string Whole(int value) => value.ToString(CultureInfo.InvariantCulture);

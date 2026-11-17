@@ -111,7 +111,7 @@ public static class EvaluationForms
         T(12.9, 163.9, "เกรด", TextAnchor.Middle);
         foreach (var (x, grade) in new[] { (21.0, "F = ตกเกรด"), (38.4, "D = ปรับปรุง"), (57.3, "C = พอใช้"), (74.3, "B = ดี"), (85.3, "A = ดีมาก") })
             T(x, 163.9, grade, fit: 13.5);
-        T(100.3, 164.0, "คะแนนที่ได้(1)-(2)", bold: true);
+        T(100.3, 164.0, "คะแนนที่ได้(1)-(2)", bold: true, fit: 124.0 - 100.3); // #399: inside its cell (98.8–124.5), not over the score cell
 
         T(6.2, 169.9, "ผลการประเมิน"); T(27.0, 169.9, "ได้เกรด");
         foreach (var (x, grade) in new[] { (42.2, "A"), (50.2, "B"), (58.2, "C"), (66.2, "D"), (74.2, "F") })

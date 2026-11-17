@@ -24,8 +24,7 @@
                 <MudDatePicker Editable="true" @bind-Date="searchDate" Label="วันที่ ORDER" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:14rem" />
                 break;
             case "customer":
-                <MudAutocomplete T="CustomerDto" @bind-Value="searchCustomer" Label="รหัสลูกค้า (รหัส หรือ ชื่อ)" SearchFunc="SearchCustomerAsync"
-                                 ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="min-width:22rem" />
+                <CustomerPicker @bind-Value="searchCustomer" Clearable="true" Style="min-width:22rem" />
                 break;
             default:
                 <MudTextField @bind-Value="searchNumber" Label="เลขที่ ORDER (บางส่วนก็ได้)" Style="max-width:18rem" Clearable="true" />
@@ -58,8 +57,7 @@
         <MudGrid Spacing="2">
             <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="orderDate" Label="วันที่ในใบ ORDER" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" /></MudItem>
             <MudItem xs="12" sm="5">
-                <MudAutocomplete T="CustomerDto" Value="customer" ValueChanged="CustomerChangedAsync" Label="รหัสลูกค้า" SearchFunc="SearchCustomerAsync"
-                                 ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" ResetValueOnEmptyText="true" MaxItems="50" />
+                <CustomerPicker Value="customer" ValueChanged="CustomerChangedAsync" Label="รหัสลูกค้า" />
             </MudItem>
             <MudItem xs="12" sm="4"><MudTextField @bind-Value="customerName" Label="ชื่อลูกค้า" MaxLength="CustomerRegistry.NameLength" /></MudItem>
             <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="deliveryDate" Label="กำหนดวันที่ส่ง" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
@@ -155,9 +153,6 @@
 
     protected override async Task OnInitializedAsync()
         => territories = await Services.RunAsync<SalesTerritoryDirectory, IReadOnlyList<SalesTerritoryDto>>(d => d.GetAllAsync());
-
-    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
-        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
 
     private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
         => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));

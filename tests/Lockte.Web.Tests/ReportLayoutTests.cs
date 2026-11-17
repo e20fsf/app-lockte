@@ -22,7 +22,9 @@ public sealed class ReportLayoutTests
         Assert.Contains("@page{size:A5 landscape", html);
         Assert.Contains("\"บริษัท ล็อคเต้ จำกัด\\A ใบลางาน\"", html);
         Assert.Contains("\"WI-PE-004-1/2547 ฉบับที่ 5\"", html);
-        Assert.Contains("\"พิมพ์เมื่อ 19/10/2569 14:05 โดย สมหญิง ใจดี\"", html);
+        Assert.Contains("\"19 ตุลาคม 2569\"", html); // #408: the date in full, no time, no user
+        Assert.DoesNotContain("พิมพ์เมื่อ", html);
+        Assert.DoesNotContain("สมหญิง", html);
         Assert.Contains("\"หน้า \" counter(page) \" จาก \" counter(pages)", html);
         Assert.Contains("<p>เนื้อหา</p>", html);
         Assert.DoesNotContain("logo", html); // ระดับ B ไม่มีโลโก้
@@ -40,23 +42,57 @@ public sealed class ReportLayoutTests
     public void Without_a_document_number_the_top_right_is_empty()
         => Assert.DoesNotContain("@top-right", ReportHtml.Compose(new ReportDocument("คำนวณเวลาทำงาน", Paper.A4Portrait), Stamp, ""));
 
-    [Fact] // a display name is typed by the admin: it must not break out of the CSS string
+    [Fact] // a title is typed in code but may carry quotes: it must not break out of the CSS string
     public void Text_in_the_margins_is_escaped()
     {
-        var html = ReportHtml.Compose(new ReportDocument("a\"b", Paper.A4Portrait), Stamp with { PrintedBy = "x\\\"}</style><script>" }, "");
+        var html = ReportHtml.Compose(new ReportDocument("a\"b</style><script>", Paper.A4Portrait), Stamp, "");
 
-        Assert.Contains("a\\\"b", html);
-        Assert.Contains("x\\\\\\\"}\\3C /style\\3E \\3C script\\3E ", html);
+        Assert.Contains("a\\\"b\\3C /style\\3E \\3C script\\3E ", html);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "</style>"));
     }
 
-    [Fact] // ตารางกว้างเกิน → ย่อพอดีหน้า; ข้อความยาว → ไม่ตัดบรรทัด (#392)
-    public void Wide_tables_shrink_to_the_page_and_long_text_stays_on_one_line()
+    [Fact] // #408: a one-page sheet (ใบขออนุมัติทำงานล่วงเวลา) has neither the print date nor the page number
+    public void A_sheet_without_a_footer_prints_neither_date_nor_page_number()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("x", Paper.A5Portrait, Footer: false), Stamp, "");
+
+        Assert.DoesNotContain("@bottom-left", html);
+        Assert.DoesNotContain("@bottom-right", html);
+        Assert.DoesNotContain("19 ตุลาคม 2569", html);
+    }
+
+    [Fact] // #411: the Access layout of the leave reports — the date at the top left, "หน้า x จาก y" at the top right, nothing in the footer
+    public void The_date_at_top_layout_has_date_top_left_and_page_top_right()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("x", Paper.A4Landscape, DateAtTop: true), Stamp, "");
+
+        Assert.Contains("@top-left{content:\"19 ตุลาคม 2569\"", html);
+        Assert.Contains("@top-right{content:\"หน้า \" counter(page) \" จาก \" counter(pages)", html);
+        Assert.DoesNotContain("@bottom-left", html);
+        Assert.DoesNotContain("@bottom-right", html);
+    }
+
+    [Theory] // #408: "5 พฤศจิกายน 2569" — day without a leading zero, full month name, พ.ศ.
+    [InlineData(2026, 11, 5, "5 พฤศจิกายน 2569")]
+    [InlineData(2027, 1, 31, "31 มกราคม 2570")]
+    public void The_footer_date_is_the_full_thai_date(int y, int m, int d, string expected)
+        => Assert.Equal(expected, ReportHtml.PrintDate(new DateTimeOffset(y, m, d, 9, 30, 0, TimeSpan.FromHours(7))));
+
+    [Fact] // #408: the word รวม of a total row is bold; the first row has room above it so a tone mark over an upper vowel clears the header rule
+    public void Total_labels_are_bold_and_the_first_row_clears_the_header_rule()
     {
         var html = ReportHtml.Compose(new ReportDocument("x", Paper.A4Portrait), Stamp, "");
 
-        Assert.Contains("td{padding:0 4pt;vertical-align:top;white-space:nowrap}", html);
-        Assert.DoesNotContain("overflow-wrap:anywhere", html);
+        Assert.Contains(".total td:not(.num),.lbl{font-weight:bold}", html);
+        Assert.Contains("tbody tr:first-child td{padding-top:4pt}", html);
+    }
+
+    [Fact] // ตารางกว้างเกิน → ย่อพอดีหน้า; ข้อความหนึ่งรายการอยู่บรรทัดเดียว
+    public void Wide_tables_shrink_to_the_page_and_cells_stay_on_one_line()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("x", Paper.A4Portrait), Stamp, "");
+
+        Assert.Contains("td{padding:0 4pt;vertical-align:top;white-space:nowrap}", html); // one item, one line (#395)
         Assert.Contains(ReportHtml.FitToPageScript, html);
     }
 
@@ -111,6 +147,15 @@ public sealed class ReportLayoutTests
         Assert.Contains(">13,100<", html); // ΣPAY_W
         Assert.Contains(">14,363<", html); // Σยอดรวม
         Assert.Contains("ผู้รับเงิน", html);
+        Assert.Equal("", PayReportView.Title); // UAT-30: no "ค่าแรง" title under the company name
+    }
+
+    [Fact] // UAT-30: the page header of a report without a title is the company alone, no empty second line
+    public void A_report_without_a_title_has_only_the_company_in_its_header()
+    {
+        var html = ReportHtml.Compose(new ReportDocument("", Paper.A4Portrait), new PrintStamp(DateTimeOffset.Now, "x"), "<p>x</p>");
+
+        Assert.Contains("content:\"" + ReportHtml.Company + "\";", html);
     }
 
     [Fact] // SCR-41 "*"
@@ -132,7 +177,9 @@ public sealed class ReportLayoutTests
         Assert.Contains(">3.20<", html);
         Assert.Contains(">0.00<", html);
         Assert.Contains(">93,171<", html); // รวมทั้งหมด
-        foreach (var sign in new[] { "บุคคล", "ผู้จัดการโรงงาน", "สมุห์บัญชี", "กรรมการผู้จัดการ" }) Assert.Contains(sign, html);
+        foreach (var sign in new[] { "บุคคล", "ผู้จัดการโรงงาน", "สมุห์บัญชี", "กรรมการผู้จัดการ" }) Assert.Contains(sign + " ....", html); // UAT-30: the line follows its label
+        foreach (var head in new[] { "แผนก", "จำนวนพนักงาน", "ค่าแรง", "ค่าล่วงเวลา", "รวม", "%ค่าล่วงเวลา" }) Assert.Contains(">" + head + "<", html);
+        Assert.DoesNotContain(">ลำดับ<", html);
     }
 
     [Fact] // RPT-58: ชื่อ "ค่าแรงพนักงานทำงานลูกค้า" & ชื่อลูกค้า · หัววันหยุด · รวม = ค่าแรง + OT + HOT · ไม่มี %OT · ลงนาม 5 ช่อง
@@ -161,5 +208,67 @@ public sealed class ReportLayoutTests
 
         Assert.Contains("ไม่มีข้อมูล", html);
         Assert.DoesNotContain("รวม 0 คน", html);
+    }
+
+    [Fact] // UAT-35: the pay report's and the pay summary's page header (company) and period line are bigger than the standard
+    public async Task The_pay_reports_have_a_bigger_header_and_period_line()
+    {
+        Assert.True(PayReportView.HeaderPt > ReportHtml.TitleSizePt);
+        Assert.True(PaySummaryView.HeaderPt > ReportHtml.TitleSizePt);
+        Assert.True(PayReportView.PeriodLinePt > 14);
+
+        var doc = ReportHtml.Compose(new ReportDocument("", Paper.A4Portrait, HeaderPt: PayReportView.HeaderPt), new PrintStamp(DateTimeOffset.Now, "x"), "<p>x</p>");
+        Assert.Contains($"font-size:{PayReportView.HeaderPt}pt;font-weight:bold", doc);
+        var standard = ReportHtml.Compose(new ReportDocument("", Paper.A4Portrait), new PrintStamp(DateTimeOffset.Now, "x"), "<p>x</p>");
+        Assert.Contains($"font-size:{ReportHtml.TitleSizePt}pt;font-weight:bold", standard);
+
+        var html = await ReportBody.RenderAsync<PayReportView>(new() { [nameof(PayReportView.Report)] = new PayReport(Paid, null, []) });
+        Assert.Contains($"style=\"font-size:{PayReportView.PeriodLinePt}pt\"", html);
+    }
+
+    [Fact] // UAT-35: the pay summary's text is 15 pt overall (it was 12)
+    public async Task The_pay_summary_text_is_bigger()
+    {
+        var html = await ReportBody.RenderAsync<PaySummaryView>(new()
+        {
+            [nameof(PaySummaryView.Report)] = new PaySummaryReport(Paid, 2, 1, [new DepartmentPayTotal("ไดคาสท์", 12, 77463, 2480, 0)]),
+        });
+
+        Assert.DoesNotContain("font-size: 12pt", html);
+        Assert.Contains("font-size: 15pt", html);
+    }
+
+    [Fact] // UAT-40: the pay summary's period line sits right under the title "ค่าแรงพนักงาน" — the body no longer starts 7 mm lower
+    public async Task The_pay_summary_period_line_sits_right_under_the_title()
+    {
+        var html = await ReportBody.RenderAsync<PaySummaryView>(new()
+        {
+            [nameof(PaySummaryView.Report)] = new PaySummaryReport(Paid, 2, 1, [new DepartmentPayTotal("ไดคาสท์", 12, 77463, 2480, 0)]),
+        });
+
+        Assert.Contains(".ps { margin-top: 0;", html);
+        Assert.DoesNotContain("margin-top: 7mm", html);
+    }
+
+    [Fact] // UAT-35: step 3 of ปิดงวดค่าแรง — พิมพ์ค่าแรง sits right next to the แผนก choice (the choice no longer grows to fill the row)
+    public void The_pay_print_button_sits_next_to_the_department_choice()
+    {
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (!File.Exists(Path.Combine(repo.FullName, "Lockte.slnx"))) repo = repo.Parent!;
+        var page = File.ReadAllText(Path.Combine(repo.FullName, "src", "Lockte.Web", "Components", "Pages", "Hr", "PayPeriods.razor"));
+
+        Assert.Contains("Label=\"แผนก\" Style=\"flex:0 0 16rem\"", page);
+        Assert.Contains("departments.Where(x => x.IsActive)", page); // retired แผนก (#412) are not in the choice
+    }
+
+    [Fact] // UAT-35: the month-end summary's double rule closes the table right under รวมทั้งหมด
+    public async Task The_month_end_summary_closes_under_its_total_row()
+    {
+        var html = await ReportBody.RenderAsync<MonthEndSummaryView>(new()
+        {
+            [nameof(MonthEndSummaryView.Report)] = new MonthEndPaySummary(D("2026-08-27"), D("2026-09-26"), [new MonthEndDepartmentTotal("ไดคาสท์", 3, 1000m, 1000m)]),
+        });
+
+        Assert.Contains("td.end { padding: 0; font-size: 0; line-height: 0;", html);
     }
 }

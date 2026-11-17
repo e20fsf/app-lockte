@@ -1,3 +1,4 @@
+using MudBlazor;
 namespace Lockte.Web.Menus;
 
 /// <summary>
@@ -12,7 +13,7 @@ public static class PurchMenu
 {
     public static string HrefOf(int number) => Menu.HrefOf(number);
 
-    public static ProgramMenu Menu { get; } = new("purch", "วัตถุดิบ", "purch", "purch/menu", "purch",
+    public static ProgramMenu Menu { get; } = new("purch", "วัตถุดิบ", Icons.Material.Filled.Inventory2, "purch", "purch/menu", "purch",
     [
         new(1, "เมนูหลัก", null,
         [
@@ -79,6 +80,7 @@ public static class PurchMenu
             new("พิมพ์สรุปการประเมินผู้ขาย", Code: "RPT-09", Page: "purch/reports/evaluation-summary"),
             new("พิมพ์บันทึกการส่งอลูมิเนียมไปหลอม", Code: "RPT-10"),
             new("พิมพ์ใบสั่งซื้อต่ำกว่า 5000 บาท", Code: "RPT-11", Page: "purch/reports/receipts/small-orders"),
+            new("พิมพ์สรุปจำนวนใบขออนุมัติสั่งซื้อรายเดือนแยกตามแผนก", Code: "REQ-MONTHLY", Page: "purch/reports/requests-monthly"), // not in the legacy: #420
         ]),
         new(11, "สต็อกวัตถุดิบ", 1, // STOCK วัตถุดิบ
         [

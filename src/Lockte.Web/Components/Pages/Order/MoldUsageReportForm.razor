@@ -26,8 +26,7 @@
         <MudAutocomplete T="MoldDto" @bind-Value="mold" SearchFunc="SearchMoldAsync" Label="แม่พิมพ์" ToStringFunc="@(m => m is null ? "" : $"{m.Code}  {m.Name}")"
                          Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" Style="max-width:30rem" />
         <MudStack Row="true" Spacing="2">
-            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
-            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <DateRangePicker @bind-From="from" @bind-To="to" Style="max-width:16rem" />
         </MudStack>
     </MudStack>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Href="@StockUrl" Target="_blank" Disabled="@(mold is null || from is null || to is null || from > to)" StartIcon="@Icons.Material.Filled.Print">พิมพ์</MudButton>

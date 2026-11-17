@@ -103,7 +103,7 @@ public static class ReceiptReports
             if (Range(from, to) is { } bad) return bad;
             if (material is not { } id || await materials.GetAsync(id) is not { } found) return Results.BadRequest("กรุณาเลือกวัตถุดิบ");
             var lines = await receipts.GetReceivedLinesAsync(from!.Value, to!.Value);
-            var pdf = await printer.PrintAsync<MaterialReceiptView>(MaterialTitle + " " + found.Name, Paper.A4Portrait, new() { ["Report"] = Material(lines, id, found.Name, from.Value, to.Value) },
+            var pdf = await printer.PrintAsync<MaterialReceiptView>(MaterialTitle, Paper.A4Portrait, new() { ["Report"] = Material(lines, id, found.Name, from.Value, to.Value) },
                 AccountClaims.DisplayNameOf(http.User), cancellationToken: cancellationToken);
             return ReportsRegistration.Pdf(http, pdf, "รับวัตถุดิบ " + found.Code);
         });

@@ -27,14 +27,13 @@
         else
         {
         <MudStack Row="true" Spacing="2">
-            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
-            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <DateRangePicker @bind-From="from" @bind-To="to" OnChanged="RememberAsync" Style="max-width:16rem" />
         </MudStack>
         }
         @if (Kind == "department")
         {
             <MudSelect T="int?" @bind-Value="departmentId" @bind-Value:after="RememberAsync" Label="แผนก" Style="max-width:28rem">
-                @foreach (var d in departments)
+                @foreach (var d in departments.Where(x => x.IsActive))
                 {
                     <MudSelectItem T="int?" Value="@((int?)d.Id)">@d.Name</MudSelectItem>
                 }

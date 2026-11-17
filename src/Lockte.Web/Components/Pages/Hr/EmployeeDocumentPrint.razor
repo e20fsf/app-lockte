@@ -1,0 +1,79 @@
+@page "/hr/employees/print/{Kind}"
+@attribute [Authorize]
+@layout PayGateLayout
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.Web.Reports.Hr
+@inject ScopedServices Services
+
+@* #399: the legacy EMPLO form's four print buttons as menu items (พิมพ์แบบ คร.2 / สัญญาจ้างรายวัน / สัญญาจ้างรายเดือน /
+   ฟอร์มการรับพนักงาน): pick an employee by รหัส or ชื่อ, then print. All four carry เงินเดือน / ค่าแรง (#277, ADR 0004), so the page
+   is behind ViewPay (PayGateLayout) and the PDFs are the ViewPay-gated report routes. Kind: kor2 | daily | monthly | hiring. *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+@if (!Known)
+{
+    <MudAlert Severity="Severity.Warning">ไม่รู้จักเอกสารนี้</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-4" Outlined="true" Style="max-width:40rem">
+        <MudStack Spacing="3">
+            <MudAutocomplete T="EmployeeListItem" Value="employee" ValueChanged="v => employee = v" Label="รหัสพนักงาน (รหัส หรือ ชื่อ)"
+                             SearchFunc="SearchAsync" ToStringFunc="@(e => e is null ? "" : $"{e.Code}  {e.Name}")"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="50" />
+            @if (Kind == "hiring")
+            {
+                <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                    <MudDatePicker Editable="true" @bind-Date="appliedOn" Label="วันที่สมัคร" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+                    <MudDatePicker Editable="true" @bind-Date="interviewedOn" Label="วันที่สัมภาษณ์" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
+                </MudStack>
+            }
+            <MudButton Href="@PrintHref" Target="@(Kind == "kor2" ? null : "_blank")" Disabled="employee is null" Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print" Style="align-self:flex-start">@(Kind == "kor2" ? "ถัดไป: กรอกข้อมูลแบบ คร.2" : "พิมพ์")</MudButton>
+            <MudButton Href="@EmployeeMenu.HrefOf(2)" StartIcon="@Icons.Material.Filled.ArrowBack" Style="align-self:flex-start">กลับเมนูเดิม</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public string Kind { get; set; } = "";
+
+    private IReadOnlyList<EmployeeListItem> employees = [];
+    private EmployeeListItem? employee;
+    private DateTime? appliedOn;
+    private DateTime? interviewedOn;
+
+    private bool Known => Kind is "kor2" or "daily" or "monthly" or "hiring";
+
+    private string Title => Kind switch
+    {
+        "kor2" => "พิมพ์แบบ คร.2",
+        "daily" => "พิมพ์สัญญาจ้างรายวัน",
+        "monthly" => "พิมพ์สัญญาจ้างรายเดือน",
+        "hiring" => "พิมพ์ฟอร์มการรับพนักงาน",
+        _ => "พิมพ์เอกสารพนักงาน",
+    };
+
+    private string? PrintHref => employee is null ? null : Kind switch
+    {
+        "kor2" => $"hr/employees/{employee.Id}/kor2", // the existing form (ชื่อบิดา / มารดา / ลักษณะงาน) then POSTs the PDF
+        "daily" => OnboardingReports.ContractHref(employee.Id, "daily"),
+        "monthly" => OnboardingReports.ContractHref(employee.Id, "monthly"),
+        _ => OnboardingReports.HiringFormHref(employee.Id, Day(appliedOn), Day(interviewedOn)),
+    };
+
+    private static DateOnly? Day(DateTime? d) => d is { } v ? DateOnly.FromDateTime(v) : null;
+
+    protected override async Task OnInitializedAsync()
+        => employees = await Services.RunAsync<EmployeeDirectory, IReadOnlyList<EmployeeListItem>>(d => d.SearchAsync());
+
+    private Task<IEnumerable<EmployeeListItem>> SearchAsync(string? text, CancellationToken _)
+    {
+        var term = text?.Trim();
+        return Task.FromResult(string.IsNullOrEmpty(term)
+            ? employees.AsEnumerable()
+            : employees.Where(e => e.Code.StartsWith(term, StringComparison.OrdinalIgnoreCase) || e.Name.Contains(term)));
+    }
+}

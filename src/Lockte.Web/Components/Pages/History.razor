@@ -1,6 +1,7 @@
 @page "/history"
 @attribute [Authorize(Policy = AuthPolicies.Admin)]
 @using System.Globalization
+@using Lockte.SharedKernel
 @using Lockte.SharedKernel.Persistence
 @using Lockte.Web.Audit
 @inject ScopedServices Services
@@ -12,8 +13,8 @@
 
 <MudPaper Class="pa-4 mb-4" Outlined="true">
     <MudGrid Spacing="2">
-        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
-        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="to" Label="ถึงวันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" Error="DateRangeRule.IsInvalid(from, to)" ErrorText="@DateRangeRule.Message" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker @bind-Date="to" Label="ถึงวันที่" Culture="ThaiCulture" DateFormat="d/M/yyyy" Clearable="true" Error="DateRangeRule.IsInvalid(from, to)" /></MudItem>
         <MudItem xs="12" sm="2"><MudTextField @bind-Value="userName" Label="ผู้แก้ (ชื่อ user)" Clearable="true" /></MudItem>
         <MudItem xs="12" sm="2">
             <MudSelect T="string" @bind-Value="table" Label="ตาราง" Clearable="true">
@@ -25,7 +26,7 @@
         </MudItem>
         <MudItem xs="12" sm="2"><MudTextField @bind-Value="rowKey" Label="รหัสรายการ" HelperText="เช่น รหัสพนักงาน" Clearable="true" /></MudItem>
         <MudItem xs="12" sm="2" Class="d-flex align-center">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Search">ค้นหา</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="busy || DateRangeRule.IsInvalid(from, to)" StartIcon="@Icons.Material.Filled.Search">ค้นหา</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>

@@ -68,8 +68,7 @@
             <MudItem xs="6" sm="3"><MudTextField @bind-Value="form.OrderNo" Label="เลขที่ ORDER" MaxLength="SalesOrderRegistry.OrderNoLength" /></MudItem>
             <MudItem xs="6" sm="3"><MudDatePicker Editable="true" @bind-Date="form.OrderDate" Label="วันที่ ORDER" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Clearable="true" /></MudItem>
             <MudItem xs="12" sm="6">
-                <MudAutocomplete T="CustomerDto" @bind-Value="form.Customer" Label="ลูกค้า" SearchFunc="SearchCustomerAsync"
-                                 ToStringFunc="@(c => c is null ? "" : $"{c.Code}  {c.Name}")" ResetValueOnEmptyText="true" MaxItems="50" />
+                <CustomerPicker @bind-Value="form.Customer" Label="ลูกค้า" />
             </MudItem>
             <MudItem xs="12" sm="6"><MudTextField @bind-Value="form.CustomerName" Label="ชื่อลูกค้า" MaxLength="CustomerRegistry.NameLength" /></MudItem>
             <MudItem xs="12" sm="4">
@@ -116,9 +115,6 @@
     };
 
     private static string Plain(decimal value) => (value / 1.0000000000000000000000000000m).ToString("0.####");
-
-    private async Task<IEnumerable<CustomerDto>> SearchCustomerAsync(string? text, CancellationToken _)
-        => await Services.RunAsync<CustomerDirectory, IReadOnlyList<CustomerDto>>(d => d.SearchAsync(text, 50));
 
     private async Task<IEnumerable<ProductListItem>> SearchProductAsync(string? text, CancellationToken _)
         => await Services.RunAsync<ProductDirectory, IReadOnlyList<ProductListItem>>(d => d.SearchAsync(text, null, 30));

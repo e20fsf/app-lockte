@@ -35,7 +35,7 @@ public sealed class CashExpenseLineTests(LocalDbFixture db)
     private static string Unique(string name) => $"{name} {Guid.NewGuid():N}"[..(name.Length + 9)];
 
     /// <summary>A day nobody else uses, so a list of that day holds only this test's lines.</summary>
-    private static DateOnly Day() => new DateOnly(2040, 1, 1).AddDays(Random.Shared.Next(0, 3000));
+    private static DateOnly Day() => TestCodes.CashDay();
 
     private async Task<int> NewTypeAsync(string user = "qa1")
     {

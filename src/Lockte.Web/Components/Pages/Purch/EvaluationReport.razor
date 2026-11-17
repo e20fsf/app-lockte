@@ -16,8 +16,7 @@
 <MudPaper Class="pa-4" Outlined="true" Style="max-width:48rem">
     <MudStack Spacing="2">
         <MudStack Row="true" Spacing="2">
-            <MudDatePicker Editable="true" @bind-Date="from" @bind-Date:after="RememberAsync" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
-            <MudDatePicker Editable="true" @bind-Date="to" @bind-Date:after="RememberAsync" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern" Style="max-width:16rem" />
+            <DateRangePicker @bind-From="from" @bind-To="to" OnChanged="RememberAsync" Style="max-width:16rem" />
         </MudStack>
         <SupplierPicker Value="supplier" ValueChanged="@(async (SupplierDto? s) => { supplier = s; await RememberAsync(); })" ProductionOnly="true" Label="ผู้ขาย (ที่ใช้ในการผลิต)" />
         <MudStack Row="true" Spacing="2">

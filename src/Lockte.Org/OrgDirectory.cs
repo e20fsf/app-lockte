@@ -19,6 +19,13 @@ public sealed class OrgDirectory(OrgDbContext db)
     public async Task<IReadOnlyList<DepartmentDto>> GetDepartmentsAsync()
         => (await Departments().OrderBy(d => d.SortOrder).ThenBy(d => d.Name).ToListAsync()).Select(ToDto).ToList();
 
+    /// <summary>
+    /// แผนกที่ยังใช้งาน, in SCR-05 order — what every list a user picks a แผนก from must use (UAT-32). Look-ups of a
+    /// name for a record already saved (reports of the past, a former employee) keep using <see cref="GetDepartmentsAsync"/>.
+    /// </summary>
+    public async Task<IReadOnlyList<DepartmentDto>> GetActiveDepartmentsAsync()
+        => (await Departments().Where(d => d.IsActive).OrderBy(d => d.SortOrder).ThenBy(d => d.Name).ToListAsync()).Select(ToDto).ToList();
+
     public async Task<DepartmentDto?> GetDepartmentAsync(int id)
         => await Departments().FirstOrDefaultAsync(d => d.Id == id) is { } d ? ToDto(d) : null;
 
@@ -79,7 +86,7 @@ public sealed class OrgDirectory(OrgDbContext db)
         d.Shifts.OrderBy(h => h.Shift.Code)
             .Select(h => new DepartmentShiftDto(h.ShiftId, h.Shift.Code, h.SupervisorEmployeeId, h.SupervisorName,
                 h.ManagerName, h.FactoryManagerName, h.RowVersion)).ToList(),
-        d.RowVersion, d.StaffingTarget);
+        d.RowVersion, d.StaffingTarget, d.IsActive);
 
     private static ShiftDto ToDto(Shift s) => new(
         s.Id, s.Code, s.WorkIn, s.WorkOut, s.BreakStart, s.BreakEnd, s.OvertimeIn, s.OvertimeOut, s.RestMinutes, s.RowVersion);
