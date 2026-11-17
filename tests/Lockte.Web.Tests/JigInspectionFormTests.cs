@@ -85,6 +85,15 @@ public sealed class JigInspectionFormTests(ChromiumFixture chromium)
         Assert.DoesNotContain("<image ", Svg(sheet), StringComparison.Ordinal);
     }
 
+    [Fact] // #477: the dotted line after "หมายเลขเวอร์เนียที่ใช้(ผ่านการสอบเทียบแล้ว)" starts after the label (about x = 124 mm), not through its last words
+    public void The_vernier_number_dots_start_after_the_label()
+    {
+        var svg = Svg(Sheet(JigSheetType.ZeroCheck, "CLICK"));
+        var match = Regex.Match(svg, @"<line class=""dots"" x1=""(?<x>[\d.]+)"" y1=""67\.4\d*""");
+        Assert.True(match.Success, "no dotted line on the vernier-number baseline");
+        Assert.True(double.Parse(match.Groups["x"].Value, System.Globalization.CultureInfo.InvariantCulture) >= 125);
+    }
+
     [Fact] // every one of the 23 sheets fits a page: Chromium prints one page each
     public async Task Each_sheet_is_one_page()
     {
