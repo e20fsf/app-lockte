@@ -19,7 +19,12 @@ public sealed class JigScreenTests
 
     [Fact]
     public void The_other_kinds_do_not_show_the_jig_only_fields()
-        => Assert.All(InstrumentKindInfo.All.Where(k => k.Kind != InstrumentKind.Jig), k => Assert.False(k.ShowAxis || k.ShowManual));
+    {
+        var others = InstrumentKindInfo.All.Where(k => k.Kind != InstrumentKind.Jig).ToList();
+        Assert.All(others, k => Assert.False(k.ShowAxis));
+        // #476: the manual number is also typed per instrument for the sheets printed from the register (caliper, scale); the other kinds keep it in the settings
+        Assert.Equal([InstrumentKind.Caliper, InstrumentKind.Scale], others.Where(k => k.ShowManual).Select(k => k.Kind));
+    }
 }
 
 /// <summary>ทะเบียน JIG (#196): codes of the shape `JG-QA001/2550` and `JG-AS001-2/2560`, text limits like `0.20 mm.`.</summary>
