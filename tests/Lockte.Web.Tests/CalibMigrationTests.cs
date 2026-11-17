@@ -264,7 +264,7 @@ public sealed class CalibMigrationTests(MigrationDbFixture db) : IDisposable
         var report = await RunAsync(source, null, "out-images", folder);
 
         Assert.Contains(report.Notes, n => n.StartsWith("รูป JIG: โหลด 2 แบบ (รูปที่ไม่ซ้ำ 1) จากแมปปิ้ง 2 แถว", StringComparison.Ordinal));
-        Assert.Equal(40, report.Exceptions.Count(e => e.Table == "รูป JIG" && e.Problem.Contains("ยังไม่มีรูป", StringComparison.Ordinal)));
+        Assert.Equal(42, report.Exceptions.Count(e => e.Table == "รูป JIG" && e.Problem.Contains("ยังไม่มีรูป", StringComparison.Ordinal)));
         Assert.DoesNotContain(report.Exceptions, e => e.Table == "รูป JIG" && e.Key.Contains("CLICK", StringComparison.Ordinal));
     }
 }

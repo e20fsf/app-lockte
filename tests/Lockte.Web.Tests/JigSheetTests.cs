@@ -13,10 +13,10 @@ public sealed class JigInspectionSeedTests
     private static string Spec(JigSheetSeed s) => string.Join(", ", s.Points.Select(p => $"{p.Label} {p.Kind} {p.Value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}{(p.Tolerance == JigToleranceKind.GreaterThan ? ">" : "±")}"));
 
     [Fact]
-    public void There_are_23_zero_check_sheets_and_19_grinding_sheets()
+    public void There_are_23_zero_check_sheets_and_21_grinding_sheets()
     {
         Assert.Equal(23, Of(JigSheetType.ZeroCheck).Count);
-        Assert.Equal(19, Of(JigSheetType.Grinding).Count);
+        Assert.Equal(21, Of(JigSheetType.Grinding).Count);
         Assert.Equal(Of(JigSheetType.ZeroCheck).Count, Of(JigSheetType.ZeroCheck).Select(s => s.ModelKey).Distinct().Count());
         Assert.Equal(JigInspectionSeed.Sheets.Count, JigInspectionSeed.Sheets.Select(s => s.DocumentKey).Distinct().Count());
     }
@@ -63,14 +63,18 @@ public sealed class JigInspectionSeedTests
         Assert.Null(grind["V100"].Points[1].ToleranceValue);
         Assert.Equal("NH50,SS50,029", grind["NH50"].Title);
         Assert.DoesNotContain("PIN GAUGE", grind.Keys);
-        Assert.DoesNotContain("068", grind.Keys); // no grinding sheet for 068, 168, PIN and TAPER
+        Assert.DoesNotContain("PIN GAUGE", grind.Keys);
+        Assert.DoesNotContain("TAPER GAUGE", grind.Keys); // no grinding sheet for PIN and TAPER (068 and 168 got theirs in #478)
+        Assert.Equal("P1 Diameter 12.00±, P2 Length 20.00±, P3 Wide 6.00±", Spec(grind["068"])); // #478, 0.20 each
+        Assert.Equal("P1 Diameter 15.00±, P2 Length 21.20±, P3 Wide 12.00±", Spec(grind["168"]));
+        Assert.All(new[] { "068", "168" }, m => Assert.All(grind[m].Points, p => Assert.Equal(0.20m, p.ToleranceValue)));
     }
 
     [Fact] // WI-QA049-1…23/2550 and 24…56/2560, ฉบับที่ 2
     public void Document_numbers_are_the_printed_ones()
     {
         var docs = JigInspectionSeed.Documents.ToDictionary(d => d.Key);
-        Assert.Equal(42, docs.Count);
+        Assert.Equal(44, docs.Count); // 42 + grinding 068, 168 (57, 58; #478)
         Assert.Equal(("WI-QA049-4/2550", " ฉบับที่ 2"), (docs["JIG-Z-4"].Code, docs["JIG-Z-4"].Edition)); // CLICK, AC-14
         Assert.Equal("WI-QA049-23/2550", docs["JIG-Z-23"].Code);
         Assert.Equal("WI-QA049-35/2560", docs["JIG-G-35"].Code); // K125 grinding, AC-14
@@ -102,7 +106,7 @@ public sealed class JigSheetTests(LocalDbFixture db)
     public async Task The_migration_loaded_all_sheets_and_their_document_numbers()
     {
         var sheets = await AsQaAsync(s => s.Get<JigSheetDirectory>().ListAsync());
-        Assert.Equal((23, 19), (sheets.Count(s => s.Type == JigSheetType.ZeroCheck), sheets.Count(s => s.Type == JigSheetType.Grinding)));
+        Assert.Equal((23, 21), (sheets.Count(s => s.Type == JigSheetType.ZeroCheck), sheets.Count(s => s.Type == JigSheetType.Grinding)));
         foreach (var seed in JigInspectionSeed.Sheets)
         {
             var sheet = sheets.Single(s => s.Type == seed.Type && s.ModelKey == seed.ModelKey);

@@ -166,8 +166,8 @@ public static partial class CalibComparison
         var all = await sheets.ListAsync();
         var seedOk = JigInspectionSeed.Sheets.All(s => all.FirstOrDefault(a => a.Type == s.Type && a.ModelKey == s.ModelKey) is { } sheet
             && sheet.DocumentKey == s.DocumentKey && sheet.Points.Select(p => (p.Label, p.Kind, p.Value, p.Tolerance)).SequenceEqual(s.Points.Select(p => (p.Label, p.Kind, p.Value, p.Tolerance))));
-        gate.Add(new CalibGateLine("AC-14", "ค่ากำหนด RPT-05 (23 แบบ) และ RPT-06 (19 แบบ) ตรงตารางใน reports.md (ข้อมูลตั้งต้นของ #199)", "42 แบบตรงตาราง",
-            $"{all.Count(a => a.Type == JigSheetType.ZeroCheck)} + {all.Count(a => a.Type == JigSheetType.Grinding)} แบบ, ตรง {(seedOk ? "ทุกแบบ" : "ไม่ครบ/ไม่ตรง")}", all.Count == 42 && seedOk, "#199 #207 #208"));
+        gate.Add(new CalibGateLine("AC-14", "ค่ากำหนด RPT-05 (23 แบบ) และ RPT-06 (21 แบบ) ตรงตารางใน reports.md (ข้อมูลตั้งต้นของ #199)", "44 แบบตรงตาราง",
+            $"{all.Count(a => a.Type == JigSheetType.ZeroCheck)} + {all.Count(a => a.Type == JigSheetType.Grinding)} แบบ, ตรง {(seedOk ? "ทุกแบบ" : "ไม่ครบ/ไม่ตรง")}", all.Count == 44 && seedOk, "#199 #207 #208"));
         gate.Add(new CalibGateLine("AC-14", "แบบตรวจที่ยังไม่มีรูป JIG", "0", all.Count(a => !a.HasImage).ToString(CultureInfo.InvariantCulture), all.All(a => a.HasImage), "#200"));
 
         // the gates of what was changed on purpose and the ones a person has to see
