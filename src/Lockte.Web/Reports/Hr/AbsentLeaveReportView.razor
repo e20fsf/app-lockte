@@ -1,15 +1,39 @@
 @using Lockte.Hr
 @* RPT-34 รายงานพนักงานที่ขาดงาน (รายงาน ขาดงาน2, print-samples.md): ระดับ B on A5 นอน — (ลำดับ) ตั้งแต่วันที่ ถึงวันที่
    จำนวนวัน รหัส ชื่อ-นามสกุล; ท้าย "รวมทั้งหมด n รายการ". The legacy sample without rows printed an empty row "1" and a blank
-   second page (D-6): here "ไม่มีข้อมูล". Rows from LeaveReportDirectory.GetAbsentReportAsync (BR-064). *@
-<p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)@(Report.EmployeeCode is { } code ? $"  รหัส {code}" : "")</p>
+   second page (D-6): here "ไม่มีข้อมูล". Rows from LeaveReportDirectory.GetAbsentReportAsync (BR-064).
+   UAT 8 "แยกรวมทั้งหมด และ เป็นรายบุคคล": ByEmployee prints each employee on a page of their own, numbered and counted
+   for that person; without it the one list of everybody as before. *@
 @if (Report.Lines.Count == 0)
 {
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)@(Report.EmployeeCode is { } code ? $"  รหัส {code}" : "")</p>
     <NoData />
+}
+else if (ByEmployee)
+{
+    var first = true;
+    foreach (var person in Report.Lines.GroupBy(l => l.EmployeeCode).OrderBy(g => g.Key, StringComparer.Ordinal))
+    {
+        <p class="sub" style="@(first ? null : "break-before:page")">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)  รหัส @person.Key @person.First().EmployeeName</p>
+        @Table(person.ToList())
+        first = false;
+    }
 }
 else
 {
-    <table>
+    <p class="sub">ตั้งแต่วันที่ @ReportText.Date(Report.From) ถึงวันที่ @ReportText.Date(Report.To)@(Report.EmployeeCode is { } code ? $"  รหัส {code}" : "")</p>
+    @Table(Report.Lines)
+}
+
+@code {
+    public const string Title = "รายงานพนักงานที่ขาดงาน";
+
+    [Parameter, EditorRequired] public AbsentLeaveReport Report { get; set; } = default!;
+
+    /// <summary>UAT 8: one page per employee instead of the one list.</summary>
+    [Parameter] public bool ByEmployee { get; set; }
+
+    private static RenderFragment Table(IReadOnlyList<AbsentLeaveLine> lines) => @<table>
         <colgroup>
             <col style="width:7%" /><col style="width:16%" /><col style="width:16%" /><col style="width:13%" /><col style="width:10%" />
             <col style="width:38%" />
@@ -18,9 +42,9 @@ else
             <tr><th class="num"></th><th>ตั้งแต่วันที่</th><th>ถึงวันที่</th><th class="num">จำนวนวัน</th><th>รหัส</th><th>ชื่อ-นามสกุล</th></tr>
         </thead>
         <tbody>
-            @for (var i = 0; i < Report.Lines.Count; i++)
+            @for (var i = 0; i < lines.Count; i++)
             {
-                var line = Report.Lines[i];
+                var line = lines[i];
                 <tr>
                     <td class="num">@(i + 1)</td>
                     <td>@ReportText.Date(line.FromDate)</td>
@@ -30,14 +54,8 @@ else
                     <td>@line.EmployeeName</td>
                 </tr>
             }
-            <tr class="total"><td colspan="6">รวมทั้งหมด @Report.Lines.Count รายการ</td></tr>
+            <tr class="total"><td colspan="6">รวมทั้งหมด @lines.Count รายการ</td></tr>
             <tr><td colspan="6" class="end"></td></tr>
         </tbody>
-    </table>
-}
-
-@code {
-    public const string Title = "รายงานพนักงานที่ขาดงาน";
-
-    [Parameter, EditorRequired] public AbsentLeaveReport Report { get; set; } = default!;
+    </table>;
 }

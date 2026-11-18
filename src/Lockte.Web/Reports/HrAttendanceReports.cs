@@ -27,14 +27,15 @@ public static class HrAttendanceReports
                 "สรุปใบลาออก " + Iso(report.From), cancellationToken);
         });
 
-        // RPT-30 รายงานพนักงานที่ได้รับใบเตือน (เมนู 4): ?employee= one employee (none = ทุกคน, UAT7-6)
-        reports.MapGet("/hr/warnings", async (DateOnly? from, DateOnly? to, int? employee, HttpContext http, WarningDirectory warnings, ReportPrinter printer,
-            CancellationToken cancellationToken) =>
+        // RPT-30 รายงานพนักงานที่ได้รับใบเตือน (เมนู 4): ?employee= one employee (none = ทุกคน, UAT7-6), ?byEmployee=true one page per employee (UAT 8)
+        reports.MapGet("/hr/warnings", async (DateOnly? from, DateOnly? to, int? employee, bool? byEmployee, HttpContext http, WarningDirectory warnings,
+            ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (Range(from, to) is { } bad) return bad;
             var report = await warnings.GetReportAsync(from!.Value, to!.Value, employee);
             return await PrintAsync<WarningReportView>(http, printer, WarningReportView.Title, Paper.A5Landscape, report,
-                "ใบเตือน " + Iso(report.From), cancellationToken);
+                (byEmployee == true ? "ใบเตือนรายบุคคล " : "ใบเตือน ") + Iso(report.From), cancellationToken,
+                more: new() { [nameof(WarningReportView.ByEmployee)] = byEmployee == true });
         });
 
         // RPT-31 รายงานการลางานแผนก (เมนู 17; ?format=xlsx = Excel): ?department= one แผนก (none = ทุกแผนก), ?employees= จำนวนคน, ?workDays= จำนวนวันทำงาน
@@ -80,14 +81,15 @@ public static class HrAttendanceReports
                 "สรุปการลางาน " + Iso(report.From), cancellationToken);
         });
 
-        // RPT-34 รายงานพนักงานที่ขาดงาน: ?employee= one employee (none = ทุกคน)
-        reports.MapGet("/hr/leave/absent", async (DateOnly? from, DateOnly? to, int? employee, HttpContext http, LeaveReportDirectory leave,
-            ReportPrinter printer, CancellationToken cancellationToken) =>
+        // RPT-34 รายงานพนักงานที่ขาดงาน: ?employee= one employee (none = ทุกคน), ?byEmployee=true one page per employee (UAT 8)
+        reports.MapGet("/hr/leave/absent", async (DateOnly? from, DateOnly? to, int? employee, bool? byEmployee, HttpContext http,
+            LeaveReportDirectory leave, ReportPrinter printer, CancellationToken cancellationToken) =>
         {
             if (Range(from, to) is { } bad) return bad;
             var report = await leave.GetAbsentReportAsync(from!.Value, to!.Value, employee);
             return await PrintAsync<AbsentLeaveReportView>(http, printer, AbsentLeaveReportView.Title, Paper.A5Landscape, report,
-                "ขาดงาน " + Iso(report.From), cancellationToken);
+                (byEmployee == true ? "ขาดงานรายบุคคล " : "ขาดงาน ") + Iso(report.From), cancellationToken,
+                more: new() { [nameof(AbsentLeaveReportView.ByEmployee)] = byEmployee == true });
         });
 
         // RPT-12 รายงานพนักงานที่มาทำงานสาย (เมนู 3): ?employee=
@@ -151,9 +153,11 @@ public static class HrAttendanceReports
             : from > to ? Results.BadRequest("ตั้งแต่วันที่ต้องไม่หลังถึงวันที่") : null;
 
     internal static async Task<IResult> PrintAsync<TView>(HttpContext http, ReportPrinter printer, string title, Paper paper, object report,
-        string fileName, CancellationToken cancellationToken, bool dateAtTop = false) where TView : Microsoft.AspNetCore.Components.IComponent
+        string fileName, CancellationToken cancellationToken, bool dateAtTop = false, Dictionary<string, object?>? more = null)
+        where TView : Microsoft.AspNetCore.Components.IComponent
     {
-        var pdf = await printer.PrintAsync<TView>(title, paper, new() { ["Report"] = report }, AccountClaims.DisplayNameOf(http.User),
+        var parameters = new Dictionary<string, object?>(more ?? []) { ["Report"] = report };
+        var pdf = await printer.PrintAsync<TView>(title, paper, parameters, AccountClaims.DisplayNameOf(http.User),
             cancellationToken: cancellationToken, dateAtTop: dateAtTop);
         return ReportsRegistration.Pdf(http, pdf, fileName);
     }

@@ -1,6 +1,7 @@
 namespace Lockte.Web.Tests;
 
-/// <summary>UAT7-5 (#466): ช่อง ได้ค่าแรง อยู่ติดเหตุผล (ลำดับเดียวกับฟอร์ม LEAVE1 เดิม: SAL แล้ว REMARK) และตัวเลือก Y/N อ่านได้บรรทัดเดียว.</summary>
+/// <summary>UAT7-5 (#466) + UAT 8: ช่อง ได้ค่าแรง อยู่หลังเหตุผล (ผู้ใช้ขอ "ให้ไปอยู่หลังเหตุผล" — พิมพ์เหตุผลก่อน แล้วเลือก Y/N
+/// ซึ่งบันทึกแถวทันที) และตัวเลือก Y/N อ่านได้บรรทัดเดียว.</summary>
 public sealed class LeaveTabLayoutTests
 {
     private static string Page()
@@ -11,14 +12,15 @@ public sealed class LeaveTabLayoutTests
     }
 
     [Fact]
-    public void Paid_sits_right_before_the_reason_in_the_header_and_in_the_edit_row()
+    public void Paid_sits_right_after_the_reason_in_the_header_the_rows_and_the_edit_row()
     {
         var page = Page();
-        Assert.Contains("<th>ได้ค่าแรง</th><th>เหตุผล</th>", page);
+        Assert.Contains("<th>เหตุผล</th><th>ได้ค่าแรง</th>", page);
+        Assert.True(page.IndexOf("<td>@row.Remark</td>", StringComparison.Ordinal) < page.IndexOf("<td>@PaidText(row.Paid)</td>", StringComparison.Ordinal));
         var paid = page.IndexOf("Value=\"f.Paid\"", StringComparison.Ordinal);
         var remark = page.IndexOf("@bind-Value=\"f.Remark\"", StringComparison.Ordinal);
         var type = page.IndexOf("@bind-Value=\"f.Type\"", StringComparison.Ordinal);
-        Assert.True(type < paid && paid < remark);
+        Assert.True(type < remark && remark < paid);
     }
 
     [Fact]

@@ -60,7 +60,7 @@
     <thead>
         <tr>
             <th>วันที่บันทึก</th><th>ตั้งแต่วันที่</th><th>ถึงวันที่</th><th>ตั้งแต่เวลา</th><th>ถึงเวลา</th>
-            <th style="text-align:right">จำนวนวัน</th><th>ประเภท</th><th>ได้ค่าแรง</th><th>เหตุผล</th>
+            <th style="text-align:right">จำนวนวัน</th><th>ประเภท</th><th>เหตุผล</th><th>ได้ค่าแรง</th>
             <th style="text-align:right">ค่าแรง/วัน</th><th style="text-align:right">จ่ายค่าแรง</th><th></th>
         </tr>
     </thead>
@@ -81,8 +81,8 @@
                     <td>@TimeText.Format(row.ToTime)</td>
                     <td style="text-align:right">@Days(row.Days)</td>
                     <td>@row.Type @row.TypeName</td>
-                    <td>@PaidText(row.Paid)</td>
                     <td>@row.Remark</td>
+                    <td>@PaidText(row.Paid)</td>
                     <td style="text-align:right"><PayView>@row.DailyWage.ToString("#,##0")</PayView></td>
                     <td style="text-align:right"><PayView>@row.Pay.ToString("#,##0.00")</PayView></td>
                     <td></td>
@@ -114,7 +114,7 @@
 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mt-2">
     <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow"
                Disabled="busy || editing is not null">เพิ่มการลา</MudButton>
-    <MudText Typo="Typo.caption">คลิกแถวเพื่อแก้ · เลือก "ได้ค่าแรง" แล้วระบบตรวจโควตาและบันทึกทันทีเหมือนระบบเดิม · จำนวนวันหน่วย 1/8 วัน (0.125 = 1 ชม.)</MudText>
+    <MudText Typo="Typo.caption">คลิกแถวเพื่อแก้ · พิมพ์เหตุผลก่อน แล้วเลือก "ได้ค่าแรง" ระบบตรวจโควตาและบันทึกทันทีเหมือนระบบเดิม · จำนวนวันหน่วย 1/8 วัน (0.125 = 1 ชม.)</MudText>
 </MudStack>
 
 <MudPaper Outlined="true" Class="pa-4 mt-4">
@@ -208,13 +208,13 @@
                 }
             </MudSelect>
         </td>
+        <td><MudTextField @bind-Value="f.Remark" MaxLength="LeaveRegistry.RemarkLength" Style="min-width:7rem" /></td>
         <td style="min-width:8rem;white-space:nowrap">
             <MudSelect T="bool?" Value="f.Paid" ValueChanged="ChoosePaidAsync" Disabled="busy || DateRangeRule.IsInvalid(f.FromDate, f.ToDate)" Style="min-width:8rem" Class="leave-paid-select">
                 <MudSelectItem T="bool?" Value="true"><span style="white-space:nowrap">Y ได้</span></MudSelectItem>
                 <MudSelectItem T="bool?" Value="false"><span style="white-space:nowrap">N ไม่ได้</span></MudSelectItem>
             </MudSelect>
         </td>
-        <td><MudTextField @bind-Value="f.Remark" MaxLength="LeaveRegistry.RemarkLength" Style="min-width:7rem" /></td>
         <td>
             <PayView>
                 <ChildContent><MudNumericField T="double?" Value="Employee.DailyWage" ReadOnly="true" HideSpinButtons="true" Style="min-width:5rem" HelperText="จากทะเบียนพนักงาน" /></ChildContent>

@@ -57,6 +57,7 @@ public sealed class ProgramMenuTests
     {
         Assert.Equal("order/qa/production/D", OrderMenu.Menu.HrefOf(OrderMenu.Menu.FindItem("SCR-12-1")!.Value.Item)); // built (#130): every item of the program has its page now
         Assert.Equal("hr/pay-periods?step=3", EmployeeMenu.Menu.HrefOf(EmployeeMenu.Menu.FindItem("SCR-41")!.Value.Item)); // UAT-41 (#434): a step of ปิดงวดค่าแรงตามปกติ
+        Assert.Equal((6, "hr/welfare-fund"), EmployeeMenu.Menu.FindItem("SCR-43-WELFARE") is { } w ? (w.Page.Number, EmployeeMenu.Menu.HrefOf(w.Item)) : default); // UAT 8: กองทุนสงเคราะห์ลูกจ้าง แยกเป็นโปรแกรมในเมนูปิดงวดค่าแรงตามปกติ
         Assert.Equal("order/menu/17", OrderMenu.HrefOf(17));
         Assert.Equal("order", OrderMenu.HrefOf(ProgramMenu.Main));
     }

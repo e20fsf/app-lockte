@@ -1,0 +1,112 @@
+@page "/hr/welfare-fund"
+@attribute [Authorize]
+@layout PayGateLayout
+@using System.Globalization
+@using Lockte.Hr
+@using Lockte.Org
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject NavigationManager Navigation
+
+@* กองทุนสงเคราะห์ลูกจ้าง (UAT 8: "ทำแยกออกมา"): its own program in เมนู ปิดงวดค่าแรงตามปกติ, moved out of พิมพ์ค่าแรงสิ้นเดือน
+   และสรุป (SCR-43). The same dates and แผนก as that form choose the งวด of ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง (Excel / PDF, the
+   same report as before: UAT-43 #436, UAT7-4 #465); the report first checks that the อัตราเงินสมทบ covers every งวด and says so
+   here if not. The rate ranges are edited below on this page. *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <MudText Typo="Typo.h6" Class="mb-2">ยอดเงินส่งกองทุนสงเคราะห์ลูกจ้าง</MudText>
+    <MudStack Spacing="2">
+        <MudStack Row="true" Spacing="2">
+            <MudDatePicker Editable="true" @bind-Date="from" Label="ตั้งแต่วันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+            <MudDatePicker Editable="true" @bind-Date="to" Label="ถึงวันที่" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                           Style="max-width:12rem" />
+        </MudStack>
+        <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก (ว่าง = ทั้งหมด)" Clearable="true" Style="max-width:26rem">
+            @foreach (var d in departments.Where(x => x.IsActive))
+            {
+                <MudSelectItem T="int?" Value="d.Id">@d.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">รวมทุกงวดที่ถึงวันที่ของงวดอยู่ในช่วงนี้ · อัตราตามตารางด้านล่าง</MudText>
+    </MudStack>
+    @if (Problem is { } problem)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@problem</MudAlert>
+    }
+    else if (rateProblem is { } rp)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@rp</MudAlert>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => PrintAsync(false))" Disabled="@(Problem is not null || busy)"
+                   StartIcon="@Icons.Material.Filled.TableView">Excel</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => PrintAsync(true))" Disabled="@(Problem is not null || busy)"
+                   StartIcon="@Icons.Material.Filled.PictureAsPdf">PDF</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudText Typo="Typo.h6" Class="mt-6 mb-2">@WelfareRateRegistry.Title</MudText>
+<WelfareRatesEditor />
+
+<MudButton Href="@EmployeeMenu.HrefOf(6)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    /// <summary>The menu text and the page title.</summary>
+    public const string Title = "กองทุนสงเคราะห์ลูกจ้าง";
+
+    /// <summary>The report itself (the Excel; <c>&amp;format=pdf</c> for the PDF), kept at its SCR-43 path.</summary>
+    public const string ReportPath = "reports/hr/pay/month-end/welfare-fund";
+
+    private DateTime? from;
+    private DateTime? to;
+    private int? departmentId;
+    private IReadOnlyList<DepartmentDto> departments = [];
+    private string? rateProblem;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // As on พิมพ์ค่าแรงสิ้นเดือนและสรุป: the last pay month ended, 27th of the month before to the 26th.
+        var today = DateTime.Today;
+        var end = today.Day >= 26 ? new DateTime(today.Year, today.Month, 26) : new DateTime(today.Year, today.Month, 26).AddMonths(-1);
+        (from, to) = (end.AddMonths(-1).AddDays(1), end);
+        departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
+    }
+
+    private string? Problem
+        => from is null || to is null ? "กรุณากรอกวันที่"
+            : from > to ? "ตั้งแต่วันที่ต้องไม่หลังถึงวันที่"
+            : null;
+
+    /// <summary>UAT-43: the report only when every งวด of the dates has a rate; else the reason stays on the page.</summary>
+    private async Task PrintAsync(bool pdf)
+    {
+        if (Problem is not null) return;
+        busy = true;
+        try
+        {
+            var (f, t) = (DateOnly.FromDateTime(from!.Value), DateOnly.FromDateTime(to!.Value));
+            var department = departmentId;
+            var rate = await Services.RunAsync<PayHistoryReportDirectory, (decimal? Percent, string? Problem)>(p => p.WelfareRateOfAsync(f, t, department));
+            rateProblem = rate.Problem;
+            if (rateProblem is null) Navigation.NavigateTo(Url(f, t, department, pdf), forceLoad: true);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>The address of the report for these dates and แผนก.</summary>
+    public static string Url(DateOnly from, DateOnly to, int? department, bool pdf)
+    {
+        static string Iso(DateOnly d) => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var query = new List<string> { $"from={Iso(from)}", $"to={Iso(to)}" };
+        if (department is { } d) query.Add($"department={d}");
+        if (pdf) query.Add("format=pdf");
+        return $"{ReportPath}?{string.Join("&", query)}";
+    }
+}

@@ -67,6 +67,47 @@ public sealed class AttendanceReportLayoutTests
         Assert.Contains("รวมทั้งหมด 1 รายการ", html);
     }
 
+    [Fact] // UAT 8: ใบเตือน "เป็นรายบุคคล" — คนละหน้า เลขลำดับและจำนวนรายการของแต่ละคน; ไม่เลือก = รายการเดียวเหมือนเดิม
+    public async Task The_warning_report_by_employee_prints_one_page_per_person()
+    {
+        var report = new WarningReport(From, To,
+        [
+            new WarningReportLine(new(2026, 9, 3), "A002", "นาย ข", "ประกอบ", "ใบเตือนด้วยวาจา", "มาสาย"),
+            new WarningReportLine(new(2026, 9, 4), "A001", "นาย ก", "ประกอบ", "ใบเตือนด้วยวาจา", "ออกก่อน"),
+            new WarningReportLine(new(2026, 9, 9), "A002", "นาย ข", "ประกอบ", "ใบเตือนเป็นหนังสือ", "มาสายซ้ำ"),
+        ]);
+
+        var combined = await HtmlAsync<WarningReportView>(report);
+        var split = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<WarningReportView>(
+            new() { ["Report"] = report, [nameof(WarningReportView.ByEmployee)] = true }));
+
+        Assert.Contains("รวมทั้งหมด 3 รายการ", combined);
+        Assert.DoesNotContain("break-before:page", combined);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(split, "<table>").Count);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(split, "break-before:page"));
+        Assert.True(split.IndexOf("รหัส A001 นาย ก", StringComparison.Ordinal) < split.IndexOf("รหัส A002 นาย ข", StringComparison.Ordinal));
+        Assert.Contains("รวมทั้งหมด 1 รายการ", split);
+        Assert.Contains("รวมทั้งหมด 2 รายการ", split);
+    }
+
+    [Fact] // UAT 8: ขาดงาน "เป็นรายบุคคล" — คนละหน้า
+    public async Task The_absent_report_by_employee_prints_one_page_per_person()
+    {
+        var report = new AbsentLeaveReport(From, To, null,
+        [
+            new AbsentLeaveLine(new(2026, 9, 3), new(2026, 9, 3), 1, "A001", "นาย ก"),
+            new AbsentLeaveLine(new(2026, 9, 7), new(2026, 9, 8), 2, "A002", "นาย ข"),
+        ]);
+
+        var split = System.Net.WebUtility.HtmlDecode(await ReportBody.RenderAsync<AbsentLeaveReportView>(
+            new() { ["Report"] = report, [nameof(AbsentLeaveReportView.ByEmployee)] = true }));
+
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(split, "<table>").Count);
+        Assert.Contains("รหัส A002 นาย ข", split);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(split, "รวมทั้งหมด 1 รายการ").Count);
+        Assert.Contains("รวมทั้งหมด 2 รายการ", await HtmlAsync<AbsentLeaveReportView>(report));
+    }
+
     [Fact] // RPT-31: ทศนิยม 1 (2.875 → 2.9), ไม่ลา = 0.0, 16 ประเภท + รวม SR 1–15, ไม่มีวันทำงาน → % ว่าง, หัว "แผนก" + ทั้งหมด
     public async Task The_department_leave_report_prints_one_decimal_sixteen_types_and_a_blank_percent_without_work_days()
     {
