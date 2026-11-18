@@ -78,6 +78,41 @@ public sealed class FormSignerDataTests(LocalDbFixture db)
         Assert.Contains(rows, r => r.Column == "ถนน สถานที่ทำงาน" && r.NewValue == "สมมุติสาย " + unique && r.UserName == "hr1");
     }
 
+    private async Task RunKor2StepAsync()
+    {
+        await using var scope = db.Scope("hr1");
+        await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(
+            scope.Get<Lockte.Hr.Data.HrDbContext>().Database, Lockte.Hr.Data.Migrations.Kor2EmployerAddresses.FixSql);
+    }
+
+    [Fact] // UAT 7/8: the upgrade step fixes แบบ คร.2 in the app — a blank address gets the company's, a saved one only the phone and road
+    public async Task The_kor2_step_saves_the_phone_and_road_without_touching_what_HR_saved_and_is_safe_to_repeat()
+    {
+        var before = await LoadAsync();
+        var keep = new FormSignersInput(before.ManagerTitle, before.ManagerFirstName, before.ManagerLastName, before.FactoryManagerName,
+            before.PersonnelOfficerName, before.RowVersion)
+        {
+            Office = new("9", null, null, "ถนนสมมุติ", "แขวงสมมุติ", "เขตสมมุติ", "กรุงเทพฯ", "(662) 111-1111 และ (662) 222-2222"),
+            Workplace = new("12", null, null, null, "ตำบลสมมุติ", "อำเภอสมมุติ", "จังหวัดสมมุติ", "020000000"),
+        };
+        Assert.True((await SaveAsync(keep)).Succeeded);
+
+        await RunKor2StepAsync();
+        var fixedSaved = await LoadAsync();
+        Assert.Equal(keep.Office with { Phone = Lockte.Hr.Data.Migrations.Kor2EmployerAddresses.OfficePhone }, fixedSaved.Office);
+        Assert.Equal(keep.Workplace with { Road = Lockte.Hr.Data.Migrations.Kor2EmployerAddresses.WorkplaceRoad }, fixedSaved.Workplace);
+
+        var blank = keep with { RowVersion = fixedSaved.RowVersion, Office = FormAddress.Blank, Workplace = FormAddress.Blank };
+        Assert.True((await SaveAsync(blank)).Succeeded);
+        await RunKor2StepAsync();
+        var filled = await LoadAsync();
+        Assert.Equal(new FormAddress("97", null, "สีลม 9", "สีลม", "สีลม", "บางรัก", "กรุงเทพฯ", "02-2336002-3"), filled.Office);
+        Assert.Equal(new FormAddress("85/36", null, "สุขาภิบาล 2", "พุทธมณฑลสาย 5", "อ้อมน้อย", "กระทุ่มแบน", "สมุทรสาคร", "024204554"), filled.Workplace);
+
+        await RunKor2StepAsync();
+        Assert.Equal(filled.RowVersion, (await LoadAsync()).RowVersion); // nothing left to change
+    }
+
     [Fact] // a name longer than the column is refused with a message, not a database error
     public async Task A_name_that_is_too_long_is_refused()
     {
