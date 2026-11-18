@@ -93,6 +93,7 @@ public static class EmployeeMenu
             new("พิมพ์ SLIP", Code: "RPT-04", Page: "hr/pay-periods?step=6"),
             new("พิมพ์ค่าแรงสิ้นเดือนและสรุป", Code: "SCR-43", Page: "hr/reports/pay/month-end"),
             new("คำนวณโบนัสและปรับค่าแรง", SubMenu: 10),
+            new("กองทุนสงเคราะห์ลูกจ้าง", Code: "SCR-43-WELFARE", Page: "hr/welfare-fund"), // not in the legacy: UAT 8, moved out of SCR-43; sits where the user drew it, after คำนวณโบนัส
         ]),
         new(9, "พิมพ์สรุปค่าแรง", 6,
         [

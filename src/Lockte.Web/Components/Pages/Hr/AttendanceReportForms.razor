@@ -69,6 +69,13 @@
                 <NotAllowed><MudText Typo="Typo.caption">พิมพ์ไม่ได้ — รายงานนี้มีข้อมูลค่าจ้าง และ user นี้ไม่มีสิทธิ์ดูข้อมูลค่าจ้าง</MudText></NotAllowed>
             </PayView>
         }
+        else if (ByEmployeeKinds.Contains(Kind)) @* UAT 8: "แยกรวมทั้งหมด และ เป็นรายบุคคล" *@
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl()" Target="_blank" Disabled="@(Problem is not null)"
+                       StartIcon="@Icons.Material.Filled.Print">พิมพ์รวมทั้งหมด</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="@(Problem is null ? PdfUrl() + "&byEmployee=true" : "")" Target="_blank"
+                       Disabled="@(Problem is not null)" StartIcon="@Icons.Material.Filled.Person">พิมพ์แยกรายบุคคล</MudButton>
+        }
         else
         {
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@PdfUrl()" Target="_blank" Disabled="@(Problem is not null)"
@@ -84,6 +91,10 @@
                        StartIcon="@Icons.Material.Filled.TableView">ส่งออก Excel</MudButton>
         }
     </MudStack>
+    @if (ByEmployeeKinds.Contains(Kind))
+    {
+        <MudText Typo="Typo.caption" Class="d-block mt-2">พิมพ์รวมทั้งหมด = ทุกคนในรายการเดียว · พิมพ์แยกรายบุคคล = คนละหน้า (เลือกรหัสพนักงาน = เฉพาะคนนั้น)</MudText>
+    }
 </MudPaper>
 
 <MudButton Href="@EmployeeMenu.HrefOf(Info.Menu)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
@@ -99,6 +110,9 @@
 
     /// <summary>Forms whose report prints จำนวนเงิน (see <c>PayReportRoutes</c>).</summary>
     private static readonly HashSet<string> PayKinds = ["leave-employee", "leave-summary"];
+
+    /// <summary>UAT 8: forms with both พิมพ์รวมทั้งหมด and พิมพ์แยกรายบุคคล (one page per employee).</summary>
+    private static readonly HashSet<string> ByEmployeeKinds = ["warnings", "leave-absent"];
 
     private static readonly Dictionary<string, Form> Forms = new()
     {
