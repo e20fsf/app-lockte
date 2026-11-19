@@ -82,7 +82,6 @@ public static class EmployeeMenu
             new("ปิดงวดค่าแรงเป็น 2 ช่วง", SubMenu: 13),
             new("วิธีการทำเงินเดือนส่งแบงค์ทหารไทย", Code: "RPT-06-TTB", Page: "hr/pay-periods/bank-guide"),
             new("วิธีการทำเงิน OT ส่งแบงค์กสิกรไทย", Code: "RPT-06-KBANK", Page: "hr/pay-periods/bank-guide"),
-            new("อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง", Code: "SETTINGS-WELFARE", Page: "hr/welfare-rates"), // not in the legacy: UAT-43 (#436)
         ]),
         new(6, "ปิดงวดค่าแรงตามปกติ", 12,
         [
@@ -118,19 +117,19 @@ public static class EmployeeMenu
         ]),
         new(14, "ปิดงวดค่าแรงช่วงที่ 1", 13,
         [
-            new("พิมพ์เวลาทำงานช่วงที่ 1", Code: "SCR-40-1", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์ค่าแรงช่วงที่ 1", Code: "SCR-45", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์สรุปค่าแรงช่วงที่ 1", Code: "RPT-11-1", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์ SLIP ช่วงที่ 1", Code: "RPT-04-1", Page: "hr/pay-periods/two-parts"),
+            new("พิมพ์เวลาทำงานช่วงที่ 1", Code: "SCR-40-1", Page: "hr/pay-periods/two-parts/1"),
+            new("พิมพ์ค่าแรงช่วงที่ 1", Code: "SCR-45", Page: "hr/pay-periods/two-parts/1"),
+            new("พิมพ์สรุปค่าแรงช่วงที่ 1", Code: "RPT-11-1", Page: "hr/pay-periods/two-parts/1"),
+            new("พิมพ์ SLIP ช่วงที่ 1", Code: "RPT-04-1", Page: "hr/pay-periods/two-parts/1"),
         ]),
         new(15, "ปิดงวดค่าแรงช่วงที่ 2", 13,
         [
-            new("พิมพ์เวลาทำงานช่วงที่ 2", Code: "SCR-40-2", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์ค่าแรงช่วงที่ 2", Code: "SCR-46", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์สรุปค่าแรงช่วงที่ 2", Code: "RPT-11-2", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์ SLIP ช่วงที่ 2", Code: "RPT-04-2", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์ค่าแรงส่งแบงค์ทั้ง 2 ช่วง", Code: "SCR-47", Page: "hr/pay-periods/two-parts"),
-            new("พิมพ์สรุปค่าแรงทั้ง 2 ช่วง", Code: "RPT-11-12", Page: "hr/pay-periods/two-parts"),
+            new("พิมพ์เวลาทำงานช่วงที่ 2", Code: "SCR-40-2", Page: "hr/pay-periods/two-parts/2"),
+            new("พิมพ์ค่าแรงช่วงที่ 2", Code: "SCR-46", Page: "hr/pay-periods/two-parts/2"),
+            new("พิมพ์สรุปค่าแรงช่วงที่ 2", Code: "RPT-11-2", Page: "hr/pay-periods/two-parts/2"),
+            new("พิมพ์ SLIP ช่วงที่ 2", Code: "RPT-04-2", Page: "hr/pay-periods/two-parts/2"),
+            new("พิมพ์ค่าแรงส่งแบงค์ทั้ง 2 ช่วง", Code: "SCR-47", Page: "hr/pay-periods/two-parts/2"),
+            new("พิมพ์สรุปค่าแรงทั้ง 2 ช่วง", Code: "RPT-11-12", Page: "hr/pay-periods/two-parts/2"),
         ]),
         new(11, "ประเมินผล", 1,
         [
