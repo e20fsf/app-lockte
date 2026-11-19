@@ -1,4 +1,4 @@
-@page "/hr/pay-periods/two-parts"
+@page "/hr/pay-periods/two-parts/{Part:int}"
 @attribute [Authorize]
 @layout PayGateLayout
 @using Lockte.Hr
@@ -9,16 +9,17 @@
 
 @* ปิดงวดค่าแรงเป็น 2 ช่วง (เมนู 13–15, BR-008, #58): the งวด คร่อมปีใหม่ as two ordinary งวด — ช่วงที่ 1 27–31 ธ.ค., ช่วงที่ 2 1–11 ม.ค. — each with
    its จำนวนวันที่จ่าย (the days a รายเดือน employee is paid: min(W + L + HOLI + SUN, DAY) × SA_DAY). Each ช่วง is calculated and printed with the
-   reports of an ordinary งวด (เวลาทำงาน, ค่าแรง, สรุป, SLIP); the two together print สรุปค่าแรงทั้ง 2 ช่วง and ค่าแรงส่งแบงค์ทั้ง 2 ช่วง. *@
-<PageTitle>ปิดงวดค่าแรงเป็น 2 ช่วง — LOCKTE</PageTitle>
-<h1 class="mb-4">ปิดงวดค่าแรงเป็น 2 ช่วง (คร่อมปีใหม่)</h1>
+   reports of an ordinary งวด (เวลาทำงาน, ค่าแรง, สรุป, SLIP); the two together print สรุปค่าแรงทั้ง 2 ช่วง and ค่าแรงส่งแบงค์ทั้ง 2 ช่วง.
+   UAT 9: each ช่วง has its own page (เมนู 14 → /1, เมนู 15 → /2), as the legacy menus; "ทั้ง 2 ช่วง" sits on ช่วงที่ 2, where its menu items are. *@
+<PageTitle>ปิดงวดค่าแรงช่วงที่ @Part — LOCKTE</PageTitle>
+<h1 class="mb-4">ปิดงวดค่าแรงช่วงที่ @Part (@PartDays)</h1>
 
 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudNumericField T="int" Value="year" ValueChanged="YearChangedAsync" Label="ปี ค.ศ. ของช่วงที่ 1 (27–31 ธ.ค.)" Min="2000" Max="2100" Style="max-width:16rem" />
-    <MudText Typo="Typo.body2">ช่วงที่ 1 27–31 ธ.ค. @ThaiDate.Format(new DateOnly(year, 12, 27)) · ช่วงที่ 2 1–11 ม.ค. @ThaiDate.Format(new DateOnly(year + 1, 1, 1))</MudText>
+    <MudNumericField T="int" Value="ShownYear" ValueChanged="YearChangedAsync" Label="@($"ปี ค.ศ. ({PartDays})")" Min="2000" Max="2100" Style="max-width:16rem" />
+    <MudText Typo="Typo.body2">ช่วงที่ @Part @PartDays @ThaiDate.Format(PartFrom)</MudText>
 </MudStack>
 
-@foreach (var part in new[] { 1, 2 })
+@foreach (var part in new[] { Part })
 {
     var p = part == 1 ? part1 : part2;
     var form = part == 1 ? form1 : form2;
@@ -52,6 +53,8 @@
     </MudPaper>
 }
 
+@if (Part == 2)
+{
 <MudPaper Outlined="true" Class="pa-4 mb-3">
     <MudText Typo="Typo.h6">ทั้ง 2 ช่วง</MudText>
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mt-2">
@@ -62,13 +65,17 @@
     </MudStack>
     @if (!BothCalculated)
     {
-        <MudText Typo="Typo.caption">ต้องตั้งและคำนวณค่าแรงทั้งสองช่วงก่อน</MudText>
+        <MudText Typo="Typo.caption">ต้องตั้งและคำนวณค่าแรงทั้งสองช่วงก่อน (ช่วงที่ 1 ทำที่เมนูปิดงวดค่าแรงช่วงที่ 1)</MudText>
     }
 </MudPaper>
+}
 
-<MudButton Href="@EmployeeMenu.HrefOf(13)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>
+<MudButton Href="@EmployeeMenu.HrefOf(Part == 1 ? 14 : 15)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-2">กลับเมนูเดิม</MudButton>
 
 @code {
+    /// <summary>1 = ช่วงที่ 1 (27–31 ธ.ค.), 2 = ช่วงที่ 2 (1–11 ม.ค.).</summary>
+    [Parameter] public int Part { get; set; }
+
     private int year = DateTime.Today.Month <= 2 ? DateTime.Today.Year - 1 : DateTime.Today.Year;
     private PayPeriodDto? part1, part2;
     private PartForm form1 = new(), form2 = new();
@@ -80,9 +87,21 @@
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
+    private string PartDays => Part == 1 ? "27–31 ธันวาคม" : "1–11 มกราคม";
+
+    private DateOnly PartFrom => Part == 1 ? new DateOnly(year, 12, 27) : new DateOnly(year + 1, 1, 1);
+
+    /// <summary>The year of this ช่วง's dates; <c>year</c> stays the year of ช่วงที่ 1, which the pair is keyed on.</summary>
+    private int ShownYear => Part == 1 ? year : year + 1;
+
+    protected override void OnParametersSet()
+    {
+        if (Part is not (1 or 2)) Part = 1;
+    }
+
     private async Task YearChangedAsync(int value)
     {
-        year = value;
+        year = Part == 1 ? value : value - 1;
         await LoadAsync();
     }
 
