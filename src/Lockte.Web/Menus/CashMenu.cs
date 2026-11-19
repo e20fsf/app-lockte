@@ -18,7 +18,20 @@ public static class CashMenu
     public const int Receipts = 2;
     public const int Reports = 3;
 
-    public static ProgramMenu Menu { get; } = new("cash", "เงินสดย่อย", Icons.Material.Filled.Payments, "cash", "cash/menu", "cash",
+    /// <summary>
+    /// ธนบัตรซ้อนมี ฿ ตรงกลาง: Material Icons has no baht sign, so this is <c>Payments</c> with the coin swapped for a ฿ cut out
+    /// of the front note — drawn as paths (even-odd), not text, so it looks the same whatever fonts the browser has.
+    /// </summary>
+    public const string BahtNotesIcon =
+        "<path d=\"M0 0h24v24H0z\" fill=\"none\"/>" +
+        "<path fill-rule=\"evenodd\" d=\"M17 4H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" +
+        "M7.5 7H11c1.4 0 2 .8 2 1.7 0 .6-.3 1.1-.8 1.3.7.2 1.1.8 1.1 1.5 0 .9-.7 1.5-2 1.5H7.5z" +
+        "M9 8.2h1.9c.5 0 .7.3.7.65s-.2.65-.7.65H9z" +
+        "M9 10.6h2c.6 0 .9.3.9.7s-.3.6-.9.6H9z" +
+        "M9.7 5.8h.8V7h-.8z M9.7 8.2h.8v1.3h-.8z M9.7 10.6h.8v1.3h-.8z M9.7 13h.8v1.2h-.8z\"/>" +
+        "<path d=\"M23 7v11c0 1.1-.9 2-2 2H4v-2h17V7h2z\"/>";
+
+    public static ProgramMenu Menu { get; } = new("cash", "เงินสดย่อย", BahtNotesIcon, "cash", "cash/menu", "cash",
     [
         new(1, "เมนูหลัก", null,
         [
