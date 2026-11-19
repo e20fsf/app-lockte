@@ -16,7 +16,7 @@ public static class EmployeeMenu
     public static string HrefOf(int number) => Menu.HrefOf(number);
 
     // Menu pages stay at menu/n, as before the ORDER program joined the app; the main menu moved from "/" to "hr".
-    public static ProgramMenu Menu { get; } = new("hr", "พนักงานและค่าแรง", Icons.Material.Filled.Badge, "hr", "menu", "hr",
+    public static ProgramMenu Menu { get; } = new("hr", "พนักงานและค่าแรง", Icons.Material.Filled.People, "hr", "menu", "hr",
     [
         new(1, "เมนูหลัก", null,
         [
