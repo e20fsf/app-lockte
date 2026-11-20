@@ -42,6 +42,7 @@ public static class HrModule
         services.AddScoped<SlipSignerRegistry>();
         services.AddScoped<FormSignerSettings>();
         services.AddScoped<WelfareRateRegistry>();
+        services.AddScoped<LeaveEntitlementRegistry>();
         services.AddScoped<HrDocumentDirectory>();
         services.AddScoped<ResignationRegistry>();
         services.AddScoped<OnboardingDirectory>();

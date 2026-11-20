@@ -1,0 +1,86 @@
+@page "/hr/leave/move"
+@page "/hr/warnings/move"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject NavigationManager Nav
+
+@* SCR-60 ย้ายข้อมูลการลางาน (ฟอร์ม ตั้งวันลา) / ย้ายข้อมูลใบเตือน (ฟอร์ม ตั้งวันที่ย้ายข้อมูลใบเตือน), BR-040, back in UAT 10. The new
+   program keeps every year in one table (#41), so ย้ายข้อมูล only takes the rows out of the edit screens (บันทึกและแก้ไขการลางาน /
+   ใบเตือน); the quota, the pay and every report still count them (answer of 2026-11-20). แก้ครั้งที่ 10 asked for a first and a last
+   date instead of the legacy's one "ย้ายถึงวันที่". ย้ายข้อมูลกลับ (the legacy had it for the leave only) undoes it for the same range. *@
+<PageTitle>@Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@Title</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:44rem">
+    <DateRangePicker @bind-From="from" @bind-To="to" OnChanged="ReloadAsync" FromLabel="วันที่เริ่มที่ต้องการย้าย"
+                     ToLabel="วันที่สุดท้ายที่ต้องการย้าย" Style="max-width:14rem" />
+    <MudText Typo="Typo.caption" Class="d-block mt-1">
+        @(ForLeave ? "เลือกการลาของพนักงานทุกคนที่วันเริ่มลาอยู่ในช่วงนี้" : "เลือกใบเตือนของพนักงานทุกคนที่วันที่ออกใบเตือนอยู่ในช่วงนี้")
+        · ข้อมูลที่ย้ายแล้วไม่แสดงในหน้า@(ForLeave ? "บันทึกและแก้ไขการลางาน" : "บันทึกและแก้ไขใบเตือน") แต่ยังอยู่ในรายงาน@(ForLeave ? "และนับในโควตาลา" : "")
+    </MudText>
+    @if (count is { } c)
+    {
+        <MudText Class="mt-3">ในช่วงนี้ ยังไม่ย้าย <b>@c.NotMoved</b> รายการ · ย้ายแล้ว <b>@c.Moved</b> รายการ</MudText>
+    }
+    <MudStack Row="true" Spacing="2" Class="mt-3">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="busy || count is not { NotMoved: > 0 }" OnClick="() => MoveAsync(true)">ย้ายข้อมูล</MudButton>
+        <MudButton Variant="Variant.Outlined" Disabled="busy || count is not { Moved: > 0 }" OnClick="() => MoveAsync(false)">ย้ายข้อมูลกลับ</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(4)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private DateTime? from = new DateTime(DateTime.Today.Year - 1, 1, 1);
+    private DateTime? to = new DateTime(DateTime.Today.Year - 1, 12, 31);
+    private MoveCount? count;
+    private bool busy;
+
+    private bool ForLeave => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("hr/leave", StringComparison.OrdinalIgnoreCase);
+    private string Title => ForLeave ? "ย้ายข้อมูลการลางาน" : "ย้ายข้อมูลใบเตือน";
+    private string What => ForLeave ? "การลา" : "ใบเตือน";
+
+    private (DateOnly From, DateOnly To)? Range => from is { } f && to is { } t && f <= t ? (DateOnly.FromDateTime(f), DateOnly.FromDateTime(t)) : null;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        if (Range is not { } range)
+        {
+            count = null;
+            return;
+        }
+        count = ForLeave
+            ? await Services.RunAsync<LeaveDirectory, MoveCount>(d => d.CountForMoveAsync(range.From, range.To))
+            : await Services.RunAsync<WarningDirectory, MoveCount>(d => d.CountForMoveAsync(range.From, range.To));
+    }
+
+    private async Task MoveAsync(bool moved)
+    {
+        if (Range is not { } range || count is not { } c) return;
+        var n = moved ? c.NotMoved : c.Moved;
+        var confirmed = await Dialogs.ShowMessageBoxAsync(moved ? Title : $"{Title}กลับ",
+            $"{(moved ? "ย้าย" : "ย้ายกลับ")}{What} {n} รายการ ช่วงวันที่ {ThaiDate.Format(range.From)} ถึง {ThaiDate.Format(range.To)}?",
+            yesText: moved ? "ย้ายข้อมูล" : "ย้ายข้อมูลกลับ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var result = ForLeave
+                ? await Services.RunAsync<LeaveRegistry, ServiceResult>(r => r.MoveAsync(range.From, range.To, moved))
+                : await Services.RunAsync<WarningRegistry, ServiceResult>(r => r.MoveAsync(range.From, range.To, moved));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"{(moved ? "ย้ายข้อมูล" : "ย้ายข้อมูลกลับ")}{What}เสร็จเรียบร้อยแล้ว ({result.Id} รายการ)", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+}

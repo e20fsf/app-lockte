@@ -6,8 +6,8 @@ namespace Lockte.Web.Menus;
 /// order and "กลับเมนูเดิม" targets, including ⚠ oddities (เมนูหลัก "เวลาทำงาน" opens เมนู 7, เมนู 3 returns to เมนู 7).
 /// Labels use the <c>CONTEXT.md</c> terms where the legacy ones are listed as _Avoid_ (ตัด WEEK → ปิดงวดค่าแรง,
 /// บรรจุ → ผ่านทดลองงาน); the legacy labels stay in screens.md.
-/// Left out as decided in #41/#14: ย้ายข้อมูล (SCR-60), ลบข้อมูลปีที่แล้ว (SCR-62), จบโปรแกรม, and menu pages 8 and 16
-/// which no item opens.
+/// Left out as decided in #41/#14: ย้ายข้อมูลการทำงาน (SCR-60 of เมนู 3), ลบข้อมูลปีที่แล้ว (SCR-62), จบโปรแกรม, and menu pages 8
+/// and 16 which no item opens. ย้ายข้อมูลการลางาน / ใบเตือน of เมนู 4 are back since UAT 10 (แก้ครั้งที่ 10), with ตั้งค่าสิทธิ์วันลา.
 /// </summary>
 public static class EmployeeMenu
 {
@@ -66,8 +66,11 @@ public static class EmployeeMenu
             new("บันทึกและแก้ไขการลางาน", Code: "SCR-30", Page: "hr/leave"),
             new("พิมพ์รายงานการลางาน", SubMenu: 17),
             new("ลบข้อมูลการลางาน", Code: "SCR-31", Page: "hr/leave/delete"),
+            new("ย้ายข้อมูลการลางาน", Code: "SCR-60-leave", Page: "hr/leave/move"),
             new("บันทึกและแก้ไขใบเตือน", Code: "SCR-32", Page: "hr/warnings"),
             new("พิมพ์รายงานใบเตือน", Code: "RPT-30", Page: "hr/reports/warnings"),
+            new("ย้ายข้อมูลใบเตือน", Code: "SCR-60-warnings", Page: "hr/warnings/move"),
+            new("ตั้งค่าสิทธิ์วันลา", Code: "SETTINGS-LEAVE", Page: "hr/leave-entitlements"),
         ]),
         new(17, "พิมพ์รายงานการลางาน", 4,
         [

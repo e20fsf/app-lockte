@@ -1,0 +1,150 @@
+@page "/hr/leave-entitlements"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+
+@* ตั้งค่าสิทธิ์วันลา (UAT 10, แก้ครั้งที่ 10 "ทำโปรแกรมเพิ่ม สำหรับแก้ไขและเพิ่มจำนวนลา อนาคตกฎหมายอาจมีการเปลี่ยนแปลงจำนวนวันลา"): the days of
+   each limit of the quota (BR-020) by range of dates, as อัตราเงินสมทบกองทุนสงเคราะห์ลูกจ้าง. A leave takes the range covering its
+   วันเริ่มลา; a date no range covers takes the days the program had before (the first row). *@
+<PageTitle>@LeaveEntitlementRegistry.Title — LOCKTE</PageTitle>
+<h1 class="mb-4">@LeaveEntitlementRegistry.Title</h1>
+
+<MudTable Items="rows" Dense="true" Hover="true" T="LeaveEntitlementDto" OnRowClick="@((TableRowClickEventArgs<LeaveEntitlementDto> e) => Edit(e.Item!))"
+          HorizontalScrollbar="true">
+    <HeaderContent>
+        <MudTh>ช่วงวันที่</MudTh>
+        @foreach (var (name, _) in LeaveEntitlementRegistry.Fields)
+        {
+            <MudTh Style="text-align:right">@name</MudTh>
+        }
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@LeaveEntitlementRegistry.RangeText(context.StartDate, context.EndDate)</MudTd>
+        @foreach (var (_, get) in LeaveEntitlementRegistry.Fields)
+        {
+            <MudTd Style="text-align:right">@Days(get(context.Days))</MudTd>
+        }
+    </RowTemplate>
+    <NoRecordsContent><MudText>ยังไม่ได้ตั้งช่วงสิทธิ์ ทุกวันที่ใช้ค่าเริ่มต้นด้านล่าง</MudText></NoRecordsContent>
+    <FooterContent>
+        <MudTd><MudText Typo="Typo.caption">ค่าเริ่มต้น (วันที่ไม่มีช่วงครอบ)</MudText></MudTd>
+        @foreach (var (_, get) in LeaveEntitlementRegistry.Fields)
+        {
+            <MudTd Style="text-align:right"><MudText Typo="Typo.caption">@Days(get(LeaveEntitlementDays.Default))</MudText></MudTd>
+        }
+    </FooterContent>
+</MudTable>
+
+<MudPaper Class="pa-4 mt-4" Outlined="true" Style="max-width:56rem">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">@(form.Id is null ? "เพิ่มช่วงสิทธิ์วันลา" : "แก้ช่วงที่เลือก")</MudText>
+        <MudSpacer />
+        <MudButton OnClick="New" StartIcon="@Icons.Material.Filled.Add">ช่วงใหม่</MudButton>
+    </MudStack>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudDatePicker Editable="true" @bind-Date="form.StartDate" Label="วันเริ่มมีผล" Culture="ThaiDate.Culture" DateFormat="@ThaiDate.Pattern"
+                       Style="max-width:12rem" />
+        <MudDatePicker Editable="true" @bind-Date="form.EndDate" Label="วันสิ้นสุด (ว่าง = เป็นต้นไป)" Culture="ThaiDate.Culture"
+                       DateFormat="@ThaiDate.Pattern" Clearable="true" Style="max-width:14rem" />
+    </MudStack>
+    <MudGrid Spacing="2" Class="mt-1">
+        @for (var i = 0; i < form.Days.Length; i++)
+        {
+            var index = i;
+            <MudItem xs="6" sm="3">
+                <MudNumericField T="double?" @bind-Value="form.Days[index]" Label="@LeaveEntitlementRegistry.Fields[index].Name" Min="0"
+                                 Max="LeaveEntitlementRegistry.MaxDays" Format="0.###" HideSpinButtons="true" Adornment="Adornment.End" AdornmentText="วัน" />
+            </MudItem>
+        }
+    </MudGrid>
+    <MudText Typo="Typo.caption" Class="d-block mt-2">
+        การลาใช้สิทธิ์ของช่วงที่ครอบวันเริ่มลา · ลาพักร้อนปีที่ทำงานครบ 1 ปีได้ตามสัดส่วนเพิ่มเดือนละ 1/12 ของสิทธิ์ต่อปี ·
+        ช่วงวันที่ห้ามทับกัน ถ้ากฎหมายเปลี่ยน ให้ใส่วันสิ้นสุดของช่วงเดิมก่อนแล้วเพิ่มช่วงใหม่
+    </MudText>
+    <MudStack Row="true" Spacing="2" Class="mt-3">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync" Disabled="busy">บันทึก</MudButton>
+        @if (form.Id is not null)
+        {
+            <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="busy">ลบช่วงนี้</MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(4)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private IReadOnlyList<LeaveEntitlementDto> rows = [];
+    private RowForm form = RowForm.Of(LeaveEntitlementDays.Default);
+    private bool busy;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync()
+        => rows = await Services.RunAsync<LeaveEntitlementRegistry, IReadOnlyList<LeaveEntitlementDto>>(r => r.ListAsync());
+
+    /// <summary>A new range starts from the days of the newest one (or the defaults), so only what the law changes is typed.</summary>
+    private void New() => form = RowForm.Of(rows.LastOrDefault()?.Days ?? LeaveEntitlementDays.Default);
+
+    private void Edit(LeaveEntitlementDto row)
+    {
+        form = RowForm.Of(row.Days);
+        form.Id = row.Id;
+        form.StartDate = row.StartDate.ToDateTime(TimeOnly.MinValue);
+        form.EndDate = row.EndDate?.ToDateTime(TimeOnly.MinValue);
+        form.RowVersion = row.RowVersion;
+    }
+
+    private Task SaveAsync()
+    {
+        var d = form.Days;
+        LeaveEntitlementDays? days = d.Any(v => v is null) ? null
+            : new(d[0]!.Value, d[1]!.Value, d[2]!.Value, d[3]!.Value, d[4]!.Value, d[5]!.Value, d[6]!.Value, d[7]!.Value);
+        var input = new LeaveEntitlementInput(form.Id, form.StartDate is { } s ? DateOnly.FromDateTime(s) : null,
+            form.EndDate is { } e ? DateOnly.FromDateTime(e) : null, days, form.RowVersion);
+        return RunAsync(r => r.SaveAsync(input), "บันทึกสิทธิ์วันลาแล้ว");
+    }
+
+    private Task DeleteAsync() => RunAsync(r => r.DeleteAsync(form.Id!.Value, form.RowVersion!), "ลบช่วงแล้ว");
+
+    private async Task RunAsync(Func<LeaveEntitlementRegistry, Task<ServiceResult>> action, string done)
+    {
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync(action);
+            foreach (var e in result.Errors) Snackbar.Add(e, Severity.Error);
+            if (!result.Succeeded) return;
+            Snackbar.Add(done, Severity.Success);
+            await ReloadAsync();
+            New();
+        }
+        catch (ConcurrencyConflictException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await ReloadAsync();
+            New();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string Days(double days) => days.ToString("0.###");
+
+    private sealed class RowForm
+    {
+        public int? Id { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        /// <summary>In the order of <see cref="LeaveEntitlementRegistry.Fields"/>.</summary>
+        public double?[] Days { get; set; } = [];
+        public byte[]? RowVersion { get; set; }
+
+        public static RowForm Of(LeaveEntitlementDays days)
+            => new() { Days = LeaveEntitlementRegistry.Fields.Select(f => (double?)f.Get(days)).ToArray() };
+    }
+}

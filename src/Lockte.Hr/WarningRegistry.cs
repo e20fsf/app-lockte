@@ -56,6 +56,22 @@ public sealed class WarningRegistry(HrDbContext db)
         return ServiceResult.Ok();
     }
 
+    /// <summary>
+    /// ย้ายข้อมูลใบเตือน / ย้ายข้อมูลกลับ (SCR-60, BR-040, UAT 10): the warnings dated from <paramref name="from"/> to <paramref name="to"/>
+    /// are moved out of SCR-32 (<paramref name="moved"/> true) or back. Only the flag changes: RPT-30 and the evaluation count them as
+    /// before. Each row is kept in the history. <see cref="ServiceResult.Id"/> = rows changed.
+    /// </summary>
+    public async Task<ServiceResult> MoveAsync(DateOnly from, DateOnly to, bool moved)
+    {
+        if (from > to) return ServiceResult.Fail(DateRangeRule.Message);
+        var rows = await db.Warnings.Include(w => w.Employee)
+            .Where(w => w.Date >= from && w.Date <= to && w.Moved != moved)
+            .ToListAsync();
+        foreach (var row in rows) row.Moved = moved;
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(rows.Count);
+    }
+
     /// <summary>With the employee, whose code is the row's รหัสรายการ in the history.</summary>
     private async Task<Warning?> LoadAsync(int id, byte[]? loadedRowVersion)
     {

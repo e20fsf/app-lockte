@@ -31,6 +31,11 @@ internal sealed class Leave : IAudited
     public double DailyWage { get; set; }
     /// <summary>ค่าแรงระหว่างลา (PAY, BR-021).</summary>
     public double Pay { get; set; }
+    /// <summary>
+    /// ย้ายข้อมูลการลางาน (SCR-60, UAT 10): moved out of the edit screen (SCR-30/31) as the legacy moved LEAVE to LEAVE_ADD; still
+    /// counted by the quota, the pay and every report. ย้ายข้อมูลกลับ clears it.
+    /// </summary>
+    public bool Moved { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }

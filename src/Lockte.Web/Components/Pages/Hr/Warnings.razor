@@ -49,8 +49,15 @@
             <MudTd>@context.LevelName</MudTd>
             <MudTd>@context.Remark</MudTd>
         </RowTemplate>
-        <NoRecordsContent><MudText>@(form.Employee is null ? "เลือกพนักงานเพื่อดูใบเตือน" : "ยังไม่มีใบเตือน")</MudText></NoRecordsContent>
+        <NoRecordsContent><MudText>@(form.Employee is null ? "เลือกพนักงานเพื่อดูใบเตือน" : moved > 0 ? "ไม่มีใบเตือนที่ยังไม่ย้ายข้อมูล" : "ยังไม่มีใบเตือน")</MudText></NoRecordsContent>
     </MudTable>
+    @if (moved > 0)
+    {
+        @* UAT 10: warnings moved by ย้ายข้อมูลใบเตือน (SCR-60) are not listed; RPT-30 still prints them *@
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-1">
+            มีใบเตือนที่ย้ายข้อมูลแล้ว @moved รายการ ไม่แสดงในตาราง แต่ยังอยู่ในรายงาน (ย้ายกลับได้ที่เมนู "ย้ายข้อมูลใบเตือน")
+        </MudText>
+    }
 </MudPaper>
 
 <MudStack Row="true" Class="mt-4">
@@ -61,6 +68,7 @@
 @code {
     private List<EmployeeListItem> employees = [];
     private IReadOnlyList<WarningDto> rows = [];
+    private int moved;
     private WarningForm form = new();
     private int? loadedEmployeeId;
     private string? loadedDepartment;
@@ -86,9 +94,12 @@
     }
 
     private async Task ReloadAsync()
-        => rows = form.Employee is { } e
+    {
+        rows = form.Employee is { } e
             ? await Services.RunAsync<WarningDirectory, IReadOnlyList<WarningDto>>(d => d.ListOfEmployeeAsync(e.Id))
             : [];
+        moved = form.Employee is { } m ? await Services.RunAsync<WarningDirectory, int>(d => d.CountMovedOfEmployeeAsync(m.Id)) : 0;
+    }
 
     private void New() => form = new WarningForm { Employee = form.Employee };
 

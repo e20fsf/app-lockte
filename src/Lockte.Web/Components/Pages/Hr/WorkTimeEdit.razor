@@ -1,6 +1,5 @@
 @page "/hr/time/edit"
 @page "/hr/leave"
-@page "/hr/leave/delete"
 @attribute [Authorize]
 @using Lockte.Hr
 @using Lockte.Org
@@ -16,8 +15,8 @@
    The period shown is the newest งวดค่าแรง (#52), today ±16 days while there is none; HR may change the dates.
    "ลบข้อมูลเฉพาะคน" / "ลบข้อมูลทั้งวัน" are BR-015 (ฟอร์ม วันทำงาน2 / วันทำงาน3): W or O1 only, as the legacy.
    Unlike the legacy, deleting every employee's rows asks first.
-   The same หน้ารายคน has the การลา tab (SCR-30, #41): เมนู 4 "บันทึกและแก้ไขการลางาน" (/hr/leave) and "ลบข้อมูลการลางาน"
-   (SCR-31, /hr/leave/delete, whose box is on that tab) open it there and go back to เมนู 4. *@
+   The same หน้ารายคน has the การลา tab (SCR-30, #41): เมนู 4 "บันทึกและแก้ไขการลางาน" (/hr/leave) opens it there and goes back
+   to เมนู 4. "ลบข้อมูลการลางาน" (SCR-31) has its own page since UAT 10 (LeaveDelete). *@
 <PageTitle>@Title — LOCKTE</PageTitle>
 <h1 class="mb-4">@Title</h1>
 

@@ -25,6 +25,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<SlipSigner> SlipSigners => Set<SlipSigner>();
     internal DbSet<FormSigners> FormSigners => Set<FormSigners>();
     internal DbSet<WelfareRate> WelfareRates => Set<WelfareRate>();
+    internal DbSet<LeaveEntitlement> LeaveEntitlements => Set<LeaveEntitlement>();
     internal DbSet<BonusRun> BonusRuns => Set<BonusRun>();
     internal DbSet<BonusResult> BonusResults => Set<BonusResult>();
 
@@ -144,6 +145,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             l.Property(x => x.Remark).HasMaxLength(LeaveRegistry.RemarkLength).HasAuditName("เหตุผล");
             l.Property(x => x.DailyWage).HasConversion(v => Rounding.RndA(v), v => Rounding.RndA(v)).HasAuditName("ค่าแรง/วัน");
             l.Property(x => x.Pay).HasAuditName("จ่ายค่าแรง");
+            l.Property(x => x.Moved).HasAuditName("ย้ายข้อมูลแล้ว");
             l.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             l.HasIndex(x => new { x.EmployeeId, x.FromDate });
             l.HasIndex(x => x.FromDate);
@@ -254,6 +256,23 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             w.HasIndex(x => x.StartDate).IsUnique();
         });
 
+        // UAT 10: ranges never overlap (LeaveEntitlementRegistry checks); วันเริ่ม is unique as a cheap guard.
+        modelBuilder.Entity<LeaveEntitlement>(e =>
+        {
+            e.HasAuditName(LeaveEntitlementRegistry.Title);
+            e.Property(x => x.StartDate).HasAuditName("วันเริ่มมีผล");
+            e.Property(x => x.EndDate).HasAuditName("วันสิ้นสุด");
+            e.Property(x => x.PersonalFirstYear).HasAuditName("ลากิจ (ทำงานไม่ถึง 1 ปี)");
+            e.Property(x => x.Personal).HasAuditName("ลากิจ (ทำงานครบ 1 ปี)");
+            e.Property(x => x.Sick).HasAuditName("ลาป่วย");
+            e.Property(x => x.Vacation).HasAuditName("ลาพักร้อน");
+            e.Property(x => x.Maternity).HasAuditName("ลาคลอด");
+            e.Property(x => x.Military).HasAuditName("ลาเพื่อระดมพล");
+            e.Property(x => x.SpecialMaternity).HasAuditName("ลาคลอดบุตรกรณีพิเศษ");
+            e.Property(x => x.SpouseMaternity).HasAuditName("ลาช่วยเหลือคู่สมรสคลอดบุตร");
+            e.HasIndex(x => x.StartDate).IsUnique();
+        });
+
         // Written only by the calculation (one history event); one row per employee per period.
         modelBuilder.Entity<PayPeriodTimeTotal>(t =>
         {
@@ -273,6 +292,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             w.Property(x => x.DepartmentId).HasAuditName("แผนก");
             w.Property(x => x.Level).HasMaxLength(WarningLevels.Length).HasAuditName("ระดับ");
             w.Property(x => x.Remark).HasMaxLength(WarningRegistry.RemarkLength).HasAuditName("รายละเอียด");
+            w.Property(x => x.Moved).HasAuditName("ย้ายข้อมูลแล้ว");
             w.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             w.HasIndex(x => new { x.EmployeeId, x.Date });
             w.HasIndex(x => x.Date);

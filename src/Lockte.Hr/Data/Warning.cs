@@ -21,6 +21,11 @@ internal sealed class Warning : IAudited
     public string? Level { get; set; }
     /// <summary>รายละเอียด / เรื่อง (REMARK).</summary>
     public string? Remark { get; set; }
+    /// <summary>
+    /// ย้ายข้อมูลใบเตือน (SCR-60, UAT 10): moved out of the edit screen (SCR-32) as the legacy moved ใบเตือน to ใบเตือนADD; still in
+    /// every report and the evaluation. ย้ายข้อมูลกลับ clears it.
+    /// </summary>
+    public bool Moved { get; set; }
 
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
