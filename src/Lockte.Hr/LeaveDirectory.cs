@@ -23,10 +23,33 @@ public sealed class LeaveDirectory(HrDbContext db, TimeProvider clock, IPayAcces
     /// One employee's rows whose FROM_D is in <paramref name="year"/>, by FROM_D then entry — subform LEAVE1 of SCR-30
     /// (OrderBy FROM_D, id), which showed the legacy LEAVE table of the current year (one table for every year, #41).
     /// </summary>
+    /// <remarks>UAT 10: a row moved by ย้ายข้อมูลการลางาน is not shown (the legacy's LEAVE_ADD), see <see cref="CountMovedOfEmployeeAsync"/>.</remarks>
     public async Task<IReadOnlyList<LeaveDto>> ListOfEmployeeAsync(int employeeId, int year)
+        => await ToDtos(OfYear(db.Leaves.AsNoTracking(), employeeId, year).Where(l => !l.Moved));
+
+    /// <summary>The rows of the year that ย้ายข้อมูลการลางาน moved out of <see cref="ListOfEmployeeAsync"/>.</summary>
+    public Task<int> CountMovedOfEmployeeAsync(int employeeId, int year)
+        => OfYear(db.Leaves.AsNoTracking(), employeeId, year).CountAsync(l => l.Moved);
+
+    /// <summary>
+    /// ลบข้อมูลการลางาน (SCR-31, UAT 10): the rows <see cref="LeaveRegistry.DeleteRangeAsync"/> would delete — the employee's rows not
+    /// moved whose FROM_D is from <paramref name="from"/> to <paramref name="to"/>, by FROM_D.
+    /// </summary>
+    public async Task<IReadOnlyList<LeaveDto>> ListToDeleteAsync(int employeeId, DateOnly from, DateOnly to)
+        => await ToDtos(LeaveRegistry.ToDelete(db.Leaves.AsNoTracking(), employeeId, from, to));
+
+    /// <summary>ย้ายข้อมูลการลางาน (SCR-60, UAT 10): how many rows of every employee whose FROM_D is in the range are not moved yet / moved.</summary>
+    public async Task<MoveCount> CountForMoveAsync(DateOnly from, DateOnly to)
+    {
+        var counts = await db.Leaves.AsNoTracking().Where(l => l.FromDate >= from && l.FromDate <= to)
+            .GroupBy(l => l.Moved).Select(g => new { g.Key, Count = g.Count() }).ToListAsync();
+        return new(counts.FirstOrDefault(c => !c.Key)?.Count ?? 0, counts.FirstOrDefault(c => c.Key)?.Count ?? 0);
+    }
+
+    private Task<List<LeaveDto>> ToDtos(IQueryable<Leave> leaves)
     {
         var canViewPay = pay.CanViewPay; // #277: ค่าแรง/วัน and จำนวนเงิน are ข้อมูลค่าจ้าง
-        return await OfYear(db.Leaves.AsNoTracking(), employeeId, year)
+        return leaves
             .OrderBy(l => l.FromDate).ThenBy(l => l.Id)
             .Select(l => new LeaveDto(l.Id, l.EmployeeId, l.Employee.Code, l.RecordedOn, l.FromDate, l.ToDate, l.FromTime, l.ToTime,
                 l.Days, l.Type, l.Paid, l.Remark, canViewPay ? l.DailyWage : 0, canViewPay ? l.Pay : 0, l.RowVersion))
@@ -48,11 +71,14 @@ public sealed class LeaveDirectory(HrDbContext db, TimeProvider clock, IPayAcces
         var days = byType.ToDictionary(t => t.Key, t => t.Days);
         var hasVacation = LeaveQuota.HasVacation(employee.StartDate, DateOnly.FromDateTime(clock.GetLocalNow().DateTime));
         var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
+        // UAT 10: the สิทธิ์วันลา of the year shown — of today in this year, of its last day in a year gone, its first day in one to come
+        var entitlement = await new LeaveEntitlementRegistry(db).OnAsync(year == today.Year ? today
+            : year < today.Year ? new DateOnly(year, 12, 31) : new DateOnly(year, 1, 1));
         var quotas = LeaveQuota.Limits.Select(l => new LeaveQuotaLine(l.Name, l.Used(days), l.Types[0] switch
         {
-            "1" => LeaveQuota.PersonalLimit(employee.StartDate, today), // 3 until a year is worked (#347)
-            "6" => LeaveQuota.VacationEntitlement(employee.StartDate, today),
-            _ => l.Days,
+            "1" => LeaveQuota.PersonalLimit(employee.StartDate, today, entitlement), // 3 until a year is worked (#347)
+            "6" => LeaveQuota.VacationEntitlement(employee.StartDate, today, entitlement),
+            var first => entitlement.LimitOf(first),
         }, l.Types[0] switch
         {
             "6" when !hasVacation => "ยังไม่มีพักร้อน",

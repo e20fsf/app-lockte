@@ -8,15 +8,27 @@ namespace Lockte.Hr;
 public sealed class WarningDirectory(HrDbContext db, OrgDirectory org)
 {
     /// <summary>One employee's warnings by date, newest last (ฟอร์ม ใบเตือน2 → subform ใบเตือน1).</summary>
+    /// <remarks>UAT 10: a warning moved by ย้ายข้อมูลใบเตือน is not shown (the legacy's ใบเตือนADD), see <see cref="CountMovedOfEmployeeAsync"/>.</remarks>
     public async Task<IReadOnlyList<WarningDto>> ListOfEmployeeAsync(int employeeId)
     {
-        var rows = await db.Warnings.AsNoTracking().Where(w => w.EmployeeId == employeeId)
+        var rows = await db.Warnings.AsNoTracking().Where(w => w.EmployeeId == employeeId && !w.Moved)
             .OrderBy(w => w.Date).ThenBy(w => w.Id)
             .Select(w => new { w.Id, w.Date, w.EmployeeId, w.Employee.Code, w.Employee.Name, w.DepartmentId, w.Level, w.Remark, w.RowVersion })
             .ToListAsync();
         var departments = await DepartmentNamesAsync();
         return rows.Select(w => new WarningDto(w.Id, w.Date, w.EmployeeId, w.Code, w.Name, w.DepartmentId,
             w.DepartmentId is { } d ? departments.GetValueOrDefault(d) : null, w.Level, w.Remark, w.RowVersion)).ToList();
+    }
+
+    /// <summary>The warnings of the employee that ย้ายข้อมูลใบเตือน moved out of SCR-32.</summary>
+    public Task<int> CountMovedOfEmployeeAsync(int employeeId) => db.Warnings.AsNoTracking().CountAsync(w => w.EmployeeId == employeeId && w.Moved);
+
+    /// <summary>ย้ายข้อมูลใบเตือน (SCR-60, UAT 10): how many warnings dated in the range are not moved yet / moved.</summary>
+    public async Task<MoveCount> CountForMoveAsync(DateOnly from, DateOnly to)
+    {
+        var counts = await db.Warnings.AsNoTracking().Where(w => w.Date >= from && w.Date <= to)
+            .GroupBy(w => w.Moved).Select(g => new { g.Key, Count = g.Count() }).ToListAsync();
+        return new(counts.FirstOrDefault(c => !c.Key)?.Count ?? 0, counts.FirstOrDefault(c => c.Key)?.Count ?? 0);
     }
 
     /// <summary>

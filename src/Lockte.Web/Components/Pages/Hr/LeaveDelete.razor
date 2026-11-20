@@ -1,0 +1,106 @@
+@page "/hr/leave/delete"
+@attribute [Authorize]
+@using Lockte.Hr
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@inject ScopedServices Services
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+@* SCR-31 ลบข้อมูลการลา (ฟอร์ม วันที่ลบการลางาน, BR-022) as its own page since UAT 10 (แก้ครั้งที่ 10: the page showed the
+   หน้ารายคน under the heading of บันทึกและแก้ไขการลางาน). As the legacy form: รหัสพนักงาน, ตั้งแต่วันที่, ถึงวันที่, ลบข้อมูล, กลับเมนูเดิม.
+   The rows that will go are listed first and the button asks before deleting. DATE_K (วันที่คีย์) was never used by the delete. *@
+<PageTitle>ลบข้อมูลการลางาน — LOCKTE</PageTitle>
+<h1 class="mb-4">ลบข้อมูลการลางาน</h1>
+
+<MudPaper Class="pa-4" Outlined="true" Style="max-width:60rem">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <EmployeePicker Value="employee" ValueChanged="EmployeeChangedAsync" />
+        <DateRangePicker @bind-From="from" @bind-To="to" OnChanged="ReloadAsync" />
+    </MudStack>
+    <MudText Typo="Typo.caption" Class="d-block mt-1">ลบการลาที่วันเริ่มลาอยู่ในช่วงนี้ (การลาที่ย้ายข้อมูลแล้วไม่ถูกลบ)</MudText>
+
+    @if (employee is not null && Range is not null)
+    {
+        <MudSimpleTable Dense="true" Class="mt-3">
+            <thead>
+                <tr>
+                    <th>วันที่บันทึก</th><th>ตั้งแต่วันที่</th><th>ถึงวันที่</th><th>ตั้งแต่เวลา</th><th>ถึงเวลา</th>
+                    <th style="text-align:right">จำนวนวัน</th><th>ประเภท</th><th>เหตุผล</th><th>ได้ค่าแรง</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in rows)
+                {
+                    <tr @key="row.Id">
+                        <td>@ThaiDate.Format(row.RecordedOn)</td>
+                        <td>@ThaiDate.Format(row.FromDate)</td>
+                        <td>@ThaiDate.Format(row.ToDate)</td>
+                        <td>@TimeText.Format(row.FromTime)</td>
+                        <td>@TimeText.Format(row.ToTime)</td>
+                        <td style="text-align:right">@row.Days.ToString("0.###")</td>
+                        <td>@row.Type @row.TypeName</td>
+                        <td>@row.Remark</td>
+                        <td>@(row.Paid switch { true => "Y", false => "N", null => "" })</td>
+                    </tr>
+                }
+                @if (rows.Count == 0)
+                {
+                    <tr><td colspan="9"><MudText Typo="Typo.body2">ไม่มีการลาในช่วงนี้</MudText></td></tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Error" Class="mt-3" StartIcon="@Icons.Material.Filled.Delete"
+               Disabled="busy || employee is null || Range is null || rows.Count == 0" OnClick="DeleteAsync">ลบข้อมูล</MudButton>
+</MudPaper>
+
+<MudButton Href="@EmployeeMenu.HrefOf(4)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
+
+@code {
+    private EmployeeListItem? employee;
+    private DateTime? from = DateTime.Today;
+    private DateTime? to = DateTime.Today;
+    private IReadOnlyList<LeaveDto> rows = [];
+    private bool busy;
+
+    private (DateOnly From, DateOnly To)? Range => from is { } f && to is { } t && f <= t ? (DateOnly.FromDateTime(f), DateOnly.FromDateTime(t)) : null;
+
+    private async Task EmployeeChangedAsync(EmployeeListItem? value)
+    {
+        employee = value;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (employee is not { } e || Range is not { } range)
+        {
+            rows = [];
+            return;
+        }
+        rows = await Services.RunAsync<LeaveDirectory, IReadOnlyList<LeaveDto>>(d => d.ListToDeleteAsync(e.Id, range.From, range.To));
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (employee is not { } e || Range is not { } range) return;
+        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบข้อมูลการลางาน",
+            $"ลบการลาของ {e.Code} {e.Name} ที่เริ่มลาวันที่ {ThaiDate.Format(range.From)} ถึง {ThaiDate.Format(range.To)} ทั้งหมด {rows.Count} รายการ?",
+            yesText: "ลบ", cancelText: "ยกเลิก");
+        if (confirmed != true) return;
+        busy = true;
+        try
+        {
+            var result = await Services.RunAsync<LeaveRegistry, ServiceResult>(r => r.DeleteRangeAsync(e.Id, range.From, range.To));
+            foreach (var error in result.Errors) Snackbar.Add(error, Severity.Error);
+            if (result.Succeeded) Snackbar.Add($"การลบข้อมูลการลางานเสร็จเรียบร้อยแล้ว ({result.Id} แถว)", Severity.Success);
+        }
+        finally
+        {
+            busy = false;
+            await ReloadAsync();
+        }
+    }
+}

@@ -84,15 +84,21 @@ public static class LeaveQuota
     /// </summary>
     /// <param name="personalDays">#347: ลากิจได้ค่าแรง of the employee on the leave's date (<see cref="PersonalLimit"/>); null = the legacy 6.</param>
     /// <param name="vacationDays">#347: สิทธิพักร้อน of the year of the leave (<see cref="VacationEntitlement"/>, 0 = none yet); null = hasVacation and the legacy 12.</param>
+    /// <param name="entitlement">UAT 10: the สิทธิ์วันลา in force on the leave's date (<see cref="LeaveEntitlementRegistry"/>); null = <see cref="LeaveEntitlementDays.Default"/>.</param>
     public static LeaveQuotaCheck Check(string type, bool paid, double days, IReadOnlyDictionary<string, double> usedPaidDays,
-        string? sex, bool hasVacation, double? personalDays = null, double? vacationDays = null)
+        string? sex, bool hasVacation, double? personalDays = null, double? vacationDays = null, LeaveEntitlementDays? entitlement = null)
     {
         if (!paid || Unlimited.Contains(type)) return new(true, SaveMessage);
         if (NeverPaid.TryGetValue(type, out var never)) return new(false, never);
         if (Limits.FirstOrDefault(l => l.Types.Contains(type)) is not { } limit) return new(true, null);
         if (type == "6" && !(vacationDays is { } v ? v > 0 : hasVacation)) return new(false, NoVacationMessage);
         if (type == "4" && sex != "F") return new(false, MaleMaternityMessage);
-        var ceiling = limit.Types[0] switch { "1" => personalDays ?? limit.Days, "6" => vacationDays ?? limit.Days, _ => limit.Days };
+        var ceiling = limit.Types[0] switch
+        {
+            "1" => personalDays ?? limit.Days,
+            "6" => vacationDays ?? limit.Days,
+            var first => (entitlement ?? LeaveEntitlementDays.Default).LimitOf(first),
+        };
         return days + limit.Used(usedPaidDays) <= ceiling ? new(true, SaveMessage) : new(false, limit.OverMessageFor(ceiling));
     }
 
@@ -100,19 +106,28 @@ public static class LeaveQuota
     /// ลากิจได้ค่าแรง (#347, answer of 2026-11-02): 3 วัน from the first day, 6 วัน once the employee has worked a year (อายุงาน ≥ 365 วัน as
     /// on the ใบลา, <see cref="HrDocumentDirectory.PersonalLeaveText"/>); a blank START is the legacy's 6.
     /// </summary>
-    public static double PersonalLimit(DateOnly? startDate, DateOnly on)
-        => startDate is { } start && on.DayNumber - start.DayNumber + 1 < 365 ? 3 : 6;
+    /// <remarks>UAT 10: the 3 and the 6 are those of <paramref name="entitlement"/> (null = <see cref="LeaveEntitlementDays.Default"/>).</remarks>
+    public static double PersonalLimit(DateOnly? startDate, DateOnly on, LeaveEntitlementDays? entitlement = null)
+    {
+        var days = entitlement ?? LeaveEntitlementDays.Default;
+        return startDate is { } start && on.DayNumber - start.DayNumber + 1 < 365 ? days.PersonalFirstYear : days.Personal;
+    }
 
     /// <summary>
     /// สิทธิพักร้อน of the calendar year of <paramref name="on"/> by the announcement of 25 มิ.ย. 2562: none until a year is worked (the day
     /// before the start date a year on); in the calendar year of that anniversary 6 + 0.5 × (13 − month of START) — the share of the first
     /// year, once; 6 in every later year. A blank START is entitled to 6 (the legacy, <see cref="HasVacation"/>).
     /// </summary>
-    public static double VacationEntitlement(DateOnly? startDate, DateOnly on)
+    /// <remarks>
+    /// UAT 10: the 6 is the ลาพักร้อน of <paramref name="entitlement"/> (null = <see cref="LeaveEntitlementDays.Default"/>), and the share
+    /// of the first year is a twelfth of it a month (0.5 of 6).
+    /// </remarks>
+    public static double VacationEntitlement(DateOnly? startDate, DateOnly on, LeaveEntitlementDays? entitlement = null)
     {
-        if (startDate is not { } start) return VacationPay.Entitlement;
+        var yearly = (entitlement ?? LeaveEntitlementDays.Default).Vacation;
+        if (startDate is not { } start) return yearly;
         if (on.DayNumber - start.DayNumber + 1 < 365) return 0;
-        return on.Year - start.Year > 1 ? VacationPay.Entitlement : VacationPay.Entitlement + 0.5 * (13 - start.Month);
+        return on.Year - start.Year > 1 ? yearly : yearly + yearly / 12 * (13 - start.Month);
     }
 
     /// <summary>อายุงาน ≥ 365 วัน (คิวรี สรุปการลา00): DateDiff("d", START, Date()) ≥ 365; a blank START counts as YES (⚠ kept).</summary>
@@ -128,4 +143,29 @@ public sealed record LeaveQuotaRule(string Name, IReadOnlyList<string> Types, do
         => ceiling == Days ? OverMessage : OverMessage.Replace($"{Days:0.#} วัน", $"{ceiling:0.#} วัน");
 
     public double Used(IReadOnlyDictionary<string, double> usedPaidDays) => Types.Sum(t => usedPaidDays.GetValueOrDefault(t));
+}
+
+/// <summary>
+/// สิทธิ์วันลาได้ค่าแรง of one range (UAT 10): the days of each BR-020 limit, which HR may change when the law does
+/// (<see cref="LeaveEntitlementRegistry"/>).
+/// </summary>
+public sealed record LeaveEntitlementDays(double PersonalFirstYear, double Personal, double Sick, double Vacation, double Maternity,
+    double Military, double SpecialMaternity, double SpouseMaternity)
+{
+    /// <summary>The limits before UAT 10 (BR-020, #346, #347): taken by a date no range covers.</summary>
+    public static LeaveEntitlementDays Default { get; } = new(3, 6, 30, VacationPay.Entitlement, 60, 60,
+        LeaveTypes.SpecialMaternityDays, LeaveTypes.SpouseMaternityDays);
+
+    /// <summary>The days of the limit whose first SR is <paramref name="firstType"/> (<see cref="LeaveQuota.Limits"/>); ลากิจ is the one after a year.</summary>
+    public double LimitOf(string firstType) => firstType switch
+    {
+        "1" => Personal,
+        "2" => Sick,
+        "6" => Vacation,
+        "4" => Maternity,
+        "10" => Military,
+        "17" => SpecialMaternity,
+        "18" => SpouseMaternity,
+        _ => throw new ArgumentOutOfRangeException(nameof(firstType), firstType, "Not a limit of BR-020."),
+    };
 }

@@ -44,8 +44,10 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
         if (input.Paid is { } paid && (row is null || row.Paid != paid))
         {
             var used = paid ? await UsedPaidDaysAsync(employeeId, from.Year, row?.Id) : new Dictionary<string, double>();
+            var entitlement = await new LeaveEntitlementRegistry(db).OnAsync(from); // UAT 10: the สิทธิ์วันลา of the leave's date
             quota = LeaveQuota.Check(type, paid, days, used, employee.Sex, LeaveQuota.HasVacation(employee.StartDate, Today),
-                LeaveQuota.PersonalLimit(employee.StartDate, from), LeaveQuota.VacationEntitlement(employee.StartDate, from));
+                LeaveQuota.PersonalLimit(employee.StartDate, from, entitlement), LeaveQuota.VacationEntitlement(employee.StartDate, from, entitlement),
+                entitlement);
             if (!quota.CanSave) return new(ServiceResult.Fail(quota.Message!), quota);
         }
 
@@ -86,14 +88,32 @@ public sealed class LeaveRegistry(HrDbContext db, TimeProvider clock, IPayAccess
     /// <summary>
     /// ลบข้อมูลการลางาน (SCR-31, BR-022): the employee's rows whose FROM_D is from <paramref name="from"/> to
     /// <paramref name="to"/> (both included), wherever TO_D is. <see cref="ServiceResult.Id"/> = rows deleted.
+    /// UAT 10: a row moved by ย้ายข้อมูลการลางาน is not deleted, as the legacy deleted from LEAVE only (not LEAVE_ADD).
     /// </summary>
     public async Task<ServiceResult> DeleteRangeAsync(int employeeId, DateOnly from, DateOnly to)
     {
         if (from > to) return ServiceResult.Fail(DateRangeRule.Message);
-        var rows = await db.Leaves.Include(l => l.Employee)
-            .Where(l => l.EmployeeId == employeeId && l.FromDate >= from && l.FromDate <= to)
-            .ToListAsync();
+        var rows = await ToDelete(db.Leaves.Include(l => l.Employee), employeeId, from, to).ToListAsync();
         db.Leaves.RemoveRange(rows);
+        await db.SaveChangesAsync();
+        return ServiceResult.Ok(rows.Count);
+    }
+
+    internal static IQueryable<Leave> ToDelete(IQueryable<Leave> leaves, int employeeId, DateOnly from, DateOnly to)
+        => leaves.Where(l => l.EmployeeId == employeeId && l.FromDate >= from && l.FromDate <= to && !l.Moved);
+
+    /// <summary>
+    /// ย้ายข้อมูลการลางาน / ย้ายข้อมูลกลับ (SCR-60, BR-040, UAT 10): every employee's rows whose FROM_D is from <paramref name="from"/>
+    /// to <paramref name="to"/> are moved out of the edit screen (<paramref name="moved"/> true) or back. Only the flag changes: the
+    /// quota, the pay and the reports count them as before. Each row is kept in the history. <see cref="ServiceResult.Id"/> = rows changed.
+    /// </summary>
+    public async Task<ServiceResult> MoveAsync(DateOnly from, DateOnly to, bool moved)
+    {
+        if (from > to) return ServiceResult.Fail(DateRangeRule.Message);
+        var rows = await db.Leaves.Include(l => l.Employee)
+            .Where(l => l.FromDate >= from && l.FromDate <= to && l.Moved != moved)
+            .ToListAsync();
+        foreach (var row in rows) row.Moved = moved;
         await db.SaveChangesAsync();
         return ServiceResult.Ok(rows.Count);
     }

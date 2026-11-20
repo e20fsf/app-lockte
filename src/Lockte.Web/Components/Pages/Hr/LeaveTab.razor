@@ -8,7 +8,8 @@
 @* แท็บการลาของหน้ารายคน (SCR-30 ฟอร์ม LEAVE_A + subform สรุปการลา subform1 + LEAVE1, #41 / prototype #22): the quota of the
    calendar year against each BR-020 limit, then the person's leave of the year, edited in the table one row at a time.
    Choosing ได้ค่าแรง is the legacy check point (BR-020) and saves the row, as SAL_AfterUpdate → Macro1 did: the legacy
-   message shows in a box; a failed check clears จำนวนวัน and saves nothing. ลบข้อมูลการลา by date range is SCR-31 (BR-022). *@
+   message shows in a box; a failed check clears จำนวนวัน and saves nothing. ลบข้อมูลการลา by date range is its own page since
+   UAT 10 (SCR-31, LeaveDelete). Rows moved by ย้ายข้อมูลการลางาน (SCR-60) are not listed but still count in the quota. *@
 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-2">
     <MudSelect T="int" Value="year" ValueChanged="ChangeYearAsync" Label="ปี" Dense="true" Style="max-width:8rem">
         @foreach (var y in Years)
@@ -17,7 +18,7 @@
         }
     </MudSelect>
     <MudText Typo="Typo.body2">ค่าแรง/วัน <b><PayView>@Employee.DailyWage.ToString("#,##0")</PayView></b></MudText>
-    <MudText Typo="Typo.caption">โควตานับรอบปีปฏิทิน 1 ม.ค.–31 ธ.ค. ตามวันเริ่มลา</MudText>
+    <MudText Typo="Typo.caption">โควตานับรอบปีปฏิทิน 1 ม.ค.–31 ธ.ค. ตามวันเริ่มลา · สิทธิ์ตามหน้า "@LeaveEntitlementRegistry.Title"</MudText>
 </MudStack>
 
 @if (summary is not null)
@@ -95,7 +96,7 @@
         }
         @if (rows.Count == 0 && editing is null)
         {
-            <tr><td colspan="12"><MudText Typo="Typo.body2">ไม่มีการลาในปีนี้</MudText></td></tr>
+            <tr><td colspan="12"><MudText Typo="Typo.body2">ไม่มีการลาในปีนี้@(moved > 0 ? " ที่ยังไม่ย้ายข้อมูล" : "")</MudText></td></tr>
         }
     </tbody>
     @if (rows.Count > 0)
@@ -116,16 +117,12 @@
                Disabled="busy || editing is not null">เพิ่มการลา</MudButton>
     <MudText Typo="Typo.caption">คลิกแถวเพื่อแก้ · พิมพ์เหตุผลก่อน แล้วเลือก "ได้ค่าแรง" ระบบตรวจโควตาและบันทึกทันทีเหมือนระบบเดิม · จำนวนวันหน่วย 1/8 วัน (0.125 = 1 ชม.)</MudText>
 </MudStack>
-
-<MudPaper Outlined="true" Class="pa-4 mt-4">
-    <MudText Typo="Typo.h6" Class="mb-2">ลบข้อมูลการลา (@Employee.Code)</MudText>
-    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <DateRangePicker @bind-From="deleteFrom" @bind-To="deleteTo" Style="max-width:11rem" />
-        <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="busy || deleteFrom is null || deleteTo is null || DateRangeRule.IsInvalid(deleteFrom, deleteTo)"
-                   OnClick="DeleteRangeAsync">ลบข้อมูล</MudButton>
-    </MudStack>
-    <MudText Typo="Typo.caption">ลบการลาที่วันเริ่มลาอยู่ในช่วงนี้ (ทุกปี ไม่ใช่เฉพาะปีที่แสดง)</MudText>
-</MudPaper>
+@if (moved > 0)
+{
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-1">
+        มีการลาของปีนี้ที่ย้ายข้อมูลแล้ว @moved รายการ ไม่แสดงในตาราง แต่ยังนับในโควตาและรายงาน (ย้ายกลับได้ที่เมนู "ย้ายข้อมูลการลางาน")
+    </MudText>
+}
 
 @code {
     private static readonly IReadOnlyList<TimeOnly> FromTimes = [new(8, 0), new(13, 0)];
@@ -138,8 +135,7 @@
     private LeaveSummary? summary;
     private IReadOnlyList<LeaveDto> rows = [];
     private RowForm? editing;
-    private DateTime? deleteFrom = DateTime.Today;
-    private DateTime? deleteTo = DateTime.Today;
+    private int moved;
     private bool busy;
     private bool canViewPay;
 
@@ -169,6 +165,7 @@
         var (id, y) = (Employee.Id, year);
         summary = await Services.RunAsync<LeaveDirectory, LeaveSummary>(d => d.GetSummaryAsync(id, y));
         rows = await Services.RunAsync<LeaveDirectory, IReadOnlyList<LeaveDto>>(d => d.ListOfEmployeeAsync(id, y));
+        moved = await Services.RunAsync<LeaveDirectory, int>(d => d.CountMovedOfEmployeeAsync(id, y));
     }
 
     private void Edit(LeaveDto row)
@@ -309,16 +306,6 @@
     }
 
     private Task DeleteRowAsync() => RunAsync(r => r.DeleteAsync(editing!.Id!.Value, editing.RowVersion!), _ => "ลบแถวแล้ว");
-
-    private async Task DeleteRangeAsync()
-    {
-        var (from, to, id) = (DateOnly.FromDateTime(deleteFrom!.Value), DateOnly.FromDateTime(deleteTo!.Value), Employee.Id);
-        var confirmed = await Dialogs.ShowMessageBoxAsync("ลบข้อมูลการลา",
-            $"ลบการลาของ {Employee.Code} {Employee.Name} ที่เริ่มลาวันที่ {ThaiDate.Format(from)} ถึง {ThaiDate.Format(to)}?",
-            yesText: "ลบ", cancelText: "ยกเลิก");
-        if (confirmed != true) return;
-        await RunAsync(r => r.DeleteRangeAsync(id, from, to), n => $"การลบข้อมูลการลางานเสร็จเรียบร้อยแล้ว ({n} แถว)");
-    }
 
     private async Task RunAsync(Func<LeaveRegistry, Task<ServiceResult>> action, Func<int?, string> done)
     {

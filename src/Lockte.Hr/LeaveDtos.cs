@@ -40,3 +40,6 @@ public sealed record LeaveQuotaLine(string Name, double Used, double Limit, stri
 {
     public double? Left => Note is null ? Limit - Used : null;
 }
+
+/// <summary>ย้ายข้อมูล (SCR-60, UAT 10): the rows in a range not moved yet (<see cref="NotMoved"/>) and already moved (<see cref="Moved"/>).</summary>
+public sealed record MoveCount(int NotMoved, int Moved);

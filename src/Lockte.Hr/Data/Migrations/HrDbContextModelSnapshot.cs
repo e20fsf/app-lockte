@@ -613,6 +613,10 @@ namespace Lockte.Hr.Data.Migrations
                         .HasColumnType("time")
                         .HasAnnotation("Lockte:AuditName", "ตั้งแต่เวลา");
 
+                    b.Property<bool>("Moved")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ย้ายข้อมูลแล้ว");
+
                     b.Property<bool?>("Paid")
                         .HasColumnType("bit")
                         .HasAnnotation("Lockte:AuditName", "ได้ค่าแรง");
@@ -667,6 +671,86 @@ namespace Lockte.Hr.Data.Migrations
                     b.ToTable("Leaves", "hr");
 
                     b.HasAnnotation("Lockte:AuditName", "การลา");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.LeaveEntitlement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันสิ้นสุด");
+
+                    b.Property<double>("Maternity")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลาคลอด");
+
+                    b.Property<double>("Military")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลาเพื่อระดมพล");
+
+                    b.Property<double>("Personal")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลากิจ (ทำงานครบ 1 ปี)");
+
+                    b.Property<double>("PersonalFirstYear")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลากิจ (ทำงานไม่ถึง 1 ปี)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<double>("Sick")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลาป่วย");
+
+                    b.Property<double>("SpecialMaternity")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลาคลอดบุตรกรณีพิเศษ");
+
+                    b.Property<double>("SpouseMaternity")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลาช่วยเหลือคู่สมรสคลอดบุตร");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasAnnotation("Lockte:AuditName", "วันเริ่มมีผล");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<double>("Vacation")
+                        .HasColumnType("float")
+                        .HasAnnotation("Lockte:AuditName", "ลาพักร้อน");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartDate")
+                        .IsUnique();
+
+                    b.ToTable("LeaveEntitlements", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "ตั้งค่าสิทธิ์วันลา");
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.PayPeriod", b =>
@@ -1086,6 +1170,10 @@ namespace Lockte.Hr.Data.Migrations
                         .HasMaxLength(1)
                         .HasColumnType("nvarchar(1)")
                         .HasAnnotation("Lockte:AuditName", "ระดับ");
+
+                    b.Property<bool>("Moved")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Lockte:AuditName", "ย้ายข้อมูลแล้ว");
 
                     b.Property<string>("Remark")
                         .HasMaxLength(255)
