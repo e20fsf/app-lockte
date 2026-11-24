@@ -19,12 +19,17 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
         var rows = await db.Users.AsNoTracking().OrderByDescending(u => u.IsAdmin).ThenBy(u => u.UserName).ToListAsync();
         return rows.Select(u => new UserSummary(
             u.Id, u.UserName!, u.DisplayName, u.IsAdmin, u.IsActive, u.MustChangePassword, u.CanViewPay,
+            u.IsAdmin ? [] : ProgramAccess.Parse(u.Programs),
             u.LockoutEnd > now ? u.LockoutEnd : null,
             u.CreatedBy, u.CreatedAt, u.UpdatedBy, u.UpdatedAt, u.RowVersion)).ToList();
     }
 
-    /// <summary>New user starts with a temporary password and must change it at first login.</summary>
-    public async Task<AccountResult> CreateAsync(string userName, string displayName, string temporaryPassword, bool canViewPay = false)
+    /// <summary>
+    /// New user starts with a temporary password and must change it at first login; it may open only the
+    /// <paramref name="programs"/> given (none when omitted, ADR 0005).
+    /// </summary>
+    public async Task<AccountResult> CreateAsync(string userName, string displayName, string temporaryPassword, bool canViewPay = false,
+        IEnumerable<string>? programs = null)
     {
         userName = userName.Trim();
         displayName = displayName.Trim();
@@ -33,8 +38,35 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
         if (string.Equals(userName, AppUser.AdminUserName, StringComparison.OrdinalIgnoreCase))
             return AccountResult.Fail($"ชื่อ user '{AppUser.AdminUserName}' สงวนไว้สำหรับผู้ดูแลระบบ");
 
-        var user = new AppUser { UserName = userName, DisplayName = displayName, MustChangePassword = true, CanViewPay = canViewPay };
+        var user = new AppUser
+        {
+            UserName = userName, DisplayName = displayName, MustChangePassword = true, CanViewPay = canViewPay,
+            Programs = ProgramAccess.Format(programs),
+        };
         return AccountResult.From(await users.CreateAsync(user, temporaryPassword));
+    }
+
+    /// <summary>
+    /// <c>seed-users</c>: creates each user of <paramref name="sheet"/> that does not exist yet, all with the same temporary
+    /// password. A user that exists (by user name) is left exactly as it is, so the command can run again safely.
+    /// </summary>
+    public async Task<SeedUsersResult> CreateMissingAsync(IEnumerable<InitialUser> sheet, string temporaryPassword)
+    {
+        var created = new List<string>();
+        var skipped = new List<string>();
+        var errors = new List<string>();
+        foreach (var entry in sheet)
+        {
+            if (await users.FindByNameAsync(entry.UserName) is not null)
+            {
+                skipped.Add(entry.UserName);
+                continue;
+            }
+            var result = await CreateAsync(entry.UserName, entry.DisplayName, temporaryPassword, canViewPay: false, entry.Programs);
+            if (result.Succeeded) created.Add(entry.UserName);
+            else errors.AddRange(result.Errors.Select(e => $"{entry.UserName}: {e}"));
+        }
+        return new SeedUsersResult(created, skipped, errors);
     }
 
     /// <summary>ปิดใช้งาน / เปิดใช้งาน. A deactivated user can no longer log in and open sessions end at the next revalidation.</summary>
@@ -62,6 +94,21 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
 
         user.ExpectRowVersion(loadedRowVersion);
         user.CanViewPay = canViewPay;
+        return AccountResult.From(await users.UpdateSecurityStampAsync(user));
+    }
+
+    /// <summary>
+    /// ADR 0005 เข้าโปรแกรมได้. Like <see cref="SetCanViewPayAsync"/>: in the change history, and the new security stamp
+    /// ends the user's open sessions so the next login carries the new programs.
+    /// </summary>
+    public async Task<AccountResult> SetProgramsAsync(string userId, IEnumerable<string> programs, byte[] loadedRowVersion)
+    {
+        var user = await users.FindByIdAsync(userId);
+        if (user is null) return AccountResult.Fail("ไม่พบผู้ใช้");
+        if (user.IsAdmin) return AccountResult.Fail("บัญชี admin เข้าโปรแกรมงานไม่ได้");
+
+        user.ExpectRowVersion(loadedRowVersion);
+        user.Programs = ProgramAccess.Format(programs);
         return AccountResult.From(await users.UpdateSecurityStampAsync(user));
     }
 

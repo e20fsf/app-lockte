@@ -16,9 +16,13 @@
         <MudItem xs="12" sm="2" Class="d-flex align-center">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="busy">เพิ่ม</MudButton>
         </MudItem>
-        <MudItem xs="12">
-            <MudCheckBox T="bool" @bind-Value="newCanViewPay" Label="ดูข้อมูลค่าจ้างได้" Dense="true"
-                         Class="mt-n2" />
+        <MudItem xs="12" Class="d-flex flex-wrap align-center mt-n2">
+            <MudText Typo="Typo.body2" Class="mr-2">เข้าโปรแกรมได้:</MudText>
+            @foreach (var (key, name) in ProgramNames)
+            {
+                <MudCheckBox T="bool" Value="newPrograms.Contains(key)" ValueChanged="@(v => Toggle(newPrograms, key, v))" Label="@name" Dense="true" />
+            }
+            <MudCheckBox T="bool" @bind-Value="newCanViewPay" Label="ดูข้อมูลค่าจ้างได้" Dense="true" Class="ml-4" />
         </MudItem>
     </MudGrid>
 </MudPaper>
@@ -28,6 +32,10 @@
         <MudTh>ชื่อ user</MudTh>
         <MudTh>ชื่อที่แสดง</MudTh>
         <MudTh>สถานะ</MudTh>
+        @foreach (var (_, name) in ProgramNames)
+        {
+            <MudTh Style="text-align:center">@name</MudTh>
+        }
         <MudTh>ดูข้อมูลค่าจ้างได้</MudTh>
         <MudTh>แก้ล่าสุด</MudTh>
         <MudTh></MudTh>
@@ -41,6 +49,16 @@
             else { <MudChip T="string" Size="Size.Small" Color="Color.Success">ใช้งาน</MudChip> }
             @if (context.MustChangePassword) { <MudChip T="string" Size="Size.Small" Color="Color.Warning">รอเปลี่ยนรหัส</MudChip> }
         </MudTd>
+        @foreach (var (key, name) in ProgramNames)
+        {
+            <MudTd Style="text-align:center">
+                @if (!context.IsAdmin)
+                {
+                    <MudCheckBox T="bool" Value="context.Programs.Contains(key)" ValueChanged="@(v => SetProgramAsync(context, key, v))" Dense="true"
+                                 Disabled="busy" aria-label="@($"เข้าโปรแกรม{name} {context.UserName}")" />
+                }
+            </MudTd>
+        }
         <MudTd>
             @if (context.IsAdmin)
             {
@@ -83,6 +101,19 @@
     private IReadOnlyList<UserSummary>? users;
     private string newUserName = "", newDisplayName = "", newPassword = "";
     private bool newCanViewPay;
+    private readonly HashSet<string> newPrograms = [];
+
+    /// <summary>ADR 0005: the programs' short names, as on the sheet "จำนวนคนใช้ program", in chooser order.</summary>
+    private static readonly (string Key, string Name)[] ProgramNames =
+    [
+        (EmployeeMenu.Menu.Key, "พนักงาน"), (OrderMenu.Menu.Key, "ผลผลิต"), (PurchMenu.Menu.Key, "วัตถุดิบ"),
+        (CalibMenu.Menu.Key, "สอบเทียบ"), (CashMenu.Menu.Key, "เงินสดย่อย"),
+    ];
+
+    private static void Toggle(HashSet<string> programs, string key, bool on)
+    {
+        if (on) programs.Add(key); else programs.Remove(key);
+    }
     private UserSummary? tempFor;
     private string tempPassword = "";
     private bool busy;
@@ -95,9 +126,19 @@
     private async Task ReloadAsync() => users = await UseAsync(s => s.ListAsync());
 
     private Task CreateAsync() => RunAsync(
-        s => s.CreateAsync(newUserName, newDisplayName, newPassword, newCanViewPay),
+        s => s.CreateAsync(newUserName, newDisplayName, newPassword, newCanViewPay, newPrograms),
         $"เพิ่ม user {newUserName.Trim()} แล้ว",
-        () => { newUserName = newDisplayName = newPassword = ""; newCanViewPay = false; });
+        () => { newUserName = newDisplayName = newPassword = ""; newCanViewPay = false; newPrograms.Clear(); });
+
+    private Task SetProgramAsync(UserSummary user, string key, bool allowed)
+    {
+        var programs = user.Programs.ToHashSet();
+        Toggle(programs, key, allowed);
+        var name = ProgramNames.First(p => p.Key == key).Name;
+        return RunAsync(
+            s => s.SetProgramsAsync(user.Id, programs, user.RowVersion),
+            allowed ? $"{user.UserName} เข้าโปรแกรม{name}ได้แล้ว (มีผลเมื่อเข้าระบบใหม่)" : $"{user.UserName} เข้าโปรแกรม{name}ไม่ได้แล้ว");
+    }
 
     private Task SetCanViewPayAsync(UserSummary user, bool allowed) => RunAsync(
         s => s.SetCanViewPayAsync(user.Id, allowed, user.RowVersion),

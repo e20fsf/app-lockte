@@ -7,7 +7,7 @@
 
 <MudMenu Label="@(current?.Title ?? "เลือกโปรแกรม")" StartIcon="@(current?.Icon ?? Icons.Material.Filled.Apps)" EndIcon="@Icons.Material.Filled.ArrowDropDown"
          Variant="Variant.Text" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Class="program-switcher mr-2">
-    @foreach (var program in ProgramMenus.All)
+    @foreach (var program in allowed)
     {
         <MudMenuItem Href="@program.Root" Icon="@program.Icon" Class="@(program == current ? "program-current" : null)">@program.Title</MudMenuItem>
     }
@@ -20,10 +20,13 @@
     private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     private ProgramMenu? current;
+    private IReadOnlyList<ProgramMenu> allowed = []; // ADR 0005: only the programs this user may open
     private string? saved;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState).User;
+        allowed = ProgramMenus.All.Where(p => AccountClaims.CanUseProgram(user, p.Key)).ToList();
         current = ProgramMenus.Of(Navigation.ToBaseRelativePath(Navigation.Uri));
         Navigation.LocationChanged += OnLocationChanged;
     }

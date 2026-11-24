@@ -29,6 +29,7 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> option
             user.Property(u => u.IsActive).HasAuditName("ใช้งาน");
             user.Property(u => u.IsAdmin).HasAuditName("admin");
             user.Property(u => u.CanViewPay).HasAuditName("ดูข้อมูลค่าจ้างได้");
+            user.Property(u => u.Programs).HasMaxLength(100).IsRequired().HasAuditName("เข้าโปรแกรมได้");
             user.Property(u => u.MustChangePassword).HasAuditName("ต้องเปลี่ยนรหัส");
             user.Property(u => u.PasswordHash).HasAuditName("รหัสผ่าน").IsSecret();
             // Written by every login attempt, derived copies, or Identity features this system does not use.

@@ -14,7 +14,8 @@ public static class HrDocumentEndpoints
 {
     public static IEndpointRouteBuilder MapHrDocuments(this IEndpointRouteBuilder app)
     {
-        var hr = app.MapGroup("/reports/hr").RequireAuthorization().RequirePayWhereListed(); // #277: severance is pay
+        var hr = app.MapGroup("/reports/hr").RequireAuthorization().RequirePayWhereListed() // #277: severance is pay
+            .RequireProgramOfRoute(); // ADR 0005
 
         // RPT-50 ใบลางาน: A5 นอน.
         hr.MapGet("/leave-form/{employeeId:int}", async (int employeeId, HrDocumentDirectory documents, FormPrinter printer, TimeProvider clock,

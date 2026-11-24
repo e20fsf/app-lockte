@@ -7,8 +7,15 @@
 <div class="menu-page program-page">
     <img src="brand/logo.svg" alt="LOCKTE" class="menu-logo" />
     <h1 class="menu-title">เลือกโปรแกรม</h1>
+    @if (cards.Count == 0)
+    {
+        @* ADR 0005 *@
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">
+            user นี้ยังไม่มีสิทธิ์เข้าโปรแกรมใด — ติดต่อผู้ดูแลระบบ
+        </MudAlert>
+    }
     <div class="program-cards">
-        @foreach (var (program, detail) in Cards)
+        @foreach (var (program, detail) in cards)
         {
             <a href="@program.Root" class="program-card">
                 <MudIcon Icon="@program.Icon" Class="program-card-icon" />
@@ -20,6 +27,18 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    // ADR 0005: only the programs this user may open.
+    private IReadOnlyList<(ProgramMenu Program, string Detail)> cards = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+        cards = Cards.Where(c => AccountClaims.CanUseProgram(user, c.Program.Key)).ToList();
+    }
+
     private static readonly (ProgramMenu Program, string Detail)[] Cards =
     [
         (EmployeeMenu.Menu, "ข้อมูลพนักงาน เวลาทำงาน การลา ปิดงวดค่าแรง"),

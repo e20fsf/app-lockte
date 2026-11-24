@@ -44,7 +44,8 @@ public static class ReportsRegistration
     /// </summary>
     public static IEndpointRouteBuilder MapReports(this IEndpointRouteBuilder app)
     {
-        var reports = app.MapGroup("/reports").RequireAuthorization().RequirePayWhereListed(); // #277: ข้อมูลค่าจ้าง → 403
+        var reports = app.MapGroup("/reports").RequireAuthorization().RequirePayWhereListed() // #277: ข้อมูลค่าจ้าง → 403
+            .RequireProgramOfRoute(); // ADR 0005: only users who may open the program
         reports.MapHrAttendanceReports(); // ใบเตือน การลา การมาทำงาน (#59)
         reports.MapHrPayHistoryReports(); // ค่าแรงสิ้นเดือน, สรุปหลายงวด (#56)
         reports.MapHrVacationPayReports(); // ค่าพักร้อน (#63)

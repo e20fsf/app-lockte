@@ -10,6 +10,8 @@ public static class AccountClaims
     public const string Admin = "lockte:admin";
     public const string MustChangePassword = "lockte:must_change_password";
     public const string ViewPay = "lockte:view_pay";
+    /// <summary>One claim per program the user may open; the value is the program key (ADR 0005).</summary>
+    public const string Program = "lockte:program";
 
     public static string DisplayNameOf(ClaimsPrincipal user)
         => user.FindFirstValue(DisplayName) ?? user.Identity?.Name ?? "";
@@ -18,6 +20,14 @@ public static class AccountClaims
 
     /// <summary>#277: the user may see ข้อมูลค่าจ้าง. The admin never does.</summary>
     public static bool CanViewPay(ClaimsPrincipal user) => user.HasClaim(c => c.Type == ViewPay) && !IsAdmin(user);
+
+    /// <summary>ADR 0005: the user may open this program. The admin never does.</summary>
+    public static bool CanUseProgram(ClaimsPrincipal user, string programKey)
+        => user.HasClaim(Program, programKey) && !IsAdmin(user);
+
+    /// <summary>Signed in as staff: not the admin, password not temporary (the <see cref="AuthPolicies.Staff"/> gate).</summary>
+    public static bool IsStaff(ClaimsPrincipal user)
+        => user.Identity?.IsAuthenticated == true && !IsAdmin(user) && !MustChange(user);
 
     public static bool MustChange(ClaimsPrincipal user) => user.HasClaim(c => c.Type == MustChangePassword);
 
@@ -29,7 +39,7 @@ public static class AccountClaims
         => MustChange(user) ? "Account/ChangePassword" : IsAdmin(user) ? "admin/users" : "";
 }
 
-/// <summary>Puts the display name and the admin / must-change-password flags into the login cookie.</summary>
+/// <summary>Puts the display name, the admin / pay / must-change-password flags and the programs into the login cookie.</summary>
 public sealed class AppClaimsPrincipalFactory(UserManager<AppUser> userManager, IOptions<IdentityOptions> options)
     : UserClaimsPrincipalFactory<AppUser>(userManager, options)
 {
@@ -39,6 +49,8 @@ public sealed class AppClaimsPrincipalFactory(UserManager<AppUser> userManager, 
         identity.AddClaim(new Claim(AccountClaims.DisplayName, user.DisplayName));
         if (user.IsAdmin) identity.AddClaim(new Claim(AccountClaims.Admin, "1"));
         if (user.CanViewPay && !user.IsAdmin) identity.AddClaim(new Claim(AccountClaims.ViewPay, "1"));
+        if (!user.IsAdmin)
+            foreach (var program in ProgramAccess.Parse(user.Programs)) identity.AddClaim(new Claim(AccountClaims.Program, program));
         if (user.MustChangePassword) identity.AddClaim(new Claim(AccountClaims.MustChangePassword, "1"));
         return identity;
     }

@@ -55,7 +55,7 @@ public sealed class PayAccessTests
     }
 
     /// <summary>The report endpoints as the host maps them (nothing is opened: no database, no Chromium).</summary>
-    private static List<RouteEndpoint> ReportEndpoints()
+    internal static List<RouteEndpoint> ReportEndpoints()
     {
         var builder = WebApplication.CreateBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>

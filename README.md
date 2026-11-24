@@ -27,6 +27,7 @@ dotnet build Lockte.slnx
 dotnet test Lockte.slnx                       # tests run against LocalDB: each run creates and drops its own database
 dotnet run --project src/Lockte.Web           # migrates the database on start, then http://localhost:5175
 dotnet run --project src/Lockte.Web -- reset-admin   # create the admin account / reset its password (temporary)
+dotnet run --project src/Lockte.Web -- seed-users    # create user01–user18 with their programs (ADR 0005); existing users untouched
 ```
 
 - Tests use another SQL Server when the env var `LOCKTE_TEST_SQL` is set to a connection string (without `Database=`),

@@ -51,6 +51,8 @@ var app = builder.Build();
 
 if (args is ["reset-admin", .. var rest])
     return await ResetAdminCommand.RunAsync(app.Services, rest);
+if (args is ["seed-users", .. var seedUserArgs])
+    return await SeedUsersCommand.RunAsync(app.Services, seedUserArgs);
 if (args is ["round-pay-data", .. var roundArgs])
     return await RoundPayDataCommand.RunAsync(app.Services, roundArgs);
 if (args is ["seed-purch-fake"])
