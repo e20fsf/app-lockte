@@ -25,7 +25,7 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> option
         {
             user.HasAuditName("ผู้ใช้");
             user.Property(u => u.UserName).HasAuditName("ชื่อ user");
-            user.Property(u => u.DisplayName).HasMaxLength(100).IsRequired().HasAuditName("ชื่อที่แสดง");
+            user.Property(u => u.DisplayName).HasMaxLength(UserAdminService.DisplayNameLength).IsRequired().HasAuditName("ชื่อที่แสดง");
             user.Property(u => u.IsActive).HasAuditName("ใช้งาน");
             user.Property(u => u.IsAdmin).HasAuditName("admin");
             user.Property(u => u.CanViewPay).HasAuditName("ดูข้อมูลค่าจ้างได้");
