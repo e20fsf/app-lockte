@@ -43,6 +43,7 @@ public static class OrderMenu
             new("บันทึกการส่งของ", Code: "SCR-08", Page: "order/deliveries/record"), // บันทึกการส่งออก
             new("รายงานการส่งของ", SubMenu: 5), // รายงานการส่งออก
             new("แก้ไขรายการส่งของ", SubMenu: 10), // แก้ไขรายการส่งออก
+            new("ประวัติใบ ORDER (ใครสร้าง ใครแก้)", Code: "ORDER-HISTORY", Page: "order/orders/history-log"), // ใหม่ UAT 2026-11-24
         ]),
         new(17, "รับ ORDER", 2, // แยก SALE ORDER
         [
