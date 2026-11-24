@@ -37,6 +37,8 @@ public sealed record SalesOrderLineInput(int ProductId, decimal? Quantity, decim
 /// A new ORDER as the form holds it. The head is stored as given: the screen fills it from the customer
 /// (<see cref="SalesOrderDirectory.DefaultsForCustomerAsync"/>) and from the date (<see cref="SalesOrderRules.DefaultDeliveryDate"/>).
 /// A line without a quantity is dropped on save (BR-002 step 1). <see cref="OriginalNo"/> is the เลขเดิม the migration keeps.
+/// <see cref="NumberTerritoryCode"/>: ORDER ใหม่ (ODD1) leaves <see cref="OrderNo"/> blank and the number <c>SS-YY-NNNN</c> of this
+/// เขต is taken only when the order is saved (UAT 2026-11-24), so people keying orders at the same time never meet on one number.
 /// </summary>
 public sealed record SalesOrderInput(
     string OrderNo,
@@ -48,10 +50,14 @@ public sealed record SalesOrderInput(
     string? PaymentTerms,
     string? Remark,
     IReadOnlyList<SalesOrderLineInput> Lines,
-    string? OriginalNo = null);
+    string? OriginalNo = null,
+    string? NumberTerritoryCode = null);
 
-/// <summary>The outcome of saving an order; <see cref="NextNumber"/> is proposed again when the number was already used.</summary>
-public sealed record OrderSaveResult(bool Succeeded, IReadOnlyList<string> Errors, int? Id = null, string? NextNumber = null);
+/// <summary>
+/// The outcome of saving an order; <see cref="NextNumber"/> is proposed again when the number was already used.
+/// <see cref="OrderNo"/> is the number the order was saved under (the one taken on save for ORDER ใหม่).
+/// </summary>
+public sealed record OrderSaveResult(bool Succeeded, IReadOnlyList<string> Errors, int? Id = null, string? NextNumber = null, string? OrderNo = null);
 
 /// <summary>Rules of the ORDER form that do not need the database.</summary>
 public static class SalesOrderRules
@@ -79,9 +85,10 @@ public sealed class SalesOrderRegistry(SalesDbContext db, TimeProvider clock, IP
     public async Task<OrderSaveResult> CreateAsync(SalesOrderInput input, OrderEntryMode mode)
     {
         var orderNo = Clean(input.OrderNo);
+        var numberPrefix = orderNo is null ? Clean(input.NumberTerritoryCode) : null; // ORDER ใหม่: the number is taken on save
         var errors = new List<string>();
-        if (orderNo is null) errors.Add("กรุณากรอกเลขที่ ORDER");
-        else if (orderNo.Length > OrderNoLength) errors.Add($"เลขที่ ORDER ยาวได้ไม่เกิน {OrderNoLength} ตัว");
+        if (orderNo is null && numberPrefix is null) errors.Add("กรุณากรอกเลขที่ ORDER");
+        else if (orderNo?.Length > OrderNoLength) errors.Add($"เลขที่ ORDER ยาวได้ไม่เกิน {OrderNoLength} ตัว");
         var customer = await db.Customers.FirstOrDefaultAsync(c => c.Id == input.CustomerId);
         if (customer is null) errors.Add("กรุณาเลือกลูกค้าที่มีในทะเบียนลูกค้า");
         var customerName = Clean(input.CustomerName) ?? customer?.Name;
@@ -107,12 +114,12 @@ public sealed class SalesOrderRegistry(SalesDbContext db, TimeProvider clock, IP
         }
         if (errors.Count > 0) return new OrderSaveResult(false, errors);
 
-        if (await db.SalesOrders.AnyAsync(o => o.OrderNo == orderNo)) return await DuplicateAsync(orderNo!, input);
+        if (orderNo is not null && await db.SalesOrders.AnyAsync(o => o.OrderNo == orderNo)) return await DuplicateAsync(orderNo, input);
 
         var now = clock.GetUtcNow();
         var order = new SalesOrder
         {
-            OrderNo = orderNo!,
+            OrderNo = orderNo ?? "",
             OriginalNo = Clean(input.OriginalNo),
             OrderDate = input.OrderDate,
             Customer = customer!,
@@ -146,6 +153,15 @@ public sealed class SalesOrderRegistry(SalesDbContext db, TimeProvider clock, IP
 
         // The order and the customer's หมายเหตุ are one unit: nothing is half saved (BR-002 is not one transaction in Access).
         await using var transaction = await db.Database.BeginTransactionAsync();
+        if (numberPrefix is not null)
+        {
+            // One taker at a time per เขต until commit: the next number read here cannot be taken by anyone else first.
+            await SalesOrderNumbering.LockAsync(db, numberPrefix);
+            var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
+            var next = await SalesOrderNumbering.ProposeAsync(db, numberPrefix, today, startAtOne: true);
+            if (next is null) return new OrderSaveResult(false, [$"เลขที่ ORDER ของเขต {numberPrefix} ปีนี้เต็มแล้ว (9999)"]);
+            order.OrderNo = next;
+        }
         try
         {
             await db.SaveChangesAsync();
@@ -154,12 +170,14 @@ public sealed class SalesOrderRegistry(SalesDbContext db, TimeProvider clock, IP
         {
             // Someone saved the same number between the check and the insert.
             db.ChangeTracker.Clear();
+            if (numberPrefix is not null) // a number typed elsewhere that matches the next one — rare; saving again takes the one after
+                return new OrderSaveResult(false, [$"เลขที่ ORDER '{order.OrderNo}' เพิ่งถูกใช้ไป กรุณากดบันทึกอีกครั้ง"]);
             return await DuplicateAsync(orderNo!, input);
         }
         // BR-002 step 6: the order's หมายเหตุ goes back to the customer's — only with "พิมพ์".
         if (mode == OrderEntryMode.Print) await WriteCustomerRemarkAsync(customer!, remark);
         await transaction.CommitAsync();
-        return new OrderSaveResult(true, [], order.Id);
+        return new OrderSaveResult(true, [], order.Id, OrderNo: order.OrderNo);
     }
 
     /// <summary>
@@ -198,15 +216,33 @@ public sealed class SalesOrderRegistry(SalesDbContext db, TimeProvider clock, IP
 /// <summary>เลขที่ ORDER <c>SS-YY-NNNN</c> (BR-001).</summary>
 internal static class SalesOrderNumbering
 {
-    public static async Task<string?> ProposeAsync(SalesDbContext db, string territoryCode, DateOnly today)
+    /// <param name="startAtOne">
+    /// Taking the number on save: a เขต with no number yet starts at 0001. Otherwise (a proposal, ORDER เก่า) there is none and
+    /// the user types the first (BR-001 #3).
+    /// </param>
+    public static async Task<string?> ProposeAsync(SalesDbContext db, string territoryCode, DateOnly today, bool startAtOne = false)
     {
         var prefix = territoryCode.Trim();
         var used = await db.SalesOrders.AsNoTracking().Where(o => o.OrderNo.StartsWith(prefix + "-")).Select(o => o.OrderNo).ToListAsync();
-        if (used.Count == 0) return null; // a territory with no number yet: the user types the first (BR-001 #3)
+        if (used.Count == 0 && !startAtOne) return null; // a territory with no number yet: the user types the first (BR-001 #3)
         var year = SalesOrderRules.YearPart(today);
         var pattern = new Regex($"^{Regex.Escape(prefix)}-{year}-(\\d{{4}})$", RegexOptions.IgnoreCase);
         var last = used.Select(n => pattern.Match(n)).Where(m => m.Success).Select(m => int.Parse(m.Groups[1].Value)).DefaultIfEmpty(0).Max();
         var next = last + 1;
         return next > 9999 ? null : $"{prefix}-{year}-{next:0000}";
+    }
+
+    /// <summary>
+    /// Holds the numbering of one เขต for the rest of the current transaction (SQL Server application lock), so two saves
+    /// never read the same "next" number.
+    /// </summary>
+    public static Task LockAsync(SalesDbContext db, string territoryCode)
+    {
+        var resource = "lockte:sales-order-no:" + territoryCode.Trim().ToUpperInvariant();
+        return db.Database.ExecuteSqlInterpolatedAsync($"""
+            DECLARE @result int;
+            EXEC @result = sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 30000;
+            IF @result < 0 THROW 50000, 'Could not take the ORDER number lock', 1;
+            """);
     }
 }
