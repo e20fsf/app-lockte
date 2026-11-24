@@ -54,6 +54,31 @@ public sealed class SalesOrderEditTests(LocalDbFixture db)
 
     private static SalesOrderLineEdit Edit(SalesOrderLineDto l, decimal? quantity, decimal? price) => new(l.Id, l.ProductId, quantity, price, RowVersion: l.RowVersion);
 
+    // ---------- ประวัติใบ ORDER (UAT 2026-11-24) ----------
+
+    [Fact]
+    public async Task Order_history_shows_who_created_the_order_and_who_changed_what_from_what_to_what()
+    {
+        var f = await NewFixtureAsync();
+        var order = await NewOrderAsync(f); // by sales1
+        var lookalike = await NewOrderAsync(f, number: f.Number + "9"); // "…01899" must not show under "…0189"
+        await AsAsync(s => s.Get<SalesOrderEditor>().SaveAsync(order.Id, order.RowVersion, OrderSide.Outstanding, Head(order),
+            [Edit(order.Lines[1], 80, 10m)]), user: "sales2");
+
+        var entries = await AsAsync(s => s.Get<Lockte.Web.Audit.HistoryService>().ForOrderAsync($" {f.Number} "));
+
+        var created = entries[0];
+        Assert.Equal((Lockte.Web.Audit.HistoryService.OrderTable, HistoryActions.Added, "sales1", f.Number),
+            (created.Table, created.Action, created.UserName, created.RowKey));
+        Assert.Contains(created.Changes, c => c.Column == "เลขที่ ORDER" && c.NewValue == f.Number);
+        Assert.Equal(3, entries.Count(e => e.Table == Lockte.Web.Audit.HistoryService.OrderLineTable && e.Action == HistoryActions.Added));
+        var edit = entries.Single(e => e.Action == HistoryActions.Modified && e.Table == Lockte.Web.Audit.HistoryService.OrderLineTable);
+        Assert.Equal(("sales2", $"{f.Number} #2"), (edit.UserName, edit.RowKey));
+        Assert.Contains(edit.Changes, c => c.Column == "ยอดค้างส่ง" && decimal.Parse(c.OldValue!) == 100m && decimal.Parse(c.NewValue!) == 80m);
+        Assert.DoesNotContain(entries, e => e.RowKey!.StartsWith(lookalike.OrderNo, StringComparison.Ordinal));
+        Assert.Empty(await AsAsync(s => s.Get<Lockte.Web.Audit.HistoryService>().ForOrderAsync("  ")));
+    }
+
     // ---------- แก้ (BR-012 #1) ----------
 
     [Fact]

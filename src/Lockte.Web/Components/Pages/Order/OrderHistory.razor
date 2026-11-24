@@ -1,0 +1,172 @@
+@page "/order/orders/history-log"
+@attribute [Authorize]
+@using System.Globalization
+@using Lockte.Prod
+@using Lockte.Sales
+@using Lockte.SharedKernel
+@using Lockte.SharedKernel.Persistence
+@using Lockte.Web.Audit
+@inject ScopedServices Services
+@inject NavigationManager Navigation
+
+@* ประวัติใบ ORDER (UAT 2026-11-24): for one เลขที่ ORDER — who created it and when, and every later change of the order and its
+   lines: who, when, which field, from what to what. Read-only, from ประวัติการแก้ไข (ADR 0003); also for a deleted order.
+   ?no= opens it on that number. *@
+<PageTitle>ประวัติใบ ORDER — LOCKTE</PageTitle>
+<h1 class="mb-4">ประวัติใบ ORDER</h1>
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudTextField @bind-Value="orderNo" Label="เลขที่ ORDER" Immediate="true" OnKeyUp="@(e => e.Key == "Enter" ? SearchAsync() : Task.CompletedTask)"
+                      Style="max-width:20rem" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="busy" StartIcon="@Icons.Material.Filled.Search">ดูประวัติ</MudButton>
+    </MudStack>
+</MudPaper>
+
+@if (shownNo is not null && entries is not null)
+{
+    @if (entries.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">ไม่พบประวัติของ ORDER เลขที่ @shownNo</MudAlert>
+    }
+    else
+    {
+        <MudPaper Class="pa-4 mb-4" Outlined="true">
+            <MudText Typo="Typo.h6">ORDER เลขที่ @shownNo</MudText>
+            @if (created is { } c)
+            {
+                <MudText>สร้างโดย <b>@UserText(c.UserName)</b> เมื่อ @When(c.At)</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2">ไม่มีบันทึกการสร้าง (ORDER ที่ย้ายมาจากโปรแกรมเดิม หรือสร้างก่อนเริ่มเก็บประวัติ)</MudText>
+            }
+            @if (entries.LastOrDefault(e => e != created) is { } last)
+            {
+                <MudText>แก้ล่าสุดโดย <b>@UserText(last.UserName)</b> เมื่อ @When(last.At)</MudText>
+            }
+        </MudPaper>
+
+        <MudTable Items="entries" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh>เวลา</MudTh>
+                <MudTh>ผู้ทำ</MudTh>
+                <MudTh>การกระทำ</MudTh>
+                <MudTh>รายละเอียด (ช่อง: เดิม → ใหม่)</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="เวลา" Style="white-space:nowrap">@When(context.At)</MudTd>
+                <MudTd DataLabel="ผู้ทำ">@UserText(context.UserName)</MudTd>
+                <MudTd DataLabel="การกระทำ" Style="white-space:nowrap">@WhatText(context)</MudTd>
+                <MudTd DataLabel="รายละเอียด">
+                    @foreach (var change in context.Changes)
+                    {
+                        <div>
+                            <b>@change.Column</b>:
+                            @if (context.Action == HistoryActions.Modified)
+                            {
+                                <span>@(ValueText(change.Column, change.OldValue) ?? "(ว่าง)") → @(ValueText(change.Column, change.NewValue) ?? "(ว่าง)")</span>
+                            }
+                            else
+                            {
+                                <span>@ValueText(change.Column, change.NewValue ?? change.OldValue)</span>
+                            }
+                        </div>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+}
+
+@code {
+    private static readonly CultureInfo ThaiCulture = new("th-TH");
+
+    private string orderNo = "";
+    private string? shownNo;
+    private IReadOnlyList<HistoryEntry>? entries;
+    private HistoryEntry? created;
+    private bool busy;
+    private Dictionary<string, string> userNames = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(string Column, string Value), string> names = [];
+
+    [SupplyParameterFromQuery(Name = "no")]
+    public string? No { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var users = await Services.RunAsync<Lockte.Web.Accounts.UserAdminService, IReadOnlyList<UserSummary>>(s => s.ListAsync());
+        userNames = users.ToDictionary(u => u.UserName, u => u.DisplayName, StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(No))
+        {
+            orderNo = No;
+            await SearchAsync();
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(orderNo)) return;
+        busy = true;
+        try
+        {
+            var number = orderNo.Trim();
+            entries = await Services.RunAsync<HistoryService, IReadOnlyList<HistoryEntry>>(h => h.ForOrderAsync(number));
+            created = entries.FirstOrDefault(e => e.Table == HistoryService.OrderTable && e.Action == HistoryActions.Added);
+            shownNo = number;
+            await LoadNamesAsync();
+            Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("no", number), replace: true);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>ลูกค้า / สินค้า / เขตการขาย are stored as ids: show their codes and names instead.</summary>
+    private async Task LoadNamesAsync()
+    {
+        names.Clear();
+        var ids = entries!.SelectMany(e => e.Changes).SelectMany(c => new[] { (c.Column, c.OldValue), (c.Column, c.NewValue) })
+            .Where(x => x.Column is "ลูกค้า" or "สินค้า" or "เขตการขาย" && int.TryParse(x.Item2, out _))
+            .Select(x => (Column: x.Column!, Value: x.Item2!)).Distinct().ToList();
+        if (ids.Count == 0) return;
+        IReadOnlyList<SalesTerritoryDto>? territories = null;
+        foreach (var (column, value) in ids)
+        {
+            var id = int.Parse(value, CultureInfo.InvariantCulture);
+            string? text = column switch
+            {
+                "ลูกค้า" => await Services.RunAsync<CustomerDirectory, CustomerDto?>(d => d.GetAsync(id)) is { } c ? $"{c.Code} {c.Name}" : null,
+                "สินค้า" => await Services.RunAsync<ProductDirectory, ProductDto?>(d => d.GetAsync(id)) is { } p ? $"{p.Code} {p.Name}" : null,
+                _ => (territories ??= await Services.RunAsync<SalesTerritoryDirectory, IReadOnlyList<SalesTerritoryDto>>(d => d.GetAllAsync()))
+                    .FirstOrDefault(t => t.Id == id) is { } t ? $"{t.Code} {t.Name}" : null,
+            };
+            if (text is not null) names[(column, value)] = text;
+        }
+    }
+
+    private string? ValueText(string? column, string? value)
+    {
+        if (value is null) return null;
+        if (column is not null && names.TryGetValue((column, value), out var name)) return name;
+        if (DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return ThaiDate.Format(date);
+        if (DateTimeOffset.TryParseExact(value, "yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)) return When(at);
+        // numbers are stored with the column's scale (100.0000): show them as typed
+        if (value.Contains('.') && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var number))
+            return number.ToString("#,0.####", CultureInfo.InvariantCulture);
+        return value;
+    }
+
+    private string UserText(string userName) => userNames.TryGetValue(userName, out var display) && display != userName ? $"{display} ({userName})" : userName;
+
+    private static string When(DateTimeOffset at) => at.ToLocalTime().ToString("d/M/yyyy HH:mm", ThaiCulture);
+
+    private static string WhatText(HistoryEntry e)
+    {
+        if (e.Table == HistoryService.OrderTable)
+            return e.Action switch { HistoryActions.Added => "สร้าง ORDER", HistoryActions.Deleted => "ลบ ORDER", _ => "แก้หัว ORDER" };
+        var line = e.RowKey is { } key && key.LastIndexOf('#') is >= 0 and var at ? key[at..] : "";
+        return e.Action switch { HistoryActions.Added => $"เพิ่มบรรทัด {line}", HistoryActions.Deleted => $"ลบบรรทัด {line}", _ => $"แก้บรรทัด {line}" };
+    }
+}
