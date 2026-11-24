@@ -64,6 +64,22 @@ public sealed record SalesOrderPrint(
     public decimal Total => Lines.Sum(l => l.Amount ?? 0);
 }
 
+/// <summary>
+/// A line the customer ordered before, shown on ORDER ใหม่ when the customer is chosen (UAT 2026-11-24) so a line can be copied
+/// into the new order. <see cref="Quantity"/> is the quantity ordered (รับ; ค้างส่ง for an order not in the history yet).
+/// </summary>
+public sealed record CustomerOrderHistoryLine(
+    int OrderId,
+    string OrderNo,
+    DateOnly OrderDate,
+    int LineNo,
+    int ProductId,
+    string? ProductCode,
+    string ProductName,
+    string? Unit,
+    decimal? Quantity,
+    decimal? UnitPrice);
+
 /// <summary>What choosing a customer fills into the head of an ORDER (BR-002): the copied name, its เขตการขาย, เงื่อนไขการชำระเงิน and หมายเหตุ.</summary>
 public sealed record OrderDefaults(string CustomerName, int? SalesTerritoryId, string? PaymentTerms, string? Remark);
 
@@ -126,6 +142,27 @@ public sealed class SalesOrderDirectory(SalesDbContext db, IProductLookup? produ
             .Select(c => new { c.Name, c.SalesTerritoryId, c.CreditDays, c.Remark }).FirstOrDefaultAsync() is { } c
             ? new OrderDefaults(c.Name, c.SalesTerritoryId, c.CreditDays is null ? null : CreditTerm.Format(c.CreditDays), c.Remark)
             : null;
+
+    /// <summary>
+    /// The customer's last <paramref name="max"/> order lines, newest order first (date, then number), lines in order — whatever
+    /// the order's state (in the history, ค้างส่ง, delivered).
+    /// </summary>
+    public async Task<IReadOnlyList<CustomerOrderHistoryLine>> RecentLinesForCustomerAsync(int customerId, int max = 20)
+    {
+        var rows = await db.SalesOrders.AsNoTracking().Where(o => o.CustomerId == customerId)
+            .SelectMany(o => o.Lines, (o, l) => new
+            {
+                OrderId = o.Id, o.OrderNo, o.OrderDate, l.LineNo, l.ProductId, l.ProductName, l.Unit,
+                Quantity = l.ReceivedQuantity ?? (decimal?)l.OutstandingQuantity, l.UnitPrice,
+            })
+            .OrderByDescending(x => x.OrderDate).ThenByDescending(x => x.OrderNo).ThenBy(x => x.LineNo)
+            .Take(max).ToListAsync();
+        var codes = new Dictionary<int, string?>();
+        foreach (var id in rows.Select(r => r.ProductId).Distinct())
+            codes[id] = products is null ? null : (await products.FindAsync(id))?.Code;
+        return rows.Select(r => new CustomerOrderHistoryLine(r.OrderId, r.OrderNo, r.OrderDate, r.LineNo, r.ProductId, codes[r.ProductId],
+            r.ProductName, r.Unit, r.Quantity, r.UnitPrice)).ToList();
+    }
 
     private IQueryable<SalesOrder> Query()
         => db.SalesOrders.AsNoTracking().AsSplitQuery().Include(o => o.Customer).Include(o => o.SalesTerritory).Include(o => o.Lines);

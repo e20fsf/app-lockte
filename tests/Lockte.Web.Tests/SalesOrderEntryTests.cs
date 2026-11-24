@@ -137,6 +137,85 @@ public sealed class SalesOrderEntryTests(LocalDbFixture db)
         Assert.Single((await AsAsync(s => s.Get<SalesOrderDirectory>().FindByNumberAsync(number)))!.Lines);
     }
 
+    // ---------- ออกเลขตอนบันทึก (UAT 2026-11-24) ----------
+
+    private static SalesOrderInput NewOrder(string territoryCode, int customerId, int? territoryId, params SalesOrderLineInput[] lines)
+        => Order("", customerId, territoryId, lines) with { NumberTerritoryCode = territoryCode };
+
+    private static string ThisYear => SalesOrderRules.YearPart(DateOnly.FromDateTime(DateTime.Now));
+
+    [Fact]
+    public async Task A_new_order_takes_the_next_number_of_its_territory_when_saved_starting_at_0001()
+    {
+        var code = TerritoryCode();
+        var territory = await NewTerritoryAsync(code);
+        var customer = await NewCustomerAsync(territory);
+        var product = await NewProductAsync();
+
+        var first = await CreateAsync(NewOrder(code, customer, territory, L(product, 1, 1)));
+        var second = await CreateAsync(NewOrder(code, customer, territory, L(product, 1, 1)), OrderEntryMode.Save);
+
+        Assert.True(first.Succeeded, string.Join(" ", first.Errors));
+        Assert.Equal($"{code}-{ThisYear}-0001", first.OrderNo); // a เขต with no number yet starts at 0001
+        Assert.Equal($"{code}-{ThisYear}-0002", second.OrderNo);
+        Assert.Equal(second.OrderNo, (await GetAsync(second.Id!.Value)).OrderNo);
+    }
+
+    [Fact]
+    public async Task People_saving_new_orders_at_once_each_get_their_own_number()
+    {
+        var code = TerritoryCode();
+        var territory = await NewTerritoryAsync(code);
+        var customer = await NewCustomerAsync(territory);
+        var product = await NewProductAsync();
+
+        var results = await Task.WhenAll(Enumerable.Range(1, 5).Select(i =>
+            CreateAsync(NewOrder(code, customer, territory, L(product, i, 1)), user: $"sales{i}")));
+
+        Assert.All(results, r => Assert.True(r.Succeeded, string.Join(" ", r.Errors)));
+        Assert.Equal(Enumerable.Range(1, 5).Select(n => $"{code}-{ThisYear}-{n:0000}"), results.Select(r => r.OrderNo!).Order());
+    }
+
+    [Fact]
+    public async Task Without_a_number_or_a_territory_to_number_by_the_order_is_refused()
+    {
+        var customer = await NewCustomerAsync();
+        var product = await NewProductAsync();
+
+        var result = await CreateAsync(Order("  ", customer, null, L(product, 1, 1)));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("กรุณากรอกเลขที่ ORDER", result.Errors);
+    }
+
+    // ---------- รายการสั่งซื้อเก่าของลูกค้า (UAT 2026-11-24) ----------
+
+    [Fact]
+    public async Task Customer_history_is_the_last_20_lines_newest_order_first_with_what_was_ordered()
+    {
+        var code = TerritoryCode();
+        var territory = await NewTerritoryAsync(code);
+        var customer = await NewCustomerAsync(territory);
+        var other = await NewCustomerAsync(territory);
+        var product = await NewProductAsync("สินค้าเก่า");
+        for (var n = 1; n <= 11; n++) // 22 lines, two per order, one order a day
+        {
+            var input = Order($"{code}-69-{n:0000}", customer, territory, L(product, n, 10m + n), L(product, 100 + n, null)) with { OrderDate = new DateOnly(2026, 10, n) };
+            Assert.True((await CreateAsync(input, n == 11 ? OrderEntryMode.Save : OrderEntryMode.Print)).Succeeded);
+        }
+        Assert.True((await CreateAsync(Order($"{code}-69-0099", other, territory, L(product, 1, 1)))).Succeeded);
+
+        var lines = await AsAsync(s => s.Get<SalesOrderDirectory>().RecentLinesForCustomerAsync(customer));
+
+        Assert.Equal(20, lines.Count);
+        Assert.All(lines, l => Assert.NotEqual($"{code}-69-0099", l.OrderNo)); // another customer's order is not shown
+        Assert.Equal(($"{code}-69-0011", 1, 11m, 21m), (lines[0].OrderNo, lines[0].LineNo, lines[0].Quantity, lines[0].UnitPrice)); // ค้างส่ง order too
+        Assert.Equal(($"{code}-69-0011", 2, 111m, (decimal?)null), (lines[1].OrderNo, lines[1].LineNo, lines[1].Quantity, lines[1].UnitPrice));
+        Assert.Equal($"{code}-69-0002", lines[^1].OrderNo); // order 0001 fell off the 20
+        Assert.Equal(("สินค้าเก่า", "คู่"), (lines[0].ProductName, lines[0].Unit));
+        Assert.StartsWith("ZO", lines[0].ProductCode);
+    }
+
     // ---------- กรอกและพิมพ์ (BR-002, BR-004, AC-03) ----------
 
     [Fact]
