@@ -27,6 +27,27 @@ public sealed class UserAdminTests(LocalDbFixture db)
     }
 
     [Fact]
+    public async Task Admin_can_rename_the_display_name_and_the_change_is_in_the_history()
+    {
+        var userName = Users.NewName();
+        await using var admin = db.Scope(AppUser.AdminUserName);
+        var service = admin.Get<UserAdminService>();
+        await service.CreateAsync(userName, "สำรอง", "temp1234");
+        var before = await Users.FindAsync(service, userName);
+
+        Assert.True((await service.SetDisplayNameAsync(before.Id, "  สมหญิง ใจดี ", before.RowVersion)).Succeeded);
+
+        var after = await Users.FindAsync(service, userName);
+        Assert.Equal("สมหญิง ใจดี", after.DisplayName);
+        Assert.Equal(AppUser.AdminUserName, after.UpdatedBy);
+        Assert.False((await service.SetDisplayNameAsync(after.Id, "  ", after.RowVersion)).Succeeded);
+        Assert.False((await service.SetDisplayNameAsync(after.Id, new string('ก', 101), after.RowVersion)).Succeeded);
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(() => service.SetDisplayNameAsync(after.Id, "ชื่ออื่น", before.RowVersion));
+        var history = await admin.Get<Lockte.Web.Audit.HistoryService>().SearchAsync(new(Table: "ผู้ใช้", RowKey: userName));
+        Assert.Contains(history, h => h.Column == "ชื่อที่แสดง" && h.OldValue == "สำรอง" && h.NewValue == "สมหญิง ใจดี");
+    }
+
+    [Fact]
     public async Task Last_change_records_who_and_when_but_keeps_the_creator()
     {
         var userName = Users.NewName();

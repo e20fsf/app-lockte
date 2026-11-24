@@ -42,7 +42,24 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.UserName</MudTd>
-        <MudTd>@context.DisplayName</MudTd>
+        <MudTd>
+            @if (nameFor?.Id == context.Id)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
+                    <MudTextField @bind-Value="newName" Margin="Margin.Dense" MaxLength="UserAdminService.DisplayNameLength" Immediate="true" AutoFocus="true"
+                                  OnKeyUp="@(e => e.Key == "Enter" ? SaveNameAsync() : e.Key == "Escape" ? CancelName() : Task.CompletedTask)"
+                                  aria-label="@($"ชื่อที่แสดงใหม่ {context.UserName}")" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success" OnClick="SaveNameAsync" Disabled="busy" aria-label="บันทึกชื่อ" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CancelName" aria-label="ยกเลิก" />
+                </MudStack>
+            }
+            else
+            {
+                @context.DisplayName
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => StartName(context)" Disabled="busy"
+                               aria-label="@($"แก้ชื่อที่แสดง {context.UserName}")" Title="แก้ชื่อที่แสดง" />
+            }
+        </MudTd>
         <MudTd>
             @if (!context.IsActive) { <MudChip T="string" Size="Size.Small" Color="Color.Default">ปิดใช้งาน</MudChip> }
             else if (context.LockedUntil is { } until) { <MudChip T="string" Size="Size.Small" Color="Color.Error">ล็อกถึง @until.ToLocalTime().ToString("HH:mm") น.</MudChip> }
@@ -115,6 +132,8 @@
         if (on) programs.Add(key); else programs.Remove(key);
     }
     private UserSummary? tempFor;
+    private UserSummary? nameFor;
+    private string newName = "";
     private string tempPassword = "";
     private bool busy;
     private static readonly System.Globalization.CultureInfo ThaiCulture = new("th-TH");
@@ -148,6 +167,23 @@
         s => s.SetActiveAsync(user.Id, active, user.RowVersion),
         active ? $"เปิดใช้งาน {user.UserName} แล้ว" : $"ปิดใช้งาน {user.UserName} แล้ว");
 
+    private void StartName(UserSummary user)
+    {
+        nameFor = user;
+        newName = user.DisplayName;
+    }
+
+    private Task CancelName()
+    {
+        nameFor = null;
+        return Task.CompletedTask;
+    }
+
+    private Task SaveNameAsync() => RunAsync(
+        s => s.SetDisplayNameAsync(nameFor!.Id, newName, nameFor.RowVersion),
+        $"แก้ชื่อที่แสดงของ {nameFor!.UserName} เป็น {newName.Trim()} แล้ว (แถบหัวเปลี่ยนเมื่อเข้าระบบใหม่)",
+        () => nameFor = null);
+
     private void StartTempPassword(UserSummary user)
     {
         tempFor = user;
@@ -179,6 +215,7 @@
         {
             Snackbar.Add(ex.Message, Severity.Warning);
             tempFor = null;
+            nameFor = null;
         }
         finally
         {

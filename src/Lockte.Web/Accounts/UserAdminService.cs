@@ -12,6 +12,7 @@ namespace Lockte.Web.Accounts;
 public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbContext db, TimeProvider clock)
 {
     public const string AdminDisplayName = "ผู้ดูแลระบบ";
+    public const int DisplayNameLength = 100;
 
     public async Task<IReadOnlyList<UserSummary>> ListAsync()
     {
@@ -86,6 +87,24 @@ public sealed class UserAdminService(UserManager<AppUser> users, AccountsDbConte
     /// user's open sessions so the next login carries the new right (the login cookie holds it as a claim).
     /// The admin account has no such right whatever is stored.
     /// </summary>
+    /// <summary>
+    /// แก้ชื่อที่แสดง (UAT 2026-11-24, e.g. the spare users สำรอง given to a person). In the change history; the user's open
+    /// sessions are not ended — the app bar shows the new name from the next login.
+    /// </summary>
+    public async Task<AccountResult> SetDisplayNameAsync(string userId, string displayName, byte[] loadedRowVersion)
+    {
+        displayName = displayName.Trim();
+        if (displayName.Length == 0) return AccountResult.Fail("กรุณากรอกชื่อที่แสดง");
+        if (displayName.Length > DisplayNameLength) return AccountResult.Fail($"ชื่อที่แสดงยาวได้ไม่เกิน {DisplayNameLength} ตัว");
+        var user = await users.FindByIdAsync(userId);
+        if (user is null) return AccountResult.Fail("ไม่พบผู้ใช้");
+
+        user.ExpectRowVersion(loadedRowVersion);
+        if (user.DisplayName == displayName) return AccountResult.Ok;
+        user.DisplayName = displayName;
+        return AccountResult.From(await users.UpdateAsync(user));
+    }
+
     public async Task<AccountResult> SetCanViewPayAsync(string userId, bool canViewPay, byte[] loadedRowVersion)
     {
         var user = await users.FindByIdAsync(userId);
