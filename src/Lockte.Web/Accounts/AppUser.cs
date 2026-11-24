@@ -4,7 +4,8 @@ using Microsoft.AspNetCore.Identity;
 namespace Lockte.Web.Accounts;
 
 /// <summary>
-/// ผู้ใช้ระบบ (#39): ชื่อ user ตั้งเอง + ชื่อที่แสดง ไม่ผูกทะเบียนพนักงาน ไม่มี role (มีเพียงธง "ดูข้อมูลค่าจ้างได้" ต่อ user, #277).
+/// ผู้ใช้ระบบ (#39): ชื่อ user ตั้งเอง + ชื่อที่แสดง ไม่ผูกทะเบียนพนักงาน ไม่มี role (มีเพียงธง "ดูข้อมูลค่าจ้างได้" ต่อ user, #277,
+/// และสิทธิ์เข้าโปรแกรมต่อ user, ADR 0005).
 /// Never deleted — deactivated instead so the change history still names the person.
 /// </summary>
 public sealed class AppUser : IdentityUser, IAudited
@@ -23,6 +24,12 @@ public sealed class AppUser : IdentityUser, IAudited
     /// (see <see cref="AccountClaims.CanViewPay"/>). New users start without it; users that existed before #277 got it.
     /// </summary>
     public bool CanViewPay { get; set; }
+
+    /// <summary>
+    /// ADR 0005 เข้าโปรแกรมได้: the program keys this user may open, comma-separated (<see cref="ProgramAccess"/>).
+    /// New users start with none; users that existed before ADR 0005 got all. The admin account opens no program whatever this says.
+    /// </summary>
+    public string Programs { get; set; } = "";
 
     /// <summary>Set by a temporary password; the user must choose a new one before using the system.</summary>
     public bool MustChangePassword { get; set; }

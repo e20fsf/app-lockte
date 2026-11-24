@@ -15,7 +15,7 @@ internal static class ResetAdminCommand
     public static async Task<int> RunAsync(IServiceProvider services, string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
-        var password = args is ["--password", var given] ? given : Prompt();
+        var password = args is ["--password", var given] ? given : PromptPassword("รหัสชั่วคราวใหม่ของ admin: ");
         if (password is null) return 1;
 
         await LockteDatabase.MigrateAsync(services);
@@ -33,9 +33,10 @@ internal static class ResetAdminCommand
         return 0;
     }
 
-    private static string? Prompt()
+    /// <summary>Asks twice without echoing; null when the two differ. Also used by <see cref="SeedUsersCommand"/>.</summary>
+    internal static string? PromptPassword(string label)
     {
-        var first = ReadHidden("รหัสชั่วคราวใหม่ของ admin: ");
+        var first = ReadHidden(label);
         var second = ReadHidden("พิมพ์อีกครั้ง: ");
         if (first == second) return first;
         Console.Error.WriteLine("รหัสสองครั้งไม่ตรงกัน");

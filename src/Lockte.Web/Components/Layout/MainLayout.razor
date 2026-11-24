@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject NavigationManager Navigation
 
 <MudThemeProvider Theme="Theme" />
 <MudPopoverProvider />
@@ -33,7 +34,18 @@
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
             <AuthorizeView Policy="@AuthPolicies.StaffOrAdmin"><MenuTrail /></AuthorizeView>
-            @Body
+            @if (blockedProgram is { } program)
+            {
+                @* ADR 0005: a page of a program this user may not open is never created. *@
+                <h1 class="mb-4">@program.Title</h1>
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                    user นี้ไม่มีสิทธิ์เข้าโปรแกรม@(program.Title) — ติดต่อผู้ดูแลระบบถ้าต้องการสิทธิ์
+                </MudAlert>
+            }
+            else
+            {
+                @Body
+            }
         </MudContainer>
     </MudMainContent>
 </MudLayout>
@@ -48,12 +60,26 @@
     private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     private string HomeHref = "";
+    private ProgramMenu? blockedProgram;
+
+    /// <summary>
+    /// ADR 0005: staff on a page of a program not given to them see a message instead of the page. Only staff: anyone
+    /// else is sent away by the page's own gate (SendToAllowedPage), which must still render.
+    /// </summary>
+    private async Task CheckProgramAsync()
+    {
+        var user = (await AuthState).User;
+        var program = ProgramMenus.Of(Navigation.ToBaseRelativePath(Navigation.Uri));
+        blockedProgram = program is not null && AccountClaims.IsStaff(user) && !AccountClaims.CanUseProgram(user, program.Key) ? program : null;
+    }
 
     // The logo of a normal user goes to หน้าเลือกโปรแกรม; admin and a user with a temporary password keep their one allowed page.
     protected override async Task OnParametersSetAsync()
     {
         var home = AccountClaims.HomeHref((await AuthState).User);
         HomeHref = home.Length == 0 ? "programs" : home;
+        // Runs on every navigation: the router hands the layout a new Body each time.
+        await CheckProgramAsync();
     }
 
     private static MudTheme Theme => LockteTheme.Theme;

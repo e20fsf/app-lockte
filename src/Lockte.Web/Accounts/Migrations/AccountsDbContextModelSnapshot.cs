@@ -169,6 +169,12 @@ namespace Lockte.Web.Accounts.Migrations
                         .HasColumnType("bit")
                         .HasAnnotation("Lockte:Bookkeeping", true);
 
+                    b.Property<string>("Programs")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasAnnotation("Lockte:AuditName", "เข้าโปรแกรมได้");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()

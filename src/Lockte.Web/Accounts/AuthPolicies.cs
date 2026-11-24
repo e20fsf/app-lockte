@@ -8,7 +8,8 @@ namespace Lockte.Web.Accounts;
 /// <see cref="Admin"/> — the admin account, which sees only user management;
 /// <see cref="StaffOrAdmin"/> — staff or admin with a password of their own (the trail under the app bar);
 /// <see cref="SignedIn"/> — any signed-in user, even with a temporary password (change password, log out);
-/// <see cref="ViewPay"/> — staff with the flag ดูข้อมูลค่าจ้างได้ (never the admin).
+/// <see cref="ViewPay"/> — staff with the flag ดูข้อมูลค่าจ้างได้ (never the admin);
+/// <see cref="Program"/>(key) — staff who may open that program (ADR 0005), on every report of the program.
 /// </summary>
 public static class AuthPolicies
 {
@@ -18,8 +19,14 @@ public static class AuthPolicies
     public const string SignedIn = "signed-in";
     public const string ViewPay = "view-pay";
 
+    /// <summary>The policy of one program (ADR 0005): staff with <see cref="AccountClaims.Program"/> for this key.</summary>
+    public static string Program(string programKey) => "program:" + programKey;
+
     public static void Configure(AuthorizationOptions options)
     {
+        foreach (var key in ProgramAccess.AllKeys)
+            options.AddPolicy(Program(key), p => p.RequireAuthenticatedUser().RequireAssertion(c =>
+                !AccountClaims.MustChange(c.User) && AccountClaims.CanUseProgram(c.User, key)));
         options.AddPolicy(SignedIn, p => p.RequireAuthenticatedUser());
         options.AddPolicy(StaffOrAdmin, p => p.RequireAuthenticatedUser().RequireAssertion(c => !AccountClaims.MustChange(c.User)));
         options.AddPolicy(Staff, p => p.RequireAuthenticatedUser().RequireAssertion(c =>

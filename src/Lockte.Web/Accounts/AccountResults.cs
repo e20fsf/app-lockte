@@ -36,9 +36,13 @@ public sealed record UserSummary(
     bool IsActive,
     bool MustChangePassword,
     bool CanViewPay,
+    IReadOnlyList<string> Programs,
     DateTimeOffset? LockedUntil,
     string CreatedBy,
     DateTimeOffset CreatedAt,
     string UpdatedBy,
     DateTimeOffset UpdatedAt,
     byte[] RowVersion);
+
+/// <summary>What <see cref="UserAdminService.CreateMissingAsync"/> did, by user name.</summary>
+public sealed record SeedUsersResult(IReadOnlyList<string> Created, IReadOnlyList<string> Skipped, IReadOnlyList<string> Errors);
