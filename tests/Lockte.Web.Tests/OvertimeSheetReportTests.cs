@@ -53,20 +53,22 @@ public sealed class OvertimeSheetReportTests(ChromiumFixture chromium)
         Assert.Equal(2, CountOf(html, ">17:20<"));
         Assert.Equal(2, CountOf(html, ">20:20<"));
         Assert.True(html.IndexOf(">1<", StringComparison.Ordinal) < html.IndexOf(">2<", StringComparison.Ordinal));
-        Assert.DoesNotContain("ห้ามใส่รองเท้าแตะ", html); // #426: the footer is the page's, not the table's
+        Assert.True(html.IndexOf("ห้ามใส่รองเท้าแตะ", StringComparison.Ordinal) > html.IndexOf("</table>", StringComparison.Ordinal)); // แก้ครั้งที่ 11: right under the table
     }
 
-    [Fact] // #426 (ภาพ 9–10): หัวบรรทัดเดียว "บริษัท ล็อคเต้ จำกัด", ท้ายกระดาษล่างสุด (margin box), ไม่มี "พิมพ์เมื่อ"/"หน้า x จาก y"
-    public async Task The_page_is_the_Access_layout_one_header_line_and_the_footer_at_the_page_bottom()
+    [Fact] // #426 (ภาพ 9–10): หัวบรรทัดเดียว "บริษัท ล็อคเต้ จำกัด", ไม่มี "พิมพ์เมื่อ"/"หน้า x จาก y" · แก้ครั้งที่ 11: ห้ามใส่รองเท้าแตะ… ผู้จัดการ ชิดใต้ตาราง ไม่ใช่ล่างสุดของกระดาษ
+    public async Task The_page_is_the_Access_layout_one_header_line_and_the_footer_right_under_the_table()
     {
         var body = await HtmlAsync(Sheet(new DateOnly(2026, 10, 18), Lines));
-        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false, CompanyOnly: true,
-            PageFooter: (OvertimeSheetView.FooterLeft, OvertimeSheetView.FooterRight)), new PrintStamp(DateTimeOffset.Now, "tester"), body);
+        var html = ReportHtml.Compose(new ReportDocument(OvertimeSheetView.Title, OvertimeSheetView.Paper, Footer: false, CompanyOnly: true),
+            new PrintStamp(DateTimeOffset.Now, "tester"), body);
 
         var top = Regex.Match(html, @"@top-center\{content:""([^""]*)""").Groups[1].Value;
         Assert.Equal(ReportHtml.Company, top);
-        Assert.Contains($"@bottom-left{{content:\"{OvertimeSheetView.FooterLeft}\"", html);
-        Assert.Contains($"@bottom-right{{content:\"{OvertimeSheetView.FooterRight}\"", html);
+        Assert.DoesNotContain("@bottom-left{content:", html);
+        var foot = html.IndexOf(OvertimeSheetView.FooterLeft, StringComparison.Ordinal);
+        Assert.True(foot > html.IndexOf("</table>", StringComparison.Ordinal));
+        Assert.True(html.IndexOf(OvertimeSheetView.FooterRight, StringComparison.Ordinal) > foot);
         Assert.StartsWith("ผู้จัดการ", OvertimeSheetView.FooterRight);
         Assert.DoesNotContain("counter(page)", html);
 
