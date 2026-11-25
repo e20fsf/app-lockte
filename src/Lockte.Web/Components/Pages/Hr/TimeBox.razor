@@ -11,10 +11,5 @@
     [Parameter] public string? Style { get; set; }
 
     private Task<IEnumerable<string>> SearchAsync(string? text, CancellationToken _)
-    {
-        var all = Choices.Select(t => TimeText.Format(t));
-        // On open the box holds a chosen time: show every choice, not only that one.
-        var term = text?.Trim();
-        return Task.FromResult(string.IsNullOrEmpty(term) || all.Contains(term) ? all : all.Where(t => t.StartsWith(term)));
-    }
+        => Task.FromResult(TimeText.Search(Choices, text));
 }

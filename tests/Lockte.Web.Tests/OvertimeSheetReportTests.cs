@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using Lockte.Hr;
+using Lockte.Web.Components.Pages.Hr;
 using Lockte.Web.Reports;
 using Lockte.Web.Reports.Hr;
 
@@ -131,6 +132,20 @@ public sealed class OvertimeSheetLargeTests(ChromiumFixture chromium)
 
         Assert.Equal(["05:30", "15:00", "15:20", "16:00", "17:00", "17:20"], start);
         Assert.Equal(["08:10", "15:00", "16:00", "17:00", "18:00", "18:20", "19:00", "20:00", "20:10", "20:20"], end);
+    }
+
+    [Fact] // แก้ครั้งที่ 11 ข้อ 3: เวลาออก opens on 20:20, which no shift ends OT at — the box offered nothing, so no time could be picked
+    public void A_box_holding_a_time_that_is_not_a_choice_still_offers_every_choice()
+    {
+        var ends = OvertimeSheetRegistry.WithExtras([new TimeOnly(8, 10)], OvertimeSheetRegistry.ExtraEndTimes);
+        var all = ends.Select(Hm).ToList();
+
+        Assert.Equal(all, TimeText.Search(ends, "20:20"));
+        Assert.Equal(all, TimeText.Search(ends, "18:20"));
+        Assert.Equal(all, TimeText.Search(ends, ""));
+        Assert.Equal(["18:00", "18:20"], TimeText.Search(ends, "18"));
+        Assert.Equal(["15:00", "16:00", "17:00", "18:00", "18:20", "19:00"], TimeText.Search(ends, "1"));
+        Assert.Empty(TimeText.Search(ends, "21"));
     }
 
     [Fact] // #411: ตัวเลือกบนหน้าจอ

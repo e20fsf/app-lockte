@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Lockte.Web.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Lockte.SharedKernel\Lockte.SharedKernel.csproj" />
     <ProjectReference Include="..\Lockte.Org\Lockte.Org.csproj" />
     <ProjectReference Include="..\Lockte.Hr\Lockte.Hr.csproj" />

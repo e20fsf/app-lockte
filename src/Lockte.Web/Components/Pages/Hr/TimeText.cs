@@ -19,6 +19,19 @@ internal static class TimeText
         return true;
     }
 
+    /// <summary>
+    /// What a เวลา box (<c>TimeBox</c>) offers for its text. A blank box or one holding a whole time (the time it opens
+    /// with, whether a choice or not — e.g. เวลาออก 20:20 when no shift ends OT then) offers every choice; a part typed
+    /// (e.g. "1", "18:") offers the choices starting with it.
+    /// </summary>
+    public static IEnumerable<string> Search(IEnumerable<TimeOnly> choices, string? text)
+    {
+        var all = choices.Select(t => Format(t));
+        var term = text?.Trim();
+        if (string.IsNullOrEmpty(term) || TryParse(term, out _)) return all;
+        return all.Where(t => t.StartsWith(term, StringComparison.Ordinal));
+    }
+
     /// <summary>WORK_T or ชั่วโมง as shown in the tables: 2 decimals, blank without both times.</summary>
     public static string Number(double? value) => value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "";
 }
