@@ -17,6 +17,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
     internal DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
     internal DbSet<Absence> Absences => Set<Absence>();
     internal DbSet<WorkTime> WorkTimes => Set<WorkTime>();
+    internal DbSet<OvertimeSheetEntry> OvertimeSheetEntries => Set<OvertimeSheetEntry>();
     internal DbSet<Leave> Leaves => Set<Leave>();
     internal DbSet<PayPeriod> PayPeriods => Set<PayPeriod>();
     internal DbSet<PayPeriodTimeTotal> PayPeriodTimeTotals => Set<PayPeriodTimeTotal>();
@@ -127,6 +128,18 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options) : ModuleD
             w.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             w.HasIndex(x => new { x.Date, x.EmployeeId });
             w.HasIndex(x => new { x.EmployeeId, x.Date });
+        });
+
+        // แก้ครั้งที่ 12: one entry per เวลาทำงาน row a printed OT sheet saved; goes with the row.
+        modelBuilder.Entity<OvertimeSheetEntry>(s =>
+        {
+            s.HasAuditName("ใบขออนุมัติทำ OT");
+            s.Property(x => x.WorkTimeId).HasAuditName("เวลาทำงาน");
+            s.Property(x => x.DepartmentId).HasAuditName("แผนก");
+            s.Property(x => x.Memo).HasMaxLength(OvertimeSheetRegistry.MemoLength).HasAuditName("หมายเหตุ");
+            s.HasOne(x => x.WorkTime).WithOne().HasForeignKey<OvertimeSheetEntry>(x => x.WorkTimeId).OnDelete(DeleteBehavior.Cascade);
+            s.HasIndex(x => x.WorkTimeId).IsUnique();
+            s.HasIndex(x => x.DepartmentId);
         });
 
         // One table for every year (#41); not unique on (employee, FROM_D, TO_D, FROM_T): the legacy data may repeat.

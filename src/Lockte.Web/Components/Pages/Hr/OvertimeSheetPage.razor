@@ -11,8 +11,9 @@
 
 @* SCR-14 ใบขออนุมัติทำ OT (ฟอร์ม OT + subform OT1): วันที่ แผนก เวลาเริ่ม/เลิก เวลาพัก ประเภท for the whole sheet, then
    one line per employee — picking a รหัส fills ชื่อ and หมายเหตุ with the employee's หน้าที่, as the legacy. พิมพ์ saves a
-   เวลาทำงาน row per line (BR-012) and opens RPT-16 in a new tab; the lines are then cleared so the same sheet is not
-   saved twice by mistake (the legacy would add the rows again). หลายกะ starts a new sheet with the defaults. People
+   เวลาทำงาน row per new line (BR-012) and opens RPT-16 in a new tab with everyone printed for the date and แผนก (แก้ครั้งที่ 12); the
+   new lines then show as "พิมพ์แล้ว" and are never saved twice (the legacy would add the rows again). หลายกะ resets the times for the
+   next ช่วงเวลา on the same sheet. People
    recorded ไม่มาทำงาน that day are marked, which is what the legacy's GRED_2 = "NO" flag was for (never cleared here). *@
 <PageTitle>พิมพ์ใบขออนุมัติทำล่วงเวลา — LOCKTE</PageTitle>
 <h1 class="mb-4">พิมพ์ใบขออนุมัติทำงานล่วงเวลา</h1>
@@ -22,7 +23,7 @@
         <MudDatePicker Editable="true" Date="day" DateChanged="DayChangedAsync" Label="วันที่ทำ" Culture="ThaiDate.Culture"
                        DateFormat="@ThaiDate.Pattern" Style="max-width:12rem" />
         <MudText>@Day.ToString("dddd", ThaiDate.Culture)</MudText>
-        <MudSelect T="int?" @bind-Value="departmentId" Label="แผนก" Clearable="true" Style="min-width:14rem">
+        <MudSelect T="int?" Value="departmentId" ValueChanged="DepartmentChangedAsync" Label="แผนก" Clearable="true" Style="min-width:14rem">
             @foreach (var d in departments.Where(x => x.IsActive))
             {
                 <MudSelectItem T="int?" Value="d.Id">@OvertimeSheetRegistry.DepartmentLabel(d.Name)</MudSelectItem>
@@ -52,39 +53,68 @@
         <MudButton Variant="Variant.Outlined" OnClick="@(() => { AddLine(); })" Disabled="picked is null">เพิ่มในใบ</MudButton>
     </MudStack>
 
-    <MudTable Items="lines" Dense="true" Class="mt-4" T="LineForm" Height="22rem" FixedHeader="true">
-        <HeaderContent>
-            <MudTh>ที่</MudTh><MudTh>รหัส</MudTh><MudTh>ชื่อ-นามสกุล</MudTh><MudTh>เริ่มงาน</MudTh><MudTh>เลิกงาน</MudTh><MudTh>ประเภท</MudTh><MudTh>หมายเหตุ</MudTh><MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@(lines.IndexOf(context) + 1)</MudTd>
-            <MudTd>@context.Employee.Code</MudTd>
-            <MudTd>
-                @context.Employee.Name
-                @if (context.Employee.IsAbsent)
-                {
-                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">ไม่มาทำงาน</MudChip>
-                }
-            </MudTd>
-            <MudTd>@TimeText.Format(context.WorkIn)</MudTd>
-            <MudTd>@TimeText.Format(context.WorkOut)</MudTd>
-            <MudTd>@context.Type</MudTd>
-            <MudTd><MudTextField @bind-Value="context.Memo" Margin="Margin.Dense" MaxLength="OvertimeSheetRegistry.MemoLength" /></MudTd>
-            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => lines.Remove(context))" /></MudTd>
-        </RowTemplate>
-        <NoRecordsContent><MudText>ยังไม่มีพนักงานในใบนี้</MudText></NoRecordsContent>
-    </MudTable>
+    @* แก้ครั้งที่ 12: the lines printed before for this date and แผนก (read-only, "พิมพ์แล้ว") stay above the new ones — the sheet prints them all. *@
+    <MudSimpleTable Dense="true" Class="mt-4" FixedHeader="true" Style="height:22rem">
+        <thead>
+            <tr><th>ที่</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>เริ่มงาน</th><th>เลิกงาน</th><th>ประเภท</th><th>หมายเหตุ</th><th></th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < printed.Count; i++)
+            {
+                var p = printed[i];
+                <tr class="ot-printed">
+                    <td>@(i + 1)</td>
+                    <td>@p.EmployeeCode</td>
+                    <td>@p.EmployeeName</td>
+                    <td>@TimeText.Format(p.WorkIn)</td>
+                    <td>@TimeText.Format(p.WorkOut)</td>
+                    <td>@p.Type</td>
+                    <td>@p.Memo</td>
+                    <td><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">พิมพ์แล้ว</MudChip></td>
+                </tr>
+            }
+            @foreach (var line in lines)
+            {
+                <tr>
+                    <td>@(printed.Count + lines.IndexOf(line) + 1)</td>
+                    <td>@line.Employee.Code</td>
+                    <td>
+                        @line.Employee.Name
+                        @if (line.Employee.IsAbsent)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small">ไม่มาทำงาน</MudChip>
+                        }
+                    </td>
+                    <td>@TimeText.Format(line.WorkIn)</td>
+                    <td>@TimeText.Format(line.WorkOut)</td>
+                    <td>@line.Type</td>
+                    <td><MudTextField @bind-Value="line.Memo" Margin="Margin.Dense" MaxLength="OvertimeSheetRegistry.MemoLength" /></td>
+                    <td>
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">ใหม่</MudChip>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="@(() => lines.Remove(line))" />
+                        </MudStack>
+                    </td>
+                </tr>
+            }
+            @if (printed.Count == 0 && lines.Count == 0)
+            {
+                <tr><td colspan="8">ยังไม่มีพนักงานในใบนี้</td></tr>
+            }
+        </tbody>
+    </MudSimpleTable>
 
     <MudStack Row="true" Spacing="2" Class="mt-4" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrintAsync" Disabled="busy">พิมพ์</MudButton>
-        <MudButton Variant="Variant.Outlined" OnClick="NewSheet" Disabled="busy">หลายกะ (เริ่มใบใหม่)</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="NextShift" Disabled="busy">หลายกะ (ช่วงเวลาถัดไป)</MudButton>
         @if (lastPrinted is { } key)
         {
             <MudButton Href="@OvertimeSheetPrints.Href(key)" Target="_blank" StartIcon="@Icons.Material.Filled.PictureAsPdf">เปิดใบที่พิมพ์ล่าสุด</MudButton>
         }
     </MudStack>
     <MudText Typo="Typo.caption" Class="d-block">เวลาเข้า/ออก เวลาพัก และประเภทที่ตั้งไว้ด้านบนจะติดไปกับพนักงานที่เพิ่มในใบ — เปลี่ยนเวลาแล้วเพิ่มพนักงานอีกกลุ่ม จะได้คนละช่วงเวลาอยู่ในใบเดียวกัน</MudText>
-    <MudText Typo="Typo.caption">กดพิมพ์แล้วเวลา OT ของทุกคนในใบจะถูกบันทึกเข้าเวลาทำงานทันที (เหมือนโปรแกรมเดิม)</MudText>
+    <MudText Typo="Typo.caption" Class="d-block">กดพิมพ์แล้วเวลา OT ของแถว "ใหม่" จะถูกบันทึกเข้าเวลาทำงานทันที — ใบที่พิมพ์มีทุกคนทุกช่วงเวลาที่พิมพ์ไว้แล้วของวันและแผนกนี้</MudText>
+    <MudText Typo="Typo.caption">แถว "พิมพ์แล้ว" แก้หรือลบได้ที่หน้าแก้ไขเวลาทำงาน</MudText>
 </MudPaper>
 
 <MudButton Href="@EmployeeMenu.HrefOf(7)" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mt-4">กลับเมนูเดิม</MudButton>
@@ -105,6 +135,7 @@
     private OvertimeSheetEmployee? picked;
     private string? memo;
     private List<LineForm> lines = [];
+    private IReadOnlyList<OvertimeSheetLine> printed = [];
     private Guid? lastPrinted;
     private bool busy;
 
@@ -113,14 +144,29 @@
     protected override async Task OnInitializedAsync()
     {
         departments = await Services.RunAsync<OrgDirectory, IReadOnlyList<DepartmentDto>>(o => o.GetDepartmentsAsync());
-        NewSheet();
+        NextShift();
         await LoadChoicesAsync();
+        await LoadPrintedAsync();
     }
 
     private async Task DayChangedAsync(DateTime? value)
     {
         day = value;
         await LoadChoicesAsync();
+        await LoadPrintedAsync();
+    }
+
+    private async Task DepartmentChangedAsync(int? value)
+    {
+        departmentId = value;
+        await LoadPrintedAsync();
+    }
+
+    /// <summary>แก้ครั้งที่ 12: the sheet so far — what was printed for this date and แผนก, kept in the database.</summary>
+    private async Task LoadPrintedAsync()
+    {
+        var (date, department) = (Day, departmentId);
+        printed = await Services.RunAsync<OvertimeSheetRegistry, IReadOnlyList<OvertimeSheetLine>>(r => r.GetSheetLinesAsync(date, department));
     }
 
     /// <summary>ไม่มาทำงาน depends on the date: the lines already keyed take the new marks.</summary>
@@ -133,10 +179,12 @@
             if (byId.TryGetValue(line.Employee.Id, out var e)) line.Employee = e;
     }
 
-    /// <summary>หลายกะ (มาโคร ขออนุมัติทำ OT2): a new sheet with the form's defaults; the date and choices stay.</summary>
-    private void NewSheet()
+    /// <summary>
+    /// หลายกะ (มาโคร ขออนุมัติทำ OT2): the form's defaults for the next ช่วงเวลา. แก้ครั้งที่ 12: the date and แผนก stay, so the next print
+    /// adds to the same sheet (as the legacy, whose T-OT kept the rows printed before).
+    /// </summary>
+    private void NextShift()
     {
-        departmentId = null;
         workIn = TimeText.Format(DefaultIn);
         workOut = TimeText.Format(DefaultOut);
         restMinutes = 0;
@@ -197,8 +245,9 @@
             if (outcome.Sheet is not { } sheet) return;
             var user = (await AuthState).User.Identity?.Name ?? "";
             lastPrinted = Prints.Keep(sheet, user);
-            Snackbar.Add($"บันทึกเวลา OT {outcome.Result.Id} รายการแล้ว", Severity.Success);
+            if (outcome.Result.Id > 0) Snackbar.Add($"บันทึกเวลา OT {outcome.Result.Id} รายการแล้ว", Severity.Success);
             lines = [];
+            printed = sheet.Lines;
             await JS.InvokeVoidAsync("open", OvertimeSheetPrints.Href(lastPrinted.Value), "_blank");
         }
         finally

@@ -137,3 +137,10 @@ a.program-card:hover { border-color: #E3A9A9; box-shadow: var(--lk-shadow-lg); t
 
 /* #343: a record someone else is editing: shown, not editable (EditLockGuard) */
 .lk-readonly { pointer-events: none; opacity: .65; }
+
+/* แก้ครั้งที่ 12: MudBlazor 9 ใส่ Style ของช่องวันที่/เวลา (เช่น max-width:12rem) ให้กล่องปฏิทินที่เด้งออกมาด้วย ปฏิทินเลยหดจนตัดวัน —
+   กล่องปฏิทินใช้ขนาดของตัวเองเสมอ ไม่ว่าช่องจะกว้างเท่าไร */
+.mud-picker-popover-paper { max-width: none !important; width: auto !important; min-width: 0 !important; }
+
+/* แก้ครั้งที่ 12: ใบขอ OT — แถวที่พิมพ์ไปแล้วของวัน/แผนกนี้ แสดงจางกว่าแถวใหม่ */
+.ot-printed td { color: var(--mud-palette-text-secondary); }
