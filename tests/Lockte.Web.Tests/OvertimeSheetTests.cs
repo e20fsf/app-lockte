@@ -109,6 +109,66 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
         Assert.Equal([first.Id, second.Id], rows.Select(r => r.EmployeeId));
     }
 
+    [Fact] // แก้ครั้งที่ 12: พิมพ์ช่วง 15:20 แล้วกดหลายกะพิมพ์ช่วง 17:20 → ใบที่สองมีทุกคนทุกช่วงของวัน/แผนกนั้น และบันทึกเวลาเฉพาะแถวใหม่
+    public async Task A_later_print_of_the_same_date_and_department_prints_every_range_so_far()
+    {
+        var day = NewDay();
+        var department = await NewDepartmentAsync();
+        var a = await NewEmployeeAsync();
+        var b = await NewEmployeeAsync();
+        var c = await NewEmployeeAsync();
+        var elsewhere = await NewEmployeeAsync();
+        await PrintAsync(Sheet(day, department.Id, new OvertimeSheetLineInput(a.Id, "ควบคุมงาน", new TimeOnly(15, 0), new TimeOnly(17, 0))));
+        await PrintAsync(Sheet(day, null, Line(elsewhere, "แผนกอื่น")));                    // no แผนก: another sheet
+        await PrintAsync(Sheet(day.AddDays(1), department.Id, Line(elsewhere, "วันอื่น"))); // another day: another sheet
+
+        var outcome = await PrintAsync(Sheet(day, department.Id, Line(c, "รับและส่งสินค้า"), Line(b, "ขับรถส่งของ")));
+
+        Assert.True(outcome.Result.Succeeded, string.Join(", ", outcome.Result.Errors));
+        Assert.Equal(2, outcome.Result.Id);
+        Assert.Equal(
+            new[] { (a.Code, new TimeOnly(15, 0), new TimeOnly(17, 0), "ควบคุมงาน"), (b.Code, OtIn, OtOut, "ขับรถส่งของ"), (c.Code, OtIn, OtOut, "รับและส่งสินค้า") }
+                .OrderBy(l => l.Item1, StringComparer.Ordinal),
+            outcome.Sheet!.Lines.Select(l => (l.EmployeeCode, l.WorkIn, l.WorkOut, l.Memo!)));
+        Assert.Equal(4, (await DayAsync(day)).Count); // a, b, c and the sheet without แผนก — nothing saved twice
+        Assert.Equal(outcome.Sheet.Lines, await AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetSheetLinesAsync(day, department.Id)));
+    }
+
+    [Fact] // แก้ครั้งที่ 12: กดพิมพ์โดยไม่มีแถวใหม่ → พิมพ์ใบเดิมของวัน/แผนกนั้นซ้ำ ไม่บันทึกอะไรเพิ่ม
+    public async Task Printing_without_new_lines_prints_the_sheet_so_far_again()
+    {
+        var day = NewDay();
+        var employee = await NewEmployeeAsync();
+        await PrintAsync(Sheet(day, null, Line(employee, "งานเดิม")));
+
+        var outcome = await PrintAsync(Sheet(day, null));
+
+        Assert.Equal(0, outcome.Result.Id);
+        var line = Assert.Single(outcome.Sheet!.Lines);
+        Assert.Equal((employee.Code, "งานเดิม"), (line.EmployeeCode, line.Memo));
+        Assert.Single(await DayAsync(day));
+    }
+
+    [Fact] // แก้ครั้งที่ 12: the sheet follows เวลาทำงาน — an edited time shows, a deleted row leaves the sheet
+    public async Task The_sheet_follows_edits_and_deletes_of_the_work_time_rows()
+    {
+        var day = NewDay();
+        var kept = await NewEmployeeAsync();
+        var removed = await NewEmployeeAsync();
+        await PrintAsync(Sheet(day, null, Line(kept, "แก้เวลา"), Line(removed)));
+        var rows = (await DayAsync(day)).ToDictionary(r => r.EmployeeId);
+        var edit = rows[kept.Id];
+        var saved = await AsHrAsync(s => s.Get<WorkTimeRegistry>().SaveAsync(new WorkTimeInput(edit.Id, day, kept.Id, edit.Type, edit.WorkIn,
+            new TimeOnly(21, 20), edit.RestMinutes, null, null, edit.RowVersion)));
+        Assert.True(saved.Succeeded, string.Join(", ", saved.Errors));
+        var deleted = await AsHrAsync(s => s.Get<WorkTimeRegistry>().DeleteAsync(rows[removed.Id].Id, rows[removed.Id].RowVersion));
+        Assert.True(deleted.Succeeded, string.Join(", ", deleted.Errors));
+
+        var line = Assert.Single(await AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetSheetLinesAsync(day, null)));
+
+        Assert.Equal((kept.Code, new TimeOnly(21, 20), "แก้เวลา"), (line.EmployeeCode, line.WorkOut, line.Memo));
+    }
+
     [Fact] // BR-012 #4 ลบแถวที่ ID ว่าง ก่อนคัดลอก
     public async Task Lines_without_an_employee_are_dropped()
     {

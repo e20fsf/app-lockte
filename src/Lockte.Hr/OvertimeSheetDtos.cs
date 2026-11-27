@@ -23,8 +23,8 @@ public sealed record OvertimeSheetLineInput(int? EmployeeId, string? Memo, TimeO
 /// </summary>
 public sealed record OvertimeSheet(DateOnly Date, string? DepartmentName, string Type, IReadOnlyList<OvertimeSheetLine> Lines);
 
-/// <summary>A line of RPT-16: รหัส ชื่อ-นามสกุล เริ่มงาน เลิกงาน หมายเหตุ.</summary>
-public sealed record OvertimeSheetLine(string EmployeeCode, string EmployeeName, TimeOnly WorkIn, TimeOnly WorkOut, string? Memo);
+/// <summary>A line of RPT-16: รหัส ชื่อ-นามสกุล เริ่มงาน เลิกงาน หมายเหตุ; <see cref="Type"/> (ประเภท) is for the screen, not printed.</summary>
+public sealed record OvertimeSheetLine(string EmployeeCode, string EmployeeName, TimeOnly WorkIn, TimeOnly WorkOut, string? Memo, string? Type = null);
 
 /// <summary>
 /// The outcome of printing a sheet: <see cref="ServiceResult.Id"/> = เวลาทำงาน rows saved; <see cref="Sheet"/> is

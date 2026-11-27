@@ -753,6 +753,61 @@ namespace Lockte.Hr.Data.Migrations
                     b.HasAnnotation("Lockte:AuditName", "ตั้งค่าสิทธิ์วันลา");
                 });
 
+            modelBuilder.Entity("Lockte.Hr.Data.OvertimeSheetEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "แผนก");
+
+                    b.Property<string>("Memo")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasAnnotation("Lockte:AuditName", "หมายเหตุ");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("WorkTimeId")
+                        .HasColumnType("int")
+                        .HasAnnotation("Lockte:AuditName", "เวลาทำงาน");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("WorkTimeId")
+                        .IsUnique();
+
+                    b.ToTable("OvertimeSheetEntries", "hr");
+
+                    b.HasAnnotation("Lockte:AuditName", "ใบขออนุมัติทำ OT");
+                });
+
             modelBuilder.Entity("Lockte.Hr.Data.PayPeriod", b =>
                 {
                     b.Property<int>("Id")
@@ -1489,6 +1544,17 @@ namespace Lockte.Hr.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("Lockte.Hr.Data.OvertimeSheetEntry", b =>
+                {
+                    b.HasOne("Lockte.Hr.Data.WorkTime", "WorkTime")
+                        .WithOne()
+                        .HasForeignKey("Lockte.Hr.Data.OvertimeSheetEntry", "WorkTimeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkTime");
                 });
 
             modelBuilder.Entity("Lockte.Hr.Data.PayPeriodTimeTotal", b =>

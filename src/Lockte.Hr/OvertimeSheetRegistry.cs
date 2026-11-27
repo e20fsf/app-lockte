@@ -60,8 +60,11 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
     /// <summary>
     /// มาโคร ขออนุมัติทำ OT (BR-012 #4): drop the lines without an employee, add one เวลาทำงาน row per line (DATE, ID,
     /// W_IN, W_OUT, TYPE, REST_T) and return what RPT-16 prints. Rows are hand entry, so the history keeps each one.
-    /// As the legacy (⚠ kept, BR-013) there is no check for repeats: the same employee twice, or printing the same sheet
-    /// again, adds the rows again. A sheet without anyone saves nothing and still prints (D-6: "ไม่มีข้อมูล").
+    /// แก้ครั้งที่ 12: each row keeps the sheet's แผนก and the line's หมายเหตุ (<see cref="OvertimeSheetEntry"/>), and the sheet returned is every
+    /// line printed for the date and แผนก (<see cref="GetSheetLinesAsync"/>) — the legacy's T-OT kept the earlier ช่วงเวลา after หลายกะ. Only the
+    /// lines given are saved: the screen sends only the new ones, so a line printed before is not saved twice (the legacy copied it again).
+    /// The same employee twice in the lines given still adds two rows (⚠ kept, BR-013). Without new lines nothing is saved and the sheet so far
+    /// prints again (D-6: "ไม่มีข้อมูล" when there is none).
     /// ⚠ OT is recorded when the sheet is printed, before the manager signs it (Q-25).
     /// </summary>
     public async Task<OvertimeSheetOutcome> PrintAsync(OvertimeSheetInput input)
@@ -97,19 +100,38 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
 
         foreach (var line in lines)
         {
-            db.WorkTimes.Add(new WorkTime
+            var row = new WorkTime
             {
                 Date = date, Employee = employees[line.EmployeeId], Type = line.Type,
                 WorkIn = line.WorkIn, WorkOut = line.WorkOut, RestMinutes = line.RestMinutes,
-            });
+            };
+            db.WorkTimes.Add(row);
+            db.OvertimeSheetEntries.Add(new OvertimeSheetEntry { WorkTime = row, DepartmentId = input.DepartmentId, Memo = line.Memo });
         }
         await db.SaveChangesAsync();
 
-        var printed = lines
-            .Select(l => new OvertimeSheetLine(employees[l.EmployeeId].Code, employees[l.EmployeeId].Name, l.WorkIn, l.WorkOut, l.Memo))
-            .OrderBy(l => l.EmployeeCode, StringComparer.Ordinal) // stable: the same code keeps the keyed order
+        // แก้ครั้งที่ 12: the sheet is everyone printed for this date and แผนก so far, not only these lines.
+        var sheet = new OvertimeSheet(date, departmentName, type, await GetSheetLinesAsync(date, input.DepartmentId));
+        return new OvertimeSheetOutcome(ServiceResult.Ok(lines.Count), sheet);
+    }
+
+    /// <summary>
+    /// แก้ครั้งที่ 12: what was printed for <paramref name="date"/> and <paramref name="departmentId"/> (null = no แผนก) — every ช่วงเวลา, by
+    /// code, then in the order printed; the screen shows them above the lines being keyed.
+    /// </summary>
+    public async Task<IReadOnlyList<OvertimeSheetLine>> GetSheetLinesAsync(DateOnly date, int? departmentId)
+    {
+        var rows = await db.OvertimeSheetEntries.AsNoTracking()
+            .Where(s => s.WorkTime.Date == date && s.DepartmentId == departmentId)
+            .Select(s => new
+            {
+                s.WorkTimeId, s.WorkTime.Employee.Code, s.WorkTime.Employee.Name, s.WorkTime.WorkIn, s.WorkTime.WorkOut, s.Memo, s.WorkTime.Type,
+            })
+            .ToListAsync();
+        return rows
+            .OrderBy(r => r.Code, StringComparer.Ordinal).ThenBy(r => r.WorkTimeId)
+            .Select(r => new OvertimeSheetLine(r.Code, r.Name, r.WorkIn ?? default, r.WorkOut ?? default, r.Memo, r.Type))
             .ToList();
-        return new OvertimeSheetOutcome(ServiceResult.Ok(lines.Count), new OvertimeSheet(date, departmentName, type, printed));
     }
 
     private static OvertimeSheetOutcome Refused(string error) => new(ServiceResult.Fail(error), null);
