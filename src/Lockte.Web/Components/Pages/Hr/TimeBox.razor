@@ -10,6 +10,12 @@
     [Parameter] public IReadOnlyList<TimeOnly> Choices { get; set; } = [];
     [Parameter] public string? Style { get; set; }
 
+    /// <summary>แก้ครั้งที่ 12: an item above the times that means "no one time" (e.g. "เวลาทั้งหมด"); null = none.</summary>
+    [Parameter] public string? AllText { get; set; }
+
     private Task<IEnumerable<string>> SearchAsync(string? text, CancellationToken _)
-        => Task.FromResult(TimeText.Search(Choices, text));
+    {
+        var times = TimeText.Search(Choices, text == AllText ? null : text);
+        return Task.FromResult(AllText is null ? times : times.Prepend(AllText));
+    }
 }
