@@ -60,11 +60,12 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
     /// <summary>
     /// มาโคร ขออนุมัติทำ OT (BR-012 #4): drop the lines without an employee, add one เวลาทำงาน row per line (DATE, ID,
     /// W_IN, W_OUT, TYPE, REST_T) and return what RPT-16 prints. Rows are hand entry, so the history keeps each one.
-    /// แก้ครั้งที่ 12: each row keeps the sheet's แผนก and the line's หมายเหตุ (<see cref="OvertimeSheetEntry"/>), and the sheet returned is every
-    /// line printed for the date and แผนก (<see cref="GetSheetLinesAsync"/>) — the legacy's T-OT kept the earlier ช่วงเวลา after หลายกะ. Only the
-    /// lines given are saved: the screen sends only the new ones, so a line printed before is not saved twice (the legacy copied it again).
-    /// The same employee twice in the lines given still adds two rows (⚠ kept, BR-013). Without new lines nothing is saved and the sheet so far
-    /// prints again (D-6: "ไม่มีข้อมูล" when there is none).
+    /// แก้ครั้งที่ 12: each row keeps the sheet's แผนก and the line's หมายเหตุ (<see cref="OvertimeSheetEntry"/>), and the sheet returned is the
+    /// day's OT as <see cref="GetDayLinesAsync"/> lists it for the sheet's แผนก (null = ทุกแผนก) and <see cref="OvertimeSheetInput.ListWorkIn"/>
+    /// (null = เวลาทั้งหมด) — every ช่วงเวลา on one sheet, as the legacy's T-OT kept the earlier ones after หลายกะ. Only the lines given are saved:
+    /// the screen sends only the new ones, so a line on the sheet before is not saved twice (the legacy copied it again). The same employee twice
+    /// in the lines given still adds two rows (⚠ kept, BR-013). Without new lines nothing is saved and the sheet prints again (D-6: "ไม่มีข้อมูล"
+    /// when there is none). The sheet's เวลาเริ่ม/เลิก are only for lines without their own.
     /// ⚠ OT is recorded when the sheet is printed, before the manager signs it (Q-25).
     /// </summary>
     public async Task<OvertimeSheetOutcome> PrintAsync(OvertimeSheetInput input)
@@ -73,11 +74,12 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
         if (input.Date is not { } date) return Refused("กรุณากรอกวันที่");
         if (type is null) return Refused("กรุณาเลือกประเภท");
         if (!WorkTypes.Codes.Contains(type)) return Refused($"ประเภทต้องเป็น {string.Join(", ", WorkTypes.Codes)}");
-        if (input.WorkIn is not { } workIn || input.WorkOut is not { } workOut) return Refused("กรุณากรอกเวลาเริ่มและเวลาเลิก");
+        var keyed = input.Lines.Where(l => l.EmployeeId is not null).ToList();
+        if (keyed.Any(l => (l.WorkIn ?? input.WorkIn) is null || (l.WorkOut ?? input.WorkOut) is null)) return Refused("กรุณากรอกเวลาเริ่มและเวลาเลิก");
         if (input.RestMinutes < 0) return Refused("นาทีพักต้องไม่ติดลบ");
         if (input.Lines.Any(l => l.RestMinutes < 0)) return Refused("นาทีพักต้องไม่ติดลบ");
 
-        string? departmentName = null;
+        var departmentName = AllDepartmentsLabel;
         if (input.DepartmentId is { } departmentId)
         {
             if (await org.GetDepartmentAsync(departmentId) is not { } department) return Refused("ไม่พบแผนกที่เลือก");
@@ -86,12 +88,12 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
 
         // #411: a line has its own times, rest and type, or the sheet's
         var lines = new List<(int EmployeeId, string? Memo, TimeOnly WorkIn, TimeOnly WorkOut, int RestMinutes, string Type)>();
-        foreach (var l in input.Lines.Where(l => l.EmployeeId is not null))
+        foreach (var l in keyed)
         {
             var lineType = string.IsNullOrWhiteSpace(l.Type) ? type : l.Type.Trim().ToUpperInvariant();
             if (!WorkTypes.Codes.Contains(lineType)) return Refused($"ประเภทต้องเป็น {string.Join(", ", WorkTypes.Codes)}");
-            lines.Add((l.EmployeeId!.Value, string.IsNullOrWhiteSpace(l.Memo) ? null : l.Memo.Trim(), l.WorkIn ?? workIn, l.WorkOut ?? workOut,
-                l.RestMinutes ?? input.RestMinutes, lineType));
+            lines.Add((l.EmployeeId!.Value, string.IsNullOrWhiteSpace(l.Memo) ? null : l.Memo.Trim(), (l.WorkIn ?? input.WorkIn)!.Value,
+                (l.WorkOut ?? input.WorkOut)!.Value, l.RestMinutes ?? input.RestMinutes, lineType));
         }
         if (lines.Any(l => l.Memo?.Length > MemoLength)) return Refused($"หมายเหตุยาวได้ไม่เกิน {MemoLength} ตัวอักษร");
         var ids = lines.Select(l => l.EmployeeId).Distinct().ToList();
@@ -110,27 +112,43 @@ public sealed class OvertimeSheetRegistry(HrDbContext db, OrgDirectory org)
         }
         await db.SaveChangesAsync();
 
-        // แก้ครั้งที่ 12: the sheet is everyone printed for this date and แผนก so far, not only these lines.
-        var sheet = new OvertimeSheet(date, departmentName, type, await GetSheetLinesAsync(date, input.DepartmentId));
+        var sheet = new OvertimeSheet(date, departmentName, type, await GetDayLinesAsync(date, input.DepartmentId, input.ListWorkIn));
         return new OvertimeSheetOutcome(ServiceResult.Ok(lines.Count), sheet);
     }
 
+    /// <summary>แก้ครั้งที่ 12: the แผนก printed on a sheet of ทุกแผนก.</summary>
+    public const string AllDepartmentsLabel = "แผนกรวม";
+
+    /// <summary>The OT types (O1, O2, O3): the เวลาทำงาน rows of a day the sheet lists, besides any row a sheet saved.</summary>
+    public static IReadOnlyList<string> OvertimeTypes { get; } = [WorkTypes.Overtime, WorkTypes.SundayOvertime, WorkTypes.HolidayOvertime];
+
     /// <summary>
-    /// แก้ครั้งที่ 12: what was printed for <paramref name="date"/> and <paramref name="departmentId"/> (null = no แผนก) — every ช่วงเวลา, by
-    /// code, then in the order printed; the screen shows them above the lines being keyed.
+    /// แก้ครั้งที่ 12: who works OT on <paramref name="date"/> — every OT เวลาทำงาน row of the day (keyed here, in เวลาทำงาน, or moved from Access)
+    /// and every row a sheet saved, whatever its type — in <paramref name="departmentId"/> (null = ทุกแผนก) starting at <paramref name="workIn"/>
+    /// (null = เวลาทั้งหมด), by code then as saved. A row's แผนก is its sheet's, else the employee's; its หมายเหตุ is the sheet's, else the
+    /// employee's หน้าที่ (what the legacy form filled in when the รหัส was picked; เวลาทำงาน itself has no หมายเหตุ).
     /// </summary>
-    public async Task<IReadOnlyList<OvertimeSheetLine>> GetSheetLinesAsync(DateOnly date, int? departmentId)
+    public async Task<IReadOnlyList<OvertimeSheetLine>> GetDayLinesAsync(DateOnly date, int? departmentId = null, TimeOnly? workIn = null)
     {
-        var rows = await db.OvertimeSheetEntries.AsNoTracking()
-            .Where(s => s.WorkTime.Date == date && s.DepartmentId == departmentId)
-            .Select(s => new
-            {
-                s.WorkTimeId, s.WorkTime.Employee.Code, s.WorkTime.Employee.Name, s.WorkTime.WorkIn, s.WorkTime.WorkOut, s.Memo, s.WorkTime.Type,
-            })
+        var types = OvertimeTypes.ToList();
+        var rows = await (
+                from w in db.WorkTimes.AsNoTracking()
+                join s in db.OvertimeSheetEntries.AsNoTracking() on w.Id equals s.WorkTimeId into sheets
+                from s in sheets.DefaultIfEmpty()
+                where w.Date == date && (s != null || types.Contains(w.Type!))
+                select new
+                {
+                    w.Id, w.Employee.Code, w.Employee.Name, w.WorkIn, w.WorkOut, w.Type,
+                    DepartmentId = s != null && s.DepartmentId != null ? s.DepartmentId : w.Employee.DepartmentId,
+                    Memo = s != null && s.Memo != null ? s.Memo : w.Employee.Duty,
+                })
             .ToListAsync();
+        var departments = (await org.GetDepartmentsAsync()).ToDictionary(d => d.Id, d => DepartmentLabel(d.Name));
         return rows
-            .OrderBy(r => r.Code, StringComparer.Ordinal).ThenBy(r => r.WorkTimeId)
-            .Select(r => new OvertimeSheetLine(r.Code, r.Name, r.WorkIn ?? default, r.WorkOut ?? default, r.Memo, r.Type))
+            .Where(r => (departmentId is null || r.DepartmentId == departmentId) && (workIn is null || r.WorkIn == workIn))
+            .OrderBy(r => r.Code, StringComparer.Ordinal).ThenBy(r => r.Id)
+            .Select(r => new OvertimeSheetLine(r.Code, r.Name, r.WorkIn ?? default, r.WorkOut ?? default, r.Memo, r.Type,
+                r.DepartmentId is { } d ? departments.GetValueOrDefault(d) : null))
             .ToList();
     }
 

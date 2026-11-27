@@ -5,9 +5,10 @@ namespace Lockte.Hr;
 /// <summary>
 /// ใบขออนุมัติทำ OT to print (SCR-14, BR-012). As the legacy form OT, วันที่ แผนก เวลาเริ่ม/เลิก เวลาพัก ประเภท are
 /// for the whole sheet and each line is one employee with หมายเหตุ (MEMO). Lines without an employee are dropped.
+/// แก้ครั้งที่ 12: <see cref="DepartmentId"/> null = ทุกแผนก; <see cref="ListWorkIn"/> = the เวลาเข้า the printed sheet lists (null = เวลาทั้งหมด).
 /// </summary>
 public sealed record OvertimeSheetInput(DateOnly? Date, int? DepartmentId, TimeOnly? WorkIn, TimeOnly? WorkOut, int RestMinutes, string? Type,
-    IReadOnlyList<OvertimeSheetLineInput> Lines);
+    IReadOnlyList<OvertimeSheetLineInput> Lines, TimeOnly? ListWorkIn = null);
 
 /// <summary>
 /// A line of the subform OT1: รหัส and หมายเหตุ (the screen fills it with the employee's หน้าที่, as the legacy). #411: a line may have its own
@@ -23,8 +24,9 @@ public sealed record OvertimeSheetLineInput(int? EmployeeId, string? Memo, TimeO
 /// </summary>
 public sealed record OvertimeSheet(DateOnly Date, string? DepartmentName, string Type, IReadOnlyList<OvertimeSheetLine> Lines);
 
-/// <summary>A line of RPT-16: รหัส ชื่อ-นามสกุล เริ่มงาน เลิกงาน หมายเหตุ; <see cref="Type"/> (ประเภท) is for the screen, not printed.</summary>
-public sealed record OvertimeSheetLine(string EmployeeCode, string EmployeeName, TimeOnly WorkIn, TimeOnly WorkOut, string? Memo, string? Type = null);
+/// <summary>A line of RPT-16: รหัส ชื่อ-นามสกุล เริ่มงาน เลิกงาน หมายเหตุ; <see cref="Type"/> (ประเภท) and <see cref="DepartmentName"/> are for the screen, not printed.</summary>
+public sealed record OvertimeSheetLine(string EmployeeCode, string EmployeeName, TimeOnly WorkIn, TimeOnly WorkOut, string? Memo, string? Type = null,
+    string? DepartmentName = null);
 
 /// <summary>
 /// The outcome of printing a sheet: <see cref="ServiceResult.Id"/> = เวลาทำงาน rows saved; <see cref="Sheet"/> is

@@ -37,13 +37,13 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
         return (await AsHrAsync(s => s.Get<OrgDirectory>().GetDepartmentAsync(id)))!;
     }
 
-    private async Task<EmployeeDto> NewEmployeeAsync(string? duty = null, string? grade2 = null, DateOnly? resigned = null)
+    private async Task<EmployeeDto> NewEmployeeAsync(string? duty = null, string? grade2 = null, DateOnly? resigned = null, int? departmentId = null)
     {
         var shift = await AsHrAsync(async s => (await s.Get<OrgDirectory>().FindShiftByCodeAsync("A"))!);
         var result = await AsHrAsync(s => s.Get<EmployeeRegistry>().SaveAsync(new EmployeeInput
         {
             Code = NewCode(), Name = "นาย ทดสอบ " + Guid.NewGuid().ToString("N")[..4], ShiftId = shift.Id, Duty = duty,
-            Evaluation2Grade = grade2, ResignDate = resigned,
+            Evaluation2Grade = grade2, ResignDate = resigned, DepartmentId = departmentId,
         }));
         Assert.True(result.Succeeded, string.Join(", ", result.Errors));
         return (await AsHrAsync(s => s.Get<EmployeeDirectory>().GetAsync(result.Id!.Value)))!;
@@ -131,7 +131,7 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
                 .OrderBy(l => l.Item1, StringComparer.Ordinal),
             outcome.Sheet!.Lines.Select(l => (l.EmployeeCode, l.WorkIn, l.WorkOut, l.Memo!)));
         Assert.Equal(4, (await DayAsync(day)).Count); // a, b, c and the sheet without แผนก — nothing saved twice
-        Assert.Equal(outcome.Sheet.Lines, await AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetSheetLinesAsync(day, department.Id)));
+        Assert.Equal(outcome.Sheet.Lines, await AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetDayLinesAsync(day, department.Id)));
     }
 
     [Fact] // แก้ครั้งที่ 12: กดพิมพ์โดยไม่มีแถวใหม่ → พิมพ์ใบเดิมของวัน/แผนกนั้นซ้ำ ไม่บันทึกอะไรเพิ่ม
@@ -164,9 +164,43 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
         var deleted = await AsHrAsync(s => s.Get<WorkTimeRegistry>().DeleteAsync(rows[removed.Id].Id, rows[removed.Id].RowVersion));
         Assert.True(deleted.Succeeded, string.Join(", ", deleted.Errors));
 
-        var line = Assert.Single(await AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetSheetLinesAsync(day, null)));
+        var line = Assert.Single(await AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetDayLinesAsync(day)));
 
         Assert.Equal((kept.Code, new TimeOnly(21, 20), "แก้เวลา"), (line.EmployeeCode, line.WorkOut, line.Memo));
+    }
+
+    [Fact] // แก้ครั้งที่ 12: เลือกวัน → ทุกคนที่มีเวลา OT วันนั้น (รวมที่บันทึกจากหน้าอื่น/ย้ายจาก Access) กรองแผนกและเวลาเข้าได้
+    public async Task The_day_lists_every_overtime_row_by_department_and_start_time()
+    {
+        var day = NewDay();
+        var department = await NewDepartmentAsync();
+        var keyedElsewhere = await NewEmployeeAsync(duty: "รับและส่งสินค้า", departmentId: department.Id);
+        var onSheet = await NewEmployeeAsync(departmentId: department.Id);
+        var otherDepartment = await NewEmployeeAsync(duty: "ขับรถ");
+        async Task KeyAsync(EmployeeDto e, string type, TimeOnly workIn, TimeOnly workOut)
+        {
+            var result = await AsHrAsync(s => s.Get<WorkTimeRegistry>().SaveAsync(new WorkTimeInput(null, day, e.Id, type, workIn, workOut, 0, null, null, null)));
+            Assert.True(result.Succeeded, string.Join(", ", result.Errors));
+        }
+        await KeyAsync(keyedElsewhere, WorkTypes.Overtime, new TimeOnly(15, 20), new TimeOnly(18, 20));
+        await KeyAsync(keyedElsewhere, WorkTypes.Normal, new TimeOnly(8, 0), new TimeOnly(17, 0)); // เวลาปกติ: not OT
+        await KeyAsync(otherDepartment, WorkTypes.Overtime, new TimeOnly(17, 20), new TimeOnly(20, 20));
+        await PrintAsync(Sheet(day, null, new OvertimeSheetLineInput(onSheet.Id, "ควบคุมงาน", new TimeOnly(17, 20), new TimeOnly(20, 20))));
+
+        Task<IReadOnlyList<OvertimeSheetLine>> ListAsync(int? departmentId, TimeOnly? workIn)
+            => AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetDayLinesAsync(day, departmentId, workIn));
+
+        var all = await ListAsync(null, null);
+        Assert.Equal(new[] { keyedElsewhere.Code, onSheet.Code, otherDepartment.Code }.Order(StringComparer.Ordinal), all.Select(l => l.EmployeeCode));
+        var elsewhere = all.Single(l => l.EmployeeCode == keyedElsewhere.Code);
+        Assert.Equal(("รับและส่งสินค้า", department.Name, new TimeOnly(15, 20)), (elsewhere.Memo, elsewhere.DepartmentName, elsewhere.WorkIn)); // หน้าที่, the employee's แผนก
+        Assert.Equal("ควบคุมงาน", all.Single(l => l.EmployeeCode == onSheet.Code).Memo);
+        Assert.Equal(new[] { keyedElsewhere.Code, onSheet.Code }.Order(StringComparer.Ordinal), (await ListAsync(department.Id, null)).Select(l => l.EmployeeCode));
+        Assert.Equal(new[] { onSheet.Code, otherDepartment.Code }.Order(StringComparer.Ordinal), (await ListAsync(null, new TimeOnly(17, 20))).Select(l => l.EmployeeCode));
+        Assert.Equal([onSheet.Code], (await ListAsync(department.Id, new TimeOnly(17, 20))).Select(l => l.EmployeeCode));
+
+        var printed = await PrintAsync(Sheet(day, department.Id) with { ListWorkIn = new TimeOnly(15, 20) });
+        Assert.Equal([keyedElsewhere.Code], printed.Sheet!.Lines.Select(l => l.EmployeeCode)); // the sheet prints what the screen lists
     }
 
     [Fact] // BR-012 #4 ลบแถวที่ ID ว่าง ก่อนคัดลอก
@@ -179,7 +213,7 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
 
         Assert.True(outcome.Result.Succeeded, string.Join(", ", outcome.Result.Errors));
         Assert.Equal(employee.Code, Assert.Single(outcome.Sheet!.Lines).EmployeeCode);
-        Assert.Null(outcome.Sheet.DepartmentName);
+        Assert.Equal(OvertimeSheetRegistry.AllDepartmentsLabel, outcome.Sheet.DepartmentName); // แก้ครั้งที่ 12: no แผนก = ทุกแผนก
         Assert.Equal(employee.Id, Assert.Single(await DayAsync(day)).EmployeeId);
     }
 
