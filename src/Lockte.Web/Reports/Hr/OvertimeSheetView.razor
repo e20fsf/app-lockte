@@ -5,9 +5,10 @@
    Date; แบบกลาง prints d/M/yyyy พ.ศ. The shoe rule and manager line were the legacy's page footer (#426); since แก้ครั้งที่ 11
    they follow the table right under it, wherever the table ends. *@
 <style>
-    .ot-head { display: flex; justify-content: space-between; margin: 0 0 4pt; font-weight: bold; }
+    /* แก้ครั้งที่ 12: Thai marks stacked above a letter (เรื่อง, เริ่ม, เซ็นต์) need room above the line, or they are cut or cross the border */
+    .ot-head { display: flex; justify-content: space-between; margin: 0 0 4pt; padding-top: 4pt; line-height: 1.6; font-weight: bold; }
     .ot-grid th, .ot-grid td { border: 0.75pt solid #000; padding: 1pt 3pt; }
-    .ot-grid th { text-align: center; }
+    .ot-grid th { text-align: center; padding: 5pt 3pt 2pt; line-height: 1.5; }
     .ot-grid td { height: 18pt; vertical-align: middle; }
     .ot-grid td.n { white-space: nowrap; } /* #408: a long name stays on one line */
     .ot-grid tbody tr:first-child td { padding-top: 4pt; }
@@ -15,6 +16,7 @@
     /* #356: about 25 people on one A5 page — smaller type and rows, no row is ever cut (tr break-inside:avoid); a longer sheet goes on */
     .ot-grid.compact { font-size: 10.5pt; line-height: 1.1; }
     .ot-grid.compact th, .ot-grid.compact td { padding: 0 3pt; }
+    .ot-grid.compact th { padding: 4pt 3pt 1pt; line-height: 1.4; }
     .ot-grid.compact td { height: 11.5pt; }
     .ot-grid.compact td.n { white-space: nowrap; }
     /* #411: the หมายเหตุ column is wide and its text stays on one line */
