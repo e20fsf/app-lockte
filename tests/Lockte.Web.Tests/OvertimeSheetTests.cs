@@ -199,8 +199,31 @@ public sealed class OvertimeSheetTests(LocalDbFixture db)
         Assert.Equal(new[] { onSheet.Code, otherDepartment.Code }.Order(StringComparer.Ordinal), (await ListAsync(null, new TimeOnly(17, 20))).Select(l => l.EmployeeCode));
         Assert.Equal([onSheet.Code], (await ListAsync(department.Id, new TimeOnly(17, 20))).Select(l => l.EmployeeCode));
 
-        var printed = await PrintAsync(Sheet(day, department.Id) with { ListWorkIn = new TimeOnly(15, 20) });
+        var printed = await PrintAsync(Sheet(day, department.Id) with { List = new OvertimeDayFilter(day, department.Id, new TimeOnly(15, 20)) });
         Assert.Equal([keyedElsewhere.Code], printed.Sheet!.Lines.Select(l => l.EmployeeCode)); // the sheet prints what the screen lists
+    }
+
+    [Fact] // แก้ครั้งที่ 12 (ค้นหา): เวลาออก เวลาพัก ประเภท รหัส (ขึ้นต้น) หมายเหตุ (มีคำ) — ว่าง = ทั้งหมด
+    public async Task The_search_filters_by_end_time_rest_type_code_and_memo()
+    {
+        var day = NewDay();
+        var a = await NewEmployeeAsync(duty: "ขับรถส่งของ");
+        var b = await NewEmployeeAsync();
+        await PrintAsync(Sheet(day, null,
+            new OvertimeSheetLineInput(a.Id, null, new TimeOnly(15, 0), new TimeOnly(17, 0), 0, "O1"),
+            new OvertimeSheetLineInput(b.Id, "ประกอบก้ามเบรก", new TimeOnly(17, 20), new TimeOnly(20, 20), 20, "O2")));
+
+        Task<IReadOnlyList<string>> CodesAsync(OvertimeDayFilter f)
+            => AsHrAsync(async s => (IReadOnlyList<string>)(await s.Get<OvertimeSheetRegistry>().GetDayLinesAsync(f)).Select(l => l.EmployeeCode).ToList());
+
+        Assert.Equal(2, (await CodesAsync(new OvertimeDayFilter(day, EmployeeCode: " ", Memo: ""))).Count);
+        Assert.Equal([a.Code], await CodesAsync(new OvertimeDayFilter(day, WorkOut: new TimeOnly(17, 0))));
+        Assert.Equal([b.Code], await CodesAsync(new OvertimeDayFilter(day, RestMinutes: 20)));
+        Assert.Equal([b.Code], await CodesAsync(new OvertimeDayFilter(day, Type: "o2")));
+        Assert.Equal([a.Code], await CodesAsync(new OvertimeDayFilter(day, EmployeeCode: a.Code.ToLowerInvariant())));
+        Assert.Equal([a.Code], await CodesAsync(new OvertimeDayFilter(day, Memo: "รถส่ง"))); // the หน้าที่ stands in for no หมายเหตุ
+        var rest = Assert.Single(await AsHrAsync(s => s.Get<OvertimeSheetRegistry>().GetDayLinesAsync(new OvertimeDayFilter(day, Memo: "ก้ามเบรก"))));
+        Assert.Equal(20, rest.RestMinutes);
     }
 
     [Fact] // BR-012 #4 ลบแถวที่ ID ว่าง ก่อนคัดลอก
